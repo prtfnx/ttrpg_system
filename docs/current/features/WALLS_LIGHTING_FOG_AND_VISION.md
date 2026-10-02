@@ -122,8 +122,9 @@ secret flag, direction, creator, and timestamps.
 - grid size, distance unit, grid toggles, and colors.
 
 Fog rectangles are updated through table actions from `table_update` with
-`fog_update`. `table_response` includes walls, layer settings, and paint/fog
-table data needed for join-time sync.
+`fog_update`. `table_response` includes walls, layer settings, and fog table
+data needed for join-time sync. Paint objects arrive independently through a
+bounded revisioned snapshot and are rendered under the fog/vision overlay.
 
 Token vision fields live on `Entity`; see
 [Sprites, tokens, and entities](SPRITES_TOKENS_AND_ENTITIES.md).

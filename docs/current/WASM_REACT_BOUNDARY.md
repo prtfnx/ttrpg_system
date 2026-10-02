@@ -169,9 +169,11 @@ pretending that the texture loaded.
 Complete snapshots replace prior table-derived state. Before rehydration,
 `TableSyncService` removes the lights and token auras it derived from the prior
 snapshot and clears fog. Rust replaces ordinary render layers, while walls,
-paint strokes, layer settings, grid/units, and browser mirrors are replaced
-from the same authoritative snapshot. Empty arrays are replacement values, not
-“no update” signals.
+layer settings, grid/units, and browser mirrors are replaced from that
+authoritative snapshot. Paint is intentionally separate: `PaintController`
+installs an empty scene on table switch, assembles a bounded revisioned object
+snapshot, and restores it through typed runtime methods. Empty arrays are
+replacement values, not “no update” signals.
 
 Upload URL issuance and browser PUT completion are intermediate states.
 `AssetSyncService` retries waiting textures only after the server reports

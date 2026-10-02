@@ -69,7 +69,8 @@ Examples:
 
 - sprite changes go through sprite protocol helpers;
 - wall changes go through wall protocol helpers;
-- paint strokes go through paint protocol helpers;
+- paint objects go through explicit table/operation-scoped commands; transient
+  pointer previews are bounded and disposable;
 - combat movement goes through `combat_command`, not raw sprite movement.
 
 Preview-only UI can stay local, but accepted multiplayer state cannot.

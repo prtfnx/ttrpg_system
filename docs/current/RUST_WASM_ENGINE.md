@@ -41,7 +41,6 @@ The app currently depends on these generated WASM exports through
 - `calculate_asset_hash`
 - `PlanningManager`
 - `TableManager`
-- `create_default_brush_presets`
 
 React feature code should not import those generated exports directly.
 `RenderEngine` embeds the Rust `TableSync` parser. `WasmRuntime` does not
@@ -65,6 +64,11 @@ sight previews, and AoE candidate targets. It is not a combat authority.
 
 The engine is created by `init_game_renderer(canvas)`. TypeScript creates it
 inside `WasmRuntime.attachCanvas`.
+
+Paint is an object-only renderer: committed objects are versioned by table and
+revision, meshes are rebuilt only on snapshot/object change, and local/remote
+drafts use a separate transient mesh collection. Rust provides hit tests and
+selection handles but never originates a durable paint write.
 
 A new engine has no active table and can render an empty frame safely. The
 first normalized server table payload creates and activates the matching Rust

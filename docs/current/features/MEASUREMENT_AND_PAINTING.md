@@ -1,27 +1,29 @@
 # Measurement and painting
 
-Audience: contributors changing measurement tools, brush tools, paint sync, or
-table units.
+Audience: contributors changing measurement tools, paint-object tools,
+reconciliation, rendering, or table units.
 
-Status: current but partial. Paint strokes, completed measurement geometry,
-and paint templates are server-authoritative multiplayer state. Advanced
-measurement-template placement is not available in the UI.
+Status: current. Paint objects and completed measurement geometry are
+server-authoritative multiplayer state. Advanced measurement-template
+placement is not available in the UI; old strokes and templates are retained
+read-only only for verified export/cutover and rollback.
 
 Last source audit: 2026-10-01
 
 ## Ownership
 
 - `apps/web-ui/src/features/measurement/` owns browser measurement state.
-- `apps/web-ui/src/features/painting/` owns painting UI and template state.
+- `apps/web-ui/src/features/painting/` owns object UI, pointer interaction,
+  reconciliation, and strict browser payload parsing.
 - `apps/server/service/protocol/measurements.py` authorizes completed
   measurement writes and snapshot synchronization.
 - `apps/server/service/protocol/paint.py` authorizes and persists paint writes.
 - `apps/server/database/models.py` defines `SharedMeasurement`, `PaintStroke`,
   `PaintObject`, paint operation state, and `PaintTemplate`.
-- `packages/rust-core/src/systems/paint.rs` owns canvas paint rendering and
-  local stroke history.
-- `packages/rust-core/src/systems/paint_scene.rs` owns the staged authoritative
-  object scene, deterministic ordering, bounds, and shared geometry hit tests.
+- `packages/rust-core/src/systems/paint.rs` owns cached object and transient
+  draft rendering.
+- `packages/rust-core/src/systems/paint_scene.rs` owns the authoritative object
+  scene, deterministic ordering, bounds, and shared geometry hit tests.
 
 ## Measurement flow
 

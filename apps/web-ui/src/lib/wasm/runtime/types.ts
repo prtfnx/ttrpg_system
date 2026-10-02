@@ -94,17 +94,6 @@ export interface RenderEngine {
   load_texture(name: string, image: HTMLImageElement): void;
   unload_texture(name: string): boolean;
   move_sprite_to_layer(spriteId: string, newLayer: string): boolean;
-  paint_add_point(worldX: number, worldY: number, pressure: number): boolean;
-  paint_add_remote_stroke(strokeJson: string): boolean;
-  paint_can_redo(): boolean;
-  paint_can_undo(): boolean;
-  paint_cancel_stroke(): void;
-  paint_clear_all(): void;
-  paint_end_stroke(): boolean;
-  paint_enter_mode(width: number, height: number): void;
-  paint_exit_mode(): void;
-  paint_get_strokes(): unknown;
-  paint_load_strokes(strokesJson: string): boolean;
   paint_replace_object_snapshot(tableId: string, revision: number, objectsJson: string): boolean;
   paint_upsert_object(tableId: string, revision: number, objectJson: string): boolean;
   paint_remove_object(tableId: string, revision: number, objectId: string, deletedVersion: number): boolean;
@@ -120,14 +109,6 @@ export interface RenderEngine {
   paint_clear_draft(key: string): boolean;
   paint_clear_drafts(): void;
   paint_draft_count(): number;
-  paint_redo_stroke(): boolean;
-  paint_remove_stroke(strokeId: string): boolean;
-  paint_set_blend_mode(blendMode: string): void;
-  paint_set_brush_color(r: number, g: number, b: number, a: number): void;
-  paint_set_brush_width(width: number): void;
-  paint_set_current_table(tableId: string): void;
-  paint_start_stroke(worldX: number, worldY: number, pressure: number): boolean;
-  paint_undo_stroke(): boolean;
   paste_sprite(layerName: string, spriteJson: string, offsetX: number, offsetY: number): string;
   remove_fog_rectangle(id: string): void;
   remove_fog_polygon(id: string): void;
@@ -160,7 +141,6 @@ export interface RenderEngine {
   set_input_mode_create_text(): void;
   set_input_mode_draw_wall(): void;
   set_input_mode_measurement(): void;
-  set_input_mode_paint(): void;
   set_input_mode_select(): void;
   set_layer_blend_mode(layerName: string, blendMode: string): boolean;
   set_layer_color(layerName: string, r: number, g: number, b: number): boolean;
@@ -243,12 +223,6 @@ export interface TableSync {
   set_error_handler(callback: (error: string) => void): void;
   set_sprite_update_handler(callback: (data: unknown) => void): void;
   set_table_received_handler(callback: (data: unknown) => void): void;
-}
-
-export interface BrushPreset {
-  color: [number, number, number, number];
-  width: number;
-  blend_mode: 'Alpha' | 'Additive' | 'Modulate' | 'Multiply' | 'alpha' | 'additive' | 'modulate' | 'multiply';
 }
 
 export interface VisibilityPoint {

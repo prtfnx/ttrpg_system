@@ -111,6 +111,11 @@ only authoritative objects and transient object drafts.
 The generic Rust mouse router has no paint input mode or stroke-start/move/end
 branch. Pointer Events are owned exclusively by `PaintInteractionController`,
 preventing an unsynchronized second drawing path.
+The former exported Rust `PaintSystem`, legacy stroke storage, brush presets,
+and stroke lifecycle tests are removed. The internal `PaintObjectRenderer`
+contains only the authoritative scene, retained meshes, selection, and drafts.
+The now-unused WebGL `LINE_STRIP` primitive is removed; every paint path uses
+portable cached triangle geometry for width, pressure, caps, and joins.
 
 `PaintController` now owns the staged authoritative browser scene. It assembles
 bounded out-of-order snapshot chunks atomically, queues events during hydration,

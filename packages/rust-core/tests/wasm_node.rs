@@ -52,77 +52,7 @@ fn compute_visibility_with_single_wall() {
 
 // ── Paint system ──────────────────────────────────────────────────────────
 
-#[wasm_bindgen_test]
-fn create_default_brush_presets_returns_non_empty() {
-    let presets = core::create_default_brush_presets();
-    assert!(
-        !presets.is_empty(),
-        "should have at least one default brush preset"
-    );
-}
-
 // ── Unit converter ────────────────────────────────────────────────────────
-
-#[wasm_bindgen_test]
-fn paint_system_brush_width_is_clamped() {
-    let mut paint = core::PaintSystem::new();
-    paint.set_current_table("table-1");
-    paint.enter_paint_mode(800.0, 600.0);
-
-    paint.set_brush_width(0.1);
-    paint.start_stroke(10.0, 10.0, 1.0);
-    paint.add_stroke_point(20.0, 20.0, 1.0);
-    paint.end_stroke();
-
-    let strokes = js_sys::Array::from(&paint.get_all_strokes_json());
-    let first = strokes.get(0);
-    let width = js_sys::Reflect::get(&first, &"width".into()).unwrap();
-    assert_eq!(width.as_f64(), Some(0.5));
-}
-
-#[wasm_bindgen_test]
-fn paint_system_stroke_lifecycle_records_completed_stroke() {
-    let mut paint = core::PaintSystem::new();
-    paint.set_current_table("table-1");
-    paint.enter_paint_mode(800.0, 600.0);
-
-    assert!(paint.start_stroke(10.0, 10.0, 1.0));
-    assert!(paint.add_stroke_point(20.0, 20.0, 1.0));
-    assert!(paint.end_stroke());
-
-    assert_eq!(
-        js_sys::Array::from(&paint.get_all_strokes_json()).length(),
-        1
-    );
-    assert!(paint.can_undo());
-    assert!(!paint.can_redo());
-}
-
-#[wasm_bindgen_test]
-fn paint_system_undo_and_redo_stroke() {
-    let mut paint = core::PaintSystem::new();
-    paint.set_current_table("table-1");
-    paint.enter_paint_mode(800.0, 600.0);
-    paint.start_stroke(10.0, 10.0, 1.0);
-    paint.add_stroke_point(20.0, 20.0, 1.0);
-    paint.end_stroke();
-
-    assert!(paint.undo_last_stroke());
-    assert_eq!(
-        js_sys::Array::from(&paint.get_all_strokes_json()).length(),
-        0
-    );
-    assert!(!paint.can_undo());
-    assert!(paint.can_redo());
-
-    assert!(paint.redo_last_stroke());
-    assert_eq!(
-        js_sys::Array::from(&paint.get_all_strokes_json()).length(),
-        1
-    );
-    assert!(paint.can_undo());
-    assert!(!paint.can_redo());
-}
 
 // ActionsClient
 

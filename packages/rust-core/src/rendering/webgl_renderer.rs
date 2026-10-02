@@ -390,30 +390,6 @@ impl WebGLRenderer {
         Ok(())
     }
 
-    pub fn draw_line_strip(
-        &self,
-        vertices: &[f32],
-        color: [f32; 4],
-        line_width: f32,
-    ) -> Result<(), JsValue> {
-        if vertices.len() < 4 || !vertices.len().is_multiple_of(2) {
-            return Ok(());
-        }
-        self.pipeline.bind();
-        self.gl.line_width(line_width);
-        let vertex_data = Self::interleave_positions(vertices);
-        self.upload_vertices(&vertex_data);
-        self.set_color(color, false);
-        self.gl.draw_arrays(
-            WebGlRenderingContext::LINE_STRIP,
-            0,
-            (vertices.len() / 2) as i32,
-        );
-        self.record_draw_call();
-        self.gl.line_width(1.0);
-        Ok(())
-    }
-
     pub fn draw_triangles(&self, vertices: &[f32], color: [f32; 4]) -> Result<(), JsValue> {
         if vertices.len() < 6 || !vertices.len().is_multiple_of(2) {
             return Ok(());
@@ -576,10 +552,6 @@ impl WebGLRenderer {
 
     pub fn set_layer_color(&mut self, color: &[f32; 3]) {
         self.current_layer_color = *color;
-    }
-
-    pub fn get_layer_color(&self) -> [f32; 3] {
-        self.current_layer_color
     }
 
     pub fn modulate_color(&self, sprite_color: [f32; 4]) -> [f32; 4] {

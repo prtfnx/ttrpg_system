@@ -17,7 +17,7 @@ use crate::layer_manager::LayerManager;
 use crate::lighting::LightingSystem;
 use crate::math::*;
 use crate::occlusion::{OcclusionScene, VisibilityWorkspace};
-use crate::paint::PaintSystem;
+use crate::paint::PaintObjectRenderer;
 use crate::render_diagnostics::RenderFrameCounters;
 use crate::table_manager::TableManager;
 use crate::table_sync::TableSync;
@@ -66,7 +66,7 @@ pub struct RenderEngine {
     pub(crate) actions: ActionsClient,
 
     // Paint system
-    pub(crate) paint: PaintSystem,
+    pub(crate) paint: PaintObjectRenderer,
 
     // Table synchronization
     pub(crate) table_sync: TableSync,
@@ -156,7 +156,7 @@ impl RenderEngine {
         let layer_manager = LayerManager::new();
         let grid_system = GridSystem::new();
         let actions = ActionsClient::new();
-        let paint = PaintSystem::new();
+        let paint = PaintObjectRenderer::new();
         let table_sync = TableSync::new();
         let table_manager = TableManager::new();
         let wall_manager = WallManager::new();

@@ -208,8 +208,6 @@ pub use net::table_sync::TableSync;
 pub use planning::PlanningManager;
 #[cfg(target_arch = "wasm32")]
 pub use render::RenderEngine;
-#[cfg(target_arch = "wasm32")]
-pub use systems::paint::{create_default_brush_presets, PaintSystem};
 pub use table_manager::TableManager;
 pub use types::*;
 

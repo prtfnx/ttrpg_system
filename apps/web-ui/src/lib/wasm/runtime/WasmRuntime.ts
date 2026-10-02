@@ -10,7 +10,6 @@ import {
   PlanningManager,
   TableManager,
   calculate_asset_hash,
-  create_default_brush_presets,
   init_game_renderer,
   version,
   type RenderEngine,
@@ -23,7 +22,7 @@ import {
   type BrowserAssetCache,
   type CacheAssetOptions,
 } from './BrowserAssetCache';
-import type { BrushPreset, RenderDiagnostics, RenderFrameSample, VisibilityPoint } from './types';
+import type { RenderDiagnostics, RenderFrameSample, VisibilityPoint } from './types';
 import { WasmSyncCoordinator } from './WasmSyncCoordinator';
 import { WasmRuntimeStore, type WasmRuntimeSnapshot } from './wasmStore';
 
@@ -312,11 +311,6 @@ export class WasmRuntime implements WasmRuntimePort {
 
   getTableManager(): TableManager | null {
     return this.tableManager;
-  }
-
-  getDefaultBrushPresets(): BrushPreset[] {
-    if (!this.status.isModuleReady) return [];
-    return create_default_brush_presets() as BrushPreset[];
   }
 
   getOcclusionRevision(): number {

@@ -11,7 +11,6 @@ export {
 export type { AttachCanvasOptions, WasmRuntimePort } from './WasmRuntimePort';
 export type {
   ActionsClient,
-  BrushPreset,
   PlanningManager,
   RenderDiagnostics,
   RenderEngine,

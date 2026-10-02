@@ -116,6 +116,12 @@ and stroke lifecycle tests are removed. The internal `PaintObjectRenderer`
 contains only the authoritative scene, retained meshes, selection, and drafts.
 The now-unused WebGL `LINE_STRIP` primitive is removed; every paint path uses
 portable cached triangle geometry for width, pressure, caps, and joins.
+Object snapshots now establish the renderer's active paint table directly;
+draft-only browser tests activate an empty revision-zero snapshot instead of
+calling a separate legacy table selector.
+The browser runtime port and shared runtime types no longer expose default
+brush presets; the object panel's explicit color, width, and fill state is the
+only paint styling surface.
 
 `PaintController` now owns the staged authoritative browser scene. It assembles
 bounded out-of-order snapshot chunks atomically, queues events during hydration,

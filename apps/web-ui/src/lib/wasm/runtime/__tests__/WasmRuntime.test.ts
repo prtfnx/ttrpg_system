@@ -47,7 +47,6 @@ const mocks = vi.hoisted(() => {
     initializeWasmCore: vi.fn(),
     initGameRenderer: vi.fn(),
     version: vi.fn(() => '1.2.3-test'),
-    createDefaultBrushPresets: vi.fn(() => [{ id: 'round' }]),
     renderEngine,
     actionsFree: vi.fn(),
     calculateAssetHash: vi.fn(() => 'hash-test'),
@@ -78,7 +77,6 @@ vi.mock('../../generated/ttrpg_rust_core', () => ({
   calculate_asset_hash: mocks.calculateAssetHash,
   PlanningManager: vi.fn(function () { return { free: mocks.planningFree }; }),
   TableManager: vi.fn(function () { return { free: mocks.tableFree }; }),
-  create_default_brush_presets: mocks.createDefaultBrushPresets,
   init_game_renderer: mocks.initGameRenderer,
   version: mocks.version,
 }));
@@ -156,7 +154,6 @@ describe('WasmRuntime', () => {
     expect(runtime.getActionsEngine()).not.toBeNull();
     expect('getNetworkClient' in runtime).toBe(false);
     expect('getTableSync' in runtime).toBe(false);
-    expect(runtime.getDefaultBrushPresets()).toEqual([{ id: 'round' }]);
     expect(runtime.calculateAssetHash(new Uint8Array([1, 2]))).toBe('hash-test');
   });
 

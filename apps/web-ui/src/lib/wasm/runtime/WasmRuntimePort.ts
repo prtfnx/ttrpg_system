@@ -2,7 +2,6 @@ import type { SessionRole } from '@features/session/types/roles';
 import type { PaintObject, PaintObjectInput } from '@features/painting/model/paintObject';
 import type {
   ActionsClient,
-  BrushPreset,
   PlanningManager,
   RenderEngine,
   RenderDiagnostics,
@@ -43,7 +42,6 @@ export interface WasmRuntimePort {
   getActionsEngine(): ActionsClient | null;
   getPlanningManager(): PlanningManager | null;
   getTableManager(): TableManager | null;
-  getDefaultBrushPresets(): BrushPreset[];
   getOcclusionRevision(): number;
   computeSightVisibilityPolygons(sources: Float32Array): VisibilityPoint[][];
   computeLightVisibilityPolygons(sources: Float32Array): VisibilityPoint[][];

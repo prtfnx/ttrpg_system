@@ -188,7 +188,6 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
   useEffect(() => {
     if (!renderEngine) return;
     if (activeTool !== 'paint') {
-      renderEngine.paint_exit_mode();
       setPaintPanelVisible(false);
     }
     wasmRuntime.setShapeStyle(shapeColor, shapeOpacity, shapeFilled);
@@ -199,7 +198,6 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
       case 'line':        renderEngine.set_input_mode_create_line(); break;
       case 'text':        renderEngine.set_input_mode_create_text(); break;
       case 'paint':
-        renderEngine.paint_exit_mode();
         renderEngine.set_input_mode_select();
         break;
       case 'draw_wall':    renderEngine.set_input_mode_draw_wall(); break;

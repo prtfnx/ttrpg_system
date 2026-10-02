@@ -311,7 +311,6 @@ describe('ToolsPanel — DM creation toolbar', () => {
       createMockWasmRuntime({
         setShapeStyle,
         getRenderEngine: vi.fn(() => ({
-          paint_exit_mode: vi.fn(),
           set_input_mode_create_circle: vi.fn(),
         }) as never),
       }),
@@ -405,7 +404,6 @@ describe('ToolsPanel — PlayerLayerControls (player role)', () => {
       createMockWasmRuntime({
         setLayerVisibility: runtimeSetLayerVisibility,
         getRenderEngine: vi.fn(() => ({
-          paint_exit_mode: vi.fn(),
           set_tool_mode: vi.fn(),
           set_input_mode_select: vi.fn(),
         }) as never),

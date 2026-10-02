@@ -103,6 +103,8 @@ stroke create/delete/clear commands, or publishes legacy stroke DOM events.
 `WasmRuntimePort` exposes only object snapshots, mutations, hit tests,
 selection, and transient drafts; the legacy stroke load/add/remove/clear
 facade is removed.
+The toolbar keeps Rust in ordinary selection mode while an object paint tool
+is active; it no longer enters or exits the retired Rust-local stroke mode.
 
 `PaintController` now owns the staged authoritative browser scene. It assembles
 bounded out-of-order snapshot chunks atomically, queues events during hydration,

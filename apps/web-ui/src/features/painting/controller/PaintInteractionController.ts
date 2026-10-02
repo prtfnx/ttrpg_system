@@ -79,6 +79,7 @@ type Gesture = CreationGesture | MoveGesture | ResizeGesture;
 
 export interface PaintInteractionState {
   enabled: boolean;
+  ready: boolean;
   tool: PaintTool;
   style: PaintStyle;
   gestureActive: boolean;
@@ -172,6 +173,7 @@ export class PaintInteractionController {
       : null;
     return {
       enabled: this.enabled,
+      ready: this.enabled && this.sceneState.tableId !== null && !this.sceneState.hydrating,
       tool: this.tool,
       style: structuredClone(this.style),
       gestureActive: this.gesture !== null,
@@ -212,7 +214,12 @@ export class PaintInteractionController {
 
   restyleSelected(style: PaintStyle): boolean {
     const selected = this.selectedObject();
-    if (!selected || !this.canEdit(selected) || !this.sceneState.tableId) return false;
+    if (
+      !selected
+      || !this.canEdit(selected)
+      || !this.sceneState.tableId
+      || this.sceneState.hydrating
+    ) return false;
     const replacement = editableObject(selected);
     replacement.style = structuredClone(style);
     return this.scene.submitUpdate(selected.id, selected.version, replacement) !== null;
@@ -220,7 +227,7 @@ export class PaintInteractionController {
 
   deleteSelected(): boolean {
     const selected = this.selectedObject();
-    if (!selected || !this.canEdit(selected)) return false;
+    if (!selected || !this.canEdit(selected) || this.sceneState.hydrating) return false;
     const operation = this.scene.submitDelete(selected.id, selected.version);
     if (!operation) return false;
     this.selectedId = null;
@@ -262,7 +269,13 @@ export class PaintInteractionController {
   }
 
   readonly handlePointerDown = (event: PointerEvent): void => {
-    if (!this.enabled || this.gesture || event.button !== 0 || !event.isPrimary) return;
+    if (
+      !this.enabled
+      || this.sceneState.hydrating
+      || this.gesture
+      || event.button !== 0
+      || !event.isPrimary
+    ) return;
     const canvas = this.canvas;
     const tableId = this.sceneState.tableId;
     if (!canvas || !tableId) return;

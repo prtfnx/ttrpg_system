@@ -28,6 +28,7 @@ function connected(selected = false, canEditSelected = true) {
     },
     interactionState: {
       enabled: true,
+      ready: true,
       tool: 'draw',
       style: {
         stroke_rgba: [1, 0, 0, 1],
@@ -114,5 +115,17 @@ describe('PaintPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close paint panel' }));
     expect(onToggle).toHaveBeenCalledOnce();
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('disables tools and reports loading while the object snapshot hydrates', () => {
+    const value = connected();
+    value.state.hydrating = true;
+    value.interactionState.ready = false;
+    mocks.value = value;
+
+    render(<PaintPanel />);
+
+    expect(screen.getByText('Loading')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Draw' })).toBeDisabled();
   });
 });

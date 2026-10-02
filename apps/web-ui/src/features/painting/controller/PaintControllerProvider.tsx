@@ -28,6 +28,7 @@ const EMPTY_STATE: PaintControllerState = Object.freeze({
 
 const EMPTY_INTERACTION_STATE: PaintInteractionState = Object.freeze({
   enabled: false,
+  ready: false,
   tool: 'draw',
   style: Object.freeze({
     stroke_rgba: Object.freeze([1, 0, 0, 1]) as unknown as [number, number, number, number],

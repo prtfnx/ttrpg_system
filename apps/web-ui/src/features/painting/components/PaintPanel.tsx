@@ -55,7 +55,7 @@ export function PaintPanel({ isVisible = true, onToggle, onClose }: PaintPanelPr
   };
   const strokeHex = rgbaToHex(style.stroke_rgba);
   const fillHex = rgbaToHex(style.fill_rgba ?? style.stroke_rgba);
-  const available = interaction !== null && interactionState?.enabled === true;
+  const available = interaction !== null && interactionState?.ready === true;
 
   const updateStyle = (next: PaintStyle) => interaction?.setStyle(next);
   const updateStroke = (hex: string) => updateStyle({
@@ -186,7 +186,11 @@ export function PaintPanel({ isVisible = true, onToggle, onClose }: PaintPanelPr
       </section>
 
       <footer className={styles.footer}>
-        <span>{interactionState?.gestureActive ? 'Drawing preview' : 'Ready'}</span>
+        <span>
+          {scene?.hydrating
+            ? 'Loading'
+            : interactionState?.gestureActive ? 'Drawing preview' : 'Ready'}
+        </span>
         <span>{scene?.pending.length ?? 0} pending</span>
       </footer>
     </section>

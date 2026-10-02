@@ -174,6 +174,19 @@ describe('PaintInteractionController', () => {
     expect(controller.getState().gestureActive).toBe(false);
   });
 
+  it('does not start or submit gestures while the scene is hydrating', () => {
+    const { controller, scene, runtime, updateState } = harness();
+    updateState({ ...initialState(), hydrating: true });
+
+    controller.handlePointerDown(pointer(1, 20, 30));
+    controller.handlePointerUp(pointer(1, 30, 40));
+
+    expect(controller.getState()).toMatchObject({ ready: false, gestureActive: false });
+    expect(runtime.setPaintDraft).not.toHaveBeenCalled();
+    expect(scene.queuePreview).not.toHaveBeenCalled();
+    expect(scene.submitCreate).not.toHaveBeenCalled();
+  });
+
   it('moves only an authorized selected object with one versioned update', () => {
     const selected = object();
     const { controller, scene } = harness([selected]);

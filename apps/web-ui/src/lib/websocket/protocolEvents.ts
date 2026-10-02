@@ -42,9 +42,6 @@ export type ProtocolEventMap = {
   'paint-preview': PaintPreview;
   'paint-preview-cancel': PaintPreviewCancel;
   'paint-snapshot-chunk': PaintSnapshotChunk;
-  'paint-template-upserted': ProtocolRecord;
-  'paint-template-deleted': ProtocolRecord;
-  'paint-templates-synced': ProtocolRecord;
   'measurement-upserted': ProtocolRecord;
   'measurement-deleted': ProtocolRecord;
   'measurements-cleared': ProtocolRecord;

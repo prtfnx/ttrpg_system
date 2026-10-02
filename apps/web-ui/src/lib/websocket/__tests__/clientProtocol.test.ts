@@ -2390,51 +2390,5 @@ describe('WebClientProtocol', () => {
     });
   });
 
-  describe('paint template synchronization', () => {
-    async function dispatch(p: WebClientProtocol, type: string, data: Record<string, unknown>) {
-      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5 });
-      await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
-    }
-
-    it('emits the authoritative session template snapshot', async () => {
-      const p = makeProtocol();
-      const fn = vi.fn();
-      window.addEventListener('paint-templates-synced', fn);
-
-      await dispatch(p, 'paint_template_sync', {
-        templates: [{ id: 'template-1', name: 'Fire', strokes: [] }],
-      });
-
-      window.removeEventListener('paint-templates-synced', fn);
-      expect(fn).toHaveBeenCalledOnce();
-    });
-
-    it('sends template upserts immediately', () => {
-      const p = makeProtocol();
-      const ws = makeOpenWs(p);
-
-      p.upsertPaintTemplate({
-        id: 'template-1',
-        name: 'Fire',
-        strokes: [],
-      });
-
-      const sent = JSON.parse(ws.send.mock.calls[0][0] as string);
-      expect(sent).toMatchObject({
-        type: 'paint_template_upsert',
-        data: { id: 'template-1', name: 'Fire' },
-      });
-    });
-
-    it('requests the session template snapshot', () => {
-      const p = makeProtocol();
-      const ws = makeOpenWs(p);
-
-      p.requestPaintTemplateSync();
-
-      const sent = JSON.parse(ws.send.mock.calls[0][0] as string);
-      expect(sent.type).toBe('paint_template_sync');
-    });
-  });
 });
 

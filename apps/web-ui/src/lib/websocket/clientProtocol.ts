@@ -197,7 +197,6 @@ export class WebClientProtocol {
       'character_draft_create_request', 'character_draft_update_request',
       'character_draft_finalize_request', 'character_draft_abandon_request',
       'asset_upload_request', 'asset_download_request', 'asset_list_request', 'asset_delete_request', 'asset_hash_check',
-      'paint_template_upsert', 'paint_template_delete', 'paint_template_sync',
       'measurement_upsert', 'measurement_delete', 'measurement_clear', 'measurement_sync',
     ];
 
@@ -540,16 +539,6 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.PAINT_PREVIEW_CANCEL, (message) => {
       emitProtocolEvent('paint-preview-cancel', parsePaintPreviewCancel(message.data));
     });
-    this.registerHandler(MessageType.PAINT_TEMPLATE_UPSERT, (message) => {
-      emitProtocolEvent('paint-template-upserted', message.data);
-    });
-    this.registerHandler(MessageType.PAINT_TEMPLATE_DELETE, (message) => {
-      emitProtocolEvent('paint-template-deleted', message.data);
-    });
-    this.registerHandler(MessageType.PAINT_TEMPLATE_SYNC, (message) => {
-      emitProtocolEvent('paint-templates-synced', message.data);
-    });
-
     // Completed measurements and geometric shapes.
     this.registerHandler(MessageType.MEASUREMENT_UPSERT, (message) => {
       emitProtocolEvent('measurement-upserted', message.data);
@@ -1938,20 +1927,6 @@ export class WebClientProtocol {
       temporary_id: temporaryId,
       sequence,
     });
-  }
-
-  upsertPaintTemplate(template: Record<string, unknown>): void {
-    this.sendMessage(createMessage(MessageType.PAINT_TEMPLATE_UPSERT, template, 3));
-  }
-
-  deletePaintTemplate(templateId: string): void {
-    this.sendMessage(createMessage(MessageType.PAINT_TEMPLATE_DELETE, {
-      id: templateId,
-    }, 3));
-  }
-
-  requestPaintTemplateSync(): void {
-    this.sendMessage(createMessage(MessageType.PAINT_TEMPLATE_SYNC, {}, 2));
   }
 
   upsertMeasurement(

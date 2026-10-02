@@ -233,6 +233,8 @@ records a deterministic SHA-256 checksum, writes a private atomic artifact,
 and refuses to replace an existing file. Keep that verified export through the
 rollback window; the database table is retained read-only until a later
 explicit removal migration.
+The browser has no template handlers, send helpers, reconnect queue entries,
+or protocol events; no production UI can read or mutate the legacy format.
 
 ## Verification
 

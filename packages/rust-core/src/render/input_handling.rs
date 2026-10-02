@@ -94,11 +94,6 @@ impl RenderEngine {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         self.input.last_mouse_screen = Vec2::new(screen_x, screen_y);
 
-        if self.input.input_mode == InputMode::Paint {
-            self.paint.start_stroke(world_pos.x, world_pos.y, 1.0);
-            return;
-        }
-
         let grid_cell_px = self.grid_system.get_size();
         let result = self.event_system.handle_mouse_down(
             world_pos,
@@ -145,12 +140,6 @@ impl RenderEngine {
     pub fn handle_mouse_move(&mut self, screen_x: f32, screen_y: f32) {
         let current_screen = Vec2::new(screen_x, screen_y);
         let world_pos = self.camera.screen_to_world(current_screen);
-
-        if self.input.input_mode == InputMode::Paint {
-            self.paint.add_stroke_point(world_pos.x, world_pos.y, 1.0);
-            self.input.last_mouse_screen = current_screen;
-            return;
-        }
 
         if self.input.input_mode == InputMode::CameraPan {
             let last_screen = self.input.last_mouse_screen;
@@ -226,12 +215,6 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn handle_mouse_up(&mut self, screen_x: f32, screen_y: f32) {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
-
-        if self.input.input_mode == InputMode::Paint {
-            web_sys::console::log_1(&"[RUST] Paint mode active, ending paint stroke".into());
-            self.paint.end_stroke();
-            return;
-        }
 
         let Some(table_id) = self.table_manager.get_active_table_id() else {
             web_sys::console::warn_1(&"[RUST] Ignoring mouse-up without an active table".into());

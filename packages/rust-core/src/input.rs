@@ -29,7 +29,6 @@ pub enum InputMode {
     CreateCircle,     // New: Create circle sprite
     CreateLine,       // New: Create line sprite
     CreateText,       // New: Create text sprite
-    Paint,            // New: Paint/brush tool
     DrawWall,         // New: Draw wall segment (two-click placement)
     CreatePolygon,    // New: Create polygon obstacle (multi-click, close-on-first-vertex)
     WallDrag,         // Dragging an existing wall to a new position

@@ -108,6 +108,9 @@ is active; it no longer enters or exits the retired Rust-local stroke mode.
 `RenderEngine` no longer exports the old local stroke lifecycle, brush,
 undo/redo, synchronization, or bulk-load methods, and its frame pass renders
 only authoritative objects and transient object drafts.
+The generic Rust mouse router has no paint input mode or stroke-start/move/end
+branch. Pointer Events are owned exclusively by `PaintInteractionController`,
+preventing an unsynchronized second drawing path.
 
 `PaintController` now owns the staged authoritative browser scene. It assembles
 bounded out-of-order snapshot chunks atomically, queues events during hydration,

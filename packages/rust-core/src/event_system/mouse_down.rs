@@ -102,10 +102,6 @@ impl EventSystem {
                 );
                 return MouseEventResult::Handled;
             }
-            InputMode::Paint => {
-                web_sys::console::log_1(&"[RUST EVENT] Paint mode handled in render.rs".into());
-                return MouseEventResult::Handled;
-            }
             InputMode::DrawWall => {
                 if let Some((start, end)) = input.register_wall_click(world_pos) {
                     let min_len = 5.0_f32;

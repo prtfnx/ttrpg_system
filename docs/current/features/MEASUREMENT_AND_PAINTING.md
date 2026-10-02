@@ -225,16 +225,14 @@ one complete versioned update. Selected handle overlays are reapplied after a
 renderer/context recreation and cleared on deselection, deletion, disable, or
 table change.
 
-Paint templates are session-scoped and server-authoritative. The browser keeps
-only an optimistic in-memory cache, requests a snapshot on session entry and
-reconnect, and reconciles confirmations and live changes. Creators may replace
-or delete their own templates; DMs may delete any template. Import/export
-remains available.
-
-The server validates template names, descriptions, WASM stroke structure,
-finite coordinates, stroke widths, thumbnail media/base64 shape, and bounded
-payloads. Limits are 100 templates per session, 500 strokes per template,
-20,000 points per stroke, 1 MiB per template, and 128 KiB per thumbnail.
+Paint templates are a retired legacy format. Before disabling their remaining
+wire API, operators run `python scripts/export_paint_templates.py --output
+<private-path>` from `apps/server`. The maintenance command takes the writer
+fence, exports every raw stroke and thumbnail field without reinterpretation,
+records a deterministic SHA-256 checksum, writes a private atomic artifact,
+and refuses to replace an existing file. Keep that verified export through the
+rollback window; the database table is retained read-only until a later
+explicit removal migration.
 
 ## Verification
 

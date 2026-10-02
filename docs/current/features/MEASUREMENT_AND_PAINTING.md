@@ -100,6 +100,9 @@ snapshot. Browser table hydration likewise ignores legacy stroke fields and
 does not invoke the old Rust stroke loader or table selector.
 The browser protocol no longer registers legacy stroke broadcasts, exposes
 stroke create/delete/clear commands, or publishes legacy stroke DOM events.
+`WasmRuntimePort` exposes only object snapshots, mutations, hit tests,
+selection, and transient drafts; the legacy stroke load/add/remove/clear
+facade is removed.
 
 `PaintController` now owns the staged authoritative browser scene. It assembles
 bounded out-of-order snapshot chunks atomically, queues events during hydration,

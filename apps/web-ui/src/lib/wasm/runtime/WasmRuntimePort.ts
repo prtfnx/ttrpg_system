@@ -78,10 +78,6 @@ export interface WasmRuntimePort {
   removeWall(wallId: string): void;
   clearWalls(): void;
 
-  loadPaintStrokes(strokesJson: string): void;
-  addRemotePaintStroke(strokeJson: string): void;
-  removePaintStroke(strokeId: string): void;
-  clearPaintStrokes(): void;
   replacePaintObjectSnapshot(tableId: string, revision: number, objects: readonly PaintObject[]): boolean;
   upsertPaintObject(tableId: string, revision: number, object: PaintObject): boolean;
   removePaintObject(tableId: string, revision: number, objectId: string, deletedVersion: number): boolean;

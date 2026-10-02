@@ -465,25 +465,6 @@ export class WasmRuntime implements WasmRuntimePort {
     this.invalidateFramedPreview();
   }
 
-  loadPaintStrokes(strokesJson: string): void {
-    this.renderEngine?.paint_load_strokes(strokesJson);
-  }
-
-  addRemotePaintStroke(strokeJson: string): void {
-    this.renderEngine?.paint_add_remote_stroke(strokeJson);
-    this.invalidateFramedPreview();
-  }
-
-  removePaintStroke(strokeId: string): void {
-    this.renderEngine?.paint_remove_stroke(strokeId);
-    this.invalidateFramedPreview();
-  }
-
-  clearPaintStrokes(): void {
-    this.renderEngine?.paint_clear_all();
-    this.invalidateFramedPreview();
-  }
-
   replacePaintObjectSnapshot(
     tableId: string,
     revision: number,

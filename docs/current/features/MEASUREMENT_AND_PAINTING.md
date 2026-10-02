@@ -98,6 +98,8 @@ Join-time table hydration no longer queries or publishes `paint_strokes`;
 clients obtain the current drawing exclusively through a versioned object
 snapshot. Browser table hydration likewise ignores legacy stroke fields and
 does not invoke the old Rust stroke loader or table selector.
+The browser protocol no longer registers legacy stroke broadcasts, exposes
+stroke create/delete/clear commands, or publishes legacy stroke DOM events.
 
 `PaintController` now owns the staged authoritative browser scene. It assembles
 bounded out-of-order snapshot chunks atomically, queues events during hydration,

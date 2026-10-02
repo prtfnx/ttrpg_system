@@ -37,9 +37,6 @@ export type ProtocolEventMap = {
   'compendium-sprite-removed': ProtocolRecord;
   'compendium-sprite-updated': ProtocolRecord;
   'new-table-response': ProtocolRecord;
-  'paint-stroke-created': ProtocolRecord;
-  'paint-stroke-deleted': ProtocolRecord;
-  'paint-strokes-cleared': ProtocolRecord;
   'paint-object-event': PaintObjectEvent;
   'paint-operation-rejected': PaintOperationRejection;
   'paint-preview': PaintPreview;

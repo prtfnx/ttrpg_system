@@ -36,28 +36,6 @@ type WallCreateInput = Pick<WallData, 'x1' | 'y1' | 'x2' | 'y2'>
   & Partial<Omit<WallData, 'wall_id' | 'table_id' | 'x1' | 'y1' | 'x2' | 'y2'>>;
 type WallUpdateInput = Partial<WallCreateInput>;
 
-interface StoredPaintStroke {
-  stroke_id: string;
-  stroke_data: string;
-}
-
-function parseStoredPaintStrokes(strokes: StoredPaintStroke[]): Record<string, unknown>[] {
-  const parsed: Record<string, unknown>[] = [];
-  for (const stroke of strokes) {
-    try {
-      const value: unknown = JSON.parse(stroke.stroke_data);
-      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        parsed.push(value as Record<string, unknown>);
-      } else {
-        logger.warn('Ignoring invalid paint stroke payload', { strokeId: stroke.stroke_id });
-      }
-    } catch {
-      logger.warn('Ignoring malformed paint stroke JSON', { strokeId: stroke.stroke_id });
-    }
-  }
-  return parsed;
-}
-
 function parseCharacterVersion(value: unknown, fallback = 1): number {
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : fallback;
@@ -219,7 +197,6 @@ export class WebClientProtocol {
       'character_draft_create_request', 'character_draft_update_request',
       'character_draft_finalize_request', 'character_draft_abandon_request',
       'asset_upload_request', 'asset_download_request', 'asset_list_request', 'asset_delete_request', 'asset_hash_check',
-      'paint_stroke_create', 'paint_stroke_delete', 'paint_stroke_clear',
       'paint_template_upsert', 'paint_template_delete', 'paint_template_sync',
       'measurement_upsert', 'measurement_delete', 'measurement_clear', 'measurement_sync',
     ];
@@ -550,11 +527,7 @@ export class WebClientProtocol {
       showToast.error(data?.reason ?? 'Action rejected');
     });
 
-    // Paint strokes.
-    this.registerHandler(MessageType.PAINT_STROKE_CREATE, this.handlePaintStrokeCreate.bind(this));
-    this.registerHandler(MessageType.PAINT_STROKE_DELETE, this.handlePaintStrokeDelete.bind(this));
-    this.registerHandler(MessageType.PAINT_STROKE_CLEAR, this.handlePaintStrokeClear.bind(this));
-    this.registerHandler(MessageType.PAINT_SYNC, this.handlePaintSync.bind(this));
+    // Authoritative paint objects and ephemeral previews.
     this.registerHandler(MessageType.PAINT_OBJECT_EVENT, (message) => {
       emitProtocolEvent('paint-object-event', parsePaintObjectEvent(message.data));
     });
@@ -1682,47 +1655,6 @@ export class WebClientProtocol {
     }
   }
 
-  private handlePaintStrokeCreate(message: Message): void {
-    // Server sends: { operation, stroke: {stroke_id, created_by, stroke_data: <JSON string>, ...}, table_id }
-    const data = message.data as { table_id?: string; stroke?: { stroke_id?: string; created_by?: number; stroke_data?: string } };
-    if (!this.targetsActiveTable(data)) return;
-    const stroke = data?.stroke;
-    if (!stroke) return;
-    // Skip our own strokes - server excludes sender from broadcast, but sends response back
-    if (stroke.created_by != null && stroke.created_by === this.userId) return;
-    // stroke_data is the raw DrawStroke JSON from WASM
-    const drawStrokeJson = stroke.stroke_data;
-    if (drawStrokeJson) {
-      getCurrentWasmRuntime()?.addRemotePaintStroke(drawStrokeJson);
-    }
-    emitProtocolEvent('paint-stroke-created', data);
-  }
-
-  private handlePaintStrokeDelete(message: Message): void {
-    const data = message.data as { table_id?: string; stroke_id?: string };
-    if (!this.targetsActiveTable(data)) return;
-    if (!data.stroke_id) return;
-    getCurrentWasmRuntime()?.removePaintStroke(data.stroke_id);
-    emitProtocolEvent('paint-stroke-deleted', data);
-  }
-
-  private handlePaintStrokeClear(message: Message): void {
-    if (!this.targetsActiveTable(message.data)) return;
-    getCurrentWasmRuntime()?.clearPaintStrokes();
-    emitProtocolEvent('paint-strokes-cleared', message.data);
-  }
-
-  private handlePaintSync(message: Message): void {
-    // Server sends PAINT_SYNC with strokes in to_dict() format: [{stroke_id, stroke_data: <JSON>, ...}]
-    // We need to extract the DrawStroke JSON from each entry
-    const data = message.data as { table_id?: string; strokes?: { stroke_id: string; stroke_data: string }[] };
-    if (!this.targetsActiveTable(data)) return;
-    const runtime = getCurrentWasmRuntime();
-    if (!runtime || !Array.isArray(data?.strokes)) return;
-    const drawStrokes = parseStoredPaintStrokes(data.strokes);
-    runtime.loadPaintStrokes(JSON.stringify(drawStrokes));
-  }
-
   /** Apply a map of { layerName -> settings } to the WASM engine and Zustand store. */
   private applyLayerSettings(settings: Record<string, Record<string, unknown>>): void {
     getCurrentWasmRuntime()?.applyLayerSettings(settings);
@@ -1916,25 +1848,6 @@ export class WebClientProtocol {
     if (!tableId) return;
     validateTableId(tableId);
     this.sendMessage(createMessage(MessageType.DOOR_TOGGLE, { table_id: tableId, wall_id: wallId }, 2));
-  }
-
-  // Paint stroke management
-  createPaintStroke(strokeId: string, strokeData: string): void {
-    const tableId = useGameStore.getState().activeTableId;
-    if (!tableId) return;
-    this.sendMessage(createMessage(MessageType.PAINT_STROKE_CREATE, { table_id: tableId, stroke_id: strokeId, stroke_data: strokeData }, 3));
-  }
-
-  deletePaintStroke(strokeId: string): void {
-    const tableId = useGameStore.getState().activeTableId;
-    if (!tableId) return;
-    this.sendMessage(createMessage(MessageType.PAINT_STROKE_DELETE, { table_id: tableId, stroke_id: strokeId }, 3));
-  }
-
-  clearPaintStrokes(): void {
-    const tableId = useGameStore.getState().activeTableId;
-    if (!tableId) return;
-    this.sendMessage(createMessage(MessageType.PAINT_STROKE_CLEAR, { table_id: tableId }, 3));
   }
 
   private sendPaintMessage(type: MessageType, data: Record<string, unknown>): boolean {

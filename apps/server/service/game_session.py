@@ -22,6 +22,7 @@ from utils.time import utc_now
 
 from .asset_manager import get_server_asset_manager
 from .game_session_protocol import GameSessionProtocolService
+from .legacy_paint import is_legacy_paint_message, legacy_paint_upgrade_data
 
 logger = setup_logger(__name__)
 
@@ -518,6 +519,16 @@ class ConnectionManager:
             info = self.connection_info[websocket]
             session_code = info["session_code"]
             username = info["username"]
+
+            if is_legacy_paint_message(message_data):
+                await self.send_personal_message(
+                    {
+                        "type": MessageType.ERROR.value,
+                        "data": legacy_paint_upgrade_data(),
+                    },
+                    websocket,
+                )
+                return
 
             # Check if this is a protocol message (contains MessageType fields)
             if self._is_protocol_message(message_data):

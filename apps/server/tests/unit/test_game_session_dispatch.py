@@ -83,3 +83,44 @@ async def test_unknown_message_type_still_uses_legacy_error():
         },
         websocket,
     )
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "message_type",
+    [
+        "paint_stroke_create",
+        "paint_stroke_delete",
+        "paint_stroke_clear",
+        "paint_sync",
+    ],
+)
+async def test_legacy_paint_message_requires_upgrade_before_protocol_dispatch(
+    message_type,
+):
+    protocol_service = MagicMock()
+    protocol_service.handle_protocol_message = AsyncMock()
+    manager, websocket, send_personal_message, broadcast_to_session = (
+        _connected_manager(protocol_service)
+    )
+
+    await manager.handle_message(
+        websocket,
+        {"type": message_type, "data": {"table_id": "table-first"}},
+    )
+
+    send_personal_message.assert_awaited_once_with(
+        {
+            "type": MessageType.ERROR.value,
+            "data": {
+                "error": (
+                    "Legacy paint strokes are retired; upgrade and request an object snapshot"
+                ),
+                "code": "upgrade_required",
+            },
+        },
+        websocket,
+    )
+    protocol_service.handle_protocol_message.assert_not_awaited()
+    broadcast_to_session.assert_not_awaited()

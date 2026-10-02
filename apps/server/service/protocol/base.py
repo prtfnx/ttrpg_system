@@ -8,6 +8,7 @@ from core_table.actions_core import ActionsCore
 from core_table.protocol import Message, MessageType
 from utils.logger import setup_logger
 
+from ..legacy_paint import is_legacy_paint_message, legacy_paint_upgrade_data
 from .assets import _AssetsMixin
 from .characters import _CharactersMixin
 from .chat import _ChatMixin
@@ -356,6 +357,11 @@ class ServerProtocol(
         responses = []
         for msg_data in messages_data:
             try:
+                if is_legacy_paint_message(msg_data):
+                    responses.append(
+                        Message(MessageType.ERROR, legacy_paint_upgrade_data())
+                    )
+                    continue
                 individual_msg = Message.from_dict(msg_data)
                 handler = self.handlers.get(individual_msg.type)
                 if handler:

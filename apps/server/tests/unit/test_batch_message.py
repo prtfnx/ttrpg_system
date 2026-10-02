@@ -89,3 +89,22 @@ async def test_batch_handler_does_not_dispatch_schema_invalid_entries():
     status_handler.assert_not_awaited()
     assert response.type == MessageType.BATCH_RESPONSE
     assert response.data["messages"][0]["type"] == MessageType.ERROR.value
+
+
+@pytest.mark.asyncio
+async def test_batch_handler_rejects_legacy_paint_before_enum_validation():
+    protocol = object.__new__(ServerProtocol)
+    handler = AsyncMock()
+    protocol.handlers = {MessageType.PING: handler}
+    request = Message(MessageType.BATCH_REQUEST, {
+        "messages": [{"type": "paint_stroke_create", "data": {}}],
+        "seq": 8,
+    })
+
+    response = await protocol.handle_batch_request(request, "client-1")
+
+    handler.assert_not_awaited()
+    assert response.type == MessageType.BATCH_RESPONSE
+    assert response.data["processed_count"] == 1
+    assert response.data["response_count"] == 1
+    assert response.data["messages"][0]["data"]["code"] == "upgrade_required"

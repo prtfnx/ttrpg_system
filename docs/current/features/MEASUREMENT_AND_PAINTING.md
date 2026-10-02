@@ -82,6 +82,11 @@ within the configured retry window; an older recorded operation is rejected
 with `retry_window_expired` so the client must obtain a fresh snapshot rather
 than risk applying stale intent. A bounded hourly background job removes ledger
 rows only after the longer configured retention period.
+Migration `0010_paint_objects` seeds `paint_state` for existing tables, and
+normal table creation adds the revision-zero state row in the same transaction
+as each new table, including the bootstrapped demo table. Durable paint writers
+therefore always lock an existing table-scoped row; their first mutation cannot
+race to create the lock target.
 
 The active browser uses the object protocol. The server keeps the three legacy
 stroke message names registered only to return a deterministic

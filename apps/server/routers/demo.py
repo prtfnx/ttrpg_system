@@ -54,10 +54,16 @@ def get_or_create_demo_session(db: Session) -> models.GameSession:
     )
     db.add(session)
     db.flush()
-    db.add(models.VirtualTable(
+    table = models.VirtualTable(
         table_id=str(uuid.uuid4()), name="Tavern Encounter",
         width=2000, height=2000, session_id=session.id,
-    ))
+    )
+    table.paint_state = models.PaintState(
+        table_id=table.table_id,
+        revision=0,
+        next_z_order=1,
+    )
+    db.add(table)
     return session
 
 

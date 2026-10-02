@@ -36,6 +36,9 @@ def test_demo_preserves_login_and_bootstraps_real_spectator(client, test_db, tes
     membership = test_db.query(models.GamePlayer).filter_by(user_id=guest.id).one()
     assert membership.role == "spectator"
     assert membership.active_table_id
+    paint_state = test_db.get(models.PaintState, membership.active_table_id)
+    assert paint_state is not None
+    assert (paint_state.revision, paint_state.next_z_order) == (0, 1)
     host = membership.session.owner
     assert host.disabled
     assert not crud.authenticate_user(test_db, host.username, "demo_password_not_used")

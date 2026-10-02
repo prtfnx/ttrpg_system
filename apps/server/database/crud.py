@@ -487,6 +487,11 @@ def create_virtual_table(db: Session, table_data: schemas.VirtualTableCreate, *,
         difficult_terrain_json=json.dumps(table_data.difficult_terrain or []),
         cover_zones_json=json.dumps(table_data.cover_zones or []),
     )
+    db_table.paint_state = models.PaintState(
+        table_id=table_data.table_id,
+        revision=0,
+        next_z_order=1,
+    )
     db.add(db_table)
     if commit:
         db.commit()

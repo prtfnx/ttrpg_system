@@ -99,12 +99,12 @@ the runtime application.
 | `audit_logs` | `AuditLog` | security and audit events |
 | `character_logs` | `CharacterLog` | per-character action log entries |
 | `chat_messages` | `ChatMessage` | persisted session chat messages |
-| `paint_strokes` | `PaintStroke` | persisted table drawing strokes |
-| `paint_state` | `PaintState` | staged per-table paint revision and z-order allocator |
-| `paint_objects` | `PaintObject` | staged typed, versioned, independently editable paint objects |
-| `paint_operation_results` | `PaintOperationResult` | staged idempotent paint mutation results by table, actor, and operation |
+| `paint_strokes` | `PaintStroke` | read-only legacy source retained for verified cutover and rollback |
+| `paint_state` | `PaintState` | authoritative per-table paint revision and z-order allocator |
+| `paint_objects` | `PaintObject` | typed, versioned, independently editable paint objects |
+| `paint_operation_results` | `PaintOperationResult` | idempotent paint mutation results by table, actor, and operation |
 | `shared_measurements` | `SharedMeasurement` | persisted completed measurements |
-| `paint_templates` | `PaintTemplate` | persisted brush/template data |
+| `paint_templates` | `PaintTemplate` | read-only legacy templates retained after lossless export |
 
 ## Important relationships
 
@@ -112,15 +112,15 @@ the runtime application.
 - `GamePlayer` joins users to sessions and stores the session role.
 - `VirtualTable.session_id` points to `GameSession`.
 - `Entity.table_id` points to `VirtualTable.id`.
-- `Wall.table_id` and `PaintStroke.table_id` point to
-  `VirtualTable.table_id`.
+- `Wall.table_id`, `PaintObject.table_id`, `PaintState.table_id`, and the
+  retained `PaintStroke.table_id` point to `VirtualTable.table_id`.
 - `Entity.character_id` can point to `SessionCharacter.character_id`.
 - `CombatActionJournal.encounter_id` points to
   `CombatEncounter.encounter_id`.
 
 Several gameplay fields are JSON strings in the database. Examples include
 session rules, table layer settings, combatants, action logs, terrain, cover,
-character data, chat message payloads, and paint stroke data.
+character data, chat message payloads, and paint-object geometry/style data.
 
 ## Combat persistence
 
@@ -177,8 +177,10 @@ and `preview_updated_at` to `virtual_tables`. The image column is deferred by
 the ORM so ordinary table reads do not load preview bytes.
 `0010_paint_objects` adds three writer-fenced tables with JSONB documents on
 PostgreSQL and JSON-compatible storage on SQLite. It seeds revision state for
-existing tables but does not backfill or activate object reads; legacy
-`paint_strokes` remains authoritative until the explicit cutover. There are
+existing tables; application table creation seeds new rows in the same
+transaction. The active application reads and writes `paint_objects` through
+revisioned snapshots/events. Legacy `paint_strokes` remains read-only for the
+verified maintenance cutover and rollback window. There are
 33 application model tables, plus Alembic's revision ledger.
 Alembic records the deployed revision in `alembic_version`. The old numbered
 SQLite runner and ledger were retired; they are not an upgrade path for

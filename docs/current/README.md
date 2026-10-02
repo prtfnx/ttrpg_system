@@ -78,9 +78,9 @@ older plans or reports in `docs/`.
 - [Walls, lighting, fog, and vision](features/WALLS_LIGHTING_FOG_AND_VISION.md):
   walls, doors, fog rectangles, table lighting settings, vision polygons, and
   WASM rendering responsibilities.
-- [Measurement and painting](features/MEASUREMENT_AND_PAINTING.md): local
-  measurement tools, table-unit sync, WASM paint strokes, paint persistence,
-  and join-time paint sync.
+- [Measurement and painting](features/MEASUREMENT_AND_PAINTING.md): shared
+  measurement tools plus editable paint objects, pointer interaction,
+  revisioned persistence, snapshots, previews, and legacy cutover.
 - [Assets and storage](features/ASSETS_AND_STORAGE.md): asset upload/download,
   R2 metadata, xxHash, pending upload confirmation, texture loading, and known
   storage gaps.

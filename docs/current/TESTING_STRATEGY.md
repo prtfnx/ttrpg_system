@@ -57,9 +57,12 @@ OAuth callback integration tests assert that provider exchange and database
 persistence execute on different threads, and cover subject resolution,
 creation, and rejection of email-only linking
 with both success and failure audit records.
-Paint persistence regression tests cover the same thread boundary for stroke
-create/delete/clear and template upsert/delete/sync, plus stroke retry
-idempotency. Measurement tests cover upsert/delete/clear/sync. For new
+Paint persistence regression tests cover worker-owned object
+create/update/delete and snapshots, optimistic conflicts, retry idempotency,
+authorization, preview isolation, operation-ledger cleanup, cutover artifacts,
+and template export. PostgreSQL-only coverage proves gap-free concurrent
+revisions and writer fencing; SQLite is not treated as concurrency evidence.
+Measurement tests cover upsert/delete/clear/sync. For new
 async-to-sync boundaries, add an event-loop responsiveness regression and
 assert that the worker creates and closes its own SQLAlchemy session.
 

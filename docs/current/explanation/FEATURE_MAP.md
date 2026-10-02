@@ -56,7 +56,7 @@ ownership rules.
 | Fog | `apps/web-ui/src/features/fog/` | fog panel and table visibility controls |
 | Lighting | `apps/web-ui/src/features/lighting/` | lighting panel and vision service |
 | Measurement | `apps/web-ui/src/features/measurement/` | measurement tools and advanced panel |
-| Painting | `apps/web-ui/src/features/painting/` | paint panel and paint service |
+| Painting | `apps/web-ui/src/features/painting/` | object tools, pointer controller, snapshot/event reconciliation |
 | Network | `apps/web-ui/src/features/network/` | connected-player roster and DM kick/ban controls |
 
 ## Protocol feature split
@@ -67,7 +67,7 @@ message behavior by area:
 - `tables.py`
 - `sprites.py`
 - `walls.py`
-- `paint.py` and `paint_templates.py`
+- `paint.py`
 - `measurements.py`
 - `assets.py`
 - `players.py`

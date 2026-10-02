@@ -5,7 +5,7 @@ canvas bootstrap, or table settings.
 
 Status: current but partial.
 
-Last source audit: 2026-09-28
+Last source audit: 2026-10-01
 
 ## Source owners
 
@@ -18,7 +18,8 @@ Last source audit: 2026-09-28
 - `apps/server/routers/game.py`: authenticated table-preview upload and read
   endpoints.
 - `apps/server/database/models.py`: `VirtualTable`, `GamePlayer.active_table_id`,
-  walls, paint strokes, layer settings, and table lighting columns.
+  walls, paint objects/revision state, layer settings, and table lighting
+  columns.
 - `apps/web-ui/src/store.ts`: table list, active table, optimistic create,
   switch, delete, units, walls, and table lighting state.
 - `apps/web-ui/src/features/table/`: table management panels, thumbnails,
@@ -99,10 +100,10 @@ Switch table:
    layer, geometry value, or duplicate sprite ID leaves the visible resident
    table intact.
 7. The service replaces the browser sprite and wall mirrors, table-derived
-   lights, fog rectangles, paint strokes (including an authoritative empty
-   list), layer settings, units, grid settings, and table lighting settings
-   from that same snapshot. It then renders the bounded table plane before map
-   imagery and the grid.
+   lights, fog rectangles, layer settings, units, grid settings, and table
+   lighting settings from that snapshot. Paint hydration is separate: the
+   paint controller first clears the renderer to an empty revision-zero scene,
+   then applies one bounded versioned object snapshot and queued later events.
 8. `frameTableId` becomes ready only after required textures settle and a
    subsequent render frame completes.
 
@@ -186,7 +187,9 @@ Server-owned:
   entities instead of `width * height * layer_count`;
 - per-table dynamic lighting, fog exploration mode, ambient light, grid units,
   grid toggles, and colors;
-- persisted walls, paint strokes, and layer settings for join-time sync;
+- persisted walls and layer settings for join-time table sync;
+- versioned paint objects, table revision state, and retry results hydrated by
+  a separate bounded snapshot;
 - each player's active table.
 - a deferred, bounded WebP preview for each table. Preview bytes are excluded
   from normal table queries and hydration.
@@ -194,9 +197,10 @@ Server-owned:
 Active-table reads and writes run outside the asyncio event-loop thread with a
 worker-owned ORM session. Layer settings are also persisted off-thread and are
 constrained to a table in the authenticated session before any broadcast.
-Join-time wall/layer/paint fallbacks are loaded together in one worker-owned
-session, and validated table lighting/grid settings are persisted through the
-same async-to-sync boundary. ORM rows do not cross back to the event loop.
+Join-time wall/layer fallbacks are loaded together in one worker-owned session,
+and validated table lighting/grid settings are persisted through the same
+async-to-sync boundary. Paint objects use their dedicated snapshot worker and
+never appear in `TABLE_RESPONSE`. ORM rows do not cross back to the event loop.
 
 Browser-owned:
 

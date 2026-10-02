@@ -67,9 +67,6 @@ MUTATING_MESSAGE_TYPES = frozenset({
     MessageType.WALL_UPDATE,
     MessageType.WALL_REMOVE,
     MessageType.DOOR_TOGGLE,
-    MessageType.PAINT_STROKE_CREATE,
-    MessageType.PAINT_STROKE_DELETE,
-    MessageType.PAINT_STROKE_CLEAR,
     MessageType.PAINT_OBJECT_CREATE,
     MessageType.PAINT_OBJECT_UPDATE,
     MessageType.PAINT_OBJECT_DELETE,
@@ -257,10 +254,7 @@ class ServerProtocol(
         self.register_handler(MessageType.WALL_REMOVE,       self.handle_wall_remove)
         self.register_handler(MessageType.DOOR_TOGGLE,       self.handle_door_toggle)
 
-        # Paint strokes
-        self.register_handler(MessageType.PAINT_STROKE_CREATE, self.handle_paint_stroke_create)
-        self.register_handler(MessageType.PAINT_STROKE_DELETE, self.handle_paint_stroke_delete)
-        self.register_handler(MessageType.PAINT_STROKE_CLEAR,  self.handle_paint_stroke_clear)
+        # Paint objects
         self.register_handler(MessageType.PAINT_OBJECT_CREATE, self.handle_paint_object_create)
         self.register_handler(MessageType.PAINT_OBJECT_UPDATE, self.handle_paint_object_update)
         self.register_handler(MessageType.PAINT_OBJECT_DELETE, self.handle_paint_object_delete)

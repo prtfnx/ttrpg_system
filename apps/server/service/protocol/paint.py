@@ -130,28 +130,6 @@ class _PaintMixin(_ProtocolBase):
     """Handler methods for the authoritative paint-object domain."""
 
     @staticmethod
-    def _legacy_paint_error() -> Message:
-        return Message(
-            MessageType.ERROR,
-            {
-                "error": "Legacy paint strokes are retired; upgrade and request an object snapshot",
-                "code": "upgrade_required",
-            },
-        )
-
-    async def handle_paint_stroke_create(self, msg: Message, client_id: str) -> Message:
-        del msg, client_id
-        return self._legacy_paint_error()
-
-    async def handle_paint_stroke_delete(self, msg: Message, client_id: str) -> Message:
-        del msg, client_id
-        return self._legacy_paint_error()
-
-    async def handle_paint_stroke_clear(self, msg: Message, client_id: str) -> Message:
-        del msg, client_id
-        return self._legacy_paint_error()
-
-    @staticmethod
     def _paint_error(
         error: PaintCommandError,
         operation_id: str | None = None,

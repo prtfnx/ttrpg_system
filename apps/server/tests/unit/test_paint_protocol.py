@@ -149,35 +149,6 @@ def preview_message(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("handler_name", "message_type"),
-    [
-        ("handle_paint_stroke_create", MessageType.PAINT_STROKE_CREATE),
-        ("handle_paint_stroke_delete", MessageType.PAINT_STROKE_DELETE),
-        ("handle_paint_stroke_clear", MessageType.PAINT_STROKE_CLEAR),
-    ],
-)
-async def test_legacy_stroke_commands_require_upgrade_without_writes(
-    paint_db,
-    handler_name,
-    message_type,
-):
-    session_factory, first_id, _, _, player_id, _ = paint_db
-    harness = PaintHarness(first_id, player_id, "player")
-
-    result = await getattr(harness, handler_name)(
-        Message(message_type, {"table_id": "table-first"}),
-        "player",
-    )
-
-    assert result.type == MessageType.ERROR
-    assert result.data["code"] == "upgrade_required"
-    harness.broadcast_to_session.assert_not_awaited()
-    with session_factory() as db:
-        assert db.query(models.PaintStroke).count() == 0
-
-
-@pytest.mark.asyncio
 async def test_object_create_is_persisted_broadcast_and_idempotent(paint_db):
     session_factory, first_id, _, _, player_id, _ = paint_db
     harness = PaintHarness(first_id, player_id, "player")

@@ -98,6 +98,9 @@ Join-time table hydration no longer queries or publishes `paint_strokes`;
 clients obtain the current drawing exclusively through a versioned object
 snapshot. Browser table hydration likewise ignores legacy stroke fields and
 does not invoke the old Rust stroke loader or table selector.
+The generic database CRUD module no longer exposes legacy stroke create, read,
+delete, or clear functions. The `PaintStroke` model and source table remain
+available only to the cutover verifier and rollback backup window.
 The browser protocol no longer registers legacy stroke broadcasts, exposes
 stroke create/delete/clear commands, or publishes legacy stroke DOM events.
 `WasmRuntimePort` exposes only object snapshots, mutations, hit tests,

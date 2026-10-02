@@ -1069,59 +1069,6 @@ def delete_table_walls(db: Session, table_id: str) -> int:
     return count
 
 
-# -- Paint Strokes -------------------------------------------------------------
-
-def create_paint_stroke(db: Session, table_id: str, stroke_id: str, stroke_data: str, created_by: Optional[int] = None) -> models.PaintStroke:
-    stroke = models.PaintStroke(
-        stroke_id=stroke_id,
-        table_id=table_id,
-        created_by=created_by,
-        stroke_data=stroke_data,
-    )
-    db.add(stroke)
-    db.commit()
-    db.refresh(stroke)
-    return stroke
-
-
-def get_paint_strokes_for_table(db: Session, table_id: str) -> list[models.PaintStroke]:
-    return db.query(models.PaintStroke).filter(models.PaintStroke.table_id == table_id).order_by(models.PaintStroke.created_at).all()
-
-
-def get_paint_stroke(db: Session, table_id: str, stroke_id: str) -> Optional[models.PaintStroke]:
-    return db.query(models.PaintStroke).filter(
-        models.PaintStroke.table_id == table_id,
-        models.PaintStroke.stroke_id == stroke_id,
-    ).first()
-
-
-def delete_paint_stroke(
-    db: Session,
-    table_id: str,
-    stroke_id: str,
-    *,
-    created_by: Optional[int] = None,
-) -> bool:
-    query = db.query(models.PaintStroke).filter(
-        models.PaintStroke.table_id == table_id,
-        models.PaintStroke.stroke_id == stroke_id,
-    )
-    if created_by is not None:
-        query = query.filter(models.PaintStroke.created_by == created_by)
-    stroke = query.first()
-    if not stroke:
-        return False
-    db.delete(stroke)
-    db.commit()
-    return True
-
-
-def clear_paint_strokes_for_table(db: Session, table_id: str) -> int:
-    count = db.query(models.PaintStroke).filter(models.PaintStroke.table_id == table_id).delete()
-    db.commit()
-    return count
-
-
 def get_shared_measurements(
     db: Session, table_id: str
 ) -> list[models.SharedMeasurement]:

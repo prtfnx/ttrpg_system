@@ -17,7 +17,6 @@ from .encounter import _EncounterMixin
 from .helpers import _HelpersMixin
 from .measurements import _MeasurementsMixin
 from .paint import _PaintMixin
-from .paint_templates import _PaintTemplatesMixin
 from .players import _PlayersMixin
 from .session import _SessionMixin
 from .sprites import _SpritesMixin
@@ -70,8 +69,6 @@ MUTATING_MESSAGE_TYPES = frozenset({
     MessageType.PAINT_OBJECT_CREATE,
     MessageType.PAINT_OBJECT_UPDATE,
     MessageType.PAINT_OBJECT_DELETE,
-    MessageType.PAINT_TEMPLATE_UPSERT,
-    MessageType.PAINT_TEMPLATE_DELETE,
     MessageType.MEASUREMENT_UPSERT,
     MessageType.MEASUREMENT_DELETE,
     MessageType.MEASUREMENT_CLEAR,
@@ -94,7 +91,6 @@ SESSION_STATE_READ_MESSAGE_TYPES = frozenset({
     MessageType.PLAYER_STATUS_REQUEST,
     MessageType.PLAYER_LIST_REQUEST,
     MessageType.SPRITE_REQUEST,
-    MessageType.PAINT_TEMPLATE_SYNC,
     MessageType.PAINT_SNAPSHOT_REQUEST,
     MessageType.MEASUREMENT_SYNC,
     MessageType.SESSION_RULES_REQUEST,
@@ -115,7 +111,6 @@ class ServerProtocol(
     _CharactersMixin,
     _WallsMixin,
     _PaintMixin,
-    _PaintTemplatesMixin,
     _MeasurementsMixin,
     _SessionMixin,
     _CombatMixin,
@@ -261,9 +256,6 @@ class ServerProtocol(
         self.register_handler(MessageType.PAINT_SNAPSHOT_REQUEST, self.handle_paint_snapshot_request)
         self.register_handler(MessageType.PAINT_PREVIEW, self.handle_paint_preview)
         self.register_handler(MessageType.PAINT_PREVIEW_CANCEL, self.handle_paint_preview_cancel)
-        self.register_handler(MessageType.PAINT_TEMPLATE_UPSERT, self.handle_paint_template_upsert)
-        self.register_handler(MessageType.PAINT_TEMPLATE_DELETE, self.handle_paint_template_delete)
-        self.register_handler(MessageType.PAINT_TEMPLATE_SYNC, self.handle_paint_template_sync)
         self.register_handler(MessageType.MEASUREMENT_UPSERT, self.handle_measurement_upsert)
         self.register_handler(MessageType.MEASUREMENT_DELETE, self.handle_measurement_delete)
         self.register_handler(MessageType.MEASUREMENT_CLEAR, self.handle_measurement_clear)

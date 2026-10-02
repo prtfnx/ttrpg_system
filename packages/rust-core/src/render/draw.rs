@@ -232,7 +232,6 @@ impl RenderEngine {
             Some(table_scissor),
         )?;
 
-        self.paint.render_strokes(&self.renderer)?;
         self.paint
             .render_objects(&self.renderer, &viewport_bounds, self.camera.zoom as f32)?;
 

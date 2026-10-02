@@ -519,10 +519,6 @@ impl PaintSystem {
         self.object_scene.len()
     }
 
-    pub(crate) fn object_table_id(&self) -> Option<&str> {
-        self.object_scene.table_id()
-    }
-
     pub fn object_mesh_rebuild_count(&self) -> u64 {
         self.object_meshes.rebuild_count()
     }
@@ -557,12 +553,6 @@ impl PaintSystem {
 }
 
 impl PaintSystem {
-    pub(crate) fn cancel_stroke(&mut self) {
-        self.current_stroke = None;
-        self.is_drawing = false;
-        self.last_point = None;
-    }
-
     // Rendering helpers (called from render engine)
     pub fn render_strokes(&self, renderer: &WebGLRenderer) -> Result<(), JsValue> {
         // Render all completed strokes for current table

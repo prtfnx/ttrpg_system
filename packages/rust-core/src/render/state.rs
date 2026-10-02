@@ -409,10 +409,6 @@ impl RenderEngine {
         self.input.input_mode = InputMode::Measurement;
     }
     #[wasm_bindgen]
-    pub fn set_input_mode_paint(&mut self) {
-        self.input.input_mode = InputMode::Paint;
-    }
-    #[wasm_bindgen]
     pub fn set_input_mode_create_rectangle(&mut self) {
         self.input.input_mode = InputMode::CreateRectangle;
     }
@@ -501,101 +497,7 @@ impl RenderEngine {
         }
     }
 
-    // Paint system methods
-    pub fn paint_set_current_table(&mut self, table_id: &str) {
-        let switched = self.paint.object_table_id() != Some(table_id);
-        self.paint.set_current_table(table_id);
-        if switched {
-            self.renderer.clear_cached_triangles_with_prefix("paint:");
-        }
-    }
-    #[wasm_bindgen]
-    pub fn paint_enter_mode(&mut self, width: f32, height: f32) {
-        self.paint.enter_paint_mode(width, height);
-    }
-
-    #[wasm_bindgen]
-    pub fn paint_exit_mode(&mut self) {
-        self.paint.exit_paint_mode();
-    }
-    #[wasm_bindgen]
-    pub fn paint_set_brush_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
-        self.paint.set_brush_color(r, g, b, a);
-    }
-
-    #[wasm_bindgen]
-    pub fn paint_set_brush_width(&mut self, width: f32) {
-        self.paint.set_brush_width(width);
-    }
-
-    #[wasm_bindgen]
-    pub fn paint_set_blend_mode(&mut self, blend_mode: &str) {
-        self.paint.set_blend_mode(blend_mode);
-    }
-    #[wasm_bindgen]
-    pub fn paint_start_stroke(&mut self, world_x: f32, world_y: f32, pressure: f32) -> bool {
-        self.paint.start_stroke(world_x, world_y, pressure)
-    }
-
-    #[wasm_bindgen]
-    pub fn paint_add_point(&mut self, world_x: f32, world_y: f32, pressure: f32) -> bool {
-        self.paint.add_stroke_point(world_x, world_y, pressure)
-    }
-
-    #[wasm_bindgen]
-    pub fn paint_end_stroke(&mut self) -> bool {
-        self.paint.end_stroke()
-    }
-
-    #[wasm_bindgen]
-    pub fn paint_cancel_stroke(&mut self) {
-        self.paint.cancel_stroke();
-    }
-
-    #[wasm_bindgen]
-    pub fn paint_clear_all(&mut self) {
-        self.paint.clear_all_strokes();
-    }
-    #[wasm_bindgen]
-    pub fn paint_undo_stroke(&mut self) -> bool {
-        self.paint.undo_last_stroke()
-    }
-
-    #[wasm_bindgen]
-    pub fn paint_redo_stroke(&mut self) -> bool {
-        self.paint.redo_last_stroke()
-    }
-
-    #[wasm_bindgen]
-    pub fn paint_get_strokes(&self) -> wasm_bindgen::JsValue {
-        self.paint.get_all_strokes_json()
-    }
-
-    #[wasm_bindgen]
-    pub fn paint_can_undo(&self) -> bool {
-        self.paint.can_undo()
-    }
-
-    #[wasm_bindgen]
-    pub fn paint_can_redo(&self) -> bool {
-        self.paint.can_redo()
-    }
-
-    #[wasm_bindgen]
-    pub fn paint_add_remote_stroke(&mut self, stroke_json: &str) -> bool {
-        self.paint.add_remote_stroke_json(stroke_json)
-    }
-
-    #[wasm_bindgen]
-    pub fn paint_remove_stroke(&mut self, stroke_id: &str) -> bool {
-        self.paint.remove_stroke_by_id(stroke_id)
-    }
-
-    #[wasm_bindgen]
-    pub fn paint_load_strokes(&mut self, strokes_json: &str) -> bool {
-        self.paint.load_strokes_json(strokes_json)
-    }
-
+    // Authoritative paint-object methods.
     #[wasm_bindgen]
     pub fn paint_replace_object_snapshot(
         &mut self,

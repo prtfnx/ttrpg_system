@@ -105,6 +105,9 @@ selection, and transient drafts; the legacy stroke load/add/remove/clear
 facade is removed.
 The toolbar keeps Rust in ordinary selection mode while an object paint tool
 is active; it no longer enters or exits the retired Rust-local stroke mode.
+`RenderEngine` no longer exports the old local stroke lifecycle, brush,
+undo/redo, synchronization, or bulk-load methods, and its frame pass renders
+only authoritative objects and transient object drafts.
 
 `PaintController` now owns the staged authoritative browser scene. It assembles
 bounded out-of-order snapshot chunks atomically, queues events during hydration,

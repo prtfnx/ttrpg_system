@@ -203,7 +203,12 @@ export class PaintController {
       if (pending.command.tableId !== tableId) this.pending.delete(operationId);
     }
     this.lastError = null;
-    if (tableId) this.transport.requestPaintSnapshot(tableId);
+    if (tableId) {
+      // Establish the new renderer generation immediately so objects from the
+      // previous table cannot remain visible while the snapshot is in flight.
+      this.runtime.replacePaintObjectSnapshot(tableId, 0, []);
+      this.transport.requestPaintSnapshot(tableId);
+    }
     this.emit();
   }
 

@@ -89,7 +89,7 @@ describe('PaintController', () => {
       object: object(2),
     });
     controller.acceptSnapshotChunk(chunk(1, 2, []));
-    expect(runtime.replacePaintObjectSnapshot).not.toHaveBeenCalled();
+    expect(runtime.replacePaintObjectSnapshot).toHaveBeenLastCalledWith(TABLE, 0, []);
     controller.acceptSnapshotChunk(chunk(0, 2, [object()]));
 
     expect(runtime.replacePaintObjectSnapshot).toHaveBeenCalledWith(TABLE, 4, [object()]);
@@ -249,11 +249,32 @@ describe('PaintController', () => {
     controller.selectTable(OTHER_TABLE);
     controller.acceptSnapshotChunk(chunk(1, 2, []));
 
-    expect(runtime.replacePaintObjectSnapshot).not.toHaveBeenCalled();
+    expect(runtime.replacePaintObjectSnapshot).toHaveBeenCalledTimes(2);
+    expect(runtime.replacePaintObjectSnapshot).toHaveBeenLastCalledWith(OTHER_TABLE, 0, []);
     expect(controller.getState()).toMatchObject({
       tableId: OTHER_TABLE,
       revision: 0,
       hydrating: true,
+    });
+  });
+
+  it('clears the previous renderer scene before requesting the next table', () => {
+    const { controller, transport, runtime } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [object()], 4));
+
+    controller.selectTable(OTHER_TABLE);
+
+    expect(runtime.replacePaintObjectSnapshot).toHaveBeenLastCalledWith(OTHER_TABLE, 0, []);
+    expect(transport.requestPaintSnapshot).toHaveBeenLastCalledWith(OTHER_TABLE);
+    const clearOrder = vi.mocked(runtime.replacePaintObjectSnapshot).mock.invocationCallOrder.at(-1);
+    const requestOrder = vi.mocked(transport.requestPaintSnapshot).mock.invocationCallOrder.at(-1);
+    expect(clearOrder).toBeLessThan(requestOrder as number);
+    expect(controller.getState()).toMatchObject({
+      tableId: OTHER_TABLE,
+      revision: 0,
+      hydrating: true,
+      committed: [],
     });
   });
 

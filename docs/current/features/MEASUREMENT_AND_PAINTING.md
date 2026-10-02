@@ -7,7 +7,7 @@ Status: current but partial. Paint strokes, completed measurement geometry,
 and paint templates are server-authoritative multiplayer state. Advanced
 measurement-template placement is not available in the UI.
 
-Last source audit: 2026-09-30
+Last source audit: 2026-10-01
 
 ## Ownership
 
@@ -119,6 +119,9 @@ portable cached triangle geometry for width, pressure, caps, and joins.
 Object snapshots now establish the renderer's active paint table directly;
 draft-only browser tests activate an empty revision-zero snapshot instead of
 calling a separate legacy table selector.
+Selecting a different table also installs that empty scene before requesting
+its asynchronous snapshot. This clears committed meshes from the previous
+table immediately; chunks from an older controller generation remain ignored.
 The browser runtime port and shared runtime types no longer expose default
 brush presets; the object panel's explicit color, width, and fill state is the
 only paint styling surface.

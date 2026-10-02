@@ -125,6 +125,9 @@ calling a separate legacy table selector.
 Selecting a different table also installs that empty scene before requesting
 its asynchronous snapshot. This clears committed meshes from the previous
 table immediately; chunks from an older controller generation remain ignored.
+The controller rejects create, update, and delete submissions while that
+snapshot is incomplete. Hydration is therefore a real readiness boundary, not
+only a loading label, and no durable edit can be based on an unseen scene.
 The browser runtime port and shared runtime types no longer expose default
 brush presets; the object panel's explicit color, width, and fill state is the
 only paint styling surface.

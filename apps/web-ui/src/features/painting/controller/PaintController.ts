@@ -221,19 +221,19 @@ export class PaintController {
   }
 
   submitCreate(object: PaintObjectInput): string | null {
-    if (!this.tableId) return null;
+    if (!this.tableId || this.hydrating) return null;
     return this.submit({ kind: 'create', tableId: this.tableId, object });
   }
 
   submitUpdate(objectId: string, expectedVersion: number, object: PaintObjectInput): string | null {
-    if (!this.tableId) return null;
+    if (!this.tableId || this.hydrating) return null;
     return this.submit({
       kind: 'update', tableId: this.tableId, objectId, expectedVersion, object,
     });
   }
 
   submitDelete(objectId: string, expectedVersion: number): string | null {
-    if (!this.tableId) return null;
+    if (!this.tableId || this.hydrating) return null;
     return this.submit({ kind: 'delete', tableId: this.tableId, objectId, expectedVersion });
   }
 

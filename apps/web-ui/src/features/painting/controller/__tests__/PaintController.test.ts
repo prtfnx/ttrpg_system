@@ -142,6 +142,21 @@ describe('PaintController', () => {
     expect(errors).toContain('A pending paint change expired and was discarded');
   });
 
+  it('does not accept durable commands before the table snapshot is ready', () => {
+    const { controller, transport } = harness();
+    controller.selectTable(TABLE);
+
+    expect(controller.submitCreate(input())).toBeNull();
+    expect(controller.submitUpdate(input().id, 1, input())).toBeNull();
+    expect(controller.submitDelete(input().id, 1)).toBeNull();
+    expect(transport.createPaintObject).not.toHaveBeenCalled();
+    expect(transport.updatePaintObject).not.toHaveBeenCalled();
+    expect(transport.deletePaintObject).not.toHaveBeenCalled();
+
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    expect(controller.submitCreate(input())).toBe(OPERATION);
+  });
+
   it('resolves acknowledgements once and resyncs conflicts', () => {
     const { controller, transport, runtime } = harness();
     controller.selectTable(TABLE);
@@ -198,6 +213,7 @@ describe('PaintController', () => {
   it('renders pending and remote drafts until authoritative resolution', () => {
     const { controller, runtime } = harness();
     controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
     controller.submitCreate(input());
     expect(runtime.setPaintDraft).toHaveBeenCalledWith(
       TABLE,

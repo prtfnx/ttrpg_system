@@ -144,9 +144,10 @@ Protocol behavior is split by domain under `apps/server/service/protocol/`.
 - `tables.py`: table CRUD, active table, settings.
 - `sprites.py`: sprite CRUD and live previews.
 - `walls.py`: wall and door operations.
-- `paint.py` and `paint_templates.py`: paint sync; blocking persistence uses
-  worker-owned ORM sessions while validation and WebSocket delivery remain on
-  the event loop.
+- `paint.py`: versioned paint-object commands, snapshots, and previews;
+  blocking persistence uses worker-owned ORM sessions while validation and
+  WebSocket delivery remain on the event loop. Legacy templates have no
+  protocol module and are available only to the maintenance exporter.
 - `measurements.py`: completed measurement sync with the same worker-owned ORM
   session boundary.
 - `session.py`: session rules, game mode, layer settings, and player

@@ -57,8 +57,13 @@ code, server state, and Rust lighting modules.
 
 Measurement: distance and area tooling in the browser UI and canvas layer.
 
-Paint stroke: freehand or drawing data synchronized through paint protocol
-handlers and persisted in the database.
+Paint object: one independently editable freehand path, line, rectangle,
+square, ellipse, or circle. The server owns its version and z-order; browsers
+hydrate it through revisioned snapshots and events.
+
+Legacy paint stroke: the retired opaque drawing format retained read-only for
+verified cutover and rollback evidence. It is not an active protocol or CRUD
+surface.
 
 ## Combat terms
 

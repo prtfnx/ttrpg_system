@@ -5,7 +5,7 @@ Audience: contributors changing browser/server protocol behavior.
 Status: partial. This page catalogs the currently registered server handlers
 and the main browser message families. It does not document every payload field.
 
-Last source audit: 2026-09-29
+Last source audit: 2026-10-01
 
 ## Source of truth
 
@@ -23,9 +23,11 @@ The registry also contains paint-object envelopes. The server registers
 responds with `paint_object_event` and bounded `paint_snapshot_chunk` messages
 and relays authorized previews. Envelope metadata is validated by the shared
 message schema, while nested objects use
-`packages/core-table/protocol/paint_object.schema.json`. The browser has not
-adopted this path yet, so legacy stroke handlers remain active during the
-cutover.
+`packages/core-table/protocol/paint_object.schema.json`. The browser uses this
+path exclusively. Retired stroke names are absent from the shared registry;
+the raw server boundary recognizes only those exact legacy strings to return
+`upgrade_required` without decoding, dispatching, or writing them. The same
+compatibility rule applies to entries inside a batch.
 
 Paint previews are best-effort and non-durable. The server overwrites any
 client-supplied actor ID with authenticated identity, checks interactive
@@ -97,8 +99,7 @@ These messages are registered in `ServerProtocol.init_handlers`.
 | Characters | `character_save_request`, `character_load_request`, `character_list_request`, `character_delete_request`, `character_update`, `character_log_request`, `character_roll`, `xp_award`, `multiclass_request` | `protocol/characters.py` |
 | Character drafts | `character_draft_create_request`, `character_draft_list_request`, `character_draft_load_request`, `character_draft_update_request`, `character_draft_finalize_request`, `character_draft_abandon_request` | `protocol/characters.py` |
 | Walls and doors | `wall_create`, `wall_update`, `wall_remove`, `door_toggle` | `protocol/walls.py` |
-| Paint | `paint_stroke_create`, `paint_stroke_delete`, `paint_stroke_clear`, `paint_object_create`, `paint_object_update`, `paint_object_delete`, `paint_snapshot_request`, `paint_preview`, `paint_preview_cancel` | `protocol/paint.py` |
-| Paint templates | `paint_template_upsert`, `paint_template_delete`, `paint_template_sync` | `protocol/paint_templates.py` |
+| Paint | `paint_object_create`, `paint_object_update`, `paint_object_delete`, `paint_snapshot_request`, `paint_preview`, `paint_preview_cancel` | `protocol/paint.py` |
 | Measurements | `measurement_upsert`, `measurement_delete`, `measurement_clear`, `measurement_sync` | `protocol/measurements.py` |
 | Session | `layer_settings_update`, `game_mode_change`, `session_rules_update`, `session_rules_request` | `protocol/session.py` |
 | Combat | `combat_state_request`, `cover_zones_sync`, `attack_preview`, `ai_action`, `combat_command` | `protocol/combat.py` |
@@ -131,8 +132,8 @@ Common families include:
 - Assets: upload, download, list, delete, and hash responses.
 - Characters: save, load, list, delete, update, log, roll, XP, and multiclass
   responses.
-- Walls and paint: `wall_data`, paint stroke broadcasts, `paint_sync`,
-  `paint_object_event`, and `paint_snapshot_chunk`.
+- Walls and paint: `wall_data`, `paint_object_event`,
+  `paint_snapshot_chunk`, and authorized best-effort paint previews.
 - Session: `game_mode_state`, `session_rules_changed`,
   `layer_settings_update`.
 - Combat: `combat_state`, `action_result`, `action_rejected`,

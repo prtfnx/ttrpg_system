@@ -131,7 +131,7 @@ Current React feature folders under `apps/web-ui/src/features/`:
 Current server protocol modules under `apps/server/service/protocol/`:
 
 `assets`, `characters`, `chat`, `combat`, `encounter`, `measurements`, `paint`,
-`paint_templates`, `players`, `session`, `sprites`, `tables`, and `walls`.
+`players`, `session`, `sprites`, `tables`, and `walls`.
 Registration in `base.py` determines active handlers; file existence does not
 make an old auth stub an active protocol.
 

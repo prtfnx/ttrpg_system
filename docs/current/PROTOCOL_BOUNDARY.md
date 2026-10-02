@@ -175,7 +175,8 @@ attack preview, cover-zone sync, and DM-only AI suggestions.
 - Sprites: create, update, remove, move, scale, rotate, previews.
 - Assets: upload, download, list, delete, hash.
 - Characters: save, load, update, delete, rolls, logs.
-- Walls and paint: wall CRUD, door toggle, paint stroke sync.
+- Walls and paint: wall CRUD, door toggle, versioned paint-object commands,
+  chunked snapshots, and disposable previews.
 - Session: layer settings, game mode, session rules.
 - Combat: one mutation message, `combat_command`, plus query/view/result
   messages such as combat state, action result/rejection, attack preview,

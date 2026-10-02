@@ -113,9 +113,14 @@ def write_json_artifact(path: Path, document: dict[str, Any]) -> None:
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
-        if path.exists():
-            raise PaintLegacyCutoverError(f"Refusing to replace existing artifact: {path}")
-        os.rename(temporary, path)
+        try:
+            # A hard-link publication is atomic and, unlike POSIX rename,
+            # cannot replace a destination created by a concurrent process.
+            os.link(temporary, path)
+        except FileExistsError as exc:
+            raise PaintLegacyCutoverError(
+                f"Refusing to replace existing artifact: {path}"
+            ) from exc
     finally:
         if temporary.exists():
             temporary.unlink()

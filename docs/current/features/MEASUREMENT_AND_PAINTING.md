@@ -69,6 +69,9 @@ source checksum, holds the existing database writer fence plus paint-table
 locks, refuses quarantine unless explicitly acknowledged, verifies every
 persisted object, leaves source rows intact for rollback, and is idempotent
 until object state becomes live or otherwise diverges.
+Backup/report and template-export artifacts are published with an atomic
+no-replace filesystem operation, so concurrent maintenance processes cannot
+win an existence-check race and overwrite one another's evidence.
 `apps/server/service/paint_object_service.py` owns durable object transactions.
 It derives roles from database membership, serializes mutations through
 `paint_state`, assigns revisions and z-order, enforces ownership and optimistic

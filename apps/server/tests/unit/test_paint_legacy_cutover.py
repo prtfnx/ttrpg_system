@@ -1,4 +1,5 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import pytest
@@ -166,3 +167,21 @@ def test_artifacts_are_lossless_private_and_never_overwritten(test_db, tmp_path)
     assert "stroke_data" not in json.dumps(report)
     with pytest.raises(PaintLegacyCutoverError, match="replace existing"):
         write_json_artifact(backup_path, plan.backup())
+
+
+def test_artifact_publication_has_one_winner_under_concurrency(tmp_path):
+    output = tmp_path / "concurrent.json"
+
+    def publish(index: int) -> bool:
+        try:
+            write_json_artifact(output, {"writer": index})
+            return True
+        except PaintLegacyCutoverError:
+            return False
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        results = list(executor.map(publish, range(8)))
+
+    assert results.count(True) == 1
+    assert results.count(False) == 7
+    assert json.loads(output.read_text(encoding="utf-8"))["writer"] in range(8)

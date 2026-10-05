@@ -135,6 +135,13 @@ calling a separate legacy table selector.
 Selecting a different table also installs that empty scene before requesting
 its asynchronous snapshot. This clears committed meshes from the previous
 table immediately; chunks from an older controller generation remain ignored.
+Each snapshot request carries a fresh envelope `message_id`. The existing
+server response correlation is retained as internal chunk `request_id`, and
+only chunks matching the active request may install a scene. This also rejects
+responses from a previous visit to the same table, superseded retries, and
+uncorrelated unsolicited snapshots. An installed scene never moves backwards
+in revision; duplicate buffered events are skipped, and events after a gap
+remain queued across the next snapshot request.
 The controller rejects create, update, and delete submissions while that
 snapshot is incomplete. Hydration is therefore a real readiness boundary, not
 only a loading label, and no durable edit can be based on an unseen scene.

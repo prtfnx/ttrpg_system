@@ -5,6 +5,7 @@ import type { PaintObject, PaintObjectInput } from '../../model/paintObject';
 const TABLE = '9e8ed60d-f18c-4f47-a5ce-fc04db50506a';
 const OTHER_TABLE = 'd57d06dc-85d1-42a7-a928-2d1fa10848f9';
 const OPERATION = '856e7eca-6461-4a42-a273-25c1171b5cc3';
+const REQUEST = '1c063923-a906-4507-886e-2bd0ebc48a02';
 
 function input(id = 'dd830253-e2bf-4a92-9862-eabe85f79c99'): PaintObjectInput {
   return {
@@ -51,9 +52,11 @@ function harness(now = 1_000) {
     clearPaintDrafts: vi.fn(),
   };
   const errors: string[] = [];
+  const snapshotRequestId = vi.fn(() => REQUEST);
   const controller = new PaintController(transport, runtime, {
     now: () => currentNow,
     operationId: () => OPERATION,
+    snapshotRequestId,
     onError: error => errors.push(error),
   });
   return {
@@ -61,12 +64,14 @@ function harness(now = 1_000) {
     transport,
     runtime,
     errors,
+    snapshotRequestId,
     advance: (milliseconds: number) => { currentNow += milliseconds; },
   };
 }
 
 function chunk(index: number, count: number, objects: PaintObject[], revision = 4) {
   return {
+    request_id: REQUEST,
     snapshot_id: 'a8f761db-c98d-46d6-b690-88ed74135fd1',
     table_id: TABLE,
     revision,
@@ -358,7 +363,7 @@ describe('PaintController', () => {
     controller.selectTable(OTHER_TABLE);
 
     expect(runtime.replacePaintObjectSnapshot).toHaveBeenLastCalledWith(OTHER_TABLE, 0, []);
-    expect(transport.requestPaintSnapshot).toHaveBeenLastCalledWith(OTHER_TABLE);
+    expect(transport.requestPaintSnapshot).toHaveBeenLastCalledWith(OTHER_TABLE, REQUEST);
     const clearOrder = vi.mocked(runtime.replacePaintObjectSnapshot).mock.invocationCallOrder.at(-1);
     const requestOrder = vi.mocked(transport.requestPaintSnapshot).mock.invocationCallOrder.at(-1);
     expect(clearOrder).toBeLessThan(requestOrder as number);
@@ -393,5 +398,54 @@ describe('PaintController', () => {
     );
     controller.dispose();
     vi.useRealTimers();
+  });
+
+  it('ignores old or uncorrelated snapshots after returning to the same table', () => {
+    const { controller, transport, runtime, snapshotRequestId } = harness();
+    const nextRequest = 'f3b0227a-eb30-48ae-a80f-c0e7dc449b8e';
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 2, [object()]));
+    controller.selectTable(OTHER_TABLE);
+    snapshotRequestId.mockReturnValue(nextRequest);
+    controller.selectTable(TABLE);
+    expect(transport.requestPaintSnapshot).toHaveBeenLastCalledWith(TABLE, nextRequest);
+
+    controller.acceptSnapshotChunk(chunk(1, 2, []));
+    controller.acceptSnapshotChunk(chunk(0, 1, [object()]));
+    controller.acceptSnapshotChunk({ ...chunk(0, 1, [object()]), request_id: undefined });
+    expect(controller.getState()).toMatchObject({ hydrating: true, committed: [] });
+    expect(runtime.replacePaintObjectSnapshot).toHaveBeenCalledTimes(3);
+
+    controller.acceptSnapshotChunk({ ...chunk(0, 1, [object()]), request_id: nextRequest });
+    expect(controller.getState()).toMatchObject({ hydrating: false, revision: 4 });
+  });
+
+  it('does not roll back confirmed state with late or older snapshots', () => {
+    const { controller, runtime } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [object()], 4));
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    controller.requestSnapshot();
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 3));
+    expect(runtime.replacePaintObjectSnapshot).toHaveBeenCalledTimes(2);
+    expect(controller.getState()).toMatchObject({ hydrating: true, revision: 4 });
+    expect(controller.getState().committed).toEqual([object()]);
+  });
+
+  it('replays duplicate buffered revisions once and retains later events across a gap', () => {
+    const { controller, transport, runtime } = harness();
+    controller.selectTable(TABLE);
+    const update = (revision: number) => ({
+      operation_id: OPERATION, table_id: TABLE, revision,
+      action: 'update' as const, object: object(revision),
+    });
+    for (const revision of [5, 5, 7, 8]) controller.acceptEvent(update(revision));
+    controller.acceptSnapshotChunk(chunk(0, 1, [object()], 4));
+    expect(controller.getState()).toMatchObject({ revision: 5, hydrating: true });
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
+    controller.acceptSnapshotChunk(chunk(0, 1, [object(6)], 6));
+    expect(controller.getState()).toMatchObject({ revision: 8, hydrating: false });
+    expect(runtime.upsertPaintObject).toHaveBeenCalledTimes(3);
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
   });
 });

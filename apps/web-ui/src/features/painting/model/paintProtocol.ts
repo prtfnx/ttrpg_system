@@ -25,6 +25,7 @@ export type PaintObjectEvent =
   };
 
 export interface PaintSnapshotChunk {
+  request_id?: string;
   snapshot_id: string;
   table_id: string;
   revision: number;
@@ -102,7 +103,7 @@ export function parsePaintObjectEvent(value: unknown): PaintObjectEvent {
   throw new TypeError('paint object event action is invalid');
 }
 
-export function parsePaintSnapshotChunk(value: unknown): PaintSnapshotChunk {
+export function parsePaintSnapshotChunk(value: unknown, requestId?: string): PaintSnapshotChunk {
   const data = record(value, 'paint snapshot chunk');
   const snapshot_id = uuid(data.snapshot_id, 'snapshot_id');
   const table_id = uuid(data.table_id, 'table_id');
@@ -119,6 +120,7 @@ export function parsePaintSnapshotChunk(value: unknown): PaintSnapshotChunk {
     if (object.table_id !== table_id) throw new TypeError('snapshot object table mismatch');
   }
   return {
+    request_id: requestId,
     snapshot_id,
     table_id,
     revision,

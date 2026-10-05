@@ -531,7 +531,7 @@ export class WebClientProtocol {
       emitProtocolEvent('paint-object-event', parsePaintObjectEvent(message.data));
     });
     this.registerHandler(MessageType.PAINT_SNAPSHOT_CHUNK, (message) => {
-      emitProtocolEvent('paint-snapshot-chunk', parsePaintSnapshotChunk(message.data));
+      emitProtocolEvent('paint-snapshot-chunk', parsePaintSnapshotChunk(message.data, message.correlation_id));
     });
     this.registerHandler(MessageType.PAINT_PREVIEW, (message) => {
       emitProtocolEvent('paint-preview', parsePaintPreview(message.data));
@@ -1839,11 +1839,13 @@ export class WebClientProtocol {
     this.sendMessage(createMessage(MessageType.DOOR_TOGGLE, { table_id: tableId, wall_id: wallId }, 2));
   }
 
-  private sendPaintMessage(type: MessageType, data: Record<string, unknown>): boolean {
+  private sendPaintMessage(type: MessageType, data: Record<string, unknown>, messageId?: string): boolean {
     const socket = this.websocket;
     if (!socket || socket.readyState !== WebSocket.OPEN) return false;
     try {
-      socket.send(JSON.stringify(createMessage(type, data, 3)));
+      const message = createMessage(type, data, 3);
+      if (messageId) message.message_id = messageId;
+      socket.send(JSON.stringify(message));
       return true;
     } catch (error) {
       logger.error('Protocol: Failed to send paint message', error);
@@ -1894,9 +1896,9 @@ export class WebClientProtocol {
     });
   }
 
-  requestPaintSnapshot(tableId: string): boolean {
+  requestPaintSnapshot(tableId: string, requestId?: string): boolean {
     validateTableId(tableId);
-    return this.sendPaintMessage(MessageType.PAINT_SNAPSHOT_REQUEST, { table_id: tableId });
+    return this.sendPaintMessage(MessageType.PAINT_SNAPSHOT_REQUEST, { table_id: tableId }, requestId);
   }
 
   sendPaintPreview(

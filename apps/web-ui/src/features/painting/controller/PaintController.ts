@@ -36,7 +36,7 @@ export interface PaintTransport {
     objectId: string,
     expectedVersion: number,
   ): boolean;
-  requestPaintSnapshot(tableId: string): boolean;
+  requestPaintSnapshot(tableId: string, requestId: string): boolean;
   sendPaintPreview(
     tableId: string,
     temporaryId: string,
@@ -96,6 +96,7 @@ export interface PaintControllerState {
 interface PaintControllerOptions {
   now?: () => number;
   operationId?: () => string;
+  snapshotRequestId?: () => string;
   retryWindowMs?: number;
   onError?: (message: string) => void;
   setTimeout?: (callback: () => void, delay: number) => number;
@@ -108,6 +109,7 @@ export class PaintController {
   private revision = 0;
   private hydrating = false;
   private snapshotRequestedAt: number | null = null;
+  private activeSnapshotRequestId: string | null = null;
   private committed = new Map<string, PaintObject>();
   private pending = new Map<string, PendingPaintOperation>();
   private queuedEvents: PaintObjectEvent[] = [];
@@ -124,6 +126,7 @@ export class PaintController {
 
   private readonly now: () => number;
   private readonly operationId: () => string;
+  private readonly snapshotRequestId: () => string;
   private readonly retryWindowMs: number;
   private readonly onError: (message: string) => void;
   private readonly schedule: (callback: () => void, delay: number) => number;
@@ -140,6 +143,7 @@ export class PaintController {
     this.runtime = runtime;
     this.now = options.now ?? Date.now;
     this.operationId = options.operationId ?? (() => crypto.randomUUID());
+    this.snapshotRequestId = options.snapshotRequestId ?? (() => crypto.randomUUID());
     this.retryWindowMs = options.retryWindowMs ?? DEFAULT_RETRY_WINDOW_MS;
     this.onError = options.onError ?? (() => undefined);
     this.schedule = options.setTimeout ?? ((callback, delay) => window.setTimeout(callback, delay));
@@ -198,6 +202,7 @@ export class PaintController {
     this.revision = 0;
     this.hydrating = tableId !== null;
     this.snapshotRequestedAt = tableId !== null ? this.now() : null;
+    this.activeSnapshotRequestId = tableId !== null ? this.snapshotRequestId() : null;
     this.committed.clear();
     this.queuedEvents = [];
     this.snapshots.clear();
@@ -210,7 +215,7 @@ export class PaintController {
       // Establish the new renderer generation immediately so objects from the
       // previous table cannot remain visible while the snapshot is in flight.
       this.runtime.replacePaintObjectSnapshot(tableId, 0, []);
-      this.transport.requestPaintSnapshot(tableId);
+      this.transport.requestPaintSnapshot(tableId, this.activeSnapshotRequestId!);
     }
     this.emit();
   }
@@ -219,8 +224,9 @@ export class PaintController {
     if (!this.tableId) return;
     this.hydrating = true;
     this.snapshotRequestedAt = this.now();
+    this.activeSnapshotRequestId = this.snapshotRequestId();
     this.snapshots.clear();
-    this.transport.requestPaintSnapshot(this.tableId);
+    this.transport.requestPaintSnapshot(this.tableId, this.activeSnapshotRequestId);
     this.emit();
   }
 
@@ -270,7 +276,13 @@ export class PaintController {
   }
 
   acceptSnapshotChunk(chunk: PaintSnapshotChunk): void {
-    if (chunk.table_id !== this.tableId || !this.tableId) return;
+    if (
+      chunk.table_id !== this.tableId
+      || !this.tableId
+      || !this.hydrating
+      || chunk.request_id !== this.activeSnapshotRequestId
+      || chunk.revision < this.revision
+    ) return;
     let assembly = this.snapshots.get(chunk.snapshot_id);
     if (!assembly) {
       if (this.snapshots.size >= 2) {
@@ -331,6 +343,7 @@ export class PaintController {
     this.revision = assembly.revision;
     this.hydrating = false;
     this.snapshotRequestedAt = null;
+    this.activeSnapshotRequestId = null;
     this.snapshots.clear();
     this.replayQueuedEvents();
     this.emit();
@@ -536,9 +549,10 @@ export class PaintController {
       .filter(event => event.table_id === this.tableId && event.revision > this.revision)
       .sort((left, right) => left.revision - right.revision);
     this.queuedEvents = [];
-    for (const event of queued) {
+    for (const [index, event] of queued.entries()) {
+      if (event.revision <= this.revision) continue;
       if (event.revision !== this.revision + 1 || !this.applyEvent(event)) {
-        this.queuedEvents.push(event);
+        this.queuedEvents.push(...queued.slice(index));
         this.requestSnapshot();
         return;
       }

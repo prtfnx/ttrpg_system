@@ -2033,8 +2033,8 @@ describe('WebClientProtocol', () => {
       Object.assign(mocks.storeState, makeStoreState({ activeTableId: 'tbl1' }));
     });
 
-    async function dispatch(p: WebClientProtocol, type: string, data: Record<string, unknown>) {
-      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5 });
+    async function dispatch(p: WebClientProtocol, type: string, data: Record<string, unknown>, correlation_id?: string) {
+      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5, correlation_id });
       await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
     }
 
@@ -2077,12 +2077,13 @@ describe('WebClientProtocol', () => {
         chunk_count: 1,
         complete: true,
         objects: [object],
-      });
+      }, 'snapshot-request-1');
 
       window.removeEventListener('paint-object-event', event);
       window.removeEventListener('paint-snapshot-chunk', chunk);
       expect((event.mock.calls[0][0] as CustomEvent).detail.object.id).toBe(object.id);
       expect((chunk.mock.calls[0][0] as CustomEvent).detail.objects).toEqual([object]);
+      expect((chunk.mock.calls[0][0] as CustomEvent).detail.request_id).toBe('snapshot-request-1');
     });
   });
 
@@ -2107,7 +2108,7 @@ describe('WebClientProtocol', () => {
       expect(p.createPaintObject(tableId, operationId, object)).toBe(true);
       expect(p.updatePaintObject(tableId, operationId, object.id, 1, object)).toBe(true);
       expect(p.deletePaintObject(tableId, operationId, object.id, 2)).toBe(true);
-      expect(p.requestPaintSnapshot(tableId)).toBe(true);
+      expect(p.requestPaintSnapshot(tableId, operationId)).toBe(true);
 
       const sent = ws.send.mock.calls.map(([raw]) => JSON.parse(raw as string));
       expect(sent.map(message => message.type)).toEqual([
@@ -2119,6 +2120,7 @@ describe('WebClientProtocol', () => {
       expect(sent[0].data).toMatchObject({ table_id: tableId, operation_id: operationId });
       expect(sent[1].data).toMatchObject({ id: object.id, expected_version: 1 });
       expect(sent[2].data).toMatchObject({ id: object.id, expected_version: 2 });
+      expect(sent[3].message_id).toBe(operationId);
     });
 
     it('drops disposable previews under websocket backpressure', () => {

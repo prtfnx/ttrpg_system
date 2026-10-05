@@ -4,7 +4,7 @@ Audience: operators and maintainers running schema changes.
 
 Status: usable.
 
-Last source audit: 2026-09-14
+Last source audit: 2026-10-02
 
 ## Contract
 
@@ -15,7 +15,7 @@ Alembic is the only hosted schema authority:
 - revisions: `apps/server/database/alembic/versions/`;
 - deployed revision ledger: `alembic_version`;
 - baseline: `0001_postgresql_baseline`;
-- current head: `0008_application_writer`.
+- current head: `0010_paint_objects`.
 
 The retired numbered SQLite runner is available only in Git history. It is not
 an active schema authority and existing SQLite schemas are not upgraded in
@@ -90,6 +90,21 @@ application compromise even though Render Free must retain the migration
 credential for its startup wrapper.
 
 ## Rollout and recovery
+
+Paint cutover uses `apps/server/scripts/cutover_legacy_paint.py`. Deploy with
+`PAINT_OBJECT_WRITES_ENABLED=false` while preparing and verifying the private
+backup/report artifacts and converted objects. The maintenance command owns
+its writer-fenced transaction; the runtime gate does not prevent that explicit
+maintenance workflow. Enable the flag and restart only after release checks.
+Authorized snapshots remain available while runtime writes are disabled.
+The unset production default is disabled, including for existing deployments
+upgrading to code that introduces this setting.
+
+Migration 0010 does not delete legacy strokes or templates. Downgrading to
+0009 removes the new object, state, and operation tables, so it is not a safe
+rollback after any accepted new-format write. After that boundary, preserve
+the database and deploy a forward fix; turning off the flag does not make old
+binaries understand the new format.
 
 Test each revision on a disposable PostgreSQL database before deployment.
 Prefer forward fixes. Do not run a downgrade against newer writes unless its

@@ -24,6 +24,7 @@ logger = setup_logger(__name__)
 SNAPSHOT_FRAME_RESERVE_BYTES = 1024
 PAINT_PREVIEW_MAX_BYTES = 16 * 1024
 PAINT_PREVIEW_AUTH_TTL_SECONDS = 5.0
+PAINT_PREVIEW_TTL_MS = 2_000
 
 
 def _create_paint_object(**kwargs) -> PaintCommandResult:
@@ -128,6 +129,13 @@ def _snapshot_chunks(
 
 class _PaintMixin(_ProtocolBase):
     """Handler methods for the authoritative paint-object domain."""
+
+    def _paint_writes_allowed(self) -> bool:
+        enabled = getattr(self, "_paint_writes_enabled", None)
+        if enabled is None:
+            enabled = bool(Settings().PAINT_OBJECT_WRITES_ENABLED)
+            self._paint_writes_enabled = enabled
+        return enabled
 
     @staticmethod
     def _paint_error(
@@ -364,13 +372,16 @@ class _PaintMixin(_ProtocolBase):
         )
         cache[key] = (now + PAINT_PREVIEW_AUTH_TTL_SECONDS, allowed)
         if len(cache) > 256:
-            self._paint_preview_authorizations = {
+            cache = {
                 cache_key: value for cache_key, value in cache.items() if value[0] > now
             }
+            while len(cache) > 256:
+                cache.pop(next(iter(cache)))
+            self._paint_preview_authorizations = cache
         return allowed
 
     async def handle_paint_preview(self, msg: Message, client_id: str) -> None:
-        if not can_interact(self._get_client_role(client_id)):
+        if not self._paint_writes_allowed() or not can_interact(self._get_client_role(client_id)):
             return
         data = msg.data or {}
         table_id = data.get("table_id")
@@ -403,7 +414,7 @@ class _PaintMixin(_ProtocolBase):
             "table_id": table_id,
             "temporary_id": temporary_id,
             "sequence": sequence,
-            "expires_at": expires_at,
+            "expires_at": min(expires_at, time.time() * 1_000 + PAINT_PREVIEW_TTL_MS),
             "draft": draft,
             "actor_id": actor_id,
         }

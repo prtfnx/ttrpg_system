@@ -399,3 +399,44 @@ async def test_preview_rejects_invalid_identity_and_oversized_draft(paint_db):
     )
 
     harness.broadcast_to_session.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_disabled_paint_gate_denies_writes_and_drops_previews_but_keeps_snapshots(paint_db, monkeypatch):
+    _, first_id, _, _, player_id, _ = paint_db
+    monkeypatch.setenv("PAINT_OBJECT_WRITES_ENABLED", "false")
+    harness = PaintHarness(first_id, player_id, "player")
+    create_message = object_create_message()
+    response = await harness.handle_paint_object_create(create_message, "player")
+    assert response.type == MessageType.ERROR
+    assert response.data["code"] == "paint_disabled"
+    assert response.data["operation_id"] == create_message.data["operation_id"]
+    await harness.handle_paint_preview(preview_message(), "player")
+    harness.broadcast_to_session.assert_not_awaited()
+    snapshot = await harness.handle_paint_snapshot_request(
+        Message(MessageType.PAINT_SNAPSHOT_REQUEST, {"table_id": TABLE_ID}), "player"
+    )
+    assert snapshot.type == MessageType.PAINT_SNAPSHOT_CHUNK
+    assert snapshot.data["revision"] == 0
+    assert snapshot.data["objects"] == []
+
+
+@pytest.mark.asyncio
+async def test_preview_membership_cache_is_bounded_even_before_entries_expire(monkeypatch):
+    monkeypatch.setattr(paint_module, "_authorize_paint_preview", lambda **kwargs: False)
+    harness = PaintHarness(1, 1, "player")
+    for index in range(300):
+        assert not await harness._paint_preview_allowed(session_id=1, actor_id=1, table_id=f"table-{index}")
+    assert len(harness._paint_preview_authorizations) == 256
+
+
+@pytest.mark.asyncio
+async def test_preview_relay_clamps_sender_expiry(paint_db, monkeypatch):
+    _, first_id, _, _, player_id, _ = paint_db
+    monkeypatch.setattr(paint_module.time, "time", lambda: 1_000)
+    harness = PaintHarness(first_id, player_id, "player")
+    message = preview_message()
+    message.data["expires_at"] = 9_999_999_999_999
+    await harness.handle_paint_preview(message, "player")
+    relay = harness.broadcast_to_session.await_args.args[0]
+    assert relay.data["expires_at"] == 1_002_000

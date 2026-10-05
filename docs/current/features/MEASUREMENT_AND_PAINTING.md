@@ -112,6 +112,11 @@ the exact operation ID/body. Preview sends are best-effort and drop when the
 browser WebSocket queue exceeds 64 KiB. The server derives actor identity,
 authorizes interactive table membership through a short-lived cache, validates
 drafts, caps relays at 16 KiB, and never writes durable preview state.
+The rollout gate also drops new previews while writes are disabled, but keeps
+authorized preview cancellation available. The server clamps relayed expiry
+to at most two seconds and bounds its five-second membership cache to 256
+entries even when none have expired. Gate configuration is process-owned;
+restart after changing the environment setting.
 Join-time table hydration no longer queries or publishes `paint_strokes`;
 clients obtain the current drawing exclusively through a versioned object
 snapshot. Browser table hydration likewise ignores legacy stroke fields and
@@ -304,7 +309,7 @@ or protocol events; no production UI can read or mutate the legacy format.
 Run the measurement and painting Vitest suites, browser protocol tests, server
 paint/table protocol tests, and Rust paint/WASM tests. The advanced-panel
 component tests assert that unfinished measurement-template controls stay
-hidden. Server tests assert that measurement and paint-template database
+hidden. Server tests assert that measurement and paint-object database
 operations leave the event-loop thread and that retired stroke commands always
 fail with `upgrade_required` without a write or broadcast. Durable-object tests
 cover idempotent commands, optimistic conflicts, authoritative snapshots,

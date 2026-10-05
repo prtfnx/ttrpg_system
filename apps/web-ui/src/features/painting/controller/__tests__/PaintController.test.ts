@@ -83,6 +83,54 @@ function chunk(index: number, count: number, objects: PaintObject[], revision = 
 }
 
 describe('PaintController', () => {
+  it('deduplicates buffered events and recovers when their count limit is exceeded', () => {
+    const { controller, transport, errors } = harness();
+    controller.selectTable(TABLE);
+    const event = (revision: number) => ({
+      operation_id: OPERATION, table_id: TABLE, revision,
+      action: 'update' as const, object: object(revision),
+    });
+    for (let index = 0; index < 500; index += 1) controller.acceptEvent(event(1));
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(1);
+    for (let revision = 2; revision <= 257; revision += 1) controller.acceptEvent(event(revision));
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
+    expect(errors).toEqual(['Paint event backlog exceeded the browser limit']);
+    controller.acceptSnapshotChunk(chunk(0, 1, [object(257)], 257));
+    expect(controller.getState()).toMatchObject({ hydrating: false, revision: 257 });
+    expect(controller.getState().committed).toEqual([object(257)]);
+  });
+
+  it('bounds buffered event bytes independently of their count', () => {
+    const { controller, transport, errors } = harness();
+    controller.selectTable(TABLE);
+    const largeObject = {
+      ...object(), kind: 'freehand' as const,
+      geometry: {
+        kind: 'freehand' as const,
+        points: Array.from({ length: 1_000 }, (_, index) => ({ x: index, y: index, pressure: 0.5 })),
+      },
+    };
+    for (let revision = 1; revision <= 150; revision += 1) {
+      controller.acceptEvent({
+        operation_id: OPERATION, table_id: TABLE, revision,
+        action: 'update', object: { ...largeObject, version: revision },
+      });
+    }
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
+    expect(errors).toEqual(['Paint event backlog exceeded the browser limit']);
+    controller.acceptSnapshotChunk(chunk(0, 1, [{ ...largeObject, version: 150 }], 150));
+    expect(controller.getState()).toMatchObject({ hydrating: false, revision: 150 });
+  });
+
+  it('resyncs an excessive snapshot chunk count without allocating an assembly', () => {
+    const { controller, transport, errors, runtime } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 2_001, []));
+    expect(errors).toEqual(['Paint snapshot exceeded the chunk limit']);
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
+    expect(runtime.replacePaintObjectSnapshot).toHaveBeenCalledTimes(1);
+  });
+
   it('retries snapshots even when the first chunk never arrives', () => {
     const { controller, transport, advance, errors } = harness(0);
     vi.mocked(transport.requestPaintSnapshot).mockReturnValue(false);

@@ -170,6 +170,11 @@ Generic renderer test helpers likewise omit the removed paint input mode.
 
 `PaintController` now owns the staged authoritative browser scene. It assembles
 bounded out-of-order snapshot chunks atomically, queues events during hydration,
+with at most 2,000 chunks per snapshot and full chunk metadata included in the
+byte budget. The hydration backlog deduplicates revisions and is bounded to
+256 events or 4 MiB, whichever is reached first. Overflow drops the backlog
+and starts a correlated fresh snapshot instead of retaining unbounded memory.
+The controller
 applies only contiguous revisions, detects gaps, ignores stale tables, retains
 exact pending operation bodies for retry, expires operations after the supported
 window, and restores a recreated renderer from confirmed state. It also

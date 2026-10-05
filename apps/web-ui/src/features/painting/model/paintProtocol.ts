@@ -1,6 +1,7 @@
 import {
   assertPaintObject,
   assertPaintObjectInput,
+  PAINT_LIMITS,
   type PaintObject,
   type PaintObjectInput,
 } from './paintObject';
@@ -110,11 +111,13 @@ export function parsePaintSnapshotChunk(value: unknown, requestId?: string): Pai
   const revision = integer(data.revision, 'revision');
   const chunk_index = integer(data.chunk_index, 'chunk_index');
   const chunk_count = integer(data.chunk_count, 'chunk_count', 1);
+  if (chunk_count > PAINT_LIMITS.maxObjectsPerTable) throw new TypeError('snapshot chunk limit exceeded');
   if (chunk_index >= chunk_count) throw new TypeError('chunk_index exceeds chunk_count');
   if (typeof data.complete !== 'boolean' || data.complete !== (chunk_index === chunk_count - 1)) {
     throw new TypeError('snapshot completion marker is invalid');
   }
   if (!Array.isArray(data.objects)) throw new TypeError('snapshot objects must be an array');
+  if (data.objects.length > PAINT_LIMITS.maxObjectsPerTable) throw new TypeError('snapshot object limit exceeded');
   for (const object of data.objects) {
     assertPaintObject(object);
     if (object.table_id !== table_id) throw new TypeError('snapshot object table mismatch');

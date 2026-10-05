@@ -22,6 +22,8 @@ const PREVIEW_INTERVAL_MS = 50;
 const PREVIEW_TTL_MS = 2_000;
 const MAX_REMOTE_PREVIEWS = 256;
 const MAX_PREVIEW_TOMBSTONES = 1_024;
+const MAX_BUFFERED_EVENTS = 256;
+const MAX_BUFFERED_EVENT_BYTES = 4 * 1024 * 1024;
 
 export interface PaintTransport {
   createPaintObject(tableId: string, operationId: string, object: PaintObjectInput): boolean;
@@ -114,7 +116,8 @@ export class PaintController {
   private activeSnapshotRequestId: string | null = null;
   private committed = new Map<string, PaintObject>();
   private pending = new Map<string, PendingPaintOperation>();
-  private queuedEvents: PaintObjectEvent[] = [];
+  private queuedEvents = new Map<number, { event: PaintObjectEvent; bytes: number }>();
+  private queuedEventBytes = 0;
   private snapshots = new Map<string, SnapshotAssembly>();
   private remotePreviews = new Map<string, PaintPreview>();
   private previewTombstones = new Map<string, { sequence: number; expiresAt: number }>();
@@ -207,7 +210,7 @@ export class PaintController {
     this.snapshotRequestedAt = tableId !== null ? this.now() : null;
     this.activeSnapshotRequestId = tableId !== null ? this.snapshotRequestId() : null;
     this.committed.clear();
-    this.queuedEvents = [];
+    this.clearQueuedEvents();
     this.snapshots.clear();
     this.remotePreviews.clear();
     this.previewTombstones.clear();
@@ -265,7 +268,7 @@ export class PaintController {
     this.runtime.clearPaintDraft?.(this.pendingDraftKey(event.operation_id));
     this.removePreviewForCommittedEvent(event);
     if (this.hydrating) {
-      this.queuedEvents.push(event);
+      this.bufferEvent(event);
       this.emit();
       return;
     }
@@ -274,7 +277,7 @@ export class PaintController {
       return;
     }
     if (event.revision !== this.revision + 1) {
-      this.queuedEvents.push(event);
+      this.bufferEvent(event);
       this.requestSnapshot();
       return;
     }
@@ -290,6 +293,10 @@ export class PaintController {
       || chunk.request_id !== this.activeSnapshotRequestId
       || chunk.revision < this.revision
     ) return;
+    if (chunk.chunk_count > PAINT_LIMITS.maxObjectsPerTable) {
+      this.failAndResync('Paint snapshot exceeded the chunk limit');
+      return;
+    }
     let assembly = this.snapshots.get(chunk.snapshot_id);
     if (!assembly) {
       if (this.snapshots.size >= 2) {
@@ -321,7 +328,7 @@ export class PaintController {
       if (JSON.stringify(existing) !== encoded) this.failAndResync('Conflicting paint snapshot chunk');
       return;
     }
-    assembly.bytes += new TextEncoder().encode(encoded).byteLength;
+    assembly.bytes += new TextEncoder().encode(JSON.stringify(chunk)).byteLength;
     if (assembly.bytes > SNAPSHOT_BYTE_LIMIT) {
       this.failAndResync('Paint snapshot exceeded the browser byte limit');
       return;
@@ -577,18 +584,38 @@ export class PaintController {
   }
 
   private replayQueuedEvents(): void {
-    const queued = this.queuedEvents
+    const queued = [...this.queuedEvents.values()].map(entry => entry.event)
       .filter(event => event.table_id === this.tableId && event.revision > this.revision)
       .sort((left, right) => left.revision - right.revision);
-    this.queuedEvents = [];
+    this.clearQueuedEvents();
     for (const [index, event] of queued.entries()) {
       if (event.revision <= this.revision) continue;
       if (event.revision !== this.revision + 1 || !this.applyEvent(event)) {
-        this.queuedEvents.push(...queued.slice(index));
+        for (const remaining of queued.slice(index)) this.bufferEvent(remaining);
         this.requestSnapshot();
         return;
       }
     }
+  }
+
+  private clearQueuedEvents(): void {
+    this.queuedEvents.clear();
+    this.queuedEventBytes = 0;
+  }
+
+  private bufferEvent(event: PaintObjectEvent): void {
+    if (event.revision <= this.revision || this.queuedEvents.has(event.revision)) return;
+    const bytes = new TextEncoder().encode(JSON.stringify(event)).byteLength;
+    if (
+      this.queuedEvents.size >= MAX_BUFFERED_EVENTS
+      || this.queuedEventBytes + bytes > MAX_BUFFERED_EVENT_BYTES
+    ) {
+      this.clearQueuedEvents();
+      this.failAndResync('Paint event backlog exceeded the browser limit');
+      return;
+    }
+    this.queuedEvents.set(event.revision, { event, bytes });
+    this.queuedEventBytes += bytes;
   }
 
   private flushPreview(): void {

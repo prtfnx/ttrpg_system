@@ -1,16 +1,26 @@
-import type {
-  PaintKind,
-  PaintObject,
-  PaintObjectInput,
-  PaintPoint,
-  PaintStyle,
+import {
+  PaintValidationError,
+  type PaintKind,
+  type PaintObject,
+  type PaintObjectInput,
+  type PaintPoint,
+  type PaintStyle,
 } from '../model/paintObject';
+import paintObjectSchema from '../model/paint_object.schema.generated.json';
 
 export type PaintTool = 'draw' | PaintKind | 'select' | 'delete';
 export type PaintHandleKind = 'line-start' | 'line-end' | 'nw' | 'ne' | 'se' | 'sw';
 
 const MIN_DIMENSION = 0.001;
-const MAX_PATH_POINTS = 8_192;
+export const MAX_FREEHAND_POINTS = paintObjectSchema.$defs.freehandGeometry.properties.points.maxItems;
+
+function assertPointBudget(count: number): void {
+  if (count > MAX_FREEHAND_POINTS) {
+    throw new PaintValidationError(
+      `Drawing exceeds the ${MAX_FREEHAND_POINTS.toLocaleString('en-US')}-point limit after simplification. Draw shorter paths.`,
+    );
+  }
+}
 
 function editableObject(object: PaintObject): PaintObjectInput {
   const {
@@ -118,22 +128,44 @@ function simplifySection(
   first: number,
   last: number,
   tolerance: number,
+  pressureTolerance: number,
   keep: Set<number>,
 ): void {
-  if (last <= first + 1) return;
-  let furthest = first;
-  let distance = tolerance;
-  for (let index = first + 1; index < last; index += 1) {
-    const candidate = pointDistanceToSegment(points[index], points[first], points[last]);
-    if (candidate > distance) {
-      distance = candidate;
-      furthest = index;
+  // Explicit work avoids call-stack overflow on long, highly detailed paths.
+  const sections: [number, number][] = [[first, last]];
+  while (sections.length > 0) {
+    const [start, end] = sections.pop()!;
+    if (end <= start + 1) continue;
+    let furthest = start;
+    let deviation = 1;
+    const dx = points[end].x - points[start].x;
+    const dy = points[end].y - points[start].y;
+    const lengthSquared = dx * dx + dy * dy;
+    for (let index = start + 1; index < end; index += 1) {
+      const distance = pointDistanceToSegment(points[index], points[start], points[end]);
+      const progress = lengthSquared === 0
+        ? (index - start) / (end - start)
+        : Math.max(0, Math.min(1, (
+          (points[index].x - points[start].x) * dx
+          + (points[index].y - points[start].y) * dy
+        ) / lengthSquared));
+      const interpolatedPressure = points[start].pressure
+        + progress * (points[end].pressure - points[start].pressure);
+      const pressureDifference = Math.abs(points[index].pressure - interpolatedPressure);
+      const candidate = Math.max(
+        tolerance > 0 ? distance / tolerance : distance > 0 ? Infinity : 0,
+        pressureTolerance > 0 ? pressureDifference / pressureTolerance : pressureDifference > 0 ? Infinity : 0,
+      );
+      if (candidate > deviation) {
+        deviation = candidate;
+        furthest = index;
+      }
     }
-  }
-  if (furthest !== first) {
-    keep.add(furthest);
-    simplifySection(points, first, furthest, tolerance, keep);
-    simplifySection(points, furthest, last, tolerance, keep);
+    if (furthest !== start) {
+      keep.add(furthest);
+      assertPointBudget(keep.size);
+      sections.push([start, furthest], [furthest, end]);
+    }
   }
 }
 
@@ -150,24 +182,19 @@ export function compactFreehandPoints(
       || Math.abs(points[index].pressure - points[index + 1].pressure) >= pressureTolerance
     ) {
       keep.add(index);
+      assertPointBudget(keep.size);
     }
   }
   const anchors = [...keep].sort((left, right) => left - right);
   for (let index = 1; index < anchors.length; index += 1) {
-    simplifySection(points, anchors[index - 1], anchors[index], Math.max(0, tolerance), keep);
+    simplifySection(
+      points, anchors[index - 1], anchors[index], Math.max(0, tolerance),
+      Math.max(0, pressureTolerance), keep,
+    );
   }
-  const compacted = [...keep]
+  return [...keep]
     .sort((left, right) => left - right)
     .map(index => ({ ...points[index] }));
-  if (compacted.length <= MAX_PATH_POINTS) return compacted;
-
-  const bounded = [compacted[0]];
-  const step = (compacted.length - 1) / (MAX_PATH_POINTS - 1);
-  for (let index = 1; index < MAX_PATH_POINTS - 1; index += 1) {
-    bounded.push(compacted[Math.round(index * step)]);
-  }
-  bounded.push(compacted[compacted.length - 1]);
-  return bounded;
 }
 
 export function createPaintDraft(

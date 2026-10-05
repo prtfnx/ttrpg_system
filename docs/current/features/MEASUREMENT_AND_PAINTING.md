@@ -171,9 +171,13 @@ still-current pending and preview state.
 
 Gesture geometry is constructed in world coordinates with local object points.
 Rectangle and ellipse drags normalize either direction; square and circle drags
-lock both axes to the larger delta. Freehand completion uses a spatial
-simplifier while retaining endpoints and pressure discontinuities, then applies
-the canonical 8,192-point ceiling. A freehand click remains a one-point dot.
+lock both axes to the larger delta. Freehand completion uses an iterative
+spatial simplifier with a world-space tolerance of `max(width * 0.1, 0.25)`.
+It retains endpoints and pressure discontinuities and limits deviation from
+interpolated pressure to 0.08, preserving gradual pressure peaks as well.
+The canonical 8,192-point ceiling comes from the shared schema; paths that
+still exceed it are rejected explicitly, never uniformly downsampled.
+A freehand click remains a one-point dot.
 `PaintInteractionController` owns one primary pointer and captures the active
 table at pointer-down. It converts backing-pixel canvas coordinates through the
 Rust camera once per coalesced sample, publishes renderer-only drafts and 20 Hz

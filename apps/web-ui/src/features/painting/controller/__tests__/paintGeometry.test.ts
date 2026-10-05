@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { compactFreehandPoints, createPaintDraft, resizePaintObject } from '../paintGeometry';
+import { compactFreehandPoints, createPaintDraft, MAX_FREEHAND_POINTS, resizePaintObject } from '../paintGeometry';
+import { PaintValidationError } from '../../model/paintObject';
 import type { PaintObject, PaintPoint, PaintStyle } from '../../model/paintObject';
 
 const style: PaintStyle = {
@@ -89,6 +90,33 @@ describe('paint gesture geometry', () => {
       start: { x: 0, y: 0, pressure: 1 },
       end: { x: 20, y: 20, pressure: 0.75 },
     });
+  });
+
+  it('preserves a gradual pressure peak even on a straight path', () => {
+    const points = Array.from({ length: 101 }, (_, index) => ({
+      x: index,
+      y: 0,
+      pressure: 1 - Math.abs(index - 50) / 100,
+    }));
+    const compacted = compactFreehandPoints(points, 0.25);
+    expect(compacted).toEqual([points[0], points[50], points[100]]);
+  });
+
+  it('compacts a long simple path without truncating its endpoint', () => {
+    const points = Array.from({ length: MAX_FREEHAND_POINTS + 1 }, (_, index) => ({
+      x: index, y: 0, pressure: 0.5,
+    }));
+    expect(compactFreehandPoints(points, 0.25)).toEqual([points[0], points.at(-1)]);
+  });
+
+  it('keeps a detailed path at the limit but rejects excess pressure detail', () => {
+    const points = Array.from({ length: MAX_FREEHAND_POINTS + 1 }, (_, index) => ({
+      x: index, y: 0, pressure: index % 2,
+    }));
+    expect(compactFreehandPoints(points.slice(0, MAX_FREEHAND_POINTS), 0.25))
+      .toEqual(points.slice(0, MAX_FREEHAND_POINTS));
+    expect(() => compactFreehandPoints(points, 0.25)).toThrow(PaintValidationError);
+    expect(() => compactFreehandPoints(points, 0.25)).toThrow('Draw shorter paths');
   });
 
   it('resizes a freehand object as an anchored whole-object transform', () => {

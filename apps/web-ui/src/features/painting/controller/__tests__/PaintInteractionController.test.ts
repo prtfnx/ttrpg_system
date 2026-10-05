@@ -147,7 +147,7 @@ describe('PaintInteractionController', () => {
   });
 
   it('cancels on pointer cancellation, lost capture, tool change, and table change', () => {
-    const { controller, scene, runtime, updateState } = harness();
+    const { controller, scene, runtime, canvas, updateState } = harness();
     controller.handlePointerDown(pointer(1, 20, 30));
     controller.handlePointerCancel(pointer(1, 20, 30));
     controller.handlePointerDown(pointer(2, 20, 30));
@@ -159,7 +159,58 @@ describe('PaintInteractionController', () => {
 
     expect(scene.submitCreate).not.toHaveBeenCalled();
     expect(runtime.clearPaintDraft).toHaveBeenCalledTimes(4);
+    expect(canvas.releasePointerCapture).toHaveBeenCalledTimes(4);
+    for (const id of [1, 2, 3, 4]) expect(canvas.hasPointerCapture(id)).toBe(false);
     expect(controller.getState().gestureActive).toBe(false);
+  });
+
+  it.each(['escape', 'disable', 'unbind', 'hydrate'] as const)(
+    'releases pointer capture and discards the draft on %s',
+    reason => {
+      const { controller, canvas, scene, runtime, updateState } = harness();
+      controller.handlePointerDown(pointer(1, 20, 30));
+      expect(canvas.hasPointerCapture(1)).toBe(true);
+
+      if (reason === 'escape') {
+        controller.handleKeyDown(new KeyboardEvent('keydown', { key: 'Escape' }));
+      } else if (reason === 'disable') {
+        controller.setEnabled(false);
+      } else if (reason === 'unbind') {
+        controller.unbind();
+      } else {
+        updateState({ ...initialState(), hydrating: true });
+      }
+      controller.handlePointerUp(pointer(1, 30, 40));
+
+      expect(canvas.hasPointerCapture(1)).toBe(false);
+      expect(canvas.releasePointerCapture).toHaveBeenCalledExactlyOnceWith(1);
+      expect(runtime.clearPaintDraft).toHaveBeenCalledWith('local');
+      expect(scene.cancelLocalPreview).toHaveBeenCalledOnce();
+      expect(scene.submitCreate).not.toHaveBeenCalled();
+      expect(controller.getState().gestureActive).toBe(false);
+    },
+  );
+
+  it('cleans up capture even when submitting the gesture throws', () => {
+    const { controller, canvas, scene, runtime } = harness();
+    vi.mocked(scene.submitCreate).mockImplementation(() => { throw new Error('Invalid paint'); });
+    controller.handlePointerDown(pointer(1, 20, 30));
+    expect(() => controller.handlePointerUp(pointer(1, 30, 40))).toThrow('Invalid paint');
+    expect(canvas.hasPointerCapture(1)).toBe(false);
+    expect(runtime.clearPaintDraft).toHaveBeenCalledWith('local');
+    expect(scene.cancelLocalPreview).toHaveBeenCalledOnce();
+    expect(controller.getState().gestureActive).toBe(false);
+  });
+
+  it('does not interrupt cancellation when capture was already lost', () => {
+    const { controller, canvas, scene } = harness();
+    controller.handlePointerDown(pointer(1, 20, 30));
+    vi.mocked(canvas.releasePointerCapture).mockImplementation(() => {
+      throw new DOMException('Pointer no longer active', 'NotFoundError');
+    });
+    expect(() => controller.handleLostPointerCapture(pointer(1, 20, 30))).not.toThrow();
+    expect(controller.getState().gestureActive).toBe(false);
+    expect(scene.submitCreate).not.toHaveBeenCalled();
   });
 
   it('ignores secondary pointers and recovers from failed capture', () => {

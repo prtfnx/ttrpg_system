@@ -179,7 +179,11 @@ table at pointer-down. It converts backing-pixel canvas coordinates through the
 Rust camera once per coalesced sample, publishes renderer-only drafts and 20 Hz
 previews, and emits at most one create/update command on release. Cancel, lost
 capture, Escape, tool/table change, disable, unbind, and failed capture all
-clear the local draft. Selection movement, deletion, and restyling check creator
+clear the local draft and release any held pointer capture. Starting snapshot
+hydration also cancels an in-flight gesture so it cannot submit against a
+reloading scene. Release-time cleanup runs even if validation or submission
+throws; already-lost capture cannot interrupt cancellation.
+Selection movement, deletion, and restyling check creator
 or DM authority before submitting a versioned command.
 The session provider creates that interaction controller beside the scene
 controller and derives enablement only from the toolbar's `activeTool`. The live

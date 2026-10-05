@@ -147,6 +147,7 @@ export class PaintInteractionController {
         this.tableId = state.tableId;
       }
       this.sceneState = state;
+      if (state.hydrating) this.cancelGesture();
       if (this.selectedId && !state.committed.some(object => object.id === this.selectedId)) {
         this.selectedId = null;
         this.runtime.clearPaintObjectSelection();
@@ -409,32 +410,35 @@ export class PaintInteractionController {
   readonly handlePointerUp = (event: PointerEvent): void => {
     const gesture = this.gesture;
     if (!gesture || event.pointerId !== gesture.pointerId) return;
-    this.handlePointerMove(event);
-    if (gesture.kind === 'create') {
-      if (gesture.draft.kind === 'freehand') {
-        const compacted = compactFreehandPoints(
-          gesture.samples,
-          Math.max(this.style.width * 0.1, 0.25),
-        );
-        gesture.draft = createPaintDraft(
-          'draw',
-          gesture.objectId,
-          gesture.start,
-          gesture.current,
-          compacted,
-          this.style,
+    try {
+      this.handlePointerMove(event);
+      if (gesture.kind === 'create') {
+        if (gesture.draft.kind === 'freehand') {
+          const compacted = compactFreehandPoints(
+            gesture.samples,
+            Math.max(this.style.width * 0.1, 0.25),
+          );
+          gesture.draft = createPaintDraft(
+            'draw',
+            gesture.objectId,
+            gesture.start,
+            gesture.current,
+            compacted,
+            this.style,
+          );
+        }
+        this.scene.submitCreate(gesture.draft);
+      } else if (gesture.changed) {
+        this.scene.submitUpdate(
+          gesture.original.id,
+          gesture.original.version,
+          gesture.draft,
         );
       }
-      this.scene.submitCreate(gesture.draft);
-    } else if (gesture.changed) {
-      this.scene.submitUpdate(
-        gesture.original.id,
-        gesture.original.version,
-        gesture.draft,
-      );
+    } finally {
+      this.finishGesture();
+      event.preventDefault();
     }
-    this.finishGesture(true);
-    event.preventDefault();
   };
 
   readonly handlePointerCancel = (event: PointerEvent): void => {
@@ -496,16 +500,20 @@ export class PaintInteractionController {
 
   private cancelGesture(): void {
     if (!this.gesture) return;
-    this.finishGesture(false);
+    this.finishGesture();
   }
 
-  private finishGesture(releaseCapture: boolean): void {
+  private finishGesture(): void {
     const gesture = this.gesture;
     this.gesture = null;
     this.runtime.clearPaintDraft(LOCAL_DRAFT_KEY);
     this.scene.cancelLocalPreview();
-    if (releaseCapture && gesture?.canvas.hasPointerCapture(gesture.pointerId)) {
-      gesture.canvas.releasePointerCapture(gesture.pointerId);
+    try {
+      if (gesture?.canvas.hasPointerCapture(gesture.pointerId)) {
+        gesture.canvas.releasePointerCapture(gesture.pointerId);
+      }
+    } catch {
+      // Detached canvases and already-lost pointers must not interrupt cleanup.
     }
     if (gesture) this.emit();
   }

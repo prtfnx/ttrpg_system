@@ -196,6 +196,69 @@ describe('PaintController', () => {
     expect(errors).toContain('A pending paint change expired and was discarded');
   });
 
+  it('retains pending intent across table switches and retries only its captured table', () => {
+    const { controller, transport, runtime } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    controller.submitCreate(input());
+    controller.selectTable(OTHER_TABLE);
+    expect(controller.getState().pending).toEqual([]);
+    controller.reconnect();
+    expect(transport.createPaintObject).toHaveBeenCalledTimes(1);
+    controller.acceptSnapshotChunk({ ...chunk(0, 1, [], 0), table_id: OTHER_TABLE });
+    vi.mocked(runtime.setPaintDraft!).mockClear();
+    controller.restoreRenderer();
+    expect(runtime.setPaintDraft).not.toHaveBeenCalled();
+
+    controller.selectTable(TABLE);
+    expect(controller.getState().pending).toHaveLength(1);
+    expect(transport.createPaintObject).toHaveBeenCalledTimes(2);
+    expect(transport.createPaintObject).toHaveBeenLastCalledWith(TABLE, OPERATION, input());
+  });
+
+  it('resolves an inactive-table acknowledgement without mutating the active scene', () => {
+    const { controller, transport, runtime } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    controller.submitCreate(input());
+    controller.selectTable(OTHER_TABLE);
+    controller.acceptEvent({
+      operation_id: OPERATION, table_id: TABLE, revision: 1,
+      action: 'create', object: object(),
+    });
+    expect(runtime.upsertPaintObject).not.toHaveBeenCalled();
+    expect(controller.getState()).toMatchObject({ tableId: OTHER_TABLE, revision: 0, committed: [] });
+    controller.selectTable(TABLE);
+    expect(controller.getState().pending).toEqual([]);
+    expect(transport.createPaintObject).toHaveBeenCalledTimes(1);
+  });
+
+  it('expires retained inactive-table intent before retrying it on return', () => {
+    const { controller, transport, advance, errors } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    controller.submitCreate(input());
+    controller.selectTable(OTHER_TABLE);
+    advance(24 * 60 * 60 * 1_000 + 1);
+    controller.selectTable(TABLE);
+    expect(transport.createPaintObject).toHaveBeenCalledTimes(1);
+    expect(controller.getState().pending).toEqual([]);
+    expect(errors).toEqual(['A pending paint change expired and was discarded']);
+  });
+
+  it('does not resync the active table for an inactive-table rejection', () => {
+    const { controller, transport } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    controller.submitCreate(input());
+    controller.selectTable(OTHER_TABLE);
+    controller.rejectOperation({ operation_id: OPERATION, code: 'version_conflict', error: 'Conflict' });
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
+    controller.selectTable(TABLE);
+    expect(controller.getState().pending).toEqual([]);
+    expect(transport.createPaintObject).toHaveBeenCalledTimes(1);
+  });
+
   it('does not accept durable commands before the table snapshot is ready', () => {
     const { controller, transport } = harness();
     controller.selectTable(TABLE);

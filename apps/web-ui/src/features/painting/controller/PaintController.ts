@@ -190,7 +190,7 @@ export class PaintController {
       revision: this.revision,
       hydrating: this.hydrating,
       committed: this.orderedCommitted(),
-      pending: [...this.pending.values()],
+      pending: [...this.pending.values()].filter(pending => pending.command.tableId === this.tableId),
       remotePreviews: [...this.remotePreviews.values()],
       lastError: this.lastError,
     };
@@ -211,15 +211,13 @@ export class PaintController {
     this.snapshots.clear();
     this.remotePreviews.clear();
     this.previewTombstones.clear();
-    for (const [operationId, pending] of this.pending) {
-      if (pending.command.tableId !== tableId) this.pending.delete(operationId);
-    }
     this.lastError = null;
     if (tableId) {
       // Establish the new renderer generation immediately so objects from the
       // previous table cannot remain visible while the snapshot is in flight.
       this.runtime.replacePaintObjectSnapshot(tableId, 0, []);
       this.transport.requestPaintSnapshot(tableId, this.activeSnapshotRequestId!);
+      this.retryPending();
     }
     this.emit();
   }
@@ -257,7 +255,12 @@ export class PaintController {
   }
 
   acceptEvent(event: PaintObjectEvent): void {
-    if (event.table_id !== this.tableId) return;
+    if (event.table_id !== this.tableId) {
+      if (this.pending.get(event.operation_id)?.command.tableId === event.table_id) {
+        this.pending.delete(event.operation_id);
+      }
+      return;
+    }
     this.pending.delete(event.operation_id);
     this.runtime.clearPaintDraft?.(this.pendingDraftKey(event.operation_id));
     this.removePreviewForCommittedEvent(event);
@@ -359,7 +362,10 @@ export class PaintController {
     this.pending.delete(rejection.operation_id);
     this.runtime.clearPaintDraft?.(this.pendingDraftKey(rejection.operation_id));
     this.reportError(rejection.error);
-    if (rejection.code === 'version_conflict' || rejection.code === 'retry_window_expired') {
+    if (
+      pending.command.tableId === this.tableId
+      && (rejection.code === 'version_conflict' || rejection.code === 'retry_window_expired')
+    ) {
       this.requestSnapshot();
     }
     this.emit();
@@ -367,8 +373,14 @@ export class PaintController {
 
   reconnect(): void {
     if (!this.tableId) return;
+    this.retryPending();
+    this.requestSnapshot();
+  }
+
+  private retryPending(): void {
     const now = this.now();
     for (const [operationId, pending] of this.pending) {
+      if (pending.command.tableId !== this.tableId) continue;
       if (now - pending.createdAt > this.retryWindowMs) {
         this.pending.delete(operationId);
         this.runtime.clearPaintDraft?.(this.pendingDraftKey(operationId));
@@ -377,7 +389,6 @@ export class PaintController {
       }
       this.sendPending(pending);
     }
-    this.requestSnapshot();
   }
 
   restoreRenderer(): boolean {
@@ -392,7 +403,7 @@ export class PaintController {
       return false;
     }
     for (const pending of this.pending.values()) {
-      if (pending.command.kind !== 'delete') {
+      if (pending.command.tableId === this.tableId && pending.command.kind !== 'delete') {
         this.runtime.setPaintDraft?.(
           pending.command.tableId,
           this.pendingDraftKey(pending.operationId),

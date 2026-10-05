@@ -184,6 +184,12 @@ Pending create/update commands and remote previews are mirrored into separately
 keyed transient renderer drafts. Acceptance, rejection, cancellation, expiry,
 and table changes remove those keys; renderer restoration reapplies only the
 still-current pending and preview state.
+Table changes clear transient renderer drafts, not unresolved durable intent.
+Pending counts and restored drafts include only the active table. Returning to
+a table retries its original operation IDs/bodies within the supported window;
+expired intent is discarded with an error. Acknowledgements for retained
+inactive-table operations resolve pending state without applying another
+table's geometry, and their conflicts do not resync the currently visible table.
 
 Gesture geometry is constructed in world coordinates with local object points.
 Rectangle and ellipse drags normalize either direction; square and circle drags

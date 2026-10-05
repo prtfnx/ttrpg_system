@@ -397,7 +397,11 @@ export class PaintInteractionController {
     try {
       for (const sample of events) {
         const point = this.worldPoint(sample, gesture.canvas);
-        if (!point) continue;
+        if (!point) {
+          this.cancelGesture();
+          event.preventDefault();
+          return;
+        }
         gesture.current = point;
         if (gesture.kind === 'create') {
           if (gesture.draft.kind === 'freehand') {

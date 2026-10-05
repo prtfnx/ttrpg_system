@@ -252,6 +252,10 @@ controller and enables gestures only when the toolbar's `activeTool` is paint
 and the canvas is attached with a live WebGL context. Context loss or detach
 disables interaction and cancels a captured gesture before it can submit stale
 coordinates; restoration re-enables the selected tool. The live
+pointer route also cancels when world-coordinate conversion fails or the
+render engine disappears before a release, without waiting for React effects.
+It never commits the last valid sample as if the failed release had succeeded.
+The live
 canvas binds its Pointer Events route and suppresses matching legacy left-mouse
 and delete handlers while paint mode is active. Right/middle-button camera input
 and wheel zoom remain on the established canvas route. Closing the panel selects

@@ -78,7 +78,7 @@ function harness(committed: PaintObject[] = []) {
     screen_to_world: vi.fn((x: number, y: number) => new Float64Array([x / 2, y / 2])),
   };
   const runtime = {
-    getRenderEngine: vi.fn(() => engine),
+    getRenderEngine: vi.fn((): typeof engine | null => engine),
     setPaintDraft: vi.fn(() => true),
     clearPaintDraft: vi.fn(() => true),
     hitTestPaintObject: vi.fn(() => committed[0]?.id ?? null),
@@ -189,6 +189,27 @@ describe('PaintInteractionController', () => {
     expect(canvas.releasePointerCapture).toHaveBeenCalledTimes(4);
     for (const id of [1, 2, 3, 4]) expect(canvas.hasPointerCapture(id)).toBe(false);
     expect(controller.getState().gestureActive).toBe(false);
+  });
+
+  it.each([
+    ['move', 'detached'], ['up', 'detached'], ['move', 'invalid-camera'], ['up', 'invalid-camera'],
+  ] as const)('cancels on pointer %s when coordinate conversion is %s', (phase, reason) => {
+    const { controller, scene, runtime, engine, canvas } = harness();
+    controller.handlePointerDown(pointer(1, 20, 30));
+    if (reason === 'detached') runtime.getRenderEngine.mockReturnValue(null);
+    else engine.screen_to_world.mockReturnValue(new Float64Array([NaN, Infinity]));
+
+    if (phase === 'move') controller.handlePointerMove(pointer(1, 30, 40));
+    else controller.handlePointerUp(pointer(1, 30, 40));
+    controller.handlePointerUp(pointer(1, 30, 40));
+
+    expect(scene.submitCreate).not.toHaveBeenCalled();
+    expect(scene.submitUpdate).not.toHaveBeenCalled();
+    expect(controller.getState().gestureActive).toBe(false);
+    expect(canvas.hasPointerCapture(1)).toBe(false);
+    expect(runtime.clearPaintDraft).toHaveBeenCalledWith('local');
+    expect(scene.cancelLocalPreview).toHaveBeenCalled();
+    controller.dispose();
   });
 
   it.each(['escape', 'disable', 'unbind', 'hydrate'] as const)(

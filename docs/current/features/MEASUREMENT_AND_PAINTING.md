@@ -337,3 +337,23 @@ one paint table and requires distinct gap-free revisions and z-order values,
 then verifies a fresh service snapshot. This test is skipped unless
 `TEST_POSTGRESQL_DATABASE_URL` targets an explicitly disposable test database;
 SQLite results are not evidence for row-lock behavior.
+
+From `apps/web-ui`, run `pnpm.cmd exec vitest run --project browser` after
+rebuilding WASM. `src/lib/wasm/__tests__/paintRendering.wasm-test.ts` checks real
+WebGL pixels for pressure-scaled dots, thick lines, filled/outlined forms, and
+stable translucent ordering. Its 1,000-object/100,000-point fixture asserts
+unchanged frames allocate no paint buffers, one edit rebuilds/uploads only one
+path, and scene replacement releases all retained path buffers. These are
+deterministic renderer checks, not a multi-client latency benchmark.
+
+### Release verification boundary
+
+Local unit and renderer tests do not establish production readiness. Enabling
+production writes also requires a two-browser player/DM acceptance run through
+all kinds, reload, authorized edits, conflicting edits, offline recovery, and
+server restart; the disposable PostgreSQL locking/fencing tests; a ten-client
+load run with documented device, latency/memory thresholds and measurements;
+and both rollback paths rehearsed against production-shaped data. Keep
+`PAINT_OBJECT_WRITES_ENABLED=false` until those checks are verified. The
+[renderer reference](../reference/RENDERER_PERFORMANCE_REFERENCE.md) separates
+deterministic CI checks from device-specific timing evidence.

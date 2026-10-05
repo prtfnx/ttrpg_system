@@ -83,7 +83,7 @@ describe('PaintControllerProvider', () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     mocks.activeTableId = 'table-1';
-    mocks.runtimeStatus = { isCanvasAttached: false, isContextLost: false };
+    mocks.runtimeStatus = { isCanvasAttached: true, isContextLost: false };
   });
 
   it('owns one controller, selects the active table, and advances expiry checks', () => {
@@ -112,6 +112,26 @@ describe('PaintControllerProvider', () => {
     render(<PaintControllerProvider><Consumer /></PaintControllerProvider>);
     expect(mocks.controller.restoreRenderer).toHaveBeenCalledOnce();
     expect(mocks.interaction.restoreRenderer).toHaveBeenCalledOnce();
+  });
+
+  it('disables gestures during context loss and canvas detach, then re-enables on restoration', () => {
+    const { rerender } = render(<PaintControllerProvider><Consumer /></PaintControllerProvider>);
+    expect(mocks.interaction.setEnabled).toHaveBeenLastCalledWith(true);
+
+    mocks.runtimeStatus = { isCanvasAttached: true, isContextLost: true };
+    rerender(<PaintControllerProvider><Consumer /></PaintControllerProvider>);
+    expect(mocks.interaction.setEnabled).toHaveBeenLastCalledWith(false);
+    expect(mocks.controller.restoreRenderer).toHaveBeenCalledTimes(1);
+
+    mocks.runtimeStatus = { isCanvasAttached: true, isContextLost: false };
+    rerender(<PaintControllerProvider><Consumer /></PaintControllerProvider>);
+    expect(mocks.interaction.setEnabled).toHaveBeenLastCalledWith(true);
+    expect(mocks.controller.restoreRenderer).toHaveBeenCalledTimes(2);
+
+    mocks.runtimeStatus = { isCanvasAttached: false, isContextLost: false };
+    rerender(<PaintControllerProvider><Consumer /></PaintControllerProvider>);
+    expect(mocks.interaction.setEnabled).toHaveBeenLastCalledWith(false);
+    expect(mocks.controller.restoreRenderer).toHaveBeenCalledTimes(2);
   });
 
   it('reconnects interaction subscriptions after Strict Mode effect replay', () => {

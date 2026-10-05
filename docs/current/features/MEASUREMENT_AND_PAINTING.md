@@ -248,7 +248,10 @@ throws; already-lost capture cannot interrupt cancellation.
 Selection movement, deletion, and restyling check creator
 or DM authority before submitting a versioned command.
 The session provider creates that interaction controller beside the scene
-controller and derives enablement only from the toolbar's `activeTool`. The live
+controller and enables gestures only when the toolbar's `activeTool` is paint
+and the canvas is attached with a live WebGL context. Context loss or detach
+disables interaction and cancels a captured gesture before it can submit stale
+coordinates; restoration re-enables the selected tool. The live
 canvas binds its Pointer Events route and suppresses matching legacy left-mouse
 and delete handlers while paint mode is active. Right/middle-button camera input
 and wheel zoom remain on the established canvas route. Closing the panel selects

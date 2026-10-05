@@ -112,8 +112,10 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
   }, [actorId, interaction, sessionRole]);
 
   useEffect(() => {
-    interaction?.setEnabled(activeTool === 'paint');
-  }, [activeTool, interaction]);
+    interaction?.setEnabled(
+      activeTool === 'paint' && runtimeStatus.isCanvasAttached && !runtimeStatus.isContextLost,
+    );
+  }, [activeTool, interaction, runtimeStatus.isCanvasAttached, runtimeStatus.isContextLost]);
 
   useEffect(() => {
     controller?.selectTable(activeTableId);

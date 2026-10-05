@@ -120,6 +120,37 @@ def test_create_assigns_server_fields_revision_and_stable_order(paint_service):
     assert second.event["object"]["z_order"] == 2
 
 
+def test_disabled_paint_gate_rejects_commands_before_opening_database():
+    def unavailable_database():
+        pytest.fail("A disabled paint writer must not open a database session")
+
+    service = PaintObjectService(unavailable_database, writes_enabled=False)
+    context = {"session_id": 1, "actor_id": 1, "table_id": TABLE_ID, "operation_id": str(uuid.uuid4())}
+    results = [
+        service.create(**context, editable=editable()),
+        service.update(**context, object_id=OBJECT_ID, expected_version=1, editable=editable()),
+        service.delete(**context, object_id=OBJECT_ID, expected_version=1),
+    ]
+    for result in results:
+        assert result.error.code == "paint_disabled"
+        assert result.event is None
+        assert not result.broadcast
+
+
+def test_disabled_paint_gate_preserves_objects_and_allows_authorized_snapshots(paint_service):
+    service, factory, ids = paint_service
+    created = create(service, ids)
+    readonly = PaintObjectService(factory, writes_enabled=False)
+    snapshot = readonly.snapshot(session_id=ids["session"], actor_id=ids["spectator"], table_id=TABLE_ID)
+    assert snapshot.revision == 1
+    assert snapshot.objects == [created.event["object"]]
+    assert create(readonly, ids).error.code == "paint_disabled"
+    with factory() as db:
+        assert db.query(models.PaintObject).count() == 1
+        assert db.query(models.PaintOperationResult).count() == 1
+        assert db.get(models.PaintState, TABLE_ID).revision == 1
+
+
 def test_identical_retry_returns_recorded_result_without_rebroadcast(paint_service):
     service, factory, ids = paint_service
     operation_id = str(uuid.uuid4())

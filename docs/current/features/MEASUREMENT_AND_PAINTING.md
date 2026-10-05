@@ -75,6 +75,14 @@ Backup/report and template-export artifacts are published with an atomic
 no-replace filesystem operation, so concurrent maintenance processes cannot
 win an existence-check race and overwrite one another's evidence.
 `apps/server/service/paint_object_service.py` owns durable object transactions.
+`PAINT_OBJECT_WRITES_ENABLED` gates all durable paint writes at this service
+boundary before opening a database transaction. Its unset default is false in
+production and true in development; an explicit boolean overrides either.
+Disabled commands return `paint_disabled` without changing objects, revisions,
+or the operation ledger. Authorized snapshots remain available for inspecting
+migrated or previously accepted drawings. Enable production writes explicitly
+only after legacy conversion and release verification; disabling the gate
+does not make new-format data compatible with an old binary.
 It derives roles from database membership, serializes mutations through
 `paint_state`, assigns revisions and z-order, enforces ownership and optimistic
 versions, records accepted operation IDs, and reads ordered snapshots. The

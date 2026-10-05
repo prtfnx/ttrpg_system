@@ -112,6 +112,7 @@ class PaintObjectService:
         session_factory: Callable[[], Session],
         *,
         retry_window_seconds: int | None = None,
+        writes_enabled: bool | None = None,
         now: Callable[[], datetime] = utc_now,
     ):
         self._session_factory = session_factory
@@ -124,6 +125,14 @@ class PaintObjectService:
             raise ValueError("retry_window_seconds must be positive")
         self._retry_window = timedelta(seconds=configured_window)
         self._now = now
+        self._writes_enabled = (
+            writes_enabled if writes_enabled is not None
+            else Settings().PAINT_OBJECT_WRITES_ENABLED
+        )
+
+    def _require_writes(self) -> None:
+        if not self._writes_enabled:
+            raise _Rejected("paint_disabled", "Painting is read-only during rollout or maintenance")
 
     @staticmethod
     def _lock_table_and_role(
@@ -276,6 +285,7 @@ class PaintObjectService:
         editable: Mapping[str, Any],
     ) -> PaintCommandResult:
         try:
+            self._require_writes()
             candidate = _canonical_payload(editable)
             validate_paint_object_input(candidate)
             request_hash = _request_hash("create", candidate)
@@ -354,6 +364,7 @@ class PaintObjectService:
         editable: Mapping[str, Any],
     ) -> PaintCommandResult:
         try:
+            self._require_writes()
             candidate = _canonical_payload(editable)
             validate_paint_object_input(candidate)
             if candidate["id"] != object_id:
@@ -449,6 +460,7 @@ class PaintObjectService:
         expected_version: int,
     ) -> PaintCommandResult:
         try:
+            self._require_writes()
             request = {"id": object_id, "expected_version": expected_version}
             request_hash = _request_hash("delete", request)
             with self._session_factory() as db, db.begin():

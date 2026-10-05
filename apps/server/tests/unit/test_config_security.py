@@ -14,6 +14,25 @@ def test_development_allows_local_defaults():
     assert settings.resolved_session_secret == DEFAULT_SESSION_SECRET
 
 
+@pytest.mark.parametrize("environment, default", [("development", True), ("production", False)])
+@pytest.mark.parametrize("override", [None, True, False])
+def test_paint_rollout_gate_defaults_and_explicit_overrides(monkeypatch, environment, default, override):
+    monkeypatch.delenv("PAINT_OBJECT_WRITES_ENABLED", raising=False)
+    values = {
+        "ENVIRONMENT": environment,
+        "SECRET_KEY": "j" * 40,
+        "SESSION_SECRET": "s" * 40,
+        "CORS_ORIGINS": "https://app.example.com",
+        "METRICS_TOKEN": "m" * 40,
+        "DATABASE_URL": "postgresql://app:secret@database.example/ttrpg",
+        "DATABASE_MIGRATION_URL": None,
+    }
+    if override is not None:
+        values["PAINT_OBJECT_WRITES_ENABLED"] = override
+    settings = Settings(_env_file=None, **values)
+    assert settings.PAINT_OBJECT_WRITES_ENABLED is (default if override is None else override)
+
+
 def test_production_rejects_default_jwt_secret():
     with pytest.raises(ValueError, match="SECRET_KEY"):
         Settings(

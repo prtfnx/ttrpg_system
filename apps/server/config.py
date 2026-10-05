@@ -85,6 +85,7 @@ class Settings(BaseSettings):
     WS_SEND_TIMEOUT_SECONDS: float = 5.0
     PAINT_OPERATION_RETRY_WINDOW_SECONDS: int = 24 * 60 * 60
     PAINT_OPERATION_RETENTION_SECONDS: int = 48 * 60 * 60
+    PAINT_OBJECT_WRITES_ENABLED: bool | None = None
 
     # Optional complete replacement for the bundled SRD starter artifact.
     COMPENDIUM_DIR: str = ""
@@ -126,6 +127,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_security(self):
+        if self.PAINT_OBJECT_WRITES_ENABLED is None:
+            self.PAINT_OBJECT_WRITES_ENABLED = not self.is_production
         self.LOG_LEVEL = self.LOG_LEVEL.upper()
         self.LOG_FORMAT = self.LOG_FORMAT.lower()
         self.ASSET_LINK_MODE = self.ASSET_LINK_MODE.lower()

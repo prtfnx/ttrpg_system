@@ -76,7 +76,6 @@ interface SnapshotAssembly {
   tableId: string;
   revision: number;
   chunkCount: number;
-  startedAt: number;
   bytes: number;
   chunks: Map<number, PaintObject[]>;
 }
@@ -106,6 +105,7 @@ export class PaintController {
   private generation = 0;
   private revision = 0;
   private hydrating = false;
+  private snapshotRequestedAt: number | null = null;
   private committed = new Map<string, PaintObject>();
   private pending = new Map<string, PendingPaintOperation>();
   private queuedEvents: PaintObjectEvent[] = [];
@@ -195,6 +195,7 @@ export class PaintController {
     this.generation += 1;
     this.revision = 0;
     this.hydrating = tableId !== null;
+    this.snapshotRequestedAt = tableId !== null ? this.now() : null;
     this.committed.clear();
     this.queuedEvents = [];
     this.snapshots.clear();
@@ -215,6 +216,7 @@ export class PaintController {
   requestSnapshot(): void {
     if (!this.tableId) return;
     this.hydrating = true;
+    this.snapshotRequestedAt = this.now();
     this.snapshots.clear();
     this.transport.requestPaintSnapshot(this.tableId);
     this.emit();
@@ -273,7 +275,6 @@ export class PaintController {
         tableId: chunk.table_id,
         revision: chunk.revision,
         chunkCount: chunk.chunk_count,
-        startedAt: this.now(),
         bytes: 0,
         chunks: new Map(),
       };
@@ -322,6 +323,7 @@ export class PaintController {
     this.committed = new Map(objects.map(object => [object.id, object]));
     this.revision = assembly.revision;
     this.hydrating = false;
+    this.snapshotRequestedAt = null;
     this.snapshots.clear();
     this.replayQueuedEvents();
     this.emit();
@@ -447,7 +449,11 @@ export class PaintController {
         changed = true;
       }
     }
-    if ([...this.snapshots.values()].some(snapshot => now - snapshot.startedAt > SNAPSHOT_TIMEOUT_MS)) {
+    if (
+      this.hydrating
+      && this.snapshotRequestedAt !== null
+      && now - this.snapshotRequestedAt >= SNAPSHOT_TIMEOUT_MS
+    ) {
       this.failAndResync('Paint snapshot timed out');
       return;
     }

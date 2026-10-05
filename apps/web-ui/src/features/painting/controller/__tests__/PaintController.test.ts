@@ -78,6 +78,55 @@ function chunk(index: number, count: number, objects: PaintObject[], revision = 
 }
 
 describe('PaintController', () => {
+  it('retries snapshots even when the first chunk never arrives', () => {
+    const { controller, transport, advance, errors } = harness(0);
+    vi.mocked(transport.requestPaintSnapshot).mockReturnValue(false);
+    controller.selectTable(TABLE);
+
+    advance(9_999);
+    controller.tick();
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(1);
+    advance(1);
+    controller.tick();
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
+    expect(errors).toEqual(['Paint snapshot timed out']);
+    expect(controller.getState().hydrating).toBe(true);
+
+    controller.tick();
+    advance(9_999);
+    controller.tick();
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
+    advance(1);
+    controller.tick();
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(3);
+  });
+
+  it('measures the snapshot deadline from the request, not the first chunk', () => {
+    const { controller, transport, advance } = harness();
+    controller.selectTable(TABLE);
+    advance(9_999);
+    controller.acceptSnapshotChunk(chunk(0, 2, [object()]));
+    advance(1);
+    controller.tick();
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
+    expect(controller.getState().committed).toEqual([]);
+
+    controller.acceptSnapshotChunk(chunk(0, 1, [object()]));
+    advance(20_000);
+    controller.tick();
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
+    expect(controller.getState().hydrating).toBe(false);
+  });
+
+  it('cancels the snapshot deadline when leaving the active table', () => {
+    const { controller, transport, advance } = harness();
+    controller.selectTable(TABLE);
+    controller.selectTable(null);
+    advance(10_000);
+    controller.tick();
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(1);
+  });
+
   it('assembles out-of-order chunks atomically and replays queued revisions', () => {
     const { controller, transport, runtime } = harness();
     controller.selectTable(TABLE);

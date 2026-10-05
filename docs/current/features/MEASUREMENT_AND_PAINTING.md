@@ -8,7 +8,7 @@ server-authoritative multiplayer state. Advanced measurement-template
 placement is not available in the UI; old strokes and templates are retained
 read-only only for verified export/cutover and rollback.
 
-Last source audit: 2026-10-01
+Last source audit: 2026-10-02
 
 ## Ownership
 
@@ -160,6 +160,10 @@ active table, subscribes to typed protocol events, advances snapshot and
 preview expiry, disposes session state deterministically, and restores
 confirmed objects after a WebGL canvas is attached or restored. The live canvas
 and object panel use this controller.
+Snapshot hydration has a ten-second deadline measured from the request, even
+when sending fails or no first chunk arrives. An incomplete request is retried
+with a fresh deadline; successful installation or leaving the table ends that
+deadline. Late partial chunks cannot extend it indefinitely.
 Pending create/update commands and remote previews are mirrored into separately
 keyed transient renderer drafts. Acceptance, rejection, cancellation, expiry,
 and table changes remove those keys; renderer restoration reapplies only the

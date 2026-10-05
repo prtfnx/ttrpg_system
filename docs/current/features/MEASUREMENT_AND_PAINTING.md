@@ -148,6 +148,8 @@ calling a separate legacy table selector.
 Selecting a different table also installs that empty scene before requesting
 its asynchronous snapshot. This clears committed meshes from the previous
 table immediately; chunks from an older controller generation remain ignored.
+Leaving the table entirely also clears its renderer scene rather than leaving
+the last table's objects visible beneath an unselected canvas.
 Each snapshot request carries a fresh envelope `message_id`. The existing
 server response correlation is retained as internal chunk `request_id`, and
 only chunks matching the active request may install a scene. This also rejects
@@ -178,6 +180,14 @@ The controller
 applies only contiguous revisions, detects gaps, ignores stale tables, retains
 exact pending operation bodies for retry, expires operations after the supported
 window, and restores a recreated renderer from confirmed state. It also
+retains validated snapshots and contiguous events when the runtime has no
+render engine, without treating canvas detach/context loss as a network gap.
+The controller checks object identity, immutable ownership/order, versions,
+and aggregate budgets independently of Rust before retaining that state.
+Renderer reattachment installs the latest confirmed revision and transient
+drafts; snapshot installation also reapplies unresolved pending and remote
+drafts. A present renderer rejecting a valid scene still triggers resync.
+The controller
 coalesces local previews to 20 Hz and rejects stale, cancelled, or expired remote
 previews. The application now mounts one controller per connected session
 with at most 256 concurrent remote drafts. Remote expiry is clamped to two

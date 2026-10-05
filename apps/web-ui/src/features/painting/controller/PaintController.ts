@@ -4,6 +4,7 @@ import {
   assertPaintTableBudget,
   PAINT_LIMITS,
   PaintValidationError,
+  paintPointCount,
   type PaintObject,
   type PaintObjectInput,
 } from '../model/paintObject';
@@ -52,6 +53,7 @@ export interface PaintTransport {
 }
 
 export interface PaintSceneRuntime {
+  getRenderEngine?(): unknown | null;
   replacePaintObjectSnapshot(tableId: string, revision: number, objects: readonly PaintObject[]): boolean;
   upsertPaintObject(tableId: string, revision: number, object: PaintObject): boolean;
   removePaintObject(tableId: string, revision: number, objectId: string, deletedVersion: number): boolean;
@@ -201,6 +203,7 @@ export class PaintController {
 
   selectTable(tableId: string | null): void {
     if (this.tableId === tableId) return;
+    const previousTableId = this.tableId;
     this.cancelLocalPreview();
     this.runtime.clearPaintDrafts?.();
     this.tableId = tableId;
@@ -221,6 +224,8 @@ export class PaintController {
       this.runtime.replacePaintObjectSnapshot(tableId, 0, []);
       this.transport.requestPaintSnapshot(tableId, this.activeSnapshotRequestId!);
       this.retryPending();
+    } else if (previousTableId) {
+      this.runtime.replacePaintObjectSnapshot(previousTableId, 0, []);
     }
     this.emit();
   }
@@ -345,11 +350,23 @@ export class PaintController {
     }
     try {
       assertPaintTableBudget(objects);
+      const ids = new Set<string>();
+      const orders = new Set<number>();
+      for (const object of objects) {
+        if (object.table_id !== this.tableId || ids.has(object.id) || orders.has(object.z_order)) {
+          throw new PaintValidationError('Paint snapshot contains inconsistent object identity or ordering');
+        }
+        ids.add(object.id);
+        orders.add(object.z_order);
+      }
     } catch (error) {
       this.failAndResync(error instanceof Error ? error.message : 'Invalid paint snapshot');
       return;
     }
-    if (!this.runtime.replacePaintObjectSnapshot(this.tableId, assembly.revision, objects)) {
+    if (
+      this.rendererAvailable()
+      && !this.runtime.replacePaintObjectSnapshot(this.tableId, assembly.revision, objects)
+    ) {
       this.failAndResync('Renderer rejected the paint snapshot');
       return;
     }
@@ -360,6 +377,7 @@ export class PaintController {
     this.activeSnapshotRequestId = null;
     this.snapshots.clear();
     this.replayQueuedEvents();
+    if (this.rendererAvailable()) this.restoreTransientDrafts();
     this.emit();
   }
 
@@ -399,7 +417,7 @@ export class PaintController {
   }
 
   restoreRenderer(): boolean {
-    if (!this.tableId || this.hydrating) return false;
+    if (!this.tableId || this.hydrating || !this.rendererAvailable()) return false;
     const restored = this.runtime.replacePaintObjectSnapshot(
       this.tableId,
       this.revision,
@@ -409,6 +427,15 @@ export class PaintController {
       this.requestSnapshot();
       return false;
     }
+    this.restoreTransientDrafts();
+    return restored;
+  }
+
+  private rendererAvailable(): boolean {
+    return this.runtime.getRenderEngine?.() !== null;
+  }
+
+  private restoreTransientDrafts(): void {
     for (const pending of this.pending.values()) {
       if (pending.command.tableId === this.tableId && pending.command.kind !== 'delete') {
         this.runtime.setPaintDraft?.(
@@ -421,7 +448,6 @@ export class PaintController {
     for (const [key, preview] of this.remotePreviews) {
       this.runtime.setPaintDraft?.(preview.table_id, this.remoteDraftKey(key), preview.draft);
     }
-    return restored;
   }
 
   queuePreview(draft: PaintObjectInput): void {
@@ -568,14 +594,36 @@ export class PaintController {
   }
 
   private applyEvent(event: PaintObjectEvent): boolean {
-    const accepted = event.action === 'delete'
+    const objectId = event.action === 'delete' ? event.deleted_id : event.object.id;
+    const current = this.committed.get(objectId);
+    if (event.action === 'delete') {
+      if (!current || current.version !== event.deleted_version) return false;
+    } else {
+      if (event.action === 'create') {
+        if (current || event.object.version !== 1) return false;
+      } else if (
+        !current
+        || event.object.version !== current.version + 1
+        || event.object.created_by !== current.created_by
+        || event.object.z_order !== current.z_order
+        || event.object.created_at !== current.created_at
+      ) return false;
+      const remaining = [...this.committed.values()].filter(object => object.id !== objectId);
+      if (
+        remaining.length + 1 > PAINT_LIMITS.maxObjectsPerTable
+        || remaining.some(object => object.z_order === event.object.z_order)
+        || remaining.reduce((total, object) => total + paintPointCount(object), 0)
+          + paintPointCount(event.object) > PAINT_LIMITS.maxPointsPerTable
+      ) return false;
+    }
+    const accepted = !this.rendererAvailable() || (event.action === 'delete'
       ? this.runtime.removePaintObject(
         event.table_id,
         event.revision,
         event.deleted_id,
         event.deleted_version,
       )
-      : this.runtime.upsertPaintObject(event.table_id, event.revision, event.object);
+      : this.runtime.upsertPaintObject(event.table_id, event.revision, event.object));
     if (!accepted) return false;
     if (event.action === 'delete') this.committed.delete(event.deleted_id);
     else this.committed.set(event.object.id, event.object);

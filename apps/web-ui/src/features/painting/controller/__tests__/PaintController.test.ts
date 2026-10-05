@@ -83,6 +83,67 @@ function chunk(index: number, count: number, objects: PaintObject[], revision = 
 }
 
 describe('PaintController', () => {
+  it('retains snapshots and contiguous events while the renderer is detached', () => {
+    const { controller, runtime, transport } = harness();
+    runtime.getRenderEngine = vi.fn(() => null);
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [object()], 4));
+    controller.acceptEvent({
+      operation_id: OPERATION, table_id: TABLE, revision: 5,
+      action: 'update', object: object(2),
+    });
+    expect(controller.getState()).toMatchObject({ hydrating: false, revision: 5 });
+    expect(controller.getState().committed).toEqual([object(2)]);
+    expect(runtime.upsertPaintObject).not.toHaveBeenCalled();
+    expect(controller.restoreRenderer()).toBe(false);
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(1);
+
+    runtime.getRenderEngine = vi.fn(() => ({}));
+    expect(controller.restoreRenderer()).toBe(true);
+    expect(runtime.replacePaintObjectSnapshot).toHaveBeenLastCalledWith(TABLE, 5, [object(2)]);
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects inconsistent events even without renderer-side validation', () => {
+    const { controller, runtime, transport } = harness();
+    runtime.getRenderEngine = vi.fn(() => null);
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [object()], 4));
+    controller.acceptEvent({
+      operation_id: OPERATION, table_id: TABLE, revision: 5,
+      action: 'update', object: object(3),
+    });
+    expect(controller.getState()).toMatchObject({ hydrating: true, revision: 4 });
+    expect(controller.getState().committed).toEqual([object()]);
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects duplicate snapshot identity before installing a detached scene', () => {
+    const { controller, runtime, errors } = harness();
+    runtime.getRenderEngine = vi.fn(() => null);
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [object(), object()]));
+    expect(controller.getState()).toMatchObject({ hydrating: true, revision: 0, committed: [] });
+    expect(errors).toEqual(['Paint snapshot contains inconsistent object identity or ordering']);
+  });
+
+  it('reapplies pending and remote drafts after an authoritative snapshot', () => {
+    const { controller, runtime } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    controller.submitCreate(input());
+    const preview = {
+      table_id: TABLE, temporary_id: input().id, sequence: 1,
+      expires_at: 2_000, draft: input(), actor_id: 7,
+    };
+    controller.acceptPreview(preview);
+    vi.mocked(runtime.setPaintDraft!).mockClear();
+    controller.requestSnapshot();
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    expect(runtime.setPaintDraft).toHaveBeenCalledWith(TABLE, `pending:${OPERATION}`, input());
+    expect(runtime.setPaintDraft).toHaveBeenCalledWith(TABLE, `remote:7:${input().id}`, input());
+  });
+
   it('deduplicates buffered events and recovers when their count limit is exceeded', () => {
     const { controller, transport, errors } = harness();
     controller.selectTable(TABLE);
@@ -172,12 +233,14 @@ describe('PaintController', () => {
   });
 
   it('cancels the snapshot deadline when leaving the active table', () => {
-    const { controller, transport, advance } = harness();
+    const { controller, transport, runtime, advance } = harness();
     controller.selectTable(TABLE);
     controller.selectTable(null);
     advance(10_000);
     controller.tick();
     expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(1);
+    expect(runtime.replacePaintObjectSnapshot).toHaveBeenLastCalledWith(TABLE, 0, []);
+    expect(controller.getState()).toMatchObject({ tableId: null, committed: [], hydrating: false });
   });
 
   it('assembles out-of-order chunks atomically and replays queued revisions', () => {
@@ -590,13 +653,13 @@ describe('PaintController', () => {
     controller.selectTable(TABLE);
     const update = (revision: number) => ({
       operation_id: OPERATION, table_id: TABLE, revision,
-      action: 'update' as const, object: object(revision),
+      action: 'update' as const, object: object(revision - 3),
     });
     for (const revision of [5, 5, 7, 8]) controller.acceptEvent(update(revision));
     controller.acceptSnapshotChunk(chunk(0, 1, [object()], 4));
     expect(controller.getState()).toMatchObject({ revision: 5, hydrating: true });
     expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
-    controller.acceptSnapshotChunk(chunk(0, 1, [object(6)], 6));
+    controller.acceptSnapshotChunk(chunk(0, 1, [object(3)], 6));
     expect(controller.getState()).toMatchObject({ revision: 8, hydrating: false });
     expect(runtime.upsertPaintObject).toHaveBeenCalledTimes(3);
     expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);

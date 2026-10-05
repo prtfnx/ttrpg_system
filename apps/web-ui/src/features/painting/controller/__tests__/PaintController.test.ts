@@ -328,6 +328,48 @@ describe('PaintController', () => {
     expect(runtime.clearPaintDraft).toHaveBeenCalledWith(
       `remote:44:${preview.temporary_id}`,
     );
+    controller.acceptPreview(preview);
+    expect(controller.getState().remotePreviews).toEqual([]);
+  });
+
+  it('remembers cancellations received before previews and ignores reordered packets', () => {
+    const { controller, runtime } = harness();
+    controller.selectTable(TABLE);
+    const preview = {
+      table_id: TABLE, temporary_id: input().id, sequence: 2,
+      expires_at: 2_000, draft: input(), actor_id: 7,
+    };
+    const cancel = { table_id: TABLE, temporary_id: input().id, sequence: 3, actor_id: 7 };
+    controller.acceptPreviewCancel(cancel);
+    controller.acceptPreviewCancel({ ...cancel, sequence: 1 });
+    controller.acceptPreview(preview);
+    expect(runtime.setPaintDraft).not.toHaveBeenCalled();
+
+    controller.acceptPreview({ ...preview, sequence: 4 });
+    expect(controller.getState().remotePreviews).toHaveLength(1);
+    controller.acceptPreviewCancel({ ...cancel, sequence: 5 });
+    controller.acceptPreview({ ...preview, sequence: 4 });
+    expect(controller.getState().remotePreviews).toEqual([]);
+    expect(runtime.clearPaintDraft).toHaveBeenCalledWith(`remote:7:${input().id}`);
+  });
+
+  it('bounds concurrent preview drafts and clamps untrusted expiry to two seconds', () => {
+    const { controller, runtime, advance } = harness();
+    controller.selectTable(TABLE);
+    for (let index = 0; index < 300; index += 1) {
+      const draft = input(`00000000-0000-4000-8000-${String(index).padStart(12, '0')}`);
+      controller.acceptPreview({
+        table_id: TABLE, temporary_id: draft.id, sequence: 1,
+        expires_at: 1_000_000, draft, actor_id: 7,
+      });
+    }
+    expect(controller.getState().remotePreviews).toHaveLength(256);
+    expect(runtime.setPaintDraft).toHaveBeenCalledTimes(256);
+    expect(controller.getState().remotePreviews.every(preview => preview.expires_at === 3_000)).toBe(true);
+    advance(2_000);
+    controller.tick();
+    expect(controller.getState().remotePreviews).toEqual([]);
+    expect(runtime.clearPaintDraft).toHaveBeenCalledTimes(256);
   });
 
   it('replaces a restored renderer from retained authoritative state', () => {

@@ -162,6 +162,11 @@ exact pending operation bodies for retry, expires operations after the supported
 window, and restores a recreated renderer from confirmed state. It also
 coalesces local previews to 20 Hz and rejects stale, cancelled, or expired remote
 previews. The application now mounts one controller per connected session
+with at most 256 concurrent remote drafts. Remote expiry is clamped to two
+seconds regardless of the sender's clock. A bounded cache of 1,024 two-second
+sequence tombstones prevents late previews from resurrecting cancelled,
+expired, or just-committed drafts, including cancellation arriving first.
+The provider is mounted
 beneath the protocol and WASM runtime providers. The provider follows the
 active table, subscribes to typed protocol events, advances snapshot and
 preview expiry, disposes session state deterministically, and restores

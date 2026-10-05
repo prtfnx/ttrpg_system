@@ -20,6 +20,8 @@ const SNAPSHOT_TIMEOUT_MS = 10_000;
 const SNAPSHOT_BYTE_LIMIT = 32 * 1024 * 1024;
 const PREVIEW_INTERVAL_MS = 50;
 const PREVIEW_TTL_MS = 2_000;
+const MAX_REMOTE_PREVIEWS = 256;
+const MAX_PREVIEW_TOMBSTONES = 1_024;
 
 export interface PaintTransport {
   createPaintObject(tableId: string, operationId: string, object: PaintObjectInput): boolean;
@@ -115,6 +117,7 @@ export class PaintController {
   private queuedEvents: PaintObjectEvent[] = [];
   private snapshots = new Map<string, SnapshotAssembly>();
   private remotePreviews = new Map<string, PaintPreview>();
+  private previewTombstones = new Map<string, { sequence: number; expiresAt: number }>();
   private listeners = new Set<(state: PaintControllerState) => void>();
   private unbindEvents: (() => void) | null = null;
   private lastError: string | null = null;
@@ -207,6 +210,7 @@ export class PaintController {
     this.queuedEvents = [];
     this.snapshots.clear();
     this.remotePreviews.clear();
+    this.previewTombstones.clear();
     for (const [operationId, pending] of this.pending) {
       if (pending.command.tableId !== tableId) this.pending.delete(operationId);
     }
@@ -438,11 +442,18 @@ export class PaintController {
   }
 
   acceptPreview(preview: PaintPreview): void {
-    if (preview.table_id !== this.tableId || preview.expires_at <= this.now()) return;
+    const now = this.now();
+    if (preview.table_id !== this.tableId || preview.expires_at <= now) return;
     const key = `${preview.actor_id}:${preview.temporary_id}`;
+    const cancelled = this.previewTombstones.get(key);
+    if (cancelled && cancelled.expiresAt > now && preview.sequence <= cancelled.sequence) return;
     const current = this.remotePreviews.get(key);
+    if (!current && this.remotePreviews.size >= MAX_REMOTE_PREVIEWS) return;
     if (!current || preview.sequence > current.sequence) {
-      this.remotePreviews.set(key, preview);
+      this.remotePreviews.set(key, {
+        ...preview,
+        expires_at: Math.min(preview.expires_at, now + PREVIEW_TTL_MS),
+      });
       this.runtime.setPaintDraft?.(preview.table_id, this.remoteDraftKey(key), preview.draft);
       this.emit();
     }
@@ -452,7 +463,13 @@ export class PaintController {
     if (cancel.table_id !== this.tableId) return;
     const key = `${cancel.actor_id}:${cancel.temporary_id}`;
     const current = this.remotePreviews.get(key);
-    if (current && cancel.sequence >= current.sequence) {
+    const cancelled = this.previewTombstones.get(key);
+    if (
+      (current && cancel.sequence < current.sequence)
+      || (cancelled && cancelled.expiresAt > this.now() && cancel.sequence < cancelled.sequence)
+    ) return;
+    this.rememberPreviewSequence(key, cancel.sequence);
+    if (current) {
       this.remotePreviews.delete(key);
       this.runtime.clearPaintDraft?.(this.remoteDraftKey(key));
       this.emit();
@@ -465,9 +482,13 @@ export class PaintController {
     for (const [key, preview] of this.remotePreviews) {
       if (preview.expires_at <= now) {
         this.remotePreviews.delete(key);
+        this.rememberPreviewSequence(key, preview.sequence);
         this.runtime.clearPaintDraft?.(this.remoteDraftKey(key));
         changed = true;
       }
+    }
+    for (const [key, tombstone] of this.previewTombstones) {
+      if (tombstone.expiresAt <= now) this.previewTombstones.delete(key);
     }
     if (
       this.hydrating
@@ -579,9 +600,18 @@ export class PaintController {
     for (const [key, preview] of this.remotePreviews) {
       if (preview.temporary_id === objectId) {
         this.remotePreviews.delete(key);
+        this.rememberPreviewSequence(key, preview.sequence);
         this.runtime.clearPaintDraft?.(this.remoteDraftKey(key));
       }
     }
+  }
+
+  private rememberPreviewSequence(key: string, sequence: number): void {
+    this.previewTombstones.delete(key);
+    if (this.previewTombstones.size >= MAX_PREVIEW_TOMBSTONES) {
+      this.previewTombstones.delete(this.previewTombstones.keys().next().value!);
+    }
+    this.previewTombstones.set(key, { sequence, expiresAt: this.now() + PREVIEW_TTL_MS });
   }
 
   private pendingDraftKey(operationId: string): string {

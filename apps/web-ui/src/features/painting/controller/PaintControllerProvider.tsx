@@ -97,9 +97,11 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
       setInteractionState(EMPTY_INTERACTION_STATE);
       return;
     }
+    const disconnectScene = interaction.connectScene();
     const unsubscribe = interaction.subscribe(setInteractionState);
     return () => {
       unsubscribe();
+      disconnectScene();
       interaction.dispose();
       setInteractionState(EMPTY_INTERACTION_STATE);
     };

@@ -160,6 +160,10 @@ active table, subscribes to typed protocol events, advances snapshot and
 preview expiry, disposes session state deterministically, and restores
 confirmed objects after a WebGL canvas is attached or restored. The live canvas
 and object panel use this controller.
+Constructing an interaction controller does not subscribe or mutate the
+renderer. The provider connects scene subscriptions from committed effects,
+disconnects them on cleanup, and reconnects them during React Strict Mode
+effect replay; disposal does not leave replayed tools attached to stale state.
 Snapshot hydration has a ten-second deadline measured from the request, even
 when sending fails or no first chunk arrives. An incomplete request is retried
 with a fresh deadline; successful installation or leaving the table ends that

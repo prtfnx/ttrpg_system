@@ -139,7 +139,7 @@ export class PaintInteractionController {
   private readonly scene: PaintInteractionScene;
   private readonly runtime: PaintInteractionRuntime;
   private readonly listeners = new Set<(state: PaintInteractionState) => void>();
-  private readonly unsubscribeScene: () => void;
+  private unsubscribeScene: (() => void) | null = null;
 
   constructor(
     scene: PaintInteractionScene,
@@ -149,7 +149,11 @@ export class PaintInteractionController {
     this.runtime = runtime;
     this.sceneState = scene.getState();
     this.tableId = this.sceneState.tableId;
-    this.unsubscribeScene = scene.subscribe(state => {
+  }
+
+  connectScene(): () => void {
+    this.unsubscribeScene?.();
+    const unsubscribe = this.scene.subscribe(state => {
       if (state.tableId !== this.tableId) {
         this.cancelGesture();
         this.selectedId = null;
@@ -164,11 +168,17 @@ export class PaintInteractionController {
       }
       this.emit();
     });
+    this.unsubscribeScene = unsubscribe;
+    return () => {
+      unsubscribe();
+      if (this.unsubscribeScene === unsubscribe) this.unsubscribeScene = null;
+    };
   }
 
   dispose(): void {
     this.unbind();
-    this.unsubscribeScene();
+    this.unsubscribeScene?.();
+    this.unsubscribeScene = null;
     this.listeners.clear();
   }
 

@@ -65,7 +65,7 @@ function harness(committed: PaintObject[] = []) {
     subscribe: vi.fn(callback => {
       listener = callback;
       callback(state);
-      return vi.fn();
+      return vi.fn(() => { listener = null; });
     }),
     submitCreate: vi.fn(() => crypto.randomUUID()),
     submitUpdate: vi.fn(() => crypto.randomUUID()),
@@ -105,6 +105,7 @@ function harness(committed: PaintObject[] = []) {
   canvas.hasPointerCapture = vi.fn(id => captured.has(id));
   canvas.releasePointerCapture = vi.fn(id => captured.delete(id));
   const controller = new PaintInteractionController(scene, runtime);
+  controller.connectScene();
   controller.bind(canvas);
   controller.setActor(7, false);
   controller.setEnabled(true);
@@ -123,6 +124,31 @@ function harness(committed: PaintObject[] = []) {
 
 describe('PaintInteractionController', () => {
   beforeEach(() => vi.restoreAllMocks());
+
+  it('has no constructor subscription and reconnects after effect-style disposal', () => {
+    const { controller, scene, runtime, updateState } = harness();
+    controller.dispose();
+    vi.mocked(scene.subscribe).mockClear();
+    const resumed = new PaintInteractionController(scene, runtime);
+    resumed.setEnabled(true);
+    expect(scene.subscribe).not.toHaveBeenCalled();
+
+    resumed.connectScene();
+    updateState({ ...initialState(), hydrating: true });
+    expect(resumed.getState().ready).toBe(false);
+    const unsubscribe = vi.mocked(scene.subscribe).mock.results.at(-1)!.value;
+    resumed.dispose();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+
+    updateState(initialState());
+    const disconnect = resumed.connectScene();
+    expect(resumed.getState().ready).toBe(true);
+    updateState({ ...initialState(), hydrating: true });
+    expect(resumed.getState().ready).toBe(false);
+    disconnect();
+    resumed.dispose();
+    expect(vi.mocked(scene.subscribe).mock.results.at(-1)!.value).toHaveBeenCalledOnce();
+  });
 
   it('captures DPR-scaled coalesced samples and creates exactly once', () => {
     const { controller, scene, runtime, engine, canvas } = harness();

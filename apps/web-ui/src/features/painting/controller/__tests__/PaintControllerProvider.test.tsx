@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PaintControllerProvider, usePaintController } from '../PaintControllerProvider';
 
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   },
   constructor: vi.fn(),
   interaction: {
+    connectScene: vi.fn(() => vi.fn()),
     subscribe: vi.fn((listener: (state: object) => void) => {
       listener({ enabled: true, tool: 'draw', selected: null });
       return vi.fn();
@@ -94,6 +96,7 @@ describe('PaintControllerProvider', () => {
     expect(mocks.controller.connectEvents).toHaveBeenCalledOnce();
     expect(mocks.controller.selectTable).toHaveBeenCalledWith('table-1');
     expect(mocks.interaction.setActor).toHaveBeenCalledWith(42, true);
+    expect(mocks.interaction.connectScene).toHaveBeenCalledOnce();
     expect(mocks.interaction.setEnabled).toHaveBeenCalledWith(true);
 
     act(() => vi.advanceTimersByTime(500));
@@ -109,5 +112,17 @@ describe('PaintControllerProvider', () => {
     render(<PaintControllerProvider><Consumer /></PaintControllerProvider>);
     expect(mocks.controller.restoreRenderer).toHaveBeenCalledOnce();
     expect(mocks.interaction.restoreRenderer).toHaveBeenCalledOnce();
+  });
+
+  it('reconnects interaction subscriptions after Strict Mode effect replay', () => {
+    const { unmount } = render(
+      <StrictMode><PaintControllerProvider><Consumer /></PaintControllerProvider></StrictMode>,
+    );
+    expect(mocks.interaction.connectScene).toHaveBeenCalledTimes(2);
+    expect(mocks.interaction.connectScene.mock.results[0].value).toHaveBeenCalledOnce();
+    act(() => vi.advanceTimersByTime(500));
+    expect(mocks.controller.tick).toHaveBeenCalledTimes(2);
+    unmount();
+    expect(mocks.interaction.connectScene.mock.results[1].value).toHaveBeenCalledOnce();
   });
 });

@@ -1,10 +1,18 @@
 import { getRelativeCoords } from '@features/canvas/components/GameCanvas/canvasUtils';
 import type { RenderEngine } from '@lib/wasm/runtime';
 import type { PaintControllerState } from './PaintController';
-import type { PaintObject, PaintObjectInput, PaintPoint, PaintStyle } from '../model/paintObject';
+import {
+  assertPaintObjectInput,
+  PaintValidationError,
+  type PaintObject,
+  type PaintObjectInput,
+  type PaintPoint,
+  type PaintStyle,
+} from '../model/paintObject';
 import {
   compactFreehandPoints,
   createPaintDraft,
+  MAX_FREEHAND_POINTS,
   resizePaintObject,
   type PaintHandleKind,
   type PaintTool,
@@ -12,6 +20,7 @@ import {
 
 const LOCAL_DRAFT_KEY = 'local';
 const HIT_TOLERANCE_PX = 6;
+const MAX_GESTURE_SAMPLES = MAX_FREEHAND_POINTS * 4;
 
 export interface PaintInteractionScene {
   getState(): PaintControllerState;
@@ -21,6 +30,7 @@ export interface PaintInteractionScene {
   submitDelete(objectId: string, expectedVersion: number): string | null;
   queuePreview(draft: PaintObjectInput): void;
   cancelLocalPreview(): void;
+  reportLocalError(message: string): void;
 }
 
 interface PaintInteractionRuntime {
@@ -374,36 +384,49 @@ export class PaintInteractionController {
     if (!this.enabled || !gesture || event.pointerId !== gesture.pointerId) return;
     const samples = event.getCoalescedEvents?.() ?? [];
     const events = samples.length > 0 ? samples : [event];
-    for (const sample of events) {
-      const point = this.worldPoint(sample, gesture.canvas);
-      if (!point) continue;
-      gesture.current = point;
+    try {
+      for (const sample of events) {
+        const point = this.worldPoint(sample, gesture.canvas);
+        if (!point) continue;
+        gesture.current = point;
+        if (gesture.kind === 'create') {
+          if (gesture.draft.kind === 'freehand') {
+            const previous = gesture.samples.at(-1)!;
+            if (previous.x !== point.x || previous.y !== point.y || previous.pressure !== point.pressure) {
+              if (gesture.samples.length >= MAX_GESTURE_SAMPLES) {
+                throw new PaintValidationError('Drawing exceeds the 32,768-sample gesture limit. Draw shorter paths.');
+              }
+              gesture.samples.push(point);
+            }
+          }
+        } else if (gesture.kind === 'move') {
+          const replacement = editableObject(gesture.original);
+          replacement.transform.x += point.x - gesture.start.x;
+          replacement.transform.y += point.y - gesture.start.y;
+          gesture.changed = gesture.changed
+            || point.x !== gesture.start.x
+            || point.y !== gesture.start.y;
+          gesture.draft = replacement;
+        } else {
+          gesture.changed = gesture.changed
+            || point.x !== gesture.start.x
+            || point.y !== gesture.start.y;
+          gesture.draft = resizePaintObject(gesture.original, gesture.handle, point);
+        }
+      }
       if (gesture.kind === 'create') {
-        if (gesture.draft.kind === 'freehand') gesture.samples.push(point);
+        const points = gesture.draft.kind === 'freehand'
+          ? compactFreehandPoints(gesture.samples, Math.max(this.style.width * 0.1, 0.25))
+          : gesture.samples;
         gesture.draft = createPaintDraft(
           this.tool as Exclude<PaintTool, 'select' | 'delete'>,
-          gesture.objectId,
-          gesture.start,
-          point,
-          gesture.samples,
-          this.style,
+          gesture.objectId, gesture.start, gesture.current, points, this.style,
         );
-      } else if (gesture.kind === 'move') {
-        const replacement = editableObject(gesture.original);
-        replacement.transform.x += point.x - gesture.start.x;
-        replacement.transform.y += point.y - gesture.start.y;
-        gesture.changed = gesture.changed
-          || point.x !== gesture.start.x
-          || point.y !== gesture.start.y;
-        gesture.draft = replacement;
-      } else {
-        gesture.changed = gesture.changed
-          || point.x !== gesture.start.x
-          || point.y !== gesture.start.y;
-        gesture.draft = resizePaintObject(gesture.original, gesture.handle, point);
       }
+      this.publishDraft(gesture.tableId, gesture.draft);
+    } catch (error) {
+      this.handleGestureError(error);
     }
-    this.publishDraft(gesture.tableId, gesture.draft);
     event.preventDefault();
   };
 
@@ -412,6 +435,7 @@ export class PaintInteractionController {
     if (!gesture || event.pointerId !== gesture.pointerId) return;
     try {
       this.handlePointerMove(event);
+      if (this.gesture !== gesture) return;
       if (gesture.kind === 'create') {
         if (gesture.draft.kind === 'freehand') {
           const compacted = compactFreehandPoints(
@@ -435,6 +459,8 @@ export class PaintInteractionController {
           gesture.draft,
         );
       }
+    } catch (error) {
+      this.handleGestureError(error);
     } finally {
       this.finishGesture();
       event.preventDefault();
@@ -494,8 +520,19 @@ export class PaintInteractionController {
   }
 
   private publishDraft(tableId: string, draft: PaintObjectInput): void {
-    this.runtime.setPaintDraft(tableId, LOCAL_DRAFT_KEY, draft);
-    this.scene.queuePreview(draft);
+    try {
+      assertPaintObjectInput(draft);
+      this.runtime.setPaintDraft(tableId, LOCAL_DRAFT_KEY, draft);
+      this.scene.queuePreview(draft);
+    } catch (error) {
+      this.handleGestureError(error);
+    }
+  }
+
+  private handleGestureError(error: unknown): void {
+    this.cancelGesture();
+    if (!(error instanceof PaintValidationError)) throw error;
+    this.scene.reportLocalError(error.message);
   }
 
   private cancelGesture(): void {
@@ -505,6 +542,7 @@ export class PaintInteractionController {
 
   private finishGesture(): void {
     const gesture = this.gesture;
+    if (!gesture) return;
     this.gesture = null;
     this.runtime.clearPaintDraft(LOCAL_DRAFT_KEY);
     this.scene.cancelLocalPreview();

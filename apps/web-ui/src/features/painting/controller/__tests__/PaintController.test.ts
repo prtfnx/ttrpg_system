@@ -233,6 +233,33 @@ describe('PaintController', () => {
     expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
   });
 
+  it('reports invalid local input before retaining or rendering a pending operation', () => {
+    const { controller, transport, runtime, errors } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    const invalid = { ...input(), style: { ...input().style, width: 0 } };
+    expect(controller.submitCreate(invalid)).toBeNull();
+    expect(controller.submitUpdate(invalid.id, 1, invalid)).toBeNull();
+    expect(controller.getState().pending).toEqual([]);
+    expect(transport.createPaintObject).not.toHaveBeenCalled();
+    expect(transport.updatePaintObject).not.toHaveBeenCalled();
+    expect(runtime.setPaintDraft).not.toHaveBeenCalled();
+    expect(errors).toHaveLength(2);
+    expect(controller.getState().lastError).toContain('style.width');
+  });
+
+  it('retains an independent command body for exact retries', () => {
+    const { controller, transport } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    const draft = input();
+    controller.submitCreate(draft);
+    draft.transform.x = 100;
+    draft.style.width = 20;
+    controller.reconnect();
+    expect(transport.createPaintObject).toHaveBeenLastCalledWith(TABLE, OPERATION, input());
+  });
+
   it('drops stale previews, honors cancellation sequence, and expires entries', () => {
     const { controller, advance } = harness();
     controller.selectTable(TABLE);

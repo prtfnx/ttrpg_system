@@ -178,6 +178,14 @@ interpolated pressure to 0.08, preserving gradual pressure peaks as well.
 The canonical 8,192-point ceiling comes from the shared schema; paths that
 still exceed it are rejected explicitly, never uniformly downsampled.
 A freehand click remains a one-point dot.
+Raw gesture capture is bounded to 32,768 samples and skips identical consecutive
+samples. Each coalesced event batch builds one pressure-aware simplified draft;
+the original samples remain available for final simplification. Point, sample,
+coordinate, style, and serialized-byte failures cancel the gesture and appear
+through the existing panel error/toast channel, without committing a truncated
+path. Local create/update inputs are validated before pending state or renderer
+drafts are retained; accepted pending commands retain an independent copy of
+the exact body for retries.
 `PaintInteractionController` owns one primary pointer and captures the active
 table at pointer-down. It converts backing-pixel canvas coordinates through the
 Rust camera once per coalesced sample, publishes renderer-only drafts and 20 Hz

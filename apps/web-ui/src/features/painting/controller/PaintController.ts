@@ -1,7 +1,9 @@
 import { onProtocolEvent } from '@lib/websocket/protocolEvents';
 import {
+  assertPaintObjectInput,
   assertPaintTableBudget,
   PAINT_LIMITS,
+  PaintValidationError,
   type PaintObject,
   type PaintObjectInput,
 } from '../model/paintObject';
@@ -239,6 +241,11 @@ export class PaintController {
     return this.submit({ kind: 'delete', tableId: this.tableId, objectId, expectedVersion });
   }
 
+  reportLocalError(message: string): void {
+    this.reportError(message);
+    this.emit();
+  }
+
   acceptEvent(event: PaintObjectEvent): void {
     if (event.table_id !== this.tableId) return;
     this.pending.delete(event.operation_id);
@@ -460,9 +467,18 @@ export class PaintController {
     if (changed) this.emit();
   }
 
-  private submit(command: PaintCommand): string {
+  private submit(command: PaintCommand): string | null {
+    if (command.kind !== 'delete') {
+      try {
+        assertPaintObjectInput(command.object);
+      } catch (error) {
+        if (!(error instanceof PaintValidationError)) throw error;
+        this.reportLocalError(error.message);
+        return null;
+      }
+    }
     const operationId = this.operationId();
-    const pending = { operationId, createdAt: this.now(), command };
+    const pending = { operationId, createdAt: this.now(), command: structuredClone(command) };
     this.pending.set(operationId, pending);
     if (command.kind !== 'delete') {
       this.runtime.setPaintDraft?.(

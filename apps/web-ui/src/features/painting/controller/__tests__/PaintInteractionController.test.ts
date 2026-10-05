@@ -72,6 +72,7 @@ function harness(committed: PaintObject[] = []) {
     submitDelete: vi.fn(() => crypto.randomUUID()),
     queuePreview: vi.fn(),
     cancelLocalPreview: vi.fn(),
+    reportLocalError: vi.fn(),
   };
   const engine = {
     screen_to_world: vi.fn((x: number, y: number) => new Float64Array([x / 2, y / 2])),
@@ -222,6 +223,38 @@ describe('PaintInteractionController', () => {
     controller.handlePointerDown(pointer(1, 20, 30));
     controller.handlePointerUp(pointer(1, 30, 40));
     expect(scene.submitCreate).not.toHaveBeenCalled();
+    expect(controller.getState().gestureActive).toBe(false);
+  });
+
+  it('simplifies long coalesced input before publishing or committing a valid draft', () => {
+    const { controller, scene } = harness();
+    controller.handlePointerDown(pointer(1, 20, 30));
+    controller.handlePointerMove(pointer(1, 10_020, 30, {
+      getCoalescedEvents: () => Array.from({ length: 10_000 }, (_, index) =>
+        pointer(1, index + 21, 30)),
+    }));
+    controller.handlePointerUp(pointer(1, 10_020, 30));
+    expect(scene.submitCreate).toHaveBeenCalledOnce();
+    const draft = vi.mocked(scene.submitCreate).mock.calls[0][0];
+    expect(draft.geometry).toEqual({
+      kind: 'freehand',
+      points: [{ x: 0, y: 0, pressure: 0.5 }, { x: 10_000, y: 0, pressure: 0.5 }],
+    });
+    expect(scene.reportLocalError).not.toHaveBeenCalled();
+  });
+
+  it.each(['point', 'sample', 'bytes'] as const)('rejects excessive %s detail without committing a truncated path', limit => {
+    const { controller, scene, canvas } = harness();
+    controller.handlePointerDown(pointer(1, 20, 30));
+    const count = limit === 'point' ? 8_192 : limit === 'sample' ? 32_768 : 3_000;
+    expect(() => controller.handlePointerMove(pointer(1, count + 20, 30, {
+      getCoalescedEvents: () => Array.from({ length: count }, (_, index) =>
+        pointer(1, index + 21, 30, { pressure: limit === 'sample' ? 0.5 : index % 2 })),
+    }))).not.toThrow();
+    controller.handlePointerUp(pointer(1, count + 20, 30));
+    expect(scene.submitCreate).not.toHaveBeenCalled();
+    expect(scene.reportLocalError).toHaveBeenCalledOnce();
+    expect(canvas.hasPointerCapture(1)).toBe(false);
     expect(controller.getState().gestureActive).toBe(false);
   });
 

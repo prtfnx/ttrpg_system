@@ -85,8 +85,17 @@ only after legacy conversion and release verification; disabling the gate
 does not make new-format data compatible with an old binary.
 It derives roles from database membership, serializes mutations through
 `paint_state`, assigns revisions and z-order, enforces ownership and optimistic
-versions, records accepted operation IDs, and reads ordered snapshots. The
-server registers create, update, delete, and snapshot handlers; blocking ORM
+versions, records accepted operation IDs, and reads ordered snapshots.
+Object/point budgets use a transactional SQL aggregate (JSONB array lengths
+on PostgreSQL, JSON array lengths on SQLite), excluding the replaced object.
+Edits do not transfer or deserialize the complete table scene for validation.
+Updates that do not increase path-point count skip the aggregate: object count
+cannot grow through a replacement, and the validated table's existing point
+budget cannot increase. Inserts and point-growing replacements still check
+the aggregate while holding the same table/state locks.
+The membership join locks only the target virtual-table row, not the shared
+session row; unrelated tables do not serialize through that join.
+The server registers create, update, delete, and snapshot handlers; blocking ORM
 work runs in worker threads. Accepted mutations broadcast canonical object
 events, retries return the recorded event without rebroadcasting, conflicts
 include the current object, and snapshots are split into bounded ordered

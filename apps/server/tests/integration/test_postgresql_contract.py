@@ -12,10 +12,12 @@ from types import SimpleNamespace
 import pytest
 from alembic import command
 from alembic.config import Config
+from core_table.paint import PaintLimits
 from database import models
 from database.models import Base
 from database.schema import repository_heads, schema_is_current
 from database.url import normalize_database_url
+from service import paint_object_service as paint_service_module
 from service.paint_object_service import PaintObjectService
 from service.readiness import ReadinessChecker
 from sqlalchemy import create_engine, inspect, text
@@ -437,7 +439,7 @@ def test_postgresql_for_update_serializes_competing_writers(postgresql_engine):
             connection.execute(text("DELETE FROM users WHERE id = :id"), {"id": user_id})
 
 
-def test_postgresql_paint_writers_receive_gap_free_revisions(postgresql_engine):
+def test_postgresql_paint_writers_receive_gap_free_revisions(postgresql_engine, monkeypatch):
     suffix = uuid.uuid4().hex[:12]
     table_id = str(uuid.uuid4())
     with postgresql_engine.begin() as connection:
@@ -538,6 +540,22 @@ def test_postgresql_paint_writers_receive_gap_free_revisions(postgresql_engine):
         )
         assert snapshot.revision == 2
         assert [item["z_order"] for item in snapshot.objects] == [1, 2]
+        # Exercise JSONB freehand lengths and line points in the actual budget
+        # query, including an excluded, point-growing replacement.
+        monkeypatch.setattr(paint_service_module, "paint_limits", lambda: PaintLimits(61_440, 2_000, 6))
+        service = PaintObjectService(factory)
+        path = {key: snapshot.objects[0][key] for key in ("id", "kind", "geometry", "transform", "style")}
+        path.update(id=str(uuid.uuid4()), kind="freehand",
+                    geometry={"kind": "freehand", "points": [{"x": 0, "y": 0, "pressure": 1},
+                                                             {"x": 1, "y": 1, "pressure": 1}]})
+        context = {"session_id": session_id, "actor_id": user_id, "table_id": table_id}
+        assert service.create(**context, operation_id=str(uuid.uuid4()), editable=path).error is None
+        extra = {**path, "id": str(uuid.uuid4())}
+        assert service.create(**context, operation_id=str(uuid.uuid4()), editable=extra).error.code == "limit_exceeded"
+        path["geometry"]["points"].append({"x": 2, "y": 2, "pressure": 1})
+        assert service.update(**context, operation_id=str(uuid.uuid4()), object_id=path["id"],
+                              expected_version=1, editable=path).error.code == "limit_exceeded"
+        assert service.snapshot(**context).revision == 3
     finally:
         for writer in writers:
             writer.join(timeout=2)

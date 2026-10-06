@@ -16,6 +16,7 @@ from core_table.paint import (
     validate_paint_object_input,
 )
 from database import models
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 from utils.roles import can_interact, is_dm
 from utils.time import utc_now
@@ -152,7 +153,7 @@ class PaintObjectService:
                 models.VirtualTable.table_id == table_id,
                 models.VirtualTable.session_id == session_id,
             )
-            .with_for_update()
+            .with_for_update(of=models.VirtualTable)
             .one_or_none()
         )
         if row is None:
@@ -258,19 +259,32 @@ class PaintObjectService:
 
     @staticmethod
     def _require_budget(
-        existing: list[models.PaintObject],
+        db: Session,
+        table_id: str,
         candidate: Mapping[str, Any],
         *,
         replacing_id: str | None = None,
     ) -> None:
         limits = paint_limits()
-        if replacing_id is None and len(existing) >= limits.max_objects_per_table:
-            raise _Rejected("limit_exceeded", "Paint table object limit reached")
-        points = sum(
-            paint_point_count({"kind": item.kind, "geometry": item.geometry})
-            for item in existing
-            if item.id != replacing_id
+        # Count in the database instead of transferring/deserializing every path
+        # for each edit. The table/state locks keep this aggregate transactional.
+        if db.get_bind().dialect.name == "postgresql":
+            path_length = func.jsonb_array_length(models.PaintObject.geometry["points"])
+        else:
+            path_length = func.json_array_length(models.PaintObject.geometry, "$.points")
+        point_count = case(
+            (models.PaintObject.kind == "freehand", path_length),
+            (models.PaintObject.kind == "line", 2),
+            else_=0,
         )
+        query = db.query(func.count(), func.coalesce(func.sum(point_count), 0)).filter(
+            models.PaintObject.table_id == table_id,
+        )
+        if replacing_id is not None:
+            query = query.filter(models.PaintObject.id != replacing_id)
+        objects, points = query.one()
+        if objects >= limits.max_objects_per_table:
+            raise _Rejected("limit_exceeded", "Paint table object limit reached")
         points += paint_point_count(candidate)
         if points > limits.max_points_per_table:
             raise _Rejected("limit_exceeded", "Paint table point limit reached")
@@ -310,8 +324,7 @@ class PaintObjectService:
                     return replay
                 if db.get(models.PaintObject, candidate["id"]) is not None:
                     raise _Rejected("invalid_payload", "Paint object id already exists")
-                existing = self._table_objects(db, table_id)
-                self._require_budget(existing, candidate)
+                self._require_budget(db, table_id, candidate)
                 now = utc_now()
                 accepted = models.PaintObject(
                     id=candidate["id"],
@@ -414,11 +427,13 @@ class PaintObjectService:
                         current_object=current_dto,
                         current_version=current.version,
                     )
-                self._require_budget(
-                    self._table_objects(db, table_id),
-                    candidate,
-                    replacing_id=object_id,
-                )
+                # A validated table cannot exceed its budgets through a move,
+                # restyle, resize, or point-count reduction. Only growth needs
+                # an aggregate of the other objects. This is safe under the
+                # same table/state locks as inserts and growing replacements.
+                previous_points = paint_point_count({"kind": current.kind, "geometry": current.geometry})
+                if paint_point_count(candidate) > previous_points:
+                    self._require_budget(db, table_id, candidate, replacing_id=object_id)
                 current.kind = candidate["kind"]
                 current.geometry = candidate["geometry"]
                 current.transform = candidate["transform"]

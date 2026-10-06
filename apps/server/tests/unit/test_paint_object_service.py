@@ -388,3 +388,41 @@ def test_table_object_and_point_budgets_are_enforced(
 
     assert object_limited.error.code == "limit_exceeded"
     assert point_limited.error.code == "limit_exceeded"
+
+
+def test_budget_counts_kinds_and_replacements_without_loading_scene(paint_service, monkeypatch):
+    service, _, ids = paint_service
+    monkeypatch.setattr(service_module, "paint_limits", lambda: PaintLimits(61_440, 3, 3))
+    monkeypatch.setattr(service, "_table_objects", lambda *args: pytest.fail("Budget must not load scene geometry"))
+    assert create(service, ids).error is None  # One point.
+    line = editable(str(uuid.uuid4()))
+    line.update(kind="line", geometry={"kind": "line", "start": {"x": 0, "y": 0, "pressure": 1}, "end": {"x": 5, "y": 5, "pressure": 1}})
+    assert create(service, ids, value=line).error is None  # Two points.
+    circle = editable(str(uuid.uuid4()))
+    circle.update(kind="circle", geometry={"kind": "circle", "diameter": 10})
+    assert create(service, ids, value=circle).error is None  # No path points.
+    assert create(service, ids, value=editable(str(uuid.uuid4()))).error.code == "limit_exceeded"
+    replacement = editable()
+    result = service.update(session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID,
+                            operation_id=str(uuid.uuid4()), object_id=OBJECT_ID, expected_version=1, editable=replacement)
+    assert result.error is None  # Exclude the old object from both counts.
+    replacement["geometry"]["points"].append({"x": 1, "y": 1, "pressure": 0.5})
+    result = service.update(session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID,
+                            operation_id=str(uuid.uuid4()), object_id=OBJECT_ID, expected_version=2, editable=replacement)
+    assert result.error.code == "limit_exceeded"
+    assert result.event is None
+
+
+def test_non_growing_update_does_not_scan_other_paths(paint_service, monkeypatch):
+    service, _, ids = paint_service
+    original = editable()
+    original["geometry"]["points"].append({"x": 1, "y": 1, "pressure": 0.5})
+    assert create(service, ids, value=original).error is None
+    monkeypatch.setattr(service, "_require_budget", lambda *args, **kwargs: pytest.fail("Non-growing edit must not scan table"))
+    for version, replacement in enumerate([original, editable()], start=1):
+        replacement["transform"]["x"] += 10
+        result = service.update(session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID,
+                                operation_id=str(uuid.uuid4()), object_id=OBJECT_ID,
+                                expected_version=version, editable=replacement)
+        assert result.error is None
+        assert result.event["object"]["version"] == version + 1

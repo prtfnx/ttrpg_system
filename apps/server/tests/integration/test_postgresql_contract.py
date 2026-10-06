@@ -464,14 +464,14 @@ def test_postgresql_paint_writers_receive_gap_free_revisions(postgresql_engine):
                 "owner_id": user_id,
             },
         ).scalar_one()
-        connection.execute(
-            text(
-                "INSERT INTO virtual_tables "
-                "(table_id, name, width, height, session_id) "
-                "VALUES (:table_id, 'Paint table', 1000, 1000, :session_id)"
-            ),
-            {"table_id": table_id, "session_id": session_id},
-        )
+        with Session(bind=connection) as db:
+            db.add(models.VirtualTable(
+                table_id=table_id, name="Paint table", width=1000, height=1000,
+                session_id=session_id,
+            ))
+            db.flush()
+            db.add(models.PaintState(table_id=table_id, revision=0, next_z_order=1))
+            db.flush()
 
     factory = sessionmaker(bind=postgresql_engine)
     barrier = threading.Barrier(2)
@@ -493,8 +493,8 @@ def test_postgresql_paint_writers_receive_gap_free_revisions(postgresql_engine):
                     "kind": "line",
                     "geometry": {
                         "kind": "line",
-                        "start": {"x": index, "y": 0},
-                        "end": {"x": index + 1, "y": 1},
+                        "start": {"x": index, "y": 0, "pressure": 1},
+                        "end": {"x": index + 1, "y": 1, "pressure": 1},
                     },
                     "transform": {
                         "x": 0,

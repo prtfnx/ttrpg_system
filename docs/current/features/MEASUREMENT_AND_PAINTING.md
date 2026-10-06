@@ -348,6 +348,9 @@ one paint table and requires distinct gap-free revisions and z-order values,
 then verifies a fresh service snapshot. This test is skipped unless
 `TEST_POSTGRESQL_DATABASE_URL` targets an explicitly disposable test database;
 SQLite results are not evidence for row-lock behavior.
+The paint concurrency fixture seeds an existing revision-zero `paint_state`
+row and uses the strict pressure-bearing geometry contract, matching normal
+table creation rather than racing to insert a missing lock row.
 
 From `apps/web-ui`, run `pnpm.cmd exec vitest run --project browser` after
 rebuilding WASM. `src/lib/wasm/__tests__/paintRendering.wasm-test.ts` checks real

@@ -6,7 +6,7 @@ import pytest
 from core_table.paint import PaintLimits
 from database import models
 from service import paint_object_service as service_module
-from service.paint_object_service import PaintCommandError, PaintObjectService
+from service.paint_object_service import PaintCommandError, PaintObjectService, PaintSnapshot
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -132,6 +132,7 @@ def test_disabled_paint_gate_rejects_commands_before_opening_database():
         service.delete(**context, object_id=OBJECT_ID, expected_version=1),
     ]
     for result in results:
+        assert result.error is not None
         assert result.error.code == "paint_disabled"
         assert result.event is None
         assert not result.broadcast
@@ -142,9 +143,11 @@ def test_disabled_paint_gate_preserves_objects_and_allows_authorized_snapshots(p
     created = create(service, ids)
     readonly = PaintObjectService(factory, writes_enabled=False)
     snapshot = readonly.snapshot(session_id=ids["session"], actor_id=ids["spectator"], table_id=TABLE_ID)
+    assert isinstance(snapshot, PaintSnapshot)
     assert snapshot.revision == 1
     assert snapshot.objects == [created.event["object"]]
-    assert create(readonly, ids).error.code == "paint_disabled"
+    denied = create(readonly, ids)
+    assert denied.error is not None and denied.error.code == "paint_disabled"
     with factory() as db:
         assert db.query(models.PaintObject).count() == 1
         assert db.query(models.PaintOperationResult).count() == 1
@@ -194,6 +197,7 @@ def test_retry_after_supported_window_requires_snapshot(paint_service):
     replay = create(service, ids, operation_id=operation_id)
 
     assert first.error is None
+    assert replay.error is not None
     assert replay.error.code == "retry_window_expired"
     assert replay.event is None
     with factory() as db:

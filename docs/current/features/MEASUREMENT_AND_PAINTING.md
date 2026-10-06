@@ -372,6 +372,9 @@ SQLite results are not evidence for row-lock behavior.
 The paint concurrency fixture seeds an existing revision-zero `paint_state`
 row and uses the strict pressure-bearing geometry contract, matching normal
 table creation rather than racing to insert a missing lock row.
+It also submits one identical command concurrently: both callers must receive
+the same result, with one revision and one broadcast. Mixed line/freehand
+budgets and point-growing replacements exercise the real JSONB aggregate.
 
 From `apps/web-ui`, run `pnpm.cmd exec vitest run --project browser` after
 rebuilding WASM. `src/lib/wasm/__tests__/paintRendering.wasm-test.ts` checks real
@@ -392,3 +395,6 @@ and both rollback paths rehearsed against production-shaped data. Keep
 `PAINT_OBJECT_WRITES_ENABLED=false` until those checks are verified. The
 [renderer reference](../reference/RENDERER_PERFORMANCE_REFERENCE.md) separates
 deterministic CI checks from device-specific timing evidence.
+The [isolated paint release runner](../TESTING_STRATEGY.md#isolated-paint-acceptance-and-load-checks)
+automates the real built-UI acceptance matrix, synthetic legacy rollback, and
+ten-client measurements without using the configured application database.

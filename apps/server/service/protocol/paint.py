@@ -2,6 +2,7 @@ import json
 import math
 import time
 import uuid
+from typing import Any
 
 from config import Settings
 from core_table.paint import PaintValidationError, validate_paint_object_input
@@ -142,7 +143,7 @@ class _PaintMixin(_ProtocolBase):
         error: PaintCommandError,
         operation_id: str | None = None,
     ) -> Message:
-        data = {"error": error.message, "code": error.code}
+        data: dict[str, Any] = {"error": error.message, "code": error.code}
         if operation_id:
             data["operation_id"] = operation_id
         if error.current_object is not None:
@@ -223,7 +224,7 @@ class _PaintMixin(_ProtocolBase):
         object_id = data.get("id")
         expected_version = data.get("expected_version")
         editable = data.get("object")
-        if not all(isinstance(value, str) for value in (operation_id, table_id, object_id)):
+        if not isinstance(operation_id, str) or not isinstance(table_id, str) or not isinstance(object_id, str):
             return Message(MessageType.ERROR, {"error": "Invalid paint update envelope"})
         if not isinstance(expected_version, int) or isinstance(expected_version, bool):
             return Message(
@@ -276,7 +277,7 @@ class _PaintMixin(_ProtocolBase):
         table_id = data.get("table_id")
         object_id = data.get("id")
         expected_version = data.get("expected_version")
-        if not all(isinstance(value, str) for value in (operation_id, table_id, object_id)):
+        if not isinstance(operation_id, str) or not isinstance(table_id, str) or not isinstance(object_id, str):
             return Message(MessageType.ERROR, {"error": "Invalid paint delete envelope"})
         if not isinstance(expected_version, int) or isinstance(expected_version, bool):
             return Message(

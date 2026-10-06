@@ -18,7 +18,7 @@ from database.models import Base
 from database.schema import repository_heads, schema_is_current
 from database.url import normalize_database_url
 from service import paint_object_service as paint_service_module
-from service.paint_object_service import PaintObjectService
+from service.paint_object_service import PaintObjectService, PaintSnapshot
 from service.readiness import ReadinessChecker
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError
@@ -481,15 +481,15 @@ def test_postgresql_paint_writers_receive_gap_free_revisions(postgresql_engine, 
     failures: list[BaseException] = []
     result_lock = threading.Lock()
 
-    def create_object(index: int) -> None:
+    def create_object(index: int, operation_id: str | None = None, object_id: str | None = None) -> None:
         try:
-            object_id = str(uuid.uuid4())
+            object_id = object_id or str(uuid.uuid4())
             barrier.wait(timeout=5)
             result = PaintObjectService(factory).create(
                 session_id=session_id,
                 actor_id=user_id,
                 table_id=table_id,
-                operation_id=str(uuid.uuid4()),
+                operation_id=operation_id or str(uuid.uuid4()),
                 editable={
                     "id": object_id,
                     "kind": "line",
@@ -533,16 +533,32 @@ def test_postgresql_paint_writers_receive_gap_free_revisions(postgresql_engine, 
         assert sorted(result.event["revision"] for result in results) == [1, 2]
         assert sorted(result.event["object"]["z_order"] for result in results) == [1, 2]
 
+        # Two simultaneous retries of one lost-ack command must commit once
+        # and return the identical canonical result without a second broadcast.
+        results.clear()
+        retry_id, object_id = str(uuid.uuid4()), str(uuid.uuid4())
+        writers = [threading.Thread(target=create_object, args=(2, retry_id, object_id), daemon=True) for _ in range(2)]
+        for writer in writers:
+            writer.start()
+        for writer in writers:
+            writer.join(timeout=10)
+        assert all(not writer.is_alive() for writer in writers) and not failures
+        assert len(results) == 2 and all(result.error is None for result in results)
+        assert results[0].event == results[1].event
+        assert results[0].event["revision"] == 3
+        assert sorted(result.broadcast for result in results) == [False, True]
+
         snapshot = PaintObjectService(factory).snapshot(
             session_id=session_id,
             actor_id=user_id,
             table_id=table_id,
         )
-        assert snapshot.revision == 2
-        assert [item["z_order"] for item in snapshot.objects] == [1, 2]
+        assert isinstance(snapshot, PaintSnapshot)
+        assert snapshot.revision == 3
+        assert [item["z_order"] for item in snapshot.objects] == [1, 2, 3]
         # Exercise JSONB freehand lengths and line points in the actual budget
         # query, including an excluded, point-growing replacement.
-        monkeypatch.setattr(paint_service_module, "paint_limits", lambda: PaintLimits(61_440, 2_000, 6))
+        monkeypatch.setattr(paint_service_module, "paint_limits", lambda: PaintLimits(61_440, 2_000, 8))
         service = PaintObjectService(factory)
         path = {key: snapshot.objects[0][key] for key in ("id", "kind", "geometry", "transform", "style")}
         path.update(id=str(uuid.uuid4()), kind="freehand",
@@ -551,11 +567,14 @@ def test_postgresql_paint_writers_receive_gap_free_revisions(postgresql_engine, 
         context = {"session_id": session_id, "actor_id": user_id, "table_id": table_id}
         assert service.create(**context, operation_id=str(uuid.uuid4()), editable=path).error is None
         extra = {**path, "id": str(uuid.uuid4())}
-        assert service.create(**context, operation_id=str(uuid.uuid4()), editable=extra).error.code == "limit_exceeded"
+        rejected = service.create(**context, operation_id=str(uuid.uuid4()), editable=extra)
+        assert rejected.error is not None and rejected.error.code == "limit_exceeded"
         path["geometry"]["points"].append({"x": 2, "y": 2, "pressure": 1})
-        assert service.update(**context, operation_id=str(uuid.uuid4()), object_id=path["id"],
-                              expected_version=1, editable=path).error.code == "limit_exceeded"
-        assert service.snapshot(**context).revision == 3
+        rejected = service.update(**context, operation_id=str(uuid.uuid4()), object_id=path["id"],
+                                  expected_version=1, editable=path)
+        assert rejected.error is not None and rejected.error.code == "limit_exceeded"
+        confirmed = service.snapshot(**context)
+        assert isinstance(confirmed, PaintSnapshot) and confirmed.revision == 4
     finally:
         for writer in writers:
             writer.join(timeout=2)

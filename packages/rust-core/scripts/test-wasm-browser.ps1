@@ -112,12 +112,27 @@ $env:CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER = $runner
 $env:CHROMEDRIVER = $ChromeDriver
 $env:WASM_BINDGEN_TEST_ONLY_WEB = "1"
 
+$previousWebDriverConfig = $env:WASM_BINDGEN_TEST_WEBDRIVER_JSON
+$capabilities = Get-Content -LiteralPath (Join-Path $RustRoot "webdriver.json") -Raw | ConvertFrom-Json
+# ChromeDriver searches installed browsers before PATH. Pin the exact binary
+# that passed the version check, including an explicitly supplied portable one.
+$capabilities.'goog:chromeOptions' | Add-Member -NotePropertyName binary -NotePropertyValue $ChromePath -Force
+$targetDirectory = Join-Path $RustRoot "target"
+New-Item -ItemType Directory -Force -Path $targetDirectory | Out-Null
+$webDriverConfig = Join-Path $targetDirectory ("webdriver-" + [guid]::NewGuid().ToString("N") + ".json")
+
 Push-Location $RustRoot
 try {
+    [IO.File]::WriteAllText($webDriverConfig, ($capabilities | ConvertTo-Json -Depth 10), [Text.UTF8Encoding]::new($false))
+    $env:WASM_BINDGEN_TEST_WEBDRIVER_JSON = $webDriverConfig
     & cargo test --target wasm32-unknown-unknown --test wasm_browser --locked
     if ($LASTEXITCODE -ne 0) {
         throw "Browser WASM tests failed with exit code $LASTEXITCODE"
     }
 } finally {
+    $env:WASM_BINDGEN_TEST_WEBDRIVER_JSON = $previousWebDriverConfig
+    if (Test-Path -LiteralPath $webDriverConfig) {
+        Remove-Item -LiteralPath $webDriverConfig
+    }
     Pop-Location
 }

@@ -121,6 +121,12 @@ pnpm.cmd run test:browser
 On Windows the wrapper downloads the pinned ChromeDriver archive into ignored
 `target/` storage and verifies its SHA-256. CI pins Chrome for Testing and
 passes the action's matching driver to the same wrapper.
+The wrapper explicitly sets the verified Chrome binary in temporary WebDriver
+capabilities, then removes that file and restores the previous configuration.
+This prevents ChromeDriver from substituting a newer system installation.
+To use a portable matching browser without changing the system browser, run
+`./scripts/test-wasm-browser.ps1 -ChromePath '<path to pinned chrome.exe>'`
+from `packages/rust-core`.
 
 Run:
 

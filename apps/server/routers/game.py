@@ -17,13 +17,13 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from fastapi.responses import RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from models import game as game_models
+from PIL import Image, UnidentifiedImageError
 from service.game_session import get_connection_manager
 from sqlalchemy.orm import Session
-from PIL import Image, UnidentifiedImageError
-from utils.time import utc_now
 from utils.audit import audit_event
 from utils.logger import setup_logger
 from utils.roles import can_assign_role, get_permissions, get_visible_layers, is_dm
+from utils.time import utc_now
 
 from .users import get_current_active_user
 

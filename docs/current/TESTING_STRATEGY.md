@@ -175,6 +175,79 @@ Optional sprite-mutation coverage also needs `LOAD_TEST_TABLE` and
 this only against a disposable local or reviewed test session, never
 production.
 
+### Isolated paint acceptance and load checks
+
+`apps/server/scripts/verify_paint_release.py` launches the production-built UI
+through the test-only `paint_release_app.py` entry point. It invokes
+`apps/web-ui/scripts/verify-paint-release.mjs` with installed Playwright Chromium
+and actual authenticated WebSockets. It does not replace server asset files.
+
+Prerequisites: repository Python environment with the server/core-table
+dependencies, Node, installed web UI dependencies, Playwright Chromium,
+`wasm-pack`, and a disposable loopback PostgreSQL instance. Its administrator
+must be able to create/drop databases. The archived legacy revision used by
+the runner must exist in local Git history; see `LEGACY_COMMIT` in the script.
+
+Build optimized WASM and the UI from the repository root, then launch the runner
+from `apps/server` with the repository Python environment activated:
+
+```powershell
+./scripts/build-wasm.ps1
+pnpm.cmd --dir apps/web-ui run build
+cd apps/server
+python -m scripts.verify_paint_release --postgres-url postgresql://test_admin@127.0.0.1:55473/paint_contract_test
+```
+
+If Chromium is missing, install the project's matching browser with
+`pnpm.cmd exec playwright install chromium` from `apps/web-ui`.
+
+The runner rejects remote hosts, database names without `test`, alternate
+drivers, and connection query parameters. It does not use the application's
+configured database URL. Never use a forwarded production database, even if
+its address appears local. The runner creates two randomly named databases;
+teardown stops its own server/browser and drops only those databases. It does
+not install or stop PostgreSQL. The browser has a ten-minute watchdog.
+
+Two contexts run the full UI; eight additional authenticated contexts exercise
+the socket protocol. Checks cover all six forms, edits and deletion, actor
+authority, optimistic conflicts, reconnect/server restart, preview loss,
+context loss, and snapshot races. The busy fixture has 1,000 paths and 100,000
+points. Nine writers submit concurrent edit batches; every client must finish
+with identical ordered objects and revision.
+
+The browser script fixes the following local acceptance budgets before sampling:
+
+| Measurement | Pass condition |
+| --- | --- |
+| Local input-to-preview p95 | At most 50 ms |
+| Event delivery / command round-trip p95 | At most 250 ms each |
+| Server handler p95 histogram upper bound | At most 250 ms |
+| CPU render mean / p95 | At most 10 ms / 16.7 ms |
+| Snapshot assembly time / size | At most 5 seconds / 32 MiB |
+| Retained GPU buffers / WASM memory | No growth after warm-up |
+| Post-GC JS heap / external backing storage | Growth at most 64 MiB |
+| Peak / final outgoing socket queue | At most 64 KiB / zero |
+| Normal-load rejections, revision gaps, resyncs, lost updates | Zero |
+
+Memory is sampled after garbage collection every four batches. Each accepted
+edit must rebuild only the changed object's mesh. Frame/preview timing ends at
+CPU render submission, not GPU completion or display scan-out. Loopback
+thresholds are not arbitrary-network guarantees or a multi-hour soak test.
+
+The synthetic cutover fixture backs up legacy strokes, explicitly quarantines
+invalid rows, exports templates, and verifies idempotent conversion. Before a
+new-format write it tests downgrade plus archived server hydration; afterward
+it keeps the schema and tests a write-disabled successor writer's reads. A real
+WebGL pixel check verifies one converted path. This is not a live backup restore
+or a full restart of an identified deployed old release.
+
+Failures return nonzero and retain diagnostics. Fixtures, test JWTs, backups,
+logs, and measured results remain in the printed private temporary directory;
+do not commit them. Passing the runner does not enable production writes.
+Follow [Database migrations](operations/DATABASE_MIGRATIONS.md) for the actual
+cutover and rollback boundary, and [Measurement and painting](features/MEASUREMENT_AND_PAINTING.md)
+for controller and authorization contracts.
+
 ## Core table
 
 Use pytest in `packages/core-table`.

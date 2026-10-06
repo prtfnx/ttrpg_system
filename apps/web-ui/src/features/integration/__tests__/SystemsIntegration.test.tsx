@@ -28,6 +28,16 @@ import { ChatPanel } from '@features/chat';
 const mockLoadTexture = vi.fn().mockResolvedValue(true);
 const mockRenderEngine = createMockRenderEngine();
 const mockActionsClient = {
+  set_action_handler: vi.fn(),
+  set_state_change_handler: vi.fn(),
+  set_error_handler: vi.fn(),
+  create_table: vi.fn().mockReturnValue({ success: true, message: 'Table created' }),
+  create_sprite: vi.fn().mockReturnValue({ success: true, sprite_id: 'sprite_123' }),
+  move_sprite: vi.fn().mockReturnValue({ success: true }),
+  delete_sprite: vi.fn().mockReturnValue({ success: true }),
+  batch_actions: vi.fn().mockReturnValue({ success: true, count: 3 }),
+  undo: vi.fn().mockReturnValue({ success: true }),
+  redo: vi.fn().mockReturnValue({ success: true }),
   can_undo: vi.fn(() => true),
   can_redo: vi.fn(() => false),
 };
@@ -44,20 +54,7 @@ function render(ui: React.ReactElement) {
 
 const mockWasmModule = {
   RenderEngine: vi.fn().mockImplementation(() => mockRenderEngine),
-  ActionsClient: vi.fn().mockImplementation(() => ({
-    set_action_handler: vi.fn(),
-    set_state_change_handler: vi.fn(),
-    set_error_handler: vi.fn(),
-    create_table: vi.fn().mockReturnValue({ success: true, message: 'Table created' }),
-    create_sprite: vi.fn().mockReturnValue({ success: true, sprite_id: 'sprite_123' }),
-    move_sprite: vi.fn().mockReturnValue({ success: true }),
-    delete_sprite: vi.fn().mockReturnValue({ success: true }),
-    batch_actions: vi.fn().mockReturnValue({ success: true, count: 3 }),
-    undo: vi.fn().mockReturnValue({ success: true }),
-    redo: vi.fn().mockReturnValue({ success: true }),
-    can_undo: vi.fn().mockReturnValue(true),
-    can_redo: vi.fn().mockReturnValue(false)
-  })),
+  ActionsClient: vi.fn().mockImplementation(() => mockActionsClient),
   calculate_asset_hash: vi.fn().mockReturnValue('hash-test'),
   TableSync: vi.fn().mockImplementation(() => ({
     sync_table: vi.fn(),
@@ -211,16 +208,16 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
     });
     
     it('should coordinate WASM operations through TypeScript actions', async () => {
-      const mockRenderEngine = mockWasmModule.RenderEngine();
-      render(<ActionsPanel actionsEngine={mockRenderEngine} />);
+      const mockActionsEngine = mockWasmModule.ActionsClient();
+      render(<ActionsPanel actionsEngine={mockActionsEngine} />);
       
       // User expects action interface to be available
       expect(screen.getByText(/actions/i)).toBeInTheDocument();
     });
 
     it('should support batch operations with WASM backend', async () => {
-      const mockRenderEngine = mockWasmModule.RenderEngine();
-      render(<ActionsPanel actionsEngine={mockRenderEngine} />);
+      const mockActionsEngine = mockWasmModule.ActionsClient();
+      render(<ActionsPanel actionsEngine={mockActionsEngine} />);
       
       // User expects action creation to be available
       const createButton = screen.getByRole('button', { name: /create table/i });
@@ -236,8 +233,8 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
     });
 
     it('should provide undo/redo functionality backed by WASM', async () => {
-      const mockRenderEngine = mockWasmModule.RenderEngine();
-      render(<ActionsPanel actionsEngine={mockRenderEngine} />);
+      const mockActionsEngine = mockWasmModule.ActionsClient();
+      render(<ActionsPanel actionsEngine={mockActionsEngine} />);
       
       // User expects action interface to be available with undo/redo
       expect(screen.getByText(/actions/i)).toBeInTheDocument();

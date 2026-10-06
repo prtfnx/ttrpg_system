@@ -29,6 +29,8 @@ export function createMockRenderEngine() {
     handle_mouse_up: vi.fn(),
     handle_right_click: vi.fn().mockReturnValue(undefined),
     cancel_current_operation: vi.fn().mockReturnValue(false),
+    can_undo: vi.fn().mockReturnValue(false),
+    can_redo: vi.fn().mockReturnValue(false),
     // Input modes
     get_current_input_mode: vi.fn().mockReturnValue('select'),
     set_input_mode_measurement: vi.fn(),

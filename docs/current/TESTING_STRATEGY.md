@@ -8,6 +8,11 @@ Last source audit: 2026-09-24
 
 Tests should sit at the boundary where behavior is owned. Avoid testing a lower
 layer through an unrelated higher layer when a direct boundary test is clearer.
+WASM integration tests use separate renderer and actions-client doubles.
+The shared renderer double includes canvas input-context capabilities such as
+`can_undo`/`can_redo`; action panels receive the actions client, not the renderer.
+Runtime store notifications can expose an attached engine before canvas effects
+run, so mocks must implement the capabilities those effects actually consume.
 
 ## Server
 

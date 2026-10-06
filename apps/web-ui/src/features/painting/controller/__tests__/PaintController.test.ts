@@ -33,7 +33,7 @@ function object(version = 1, zOrder = 1): PaintObject {
   };
 }
 
-function harness(now = 1_000) {
+function harness(now = 1_000, operationId = () => OPERATION) {
   let currentNow = now;
   const transport: PaintTransport = {
     createPaintObject: vi.fn(() => true),
@@ -55,7 +55,7 @@ function harness(now = 1_000) {
   const snapshotRequestId = vi.fn(() => REQUEST);
   const controller = new PaintController(transport, runtime, {
     now: () => currentNow,
-    operationId: () => OPERATION,
+    operationId,
     snapshotRequestId,
     onError: error => errors.push(error),
   });
@@ -305,6 +305,86 @@ describe('PaintController', () => {
     controller.reconnect();
     expect(controller.getState().pending).toHaveLength(0);
     expect(errors).toContain('A pending paint change expired and was discarded');
+  });
+
+  it('bounds pending command count without sending or retaining rejected new intent', () => {
+    const { controller, transport, runtime, errors } = harness(1_000, () => crypto.randomUUID());
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    vi.mocked(transport.createPaintObject).mockReturnValue(false);
+    for (let index = 0; index < 128; index += 1) {
+      expect(controller.submitCreate(input(crypto.randomUUID()))).not.toBeNull();
+    }
+    const retained = controller.getState().pending;
+    expect(controller.submitCreate(input(crypto.randomUUID()))).toBeNull();
+    expect(controller.getState().pending).toEqual(retained);
+    expect(transport.createPaintObject).toHaveBeenCalledTimes(128);
+    expect(runtime.setPaintDraft).toHaveBeenCalledTimes(128);
+    expect(errors.at(-1)).toContain('Too many pending paint changes');
+    controller.rejectOperation({ operation_id: retained[0].operationId, code: 'forbidden', error: 'Denied' });
+    expect(controller.submitCreate(input(crypto.randomUUID()))).not.toBeNull();
+    expect(controller.getState().pending).toHaveLength(128);
+  });
+
+  it('bounds serialized pending bytes before the command count ceiling', () => {
+    const { controller, transport } = harness(1_000, () => crypto.randomUUID());
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    const path: PaintObjectInput = {
+      ...input(), kind: 'freehand', geometry: { kind: 'freehand', points: Array.from({ length: 900 }, (_, index) => ({
+        x: index, y: index + 0.1234, pressure: 0.8765,
+      })) },
+    };
+    let rejected = false;
+    for (let index = 0; index < 128; index += 1) {
+      if (controller.submitCreate({ ...path, id: crypto.randomUUID() }) === null) {
+        rejected = true;
+        break;
+      }
+    }
+    expect(rejected).toBe(true);
+    const retained = controller.getState().pending;
+    expect(retained.length).toBeGreaterThan(1);
+    expect(retained.length).toBeLessThan(128);
+    const bytes = retained.reduce((total, { operationId, createdAt, command }) => total
+      + new TextEncoder().encode(JSON.stringify({ operationId, createdAt, command })).byteLength, 0);
+    expect(bytes).toBeLessThanOrEqual(4 * 1024 * 1024);
+    expect(transport.createPaintObject).toHaveBeenCalledTimes(retained.length);
+    controller.rejectOperation({ operation_id: retained[0].operationId, code: 'forbidden', error: 'Denied' });
+    expect(controller.submitCreate({ ...path, id: crypto.randomUUID() })).not.toBeNull();
+  });
+
+  it('expires active intent without reconnect and requires a fresh snapshot before more edits', () => {
+    const { controller, transport, runtime, advance, errors } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    controller.submitCreate(input());
+    advance(24 * 60 * 60 * 1_000 + 1);
+    controller.tick();
+    expect(controller.getState()).toMatchObject({ pending: [], hydrating: true });
+    expect(transport.createPaintObject).toHaveBeenCalledTimes(1);
+    expect(runtime.clearPaintDraft).toHaveBeenCalledWith(`pending:${OPERATION}`);
+    expect(errors).toEqual(['A pending paint change expired and was discarded']);
+    expect(controller.submitCreate(input())).toBeNull();
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
+    controller.acceptSnapshotChunk(chunk(0, 1, [object()], 1));
+    expect(controller.getState()).toMatchObject({ hydrating: false, committed: [object()] });
+  });
+
+  it('expires inactive intent on tick without resyncing the visible table', () => {
+    const { controller, transport, advance } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    controller.submitCreate(input());
+    controller.selectTable(OTHER_TABLE);
+    controller.acceptSnapshotChunk({ ...chunk(0, 1, [], 0), table_id: OTHER_TABLE });
+    advance(24 * 60 * 60 * 1_000 + 1);
+    controller.tick();
+    expect(controller.getState()).toMatchObject({ tableId: OTHER_TABLE, hydrating: false });
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
+    controller.selectTable(TABLE);
+    expect(controller.getState().pending).toEqual([]);
+    expect(transport.createPaintObject).toHaveBeenCalledTimes(1);
   });
 
   it('retains pending intent across table switches and retries only its captured table', () => {

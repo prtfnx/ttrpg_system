@@ -218,6 +218,13 @@ a table retries its original operation IDs/bodies within the supported window;
 expired intent is discarded with an error. Acknowledgements for retained
 inactive-table operations resolve pending state without applying another
 table's geometry, and their conflicts do not resync the currently visible table.
+Across all tables, unresolved durable commands are capped at 128 operations or
+4 MiB of serialized intent. Reaching either limit rejects new local intent
+with a visible error before sending or retaining it; existing operations keep
+their exact retry bodies. The regular expiry check removes stale pending
+commands even without reconnect. Expired active-table intent starts a fresh
+snapshot and blocks further edits until hydration completes; expiry for another
+table does not disrupt the visible scene.
 
 Gesture geometry is constructed in world coordinates with local object points.
 Rectangle and ellipse drags normalize either direction; square and circle drags

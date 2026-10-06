@@ -25,6 +25,8 @@ const MAX_REMOTE_PREVIEWS = 256;
 const MAX_PREVIEW_TOMBSTONES = 1_024;
 const MAX_BUFFERED_EVENTS = 256;
 const MAX_BUFFERED_EVENT_BYTES = 4 * 1024 * 1024;
+const MAX_PENDING_OPERATIONS = 128;
+const MAX_PENDING_OPERATION_BYTES = 4 * 1024 * 1024;
 
 export interface PaintTransport {
   createPaintObject(tableId: string, operationId: string, object: PaintObjectInput): boolean;
@@ -117,7 +119,7 @@ export class PaintController {
   private snapshotRequestedAt: number | null = null;
   private activeSnapshotRequestId: string | null = null;
   private committed = new Map<string, PaintObject>();
-  private pending = new Map<string, PendingPaintOperation>();
+  private pending = new Map<string, PendingPaintOperation & { bytes: number }>();
   private queuedEvents = new Map<number, { event: PaintObjectEvent; bytes: number }>();
   private queuedEventBytes = 0;
   private snapshots = new Map<string, SnapshotAssembly>();
@@ -523,6 +525,19 @@ export class PaintController {
   tick(): void {
     const now = this.now();
     let changed = false;
+    let activeIntentExpired = false;
+    let intentExpired = false;
+    for (const [operationId, pending] of this.pending) {
+      if (now - pending.createdAt <= this.retryWindowMs) continue;
+      this.pending.delete(operationId);
+      this.runtime.clearPaintDraft?.(this.pendingDraftKey(operationId));
+      intentExpired = true;
+      activeIntentExpired ||= pending.command.tableId === this.tableId;
+    }
+    if (intentExpired) {
+      this.reportError('A pending paint change expired and was discarded');
+      changed = true;
+    }
     for (const [key, preview] of this.remotePreviews) {
       if (preview.expires_at <= now) {
         this.remotePreviews.delete(key);
@@ -533,6 +548,10 @@ export class PaintController {
     }
     for (const [key, tombstone] of this.previewTombstones) {
       if (tombstone.expiresAt <= now) this.previewTombstones.delete(key);
+    }
+    if (activeIntentExpired) {
+      this.requestSnapshot();
+      return;
     }
     if (
       this.hydrating
@@ -556,7 +575,17 @@ export class PaintController {
       }
     }
     const operationId = this.operationId();
-    const pending = { operationId, createdAt: this.now(), command: structuredClone(command) };
+    const candidate = { operationId, createdAt: this.now(), command };
+    const bytes = new TextEncoder().encode(JSON.stringify(candidate)).byteLength;
+    const retainedBytes = [...this.pending.values()].reduce((total, pending) => total + pending.bytes, 0);
+    if (
+      this.pending.size >= MAX_PENDING_OPERATIONS
+      || retainedBytes + bytes > MAX_PENDING_OPERATION_BYTES
+    ) {
+      this.reportLocalError('Too many pending paint changes. Wait for confirmation or reconnect before drawing more.');
+      return null;
+    }
+    const pending = { ...candidate, bytes, command: structuredClone(command) };
     this.pending.set(operationId, pending);
     if (command.kind !== 'delete') {
       this.runtime.setPaintDraft?.(

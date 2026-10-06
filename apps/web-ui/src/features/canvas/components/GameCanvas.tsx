@@ -34,6 +34,7 @@ import {
   usePerformanceMonitor,
 } from './GameCanvas/index';
 import { useCanvasEventsEnhanced } from './GameCanvas/useCanvasEventsEnhanced';
+import { usePaintInputRouting } from './GameCanvas/usePaintInputRouting';
 import PerformanceMonitor from './PerformanceMonitor';
 
 // Stable fallback to prevent Zustand selector from returning new [] reference every render
@@ -81,7 +82,6 @@ export const GameCanvas: React.FC = () => {
   const activeTableId = useGameStore(s => s.activeTableId);
   const activeTable = tables.find((t) => t.table_id === activeTableId);
   const activeLayer = useGameStore(s => s.activeLayer);
-  const activeTool = useGameStore(s => s.activeTool);
   const paintInteraction = useOptionalPaintController()?.interaction ?? null;
   const obstaclesVisible = useGameStore(s => s.layerVisibility.obstacles ?? true);
   const obstaclesOpacity = useGameStore(s => s.layerOpacity.obstacles ?? 1);
@@ -180,32 +180,21 @@ export const GameCanvas: React.FC = () => {
     return paintInteraction.bind(canvas);
   }, [paintInteraction]);
 
-  const routedMouseDown = useCallback((event: MouseEvent) => {
-    if (activeTool === 'paint' && event.button === 0) return;
-    stableMouseDown(event);
-  }, [activeTool, stableMouseDown]);
-  const routedMouseMove = useCallback((event: MouseEvent) => {
-    if (activeTool === 'paint' && (event.buttons & 1) !== 0) return;
-    stableMouseMove(event);
-  }, [activeTool, stableMouseMove]);
-  const routedMouseUp = useCallback((event: MouseEvent) => {
-    if (activeTool === 'paint' && event.button === 0) return;
-    stableMouseUp(event);
-  }, [activeTool, stableMouseUp]);
-  const routedKeyDown = useCallback((event: KeyboardEvent) => {
-    if (
-      activeTool === 'paint'
-      && (event.key === 'Delete' || event.key === 'Backspace' || event.key === 'Escape')
-    ) return;
-    stableKeyDown(event);
-  }, [activeTool, stableKeyDown]);
+  const { routedMouseDown, routedMouseMove, routedMouseUp, routedKeyDown } = usePaintInputRouting({
+    mouseDown: stableMouseDown, mouseMove: stableMouseMove, mouseUp: stableMouseUp, keyDown: stableKeyDown,
+  });
 
-  // Initialize multi-select manager
+  // Runtime recreation must not leave legacy canvas handlers holding a freed engine.
   useEffect(() => {
-    if (rustRenderManagerRef.current) {
-      multiSelectManagerRef.current = new MultiSelectManager(rustRenderManagerRef.current);
-    }
- }, []);
+    const synchronize = () => {
+      const engine = runtime.getRenderEngine();
+      if (rustRenderManagerRef.current === engine) return;
+      rustRenderManagerRef.current = engine;
+      multiSelectManagerRef.current = engine ? new MultiSelectManager(engine) : null;
+    };
+    synchronize();
+    return runtime.store.subscribe(synchronize);
+  }, [runtime]);
 
   // Keep WASM active layer in sync with React store
   useEffect(() => {

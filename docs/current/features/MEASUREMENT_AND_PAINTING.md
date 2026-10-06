@@ -267,6 +267,11 @@ canvas binds its Pointer Events route and suppresses matching legacy left-mouse
 and delete handlers while paint mode is active. Right/middle-button camera input
 and wheel zoom remain on the established canvas route. Closing the panel selects
 the normal selection tool and therefore cancels any captured paint gesture.
+The legacy mouse/key listener identities remain stable across tool changes;
+they read the current toolbar mode at dispatch. Selecting Paint does not
+detach/recreate the renderer. Canvas engine and multi-selection references
+follow runtime recreation so context restoration cannot leave handlers using
+a freed Rust pointer.
 The panel exposes Draw, Line, Rectangle, Square, Ellipse, Circle, Select/Edit,
 and Delete to every interactive role. Its color, width, and fill controls map
 directly to implemented object styles. Selection metadata reports object kind,

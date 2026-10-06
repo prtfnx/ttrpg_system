@@ -31,10 +31,31 @@ def _paint_schema() -> dict[str, Any]:
     return schema
 
 
-@lru_cache(maxsize=2)
-def _paint_validator(definition: str) -> Draft202012Validator:
+@lru_cache(maxsize=14)
+def _paint_validator(definition: str, kind: str | None = None) -> Draft202012Validator:
     schema = {**_paint_schema(), "$ref": f"#/$defs/{definition}"}
     schema.pop("oneOf", None)
+    base = schema["$defs"]["paintEditableBase"]
+    if kind in base["properties"]["kind"]["enum"]:
+        # Compile the tagged branch from the canonical schema, not a second
+        # hand-written contract. The generic oneOf + if + unevaluatedProperties
+        # otherwise walks a valid freehand path three times. Flatten known
+        # object properties and validate the selected geometry exactly once.
+        branch = next(rule for rule in base["allOf"] if rule["if"]["properties"]["kind"]["const"] == kind)
+        properties = {**base["properties"], "kind": {"const": kind}, **branch["then"]["properties"]}
+        required = list(base["required"])
+        if definition == "paintObject":
+            metadata = schema["$defs"][definition]["allOf"][1]
+            properties.update(metadata["properties"])
+            required.extend(metadata["required"])
+        schema = {
+            "$schema": schema["$schema"],
+            "$defs": schema["$defs"],
+            "type": "object",
+            "properties": properties,
+            "required": required,
+            "additionalProperties": False,
+        }
     return Draft202012Validator(
         schema,
         format_checker=FormatChecker(),
@@ -83,14 +104,12 @@ def _validate(payload: Mapping[str, Any], definition: str) -> None:
     limits = paint_limits()
     size = _serialized_size(payload)
     if size > limits.max_serialized_bytes:
-        raise PaintValidationError(
-            "paint payload exceeds the "
-            f"{limits.max_serialized_bytes}-byte serialized limit"
-        )
+        raise PaintValidationError(f"paint payload exceeds the {limits.max_serialized_bytes}-byte serialized limit")
 
+    kind = payload.get("kind")
     errors = [
         leaf
-        for error in _paint_validator(definition).iter_errors(payload)
+        for error in _paint_validator(definition, kind if isinstance(kind, str) else None).iter_errors(payload)
         for leaf in _leaf_errors(error)
     ]
     errors.sort(
@@ -111,9 +130,7 @@ def _validate(payload: Mapping[str, Any], definition: str) -> None:
             rel_tol=1e-9,
             abs_tol=1e-12,
         ):
-            raise PaintValidationError(
-                f"{payload['kind']} transform must preserve its aspect ratio"
-            )
+            raise PaintValidationError(f"{payload['kind']} transform must preserve its aspect ratio")
 
 
 def validate_paint_object_input(payload: Mapping[str, Any]) -> None:
@@ -145,12 +162,8 @@ def validate_paint_table_budget(objects: Iterable[Mapping[str, Any]]) -> None:
     for payload in objects:
         object_count += 1
         if object_count > limits.max_objects_per_table:
-            raise PaintValidationError(
-                f"paint table exceeds the {limits.max_objects_per_table}-object limit"
-            )
+            raise PaintValidationError(f"paint table exceeds the {limits.max_objects_per_table}-object limit")
         validate_paint_object(payload)
         point_count += paint_point_count(payload)
         if point_count > limits.max_points_per_table:
-            raise PaintValidationError(
-                f"paint table exceeds the {limits.max_points_per_table}-point limit"
-            )
+            raise PaintValidationError(f"paint table exceeds the {limits.max_points_per_table}-point limit")

@@ -59,6 +59,13 @@ table resource budgets. The generator packages the schema with `core_table`.
 `core_table.paint` applies the schema, rejects non-finite JSON values and
 oversized serialized payloads, preserves square/circle aspect ratios, and can
 enforce aggregate table object and point budgets at server boundaries.
+Known object tags compile a cached validator from the canonical schema's
+matching geometry branch and declared properties. It validates a path once,
+without repeatedly walking its points through `oneOf`, conditional branches,
+and evaluated-property discovery. Unknown/malformed tags use the general
+validator and are rejected. Core-table tests compare both validators across
+all kinds, editable/authoritative forms, missing fields, and malformed values;
+finite JSON, byte limits, and aspect-ratio checks still apply separately.
 `src/features/painting/model/paintObject.ts` provides the matching strict
 browser types and runtime checks from the generated schema limits.
 `apps/server/service/paint_legacy_migration.py` deterministically maps legacy

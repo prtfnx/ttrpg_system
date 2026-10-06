@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from core_table.paint import (
     PaintValidationError,
+    _paint_validator,
     paint_limits,
     paint_point_count,
     validate_paint_object,
@@ -130,9 +131,7 @@ def test_schema_rejects_malformed_inputs(
     assert not input_validator.is_valid(candidate)
 
 
-def test_schema_caps_path_points(
-    input_validator: Draft202012Validator, base_input: dict
-):
+def test_schema_caps_path_points(input_validator: Draft202012Validator, base_input: dict):
     candidate = copy.deepcopy(base_input)
     candidate["geometry"]["points"] *= 8193
 
@@ -147,9 +146,7 @@ def test_schema_declares_transport_and_table_budgets(schema: dict):
     }
 
 
-def test_json_non_finite_numbers_require_runtime_rejection(
-    input_validator: Draft202012Validator, base_input: dict
-):
+def test_json_non_finite_numbers_require_runtime_rejection(input_validator: Draft202012Validator, base_input: dict):
     """Document jsonschema's NaN gap for the runtime validator layer."""
     candidate = copy.deepcopy(base_input)
     candidate["transform"]["x"] = math.nan
@@ -158,11 +155,7 @@ def test_json_non_finite_numbers_require_runtime_rejection(
 
 
 def test_packaged_schema_matches_canonical_schema():
-    packaged_schema = (
-        Path(__file__).parents[1]
-        / "core_table"
-        / "paint_object.schema.generated.json"
-    )
+    packaged_schema = Path(__file__).parents[1] / "core_table" / "paint_object.schema.generated.json"
 
     assert packaged_schema.read_bytes() == SCHEMA_PATH.read_bytes()
 
@@ -183,9 +176,7 @@ def test_runtime_validator_accepts_editable_and_authoritative_objects(base_input
 
 
 @pytest.mark.parametrize("non_finite", [math.nan, math.inf, -math.inf])
-def test_runtime_validator_rejects_non_finite_numbers(
-    base_input: dict, non_finite: float
-):
+def test_runtime_validator_rejects_non_finite_numbers(base_input: dict, non_finite: float):
     base_input["transform"]["x"] = non_finite
 
     with pytest.raises(PaintValidationError, match="finite JSON values"):
@@ -202,11 +193,7 @@ def test_runtime_validator_rejects_oversized_serialized_payload(base_input: dict
 @pytest.mark.parametrize("kind", ["square", "circle"])
 def test_runtime_validator_preserves_locked_aspect_ratio(base_input: dict, kind: str):
     base_input["kind"] = kind
-    base_input["geometry"] = (
-        {"kind": "square", "size": 20}
-        if kind == "square"
-        else {"kind": "circle", "diameter": 20}
-    )
+    base_input["geometry"] = {"kind": "square", "size": 20} if kind == "square" else {"kind": "circle", "diameter": 20}
     base_input["transform"]["scale_y"] = 2
 
     with pytest.raises(PaintValidationError, match="preserve its aspect ratio"):
@@ -253,3 +240,57 @@ def test_table_budget_rejects_too_many_objects(monkeypatch, base_input: dict):
 
     with pytest.raises(PaintValidationError, match="1-object limit"):
         validate_paint_table_budget([authoritative, authoritative])
+
+
+@pytest.mark.parametrize("kind", ["freehand", "line", "rectangle", "square", "ellipse", "circle"])
+@pytest.mark.parametrize("definition", ["paintObjectInput", "paintObject"])
+def test_compiled_tagged_validator_matches_canonical_schema(schema, base_input, kind, definition):
+    point = {"x": 0, "y": 0, "pressure": 0.5}
+    geometries = {
+        "freehand": {"kind": "freehand", "points": [point]},
+        "line": {"kind": "line", "start": point, "end": {**point, "x": 10}},
+        "rectangle": {"kind": "rectangle", "width": 20, "height": 10},
+        "square": {"kind": "square", "size": 20},
+        "ellipse": {"kind": "ellipse", "width": 20, "height": 10},
+        "circle": {"kind": "circle", "diameter": 20},
+    }
+    candidate = {**base_input, "kind": kind, "geometry": geometries[kind]}
+    if definition == "paintObject":
+        candidate.update(
+            table_id="9e8ed60d-f18c-4f47-a5ce-fc04db50506a",
+            created_by=42,
+            version=1,
+            z_order=7,
+            created_at="2026-09-28T10:00:00Z",
+            updated_at="2026-09-28T10:00:00Z",
+        )
+    generic_schema = {**schema, "$ref": f"#/$defs/{definition}"}
+    generic_schema.pop("oneOf")
+    canonical = Draft202012Validator(generic_schema, format_checker=FormatChecker())
+    compiled = _paint_validator(definition, kind)
+    assert compiled.is_valid(candidate) and canonical.is_valid(candidate)
+    variants = [{**candidate, "unexpected": True}, {**candidate, "kind": "triangle"}]
+    for key in candidate:
+        missing = copy.deepcopy(candidate)
+        del missing[key]
+        variants.append(missing)
+        for invalid in (None, [], {}, False, "invalid", -1):
+            variants.append({**candidate, key: invalid})
+    for field in ("geometry", "transform", "style"):
+        for key in candidate[field]:
+            for invalid in (None, [], {}, False, "invalid", -1):
+                malformed = copy.deepcopy(candidate)
+                malformed[field][key] = invalid
+                variants.append(malformed)
+        malformed = copy.deepcopy(candidate)
+        malformed[field]["unexpected"] = True
+        variants.append(malformed)
+    variants.extend({**candidate, "geometry": geometry} for geometry in geometries.values())
+    for variant in variants:
+        assert compiled.is_valid(variant) == canonical.is_valid(variant), variant
+
+
+@pytest.mark.parametrize("kind", [None, [], {}, "triangle"])
+def test_unknown_discriminator_is_rejected_without_cache_type_errors(base_input, kind):
+    with pytest.raises(PaintValidationError):
+        validate_paint_object_input({**base_input, "kind": kind})

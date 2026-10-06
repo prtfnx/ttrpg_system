@@ -4,7 +4,7 @@ Audience: contributors changing measurement, paint tools, reconciliation, or ren
 
 Status: usable. Completed measurements and paint objects are server-authoritative.
 
-Last source audit: 2026-10-02
+Last source audit: 2026-10-05
 
 ## Ownership
 
@@ -57,6 +57,12 @@ freehand path, 2,000 objects per table, and 100,000 aggregate points per table.
 Coordinates, dimensions, pressure, and scale also have schema bounds. Use the
 schema as the authority when changing a limit; do not duplicate new constants
 in consumers.
+The server also checks the complete authoritative DTO's byte size after adding
+metadata and before committing create/update. Editable input near the limit
+can therefore return `invalid_payload` even if its editable fields fit.
+Rejection rolls back object state, revision/order, and operation ledger, and
+does not broadcast an unreadable object. This byte check does not repeat
+geometry validation.
 
 Owners, co-DMs, trusted players, and players can create objects. A creator or
 DM can update/delete an object; spectators have read access only. Server

@@ -91,6 +91,17 @@ def _format_error(error: Any) -> str:
     return f"invalid paint payload{location}: {error.message}"
 
 
+def validate_paint_payload_size(payload: Mapping[str, Any]) -> None:
+    """Check the canonical UTF-8 byte limit, including server-added metadata.
+
+    This is not a geometry validator. Use it after validating editable input
+    when the server constructs the complete authoritative object.
+    """
+    limit = paint_limits().max_serialized_bytes
+    if _serialized_size(payload) > limit:
+        raise PaintValidationError(f"paint payload exceeds the {limit}-byte serialized limit")
+
+
 def _leaf_errors(error: Any) -> list[Any]:
     if not error.context:
         return [error]
@@ -101,10 +112,7 @@ def _validate(payload: Mapping[str, Any], definition: str) -> None:
     if not isinstance(payload, Mapping):
         raise PaintValidationError("paint payload must be an object")
 
-    limits = paint_limits()
-    size = _serialized_size(payload)
-    if size > limits.max_serialized_bytes:
-        raise PaintValidationError(f"paint payload exceeds the {limits.max_serialized_bytes}-byte serialized limit")
+    validate_paint_payload_size(payload)
 
     kind = payload.get("kind")
     errors = [

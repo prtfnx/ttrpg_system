@@ -14,6 +14,7 @@ from core_table.paint import (
     paint_limits,
     paint_point_count,
     validate_paint_object_input,
+    validate_paint_payload_size,
 )
 from database import models
 from sqlalchemy import case, func
@@ -340,6 +341,8 @@ class PaintObjectService:
                     updated_at=now,
                 )
                 db.add(accepted)
+                accepted_dto = _object_dict(accepted)
+                validate_paint_payload_size(accepted_dto)
                 db.flush()
                 state.revision += 1
                 state.next_z_order += 1
@@ -348,7 +351,7 @@ class PaintObjectService:
                     "table_id": table_id,
                     "revision": state.revision,
                     "action": "create",
-                    "object": _object_dict(accepted),
+                    "object": accepted_dto,
                 }
                 self._record_result(
                     db,
@@ -440,6 +443,8 @@ class PaintObjectService:
                 current.style = candidate["style"]
                 current.version += 1
                 current.updated_at = utc_now()
+                accepted_dto = _object_dict(current)
+                validate_paint_payload_size(accepted_dto)
                 state.revision += 1
                 db.flush()
                 event = {
@@ -447,7 +452,7 @@ class PaintObjectService:
                     "table_id": table_id,
                     "revision": state.revision,
                     "action": "update",
-                    "object": _object_dict(current),
+                    "object": accepted_dto,
                 }
                 self._record_result(
                     db,

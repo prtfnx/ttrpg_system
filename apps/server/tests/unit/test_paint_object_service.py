@@ -1,9 +1,10 @@
 import copy
+import json
 import uuid
 from datetime import timedelta
 
 import pytest
-from core_table.paint import PaintLimits
+from core_table.paint import PaintLimits, paint_limits, validate_paint_object_input
 from database import models
 from service import paint_object_service as service_module
 from service.paint_object_service import PaintCommandError, PaintObjectService, PaintSnapshot
@@ -103,6 +104,41 @@ def create(service, ids, *, actor="player", operation_id=None, value=None):
         operation_id=operation_id or str(uuid.uuid4()),
         editable=value or editable(),
     )
+
+
+@pytest.mark.parametrize("action", ["create", "update"])
+def test_server_metadata_cannot_make_an_accepted_object_exceed_wire_limit(paint_service, action):
+    service, factory, ids = paint_service
+    initial = create(service, ids)
+    assert initial.event is not None
+    candidate = editable(str(uuid.uuid4()) if action == "create" else OBJECT_ID)
+    point = {"x": 0, "y": 0, "pressure": 0.5}
+    candidate["geometry"]["points"] = []
+    overhead = len(json.dumps(candidate, separators=(",", ":")).encode("utf-8"))
+    point_bytes = len(json.dumps(point, separators=(",", ":")).encode("utf-8")) + 1
+    count = (paint_limits().max_serialized_bytes - overhead - 100) // point_bytes
+    candidate["geometry"]["points"] = [point.copy() for _ in range(count)]
+    # Editable input fits; server-owned metadata pushes the complete DTO over.
+    validate_paint_object_input(candidate)
+    if action == "create":
+        result = create(service, ids, value=candidate)
+    else:
+        result = service.update(
+            session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID,
+            operation_id=str(uuid.uuid4()), object_id=OBJECT_ID, expected_version=1,
+            editable=candidate,
+        )
+    assert result.error is not None and result.error.code == "invalid_payload"
+    assert "serialized limit" in result.error.message
+    assert result.event is None and not result.broadcast
+    snapshot = service.snapshot(session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID)
+    assert isinstance(snapshot, PaintSnapshot)
+    assert snapshot.revision == 1 and snapshot.objects == [initial.event["object"]]
+    with factory() as db:
+        assert db.query(models.PaintObject).count() == 1
+        assert db.query(models.PaintOperationResult).count() == 1
+        state = db.get(models.PaintState, TABLE_ID)
+        assert state is not None and state.next_z_order == 2
 
 
 def test_create_assigns_server_fields_revision_and_stable_order(paint_service):

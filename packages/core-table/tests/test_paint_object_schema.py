@@ -11,6 +11,7 @@ from core_table.paint import (
     paint_point_count,
     validate_paint_object,
     validate_paint_object_input,
+    validate_paint_payload_size,
     validate_paint_table_budget,
 )
 from jsonschema import Draft202012Validator, FormatChecker
@@ -181,6 +182,17 @@ def test_runtime_validator_rejects_non_finite_numbers(base_input: dict, non_fini
 
     with pytest.raises(PaintValidationError, match="finite JSON values"):
         validate_paint_object_input(base_input)
+
+
+def test_payload_size_checks_exact_utf8_boundary_without_revalidating_geometry():
+    limit = paint_limits().max_serialized_bytes
+    document = {"value": ""}
+    overhead = len(json.dumps(document, separators=(",", ":")).encode("utf-8"))
+    document["value"] = "a" * (limit - overhead - 2) + "é"
+    validate_paint_payload_size(document)
+    document["value"] += "a"
+    with pytest.raises(PaintValidationError, match="serialized limit"):
+        validate_paint_payload_size(document)
 
 
 def test_runtime_validator_rejects_oversized_serialized_payload(base_input: dict):

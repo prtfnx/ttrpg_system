@@ -33,22 +33,8 @@ fn version_looks_like_semver() {
 
 // ── Visibility polygon ────────────────────────────────────────────────────
 
-#[wasm_bindgen_test]
-fn compute_visibility_empty_obstacles_returns_value() {
-    use js_sys::Float32Array;
-    let obstacles = Float32Array::new_with_length(0);
-    let result = core::geometry::compute_visibility_polygon(0.0, 0.0, &obstacles, 100.0);
-    assert!(result.is_array() || result.is_object());
-}
-
-#[wasm_bindgen_test]
-fn compute_visibility_with_single_wall() {
-    use js_sys::Float32Array;
-    let data = [10.0_f32, -50.0, 10.0, 50.0];
-    let obstacles = Float32Array::from(data.as_slice());
-    let result = core::geometry::compute_visibility_polygon(0.0, 0.0, &obstacles, 200.0);
-    assert!(result.is_array() || result.is_object());
-}
+// Visibility now belongs to a resident renderer scene, so the real WASM API
+// tests live in wasm_browser.rs. Native geometry tests cover the pure algorithm.
 
 // ── Paint system ──────────────────────────────────────────────────────────
 

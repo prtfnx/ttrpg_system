@@ -96,3 +96,50 @@ fn runtime_callback_registration_and_cleanup_do_not_throw() {
 
     drop(renderer);
 }
+
+#[wasm_bindgen_test]
+fn resident_visibility_without_obstacles_reaches_radius() {
+    let mut renderer = ttrpg_rust_core::init_game_renderer(create_test_canvas()).unwrap();
+    let sources = js_sys::Float32Array::from([0.0_f32, 0.0, 100.0].as_slice());
+    let polygons = js_sys::Array::from(&renderer.compute_sight_visibility_polygons(&sources));
+    assert_eq!(polygons.length(), 1);
+    let points = js_sys::Array::from(&polygons.get(0));
+    assert!(points.length() >= 32);
+    for point in points.iter() {
+        let x = js_sys::Reflect::get(&point, &"x".into())
+            .unwrap()
+            .as_f64()
+            .unwrap();
+        let y = js_sys::Reflect::get(&point, &"y".into())
+            .unwrap()
+            .as_f64()
+            .unwrap();
+        assert!((x.hypot(y) - 100.0).abs() < 0.5);
+    }
+}
+
+#[wasm_bindgen_test]
+fn resident_visibility_wall_blocks_forward_ray() {
+    let mut renderer = ttrpg_rust_core::init_game_renderer(create_test_canvas()).unwrap();
+    assert!(renderer.add_wall(
+        r#"{"wall_id":"wall-1","table_id":"visibility-table","x1":10,"y1":-50,"x2":10,"y2":50}"#
+    ));
+    let sources = js_sys::Float32Array::from([0.0_f32, 0.0, 200.0].as_slice());
+    let polygons = js_sys::Array::from(&renderer.compute_sight_visibility_polygons(&sources));
+    assert_eq!(polygons.length(), 1);
+    let points = js_sys::Array::from(&polygons.get(0));
+    assert!(
+        points.iter().any(|point| {
+            let x = js_sys::Reflect::get(&point, &"x".into())
+                .unwrap()
+                .as_f64()
+                .unwrap();
+            let y = js_sys::Reflect::get(&point, &"y".into())
+                .unwrap()
+                .as_f64()
+                .unwrap();
+            (x - 10.0).abs() < 0.1 && y.abs() < 0.1
+        }),
+        "Forward ray must stop at the resident wall, not the 200-unit radius"
+    );
+}

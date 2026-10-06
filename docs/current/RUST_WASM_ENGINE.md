@@ -169,6 +169,10 @@ Visibility callers read `get_occlusion_revision()` and submit packed
 `compute_light_visibility_polygons()`. Both methods query the resident index
 with renderer-owned reusable workspace. Segment arrays and their hashes do not
 cross the WASM boundary.
+Real WASM visibility tests live in `packages/rust-core/tests/wasm_browser.rs`
+because this public API requires a renderer/WebGL context. They check radius
+reach with no obstacles and a ray blocked by a resident wall. Node tests cover
+browser-independent exported utilities; native tests cover pure geometry.
 
 The shared broad phase indexes each obstacle segment across every 128-unit grid
 cell touched by its axis-aligned bounds. A light queries the cells touched by

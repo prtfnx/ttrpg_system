@@ -100,6 +100,48 @@ Authorized snapshots remain available while runtime writes are disabled.
 The unset production default is disabled, including for existing deployments
 upgrading to code that introduces this setting.
 
+### Legacy paint maintenance
+
+Run from `apps/server` with the repository Python environment and the intended
+schema-owner connection. These commands use `DATABASE_MIGRATION_URL` (falling
+back to `DATABASE_URL`), not the isolated acceptance runner's disposable URL.
+Confirm the target and pause old paint writers before taking the source
+watermark; the runtime gate cannot stop an old deployed binary. Keep production
+runtime paint writes disabled through verification.
+
+Choose separate private artifact paths that do not already exist:
+
+```powershell
+python scripts/export_paint_templates.py --output '<private template export path>'
+python scripts/cutover_legacy_paint.py --backup '<private dry-run backup path>' --report '<private dry-run report path>'
+```
+
+Template export preserves raw fields and records a deterministic SHA-256.
+The cutover dry run backs up all source strokes and reports stable ID mapping,
+converted counts, source checksum, and every quarantined row. Review artifacts
+and sample converted renders. Apply with the reviewed source checksum and new
+artifact paths:
+
+```powershell
+python scripts/cutover_legacy_paint.py --backup '<private apply backup path>' --report '<private apply report path>' --apply --expected-sha256 '<reviewed source checksum>'
+```
+
+Apply refuses quarantine unless `--allow-quarantine` explicitly acknowledges
+the reviewed rows. It holds writer fencing and paint-table locks, checks the
+source watermark, verifies persisted objects, and preserves source rows.
+Repeating conversion is safe only while converted object state has not become
+live or diverged. Artifacts use private atomic no-replace publication; concurrent
+commands cannot overwrite them. Retain verified backups and the template export
+through the rollback window. A later explicit migration, not UI cleanup, is
+required to remove legacy tables.
+
+Use [Testing strategy](../TESTING_STRATEGY.md#isolated-paint-acceptance-and-load-checks)
+for synthetic acceptance/load/rollback checks. Those checks do not replace
+deployment-specific backup review or a live restore drill. Enable runtime
+paint writes and restart only after the deployment's release checks are approved.
+
+### Rollback boundary
+
 Migration 0010 does not delete legacy strokes or templates. Downgrading to
 0009 removes the new object, state, and operation tables, so it is not a safe
 rollback after any accepted new-format write. After that boundary, preserve

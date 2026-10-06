@@ -2,9 +2,9 @@
 
 Audience: contributors choosing and running verification for a change.
 
-Status: current.
+Status: usable.
 
-Last source audit: 2026-09-24
+Last source audit: 2026-10-02
 
 Tests should sit at the boundary where behavior is owned. Avoid testing a lower
 layer through an unrelated higher layer when a direct boundary test is clearer.
@@ -105,28 +105,6 @@ pending and final session/actor link decisions, idempotent duplicate linking,
 and cleanup when a final-link race rejects a newly promoted object. Run the
 PostgreSQL contract suite for database-sensitive changes because SQLite does
 not implement `SELECT ... FOR UPDATE` row locking.
-
-The browser-only Rust/WASM suite uses pinned `wasm-pack 0.13.1`,
-`wasm-bindgen-test-runner 0.2.117`, and Chrome/ChromeDriver build
-`151.0.7922`. Run the Node WASM test once to provision the matching bindgen
-runner, then use the wrapper so `wasm-pack` cannot substitute a driver for a
-different Chrome build:
-
-```powershell
-cd packages/rust-core
-wasm-pack test --node --test wasm_node --locked
-pnpm.cmd run test:browser
-```
-
-On Windows the wrapper downloads the pinned ChromeDriver archive into ignored
-`target/` storage and verifies its SHA-256. CI pins Chrome for Testing and
-passes the action's matching driver to the same wrapper.
-The wrapper explicitly sets the verified Chrome binary in temporary WebDriver
-capabilities, then removes that file and restores the previous configuration.
-This prevents ChromeDriver from substituting a newer system installation.
-To use a portable matching browser without changing the system browser, run
-`./scripts/test-wasm-browser.ps1 -ChromePath '<path to pinned chrome.exe>'`
-from `packages/rust-core`.
 
 Run:
 
@@ -327,6 +305,20 @@ pnpm.cmd run validate:css
 Use native Rust tests for pure logic and wasm-bindgen tests for exported WASM
 behavior.
 
+The browser-only suite pins `wasm-pack 0.13.1`,
+`wasm-bindgen-test-runner 0.2.117`, and Chrome/ChromeDriver build `151.0.7922`.
+Run the Node WASM test first to provision the matching bindgen runner, then
+use the wrapper so `wasm-pack` cannot substitute a mismatched driver.
+
+On Windows the wrapper downloads the pinned ChromeDriver archive into ignored
+`target/` storage and verifies its SHA-256. CI supplies matching Chrome for
+Testing and its driver. The wrapper explicitly passes the version-checked
+browser binary through temporary WebDriver capabilities, removes that file,
+and restores the previous configuration. It does not rely on ChromeDriver's
+installed-browser search. To use a portable matching browser, run
+`./scripts/test-wasm-browser.ps1 -ChromePath '<path to pinned chrome.exe>'`
+from `packages/rust-core` without changing the system browser.
+
 Run from `packages/rust-core`:
 
 ```powershell
@@ -334,7 +326,7 @@ cargo fmt --all -- --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-features
 cargo check --target wasm32-unknown-unknown --features wasm-start
-wasm-pack test --node
+wasm-pack test --node --test wasm_node --locked
 pnpm.cmd run test:browser
 ```
 

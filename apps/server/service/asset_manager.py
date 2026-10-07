@@ -40,6 +40,7 @@ from sqlalchemy import func, or_
 from storage.r2_manager import R2AssetManager
 from utils.blocking import run_blocking
 from utils.observability import track_asset_operation
+from utils.roles import SessionRole, can_interact, is_dm
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -129,28 +130,17 @@ class ServerAssetManager:
         if session_code not in self.session_permissions:
             self.session_permissions[session_code] = {}
 
-        # Define role-based permissions
-        if role.lower() == "dm" or role.lower() == "dungeon_master":
-            permissions = AssetPermission(
-                can_upload=True,
-                can_download=True,
-                can_share=True,
-                can_moderate=True
-            )
-        elif role.lower() == "player":
-            permissions = AssetPermission(
-                can_upload=True,  # Limited upload for character portraits
-                can_download=True,
-                can_share=False,
-                can_moderate=False
-            )
-        else:  # observer
-            permissions = AssetPermission(
-                can_upload=False,
-                can_download=True,
-                can_share=False,
-                can_moderate=False
-            )
+        # Connections supply canonical session roles. Retain historical DM
+        # aliases for callers that have not migrated to those role names.
+        normalized_role = role.lower()
+        if normalized_role in {"dm", "dungeon_master"}:
+            normalized_role = SessionRole.OWNER.value
+        permissions = AssetPermission(
+            can_upload=can_interact(normalized_role),
+            can_download=True,
+            can_share=is_dm(normalized_role),
+            can_moderate=is_dm(normalized_role),
+        )
 
         self.session_permissions[session_code][user_id] = permissions
         logger.info(

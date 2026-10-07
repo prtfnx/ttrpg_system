@@ -21,6 +21,7 @@ from service.asset_upload_cleanup_service import process_pending_upload_cleanups
 from service.protocol import assets as asset_protocol_module
 from service.protocol.assets import _AssetsMixin
 from sqlalchemy.orm import sessionmaker
+from utils.roles import SessionRole
 
 VALID_PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
@@ -820,6 +821,54 @@ async def test_upload_requires_durable_session_membership(
     assert response.success is False
     assert response.error == "Upload permission denied"
     assert test_db.query(models.AssetUploadIntent).count() == 0
+
+
+@pytest.mark.parametrize("role", list(SessionRole))
+async def test_upload_permissions_use_roles_registered_by_websocket_connections(
+    monkeypatch, test_db, test_user, test_game_session, role
+):
+    manager = _manager(monkeypatch, test_db)
+    user = test_user
+    if role != SessionRole.OWNER:
+        user = crud.create_user(test_db, schemas.UserCreate(
+            username="asset-member", email="asset-member@example.com", password="Pass1234",
+        ))
+        test_db.add(models.GamePlayer(
+            session_id=test_game_session.id, user_id=user.id, role=role.value,
+        ))
+        test_db.commit()
+    manager.setup_session_permissions(test_game_session.session_code, user.id, user.username, role.value)
+
+    response = await _request_upload(manager, user, test_game_session)
+
+    allowed = role != SessionRole.SPECTATOR
+    assert response.success is allowed
+    assert test_db.query(models.AssetUploadIntent).count() == int(allowed)
+    assert len(manager.r2_manager.upload_expirations) == int(allowed)
+    if not allowed:
+        assert response.error == "Upload permission denied"
+
+
+def test_asset_role_updates_preserve_dm_authority_and_remove_uploads_on_demotion():
+    manager = ServerAssetManager()
+    manager.setup_session_permissions("role-update", 1, "member", SessionRole.CO_DM.value)
+    permissions = manager._get_permissions("role-update", 1)
+    assert permissions.can_upload
+    assert permissions.can_download
+    assert permissions.can_share
+    assert permissions.can_moderate
+
+    manager.setup_session_permissions("role-update", 1, "member", SessionRole.TRUSTED_PLAYER.value)
+    permissions = manager._get_permissions("role-update", 1)
+    assert permissions.can_upload
+    assert not permissions.can_share
+    assert not permissions.can_moderate
+
+    manager.setup_session_permissions("role-update", 1, "member", SessionRole.SPECTATOR.value)
+    permissions = manager._get_permissions("role-update", 1)
+    assert not permissions.can_upload
+    assert permissions.can_download
+    assert not permissions.can_moderate
 
 
 async def test_delete_unlinks_and_retries_when_storage_delete_fails(

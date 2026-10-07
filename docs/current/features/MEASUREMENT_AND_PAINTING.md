@@ -234,6 +234,12 @@ simultaneous writers, identical-command retries with one revision/broadcast,
 JSONB budgets, and writer fencing. It requires an explicitly disposable target;
 SQLite does not prove row-lock behavior.
 
+`features/painting/model/__tests__/paintProtocol.test.ts` covers incoming event,
+snapshot, preview, and cancellation boundaries: required UUIDs, safe integer
+ordering/identity, object-table consistency, chunk completion, draft identity,
+and finite expiry. Controller tests cover duplicate and reordered delivery
+after those envelopes have passed validation.
+
 `apps/web-ui/src/lib/wasm/__tests__/paintRendering.wasm-test.ts` checks real
 WebGL pixels, pressure/width, shapes, alpha order, and busy-scene buffer/mesh
 retention. These deterministic tests are not a multiplayer latency benchmark.

@@ -14,9 +14,12 @@ import {
   createPaintDraft,
   MAX_FREEHAND_POINTS,
   resizePaintObject,
+  rotatePaintObject,
+  paintWorldBounds,
   type PaintHandleKind,
   type PaintTool,
 } from './paintGeometry';
+import { SelectionManager, intersectsSelection, selectionRectangle, type SelectionMode, type SelectionRef, type SelectionBounds } from './SelectionManager';
 
 const LOCAL_DRAFT_KEY = 'local';
 const HIT_TOLERANCE_PX = 6;
@@ -45,8 +48,39 @@ interface PaintInteractionRuntime {
     tolerance: number,
   ): string | null;
   selectPaintObject(objectId: string): boolean;
+  selectPaintObjects?(objectIds: readonly string[]): boolean;
   clearPaintObjectSelection(): void;
 }
+
+export interface SelectionSprite {
+  id: string;
+  x: number;
+  y: number;
+  bounds: SelectionBounds;
+  canEdit: boolean;
+}
+
+export interface SpriteSelectionPort {
+  items(tableId: string): readonly SelectionSprite[];
+  hitTest(x: number, y: number): string | null;
+  select(ids: readonly string[]): void;
+  preview(id: string, x: number, y: number): void;
+  move(tableId: string, id: string, x: number, y: number): void;
+  remove(tableId: string, id: string): void;
+}
+
+interface SelectionGestureBase {
+  pointerId: number;
+  tableId: string;
+  start: PaintPoint;
+  current: PaintPoint;
+  canvas: HTMLCanvasElement;
+  base: readonly SelectionRef[];
+  paints: PaintObject[];
+  sprites: SelectionSprite[];
+  changed: boolean;
+}
+type SelectionGesture = (SelectionGestureBase & { kind: 'marquee' }) | (SelectionGestureBase & { kind: 'group' });
 
 interface CreationGesture {
   kind: 'create';
@@ -85,7 +119,7 @@ interface ResizeGesture {
   canvas: HTMLCanvasElement;
 }
 
-type Gesture = CreationGesture | MoveGesture | ResizeGesture;
+type Gesture = CreationGesture | MoveGesture | ResizeGesture | SelectionGesture;
 
 export interface PaintInteractionState {
   enabled: boolean;
@@ -95,6 +129,9 @@ export interface PaintInteractionState {
   gestureActive: boolean;
   selected: PaintObject | null;
   canEditSelected: boolean;
+  selectedIds?: readonly string[];
+  selectedSpriteIds?: readonly string[];
+  selectionCount?: number;
 }
 
 function editableObject(object: PaintObject): PaintObjectInput {
@@ -131,6 +168,10 @@ export class PaintInteractionController {
   private actorId: number | null = null;
   private canManageOthers = false;
   private selectedId: string | null = null;
+  private readonly selection = new SelectionManager();
+  private selectionMode: SelectionMode = 'separate';
+  private selectOnly = false;
+  private sprites: SpriteSelectionPort | null = null;
   private gesture: Gesture | null = null;
   private canvas: HTMLCanvasElement | null = null;
   private previousTouchAction = '';
@@ -157,14 +198,22 @@ export class PaintInteractionController {
       if (state.tableId !== this.tableId) {
         this.cancelGesture();
         this.selectedId = null;
+        this.selection.clear();
+        this.sprites?.select([]);
         this.runtime.clearPaintObjectSelection();
         this.tableId = state.tableId;
       }
       this.sceneState = state;
       if (state.hydrating) this.cancelGesture();
-      if (this.selectedId && !state.committed.some(object => object.id === this.selectedId)) {
-        this.selectedId = null;
-        this.runtime.clearPaintObjectSelection();
+      const oldIds = this.paintIds().join(',');
+      this.selection.retain(ref => ref.kind !== 'paint' || state.committed.some(object => object.id === ref.id));
+      if (oldIds !== this.paintIds().join(',')) this.syncSelection();
+      const editing = this.gesture;
+      if (editing && editing.kind !== 'create' && editing.kind !== 'marquee') {
+        const originals = editing.kind === 'group' ? editing.paints : [editing.original];
+        if (originals.some(original => !state.committed.some(item => item.id === original.id && item.version === original.version))) {
+          this.cancelGesture();
+        }
       }
       this.emit();
     });
@@ -195,17 +244,55 @@ export class PaintInteractionController {
     return {
       enabled: this.enabled,
       ready: this.enabled && this.sceneState.tableId !== null && !this.sceneState.hydrating,
-      tool: this.tool,
+      tool: this.selectOnly ? 'select' : this.tool,
       style: structuredClone(this.style),
       gestureActive: this.gesture !== null,
       selected,
-      canEditSelected: selected ? this.canEdit(selected) : false,
+      canEditSelected: this.selectedPaints().some(item => this.canEdit(item))
+        || this.selectedSprites().some(item => item.canEdit),
+      selectedIds: this.paintIds(),
+      selectedSpriteIds: this.spriteIds(),
+      selectionCount: this.selection.items.length,
     };
   }
 
   setActor(actorId: number | null, canManageOthers: boolean): void {
+    if (actorId !== this.actorId || canManageOthers !== this.canManageOthers) {
+      this.cancelGesture();
+      this.clearSelection();
+    }
     this.actorId = actorId;
     this.canManageOthers = canManageOthers;
+    this.emit();
+  }
+
+  setSelectionMode(mode: SelectionMode): void {
+    if (mode === this.selectionMode) return;
+    this.cancelGesture();
+    this.clearSelection();
+    this.selectionMode = mode;
+    this.emit();
+  }
+
+  setSelectOnly(selectOnly: boolean): void {
+    if (this.selectOnly === selectOnly) return;
+    this.cancelGesture();
+    this.selectOnly = selectOnly;
+    this.emit();
+  }
+
+  setSpriteSelectionPort(port: SpriteSelectionPort | null): void { this.sprites = port; }
+
+  reconcileSelection(): void {
+    const table = this.sceneState.tableId;
+    const visibleSprites = table ? this.sprites?.items(table) ?? [] : [];
+    this.selection.retain(ref => ref.kind !== 'sprite' || visibleSprites.some(item => item.id === ref.id));
+    const gesture = this.gesture;
+    if (gesture?.kind === 'group' && gesture.sprites.some(original => {
+      const current = visibleSprites.find(item => item.id === original.id);
+      return !current || !current.canEdit || current.x !== original.x || current.y !== original.y;
+    })) this.cancelGesture();
+    this.syncSelection();
     this.emit();
   }
 
@@ -215,6 +302,8 @@ export class PaintInteractionController {
     if (!enabled) {
       this.cancelGesture();
       this.selectedId = null;
+      this.selection.clear();
+      this.sprites?.select([]);
       this.runtime.clearPaintObjectSelection();
     }
     if (this.canvas) this.canvas.style.touchAction = enabled ? 'none' : this.previousTouchAction;
@@ -237,22 +326,33 @@ export class PaintInteractionController {
     const selected = this.selectedObject();
     if (
       !selected
-      || !this.canEdit(selected)
+      || !this.selectedPaints().some(item => this.canEdit(item))
       || !this.sceneState.tableId
       || this.sceneState.hydrating
     ) return false;
-    const replacement = editableObject(selected);
-    replacement.style = structuredClone(style);
-    return this.scene.submitUpdate(selected.id, selected.version, replacement) !== null;
+    let changed = false;
+    for (const object of this.selectedPaints().filter(item => this.canEdit(item))) {
+      const replacement = editableObject(object);
+      replacement.style = structuredClone(style);
+      changed = this.scene.submitUpdate(object.id, object.version, replacement) !== null || changed;
+    }
+    return changed;
   }
 
   deleteSelected(): boolean {
-    const selected = this.selectedObject();
-    if (!selected || !this.canEdit(selected) || this.sceneState.hydrating) return false;
-    const operation = this.scene.submitDelete(selected.id, selected.version);
-    if (!operation) return false;
-    this.selectedId = null;
-    this.runtime.clearPaintObjectSelection();
+    if (this.sceneState.hydrating) return false;
+    const tableId = this.sceneState.tableId;
+    if (!tableId) return false;
+    let changed = false;
+    for (const selected of this.selectedPaints().filter(item => this.canEdit(item))) {
+      changed = this.scene.submitDelete(selected.id, selected.version) !== null || changed;
+    }
+    for (const sprite of this.selectedSprites().filter(item => item.canEdit)) {
+      this.sprites?.remove(tableId, sprite.id);
+      changed = true;
+    }
+    if (!changed) return false;
+    this.clearSelection();
     this.emit();
     return true;
   }
@@ -272,7 +372,7 @@ export class PaintInteractionController {
   }
 
   restoreRenderer(): void {
-    if (this.selectedId) this.runtime.selectPaintObject(this.selectedId);
+    this.syncSelection();
   }
 
   unbind(): void {
@@ -303,9 +403,10 @@ export class PaintInteractionController {
     const point = this.worldPoint(event, canvas);
     if (!point) return;
 
-    if (this.tool === 'delete' || this.tool === 'select') {
+    const tool = this.selectOnly ? 'select' : this.tool;
+    if (tool === 'delete' || tool === 'select') {
       const previouslySelected = this.selectedObject();
-      const handle = this.tool === 'select' && previouslySelected
+      const handle = tool === 'select' && previouslySelected && this.selection.items.length === 1
         ? this.runtime.hitTestPaintHandle(
           previouslySelected.id,
           point.x,
@@ -338,13 +439,38 @@ export class PaintInteractionController {
         return;
       }
       const objectId = this.runtime.hitTestPaintObject(point.x, point.y, HIT_TOLERANCE_PX);
-      this.selectedId = objectId;
-      if (objectId) this.runtime.selectPaintObject(objectId);
-      else this.runtime.clearPaintObjectSelection();
+      const spriteId = this.selectionMode === 'combined' ? this.sprites?.hitTest(point.x, point.y) : null;
+      const ref: SelectionRef | null = spriteId ? { kind: 'sprite', id: spriteId }
+        : objectId ? { kind: 'paint', id: objectId } : null;
+      const additive = event.shiftKey || event.ctrlKey || event.metaKey;
+      if (!ref && tool === 'select') {
+        if (!this.capture(canvas, event.pointerId)) return;
+        this.gesture = { kind: 'marquee', pointerId: event.pointerId, tableId, start: point,
+          current: point, canvas, base: additive ? this.selection.items : [], paints: [], sprites: [], changed: false };
+        if (!additive) this.clearSelection();
+        event.preventDefault();
+        this.emit();
+        return;
+      }
+      if (ref) this.selection.click(ref, additive);
+      else this.selection.clear();
+      this.syncSelection();
       const selected = this.selectedObject();
-      if (this.tool === 'delete') {
+      if (tool === 'delete') {
         this.deleteSelected();
         event.preventDefault();
+        return;
+      }
+      if (additive) { this.emit(); event.preventDefault(); return; }
+      if (this.selection.items.length > 1 || spriteId) {
+        const paints = this.selectedPaints().filter(item => this.canEdit(item));
+        const sprites = this.selectedSprites().filter(item => item.canEdit);
+        if ((paints.length || sprites.length) && this.capture(canvas, event.pointerId)) {
+          this.gesture = { kind: 'group', pointerId: event.pointerId, tableId, start: point,
+            current: point, canvas, base: this.selection.items, paints, sprites, changed: false };
+        }
+        event.preventDefault();
+        this.emit();
         return;
       }
       if (!selected || !this.canEdit(selected) || !this.capture(canvas, event.pointerId)) {
@@ -372,7 +498,7 @@ export class PaintInteractionController {
 
     if (!this.capture(canvas, event.pointerId)) return;
     const objectId = crypto.randomUUID();
-    const draft = createPaintDraft(this.tool, objectId, point, point, [point], this.style);
+    const draft = createPaintDraft(tool, objectId, point, point, [point], this.style);
     this.gesture = {
       kind: 'create',
       pointerId: event.pointerId,
@@ -403,6 +529,39 @@ export class PaintInteractionController {
           return;
         }
         gesture.current = point;
+        if (gesture.kind === 'marquee') {
+          if (point.x === gesture.start.x && point.y === gesture.start.y) continue;
+          const bounds = selectionRectangle(gesture.start, point);
+          const refs: SelectionRef[] = this.sceneState.committed
+            .filter(object => intersectsSelection(bounds, paintWorldBounds(object)))
+            .map(object => ({ kind: 'paint', id: object.id }));
+          if (this.selectionMode === 'combined') {
+            refs.push(...(this.sprites?.items(gesture.tableId) ?? [])
+              .filter(sprite => intersectsSelection(bounds, sprite.bounds))
+              .map(sprite => ({ kind: 'sprite' as const, id: sprite.id })));
+          }
+          this.selection.replace([...gesture.base, ...refs]);
+          this.syncSelection();
+          const rectangle = createPaintDraft('rectangle', '00000000-0000-4000-8000-000000000001',
+            gesture.start, point, [], { stroke_rgba: [0.1, 0.8, 1, 1], width: 1, fill_rgba: [0.1, 0.8, 1, 0.08] });
+          this.runtime.setPaintDraft(gesture.tableId, 'selection-marquee', rectangle);
+          this.emit();
+          continue;
+        }
+        if (gesture.kind === 'group') {
+          const dx = point.x - gesture.start.x;
+          const dy = point.y - gesture.start.y;
+          gesture.changed = dx !== 0 || dy !== 0;
+          for (const object of gesture.paints) {
+            const draft = editableObject(object);
+            draft.transform.x += dx;
+            draft.transform.y += dy;
+            assertPaintObjectInput(draft);
+            this.runtime.setPaintDraft(gesture.tableId, `selection:${object.id}`, draft);
+          }
+          for (const sprite of gesture.sprites) this.sprites?.preview(sprite.id, sprite.x + dx, sprite.y + dy);
+          continue;
+        }
         if (gesture.kind === 'create') {
           if (gesture.draft.kind === 'freehand') {
             const previous = gesture.samples.at(-1)!;
@@ -425,7 +584,9 @@ export class PaintInteractionController {
           gesture.changed = gesture.changed
             || point.x !== gesture.start.x
             || point.y !== gesture.start.y;
-          gesture.draft = resizePaintObject(gesture.original, gesture.handle, point);
+          gesture.draft = gesture.handle === 'rotate'
+            ? rotatePaintObject(gesture.original, gesture.start, point, event.shiftKey)
+            : resizePaintObject(gesture.original, gesture.handle, point);
         }
       }
       if (gesture.kind === 'create') {
@@ -437,7 +598,7 @@ export class PaintInteractionController {
           gesture.objectId, gesture.start, gesture.current, points, this.style,
         );
       }
-      this.publishDraft(gesture.tableId, gesture.draft);
+      if (gesture.kind !== 'marquee' && gesture.kind !== 'group') this.publishDraft(gesture.tableId, gesture.draft);
     } catch (error) {
       this.handleGestureError(error);
     }
@@ -466,7 +627,18 @@ export class PaintInteractionController {
           );
         }
         this.scene.submitCreate(gesture.draft);
-      } else if (gesture.changed) {
+      } else if (gesture.kind === 'group' && gesture.changed) {
+        const dx = gesture.current.x - gesture.start.x;
+        const dy = gesture.current.y - gesture.start.y;
+        // Commands remain individually authorized. No durable group is created.
+        for (const original of gesture.paints) {
+          const replacement = editableObject(original);
+          replacement.transform.x += dx;
+          replacement.transform.y += dy;
+          this.scene.submitUpdate(original.id, original.version, replacement);
+        }
+        for (const original of gesture.sprites) this.sprites?.move(gesture.tableId, original.id, original.x + dx, original.y + dy);
+      } else if (gesture.kind !== 'marquee' && gesture.kind !== 'group' && gesture.changed) {
         this.scene.submitUpdate(
           gesture.original.id,
           gesture.original.version,
@@ -493,12 +665,11 @@ export class PaintInteractionController {
     if (!this.enabled || isEditableTarget(event.target)) return;
     if (event.key === 'Escape') {
       this.cancelGesture();
-      this.selectedId = null;
-      this.runtime.clearPaintObjectSelection();
+      this.clearSelection();
       this.emit();
       return;
     }
-    if ((event.key === 'Delete' || event.key === 'Backspace') && this.selectedId) {
+    if ((event.key === 'Delete' || event.key === 'Backspace') && this.selection.items.length) {
       if (this.deleteSelected()) event.preventDefault();
     }
   };
@@ -507,6 +678,25 @@ export class PaintInteractionController {
     return this.selectedId
       ? this.sceneState.committed.find(object => object.id === this.selectedId) ?? null
       : null;
+  }
+
+  private paintIds(): string[] { return this.selection.items.filter(ref => ref.kind === 'paint').map(ref => ref.id); }
+  private spriteIds(): string[] { return this.selection.items.filter(ref => ref.kind === 'sprite').map(ref => ref.id); }
+  private selectedPaints(): PaintObject[] { return this.sceneState.committed.filter(object => this.paintIds().includes(object.id)); }
+  private selectedSprites(): SelectionSprite[] {
+    return this.sceneState.tableId ? (this.sprites?.items(this.sceneState.tableId) ?? []).filter(sprite => this.spriteIds().includes(sprite.id)) : [];
+  }
+  private syncSelection(): void {
+    const paints = this.paintIds();
+    this.selectedId = paints[0] ?? null;
+    if (paints.length > 1 && this.runtime.selectPaintObjects) this.runtime.selectPaintObjects(paints);
+    else if (paints.length === 1) this.runtime.selectPaintObject(paints[0]);
+    else this.runtime.clearPaintObjectSelection();
+    if (this.selectionMode === 'combined') this.sprites?.select(this.spriteIds());
+  }
+  private clearSelection(): void {
+    this.selection.clear();
+    this.syncSelection();
   }
 
   private canEdit(object: PaintObject): boolean {
@@ -551,6 +741,10 @@ export class PaintInteractionController {
 
   private cancelGesture(): void {
     if (!this.gesture) return;
+    if (this.gesture.kind === 'marquee') {
+      this.selection.replace(this.gesture.base);
+      this.syncSelection();
+    }
     this.finishGesture();
   }
 
@@ -558,8 +752,15 @@ export class PaintInteractionController {
     const gesture = this.gesture;
     if (!gesture) return;
     this.gesture = null;
-    this.runtime.clearPaintDraft(LOCAL_DRAFT_KEY);
-    this.scene.cancelLocalPreview();
+    if (gesture.kind === 'group') {
+      for (const object of gesture.paints) this.runtime.clearPaintDraft(`selection:${object.id}`);
+      for (const sprite of gesture.sprites) this.sprites?.preview(sprite.id, sprite.x, sprite.y);
+    }
+    if (gesture.kind === 'marquee') this.runtime.clearPaintDraft('selection-marquee');
+    else if (gesture.kind !== 'group') {
+      this.runtime.clearPaintDraft(LOCAL_DRAFT_KEY);
+      this.scene.cancelLocalPreview();
+    }
     try {
       if (gesture?.canvas.hasPointerCapture(gesture.pointerId)) {
         gesture.canvas.releasePointerCapture(gesture.pointerId);

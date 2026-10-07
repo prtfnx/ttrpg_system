@@ -162,6 +162,16 @@ through `paint_select_objects`; invalid IDs reject the selection replacement.
 Filled rectangles, squares, ellipses, and circles select from their interiors;
 outline-only forms select from the stroke band, not their empty centers.
 
+`SelectionManager` keeps namespaced paint/sprite references in local editor
+state. Paint Select/Edit supports rectangle selection and Shift/Ctrl/Cmd
+additive selection. The rectangle includes intersecting transformed bounds in
+either drag direction. Dragging a selected member moves editable members of
+the retained selection; other users' objects remain inspectable but unchanged.
+Marquee and group previews are local and cleared on cancellation. A committed
+paint version change cancels an in-flight edit based on the old version.
+Group writes remain separate commands, with individual errors and existing
+pending-operation/resource limits; a mixed group is not an atomic transaction.
+
 ## Hydration, reconciliation, and previews
 
 Paint is not embedded in `TABLE_RESPONSE`. Each table selection requests a

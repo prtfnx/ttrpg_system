@@ -81,7 +81,7 @@ function harness(committed: PaintObject[] = []) {
     getRenderEngine: vi.fn((): typeof engine | null => engine),
     setPaintDraft: vi.fn(() => true),
     clearPaintDraft: vi.fn(() => true),
-    hitTestPaintObject: vi.fn(() => committed[0]?.id ?? null),
+    hitTestPaintObject: vi.fn((): string | null => committed[0]?.id ?? null),
     hitTestPaintHandle: vi.fn((): string | null => null),
     selectPaintObject: vi.fn(() => true),
     clearPaintObjectSelection: vi.fn(),
@@ -123,6 +123,57 @@ function harness(committed: PaintObject[] = []) {
 }
 
 describe('PaintInteractionController', () => {
+  it('marquee-selects paint in either direction and moves every selected editable object', () => {
+    const first = object();
+    const second = { ...object(), id: crypto.randomUUID(), transform: { x: 40, y: 6, scale_x: 1, scale_y: 1 } };
+    const { controller, runtime, scene } = harness([first, second]);
+    controller.setTool('select');
+    runtime.hitTestPaintObject.mockReturnValue(null);
+    controller.handlePointerDown(pointer(1, 80, 40));
+    controller.handlePointerUp(pointer(1, 10, 20));
+    expect(controller.getState().selectedIds).toEqual([first.id, second.id]);
+    runtime.hitTestPaintObject.mockReturnValue(first.id);
+    controller.handlePointerDown(pointer(2, 20, 28));
+    controller.handlePointerUp(pointer(2, 25, 35));
+    expect(scene.submitUpdate).toHaveBeenCalledTimes(2);
+    expect(scene.submitUpdate).toHaveBeenCalledWith(first.id, 3, expect.objectContaining({ transform: { x: 10, y: 13, scale_x: 1, scale_y: 1 } }));
+  });
+
+  it('selects and moves sprites and paint together, restoring previews after cancel', () => {
+    const { controller, runtime, scene } = harness([object()]);
+    const sprites = { items: vi.fn(() => [{ id: 'sprite', x: 35, y: 5, bounds: [35, 5, 50, 15] as const, canEdit: true }]),
+      hitTest: vi.fn((): string | null => null), select: vi.fn(), preview: vi.fn(), move: vi.fn(), remove: vi.fn() };
+    controller.setSpriteSelectionPort(sprites);
+    controller.setSelectionMode('combined');
+    controller.setSelectOnly(true);
+    runtime.hitTestPaintObject.mockReturnValue(null);
+    controller.handlePointerDown(pointer(1, 10, 20));
+    controller.handlePointerUp(pointer(1, 70, 40));
+    expect(controller.getState().selectionCount).toBe(2);
+    runtime.hitTestPaintObject.mockReturnValue(OBJECT_ID);
+    controller.handlePointerDown(pointer(2, 20, 28));
+    controller.handlePointerMove(pointer(2, 30, 38));
+    controller.handlePointerCancel(pointer(2, 30, 38));
+    expect(sprites.preview).toHaveBeenLastCalledWith('sprite', 35, 5);
+    expect(sprites.move).not.toHaveBeenCalled();
+    expect(scene.submitUpdate).not.toHaveBeenCalled();
+    controller.handlePointerDown(pointer(3, 20, 28));
+    controller.handlePointerUp(pointer(3, 30, 38));
+    expect(sprites.move).toHaveBeenCalledWith(TABLE, 'sprite', 45, 15);
+    expect(scene.submitUpdate).toHaveBeenCalledOnce();
+  });
+
+  it('rotates from the handle using the visual center', () => {
+    const { controller, runtime, scene } = harness([object()]);
+    controller.setTool('select');
+    controller.handlePointerDown(pointer(1, 20, 28));
+    controller.handlePointerUp(pointer(1, 20, 28));
+    runtime.hitTestPaintHandle.mockReturnValue('rotate');
+    controller.handlePointerDown(pointer(2, 25, 0));
+    controller.handlePointerUp(pointer(2, 46, 31));
+    expect(scene.submitUpdate).toHaveBeenCalledWith(OBJECT_ID, 3,
+      expect.objectContaining({ transform: expect.objectContaining({ rotation: Math.PI / 2 }) }));
+  });
   beforeEach(() => vi.restoreAllMocks());
 
   it('has no constructor subscription and reconnects after effect-style disposal', () => {

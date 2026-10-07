@@ -517,6 +517,53 @@ impl RenderEngine {
         self.input.selected_sprite_ids.clone()
     }
 
+    /// Read-only picking for the shared editor selection controller.
+    #[wasm_bindgen]
+    pub fn selection_hit_test_sprite(&self, world_x: f32, world_y: f32) -> Option<String> {
+        let layer = self.layer_manager.get_layers().get(&self.active_layer)?;
+        if !layer.selectable || !layer.visible() {
+            return None;
+        }
+        let table_id = self.table_manager.get_active_table_id()?;
+        layer
+            .sprites
+            .iter()
+            .rev()
+            .find(|sprite| {
+                sprite.table_id == table_id
+                    && sprite.contains_world_point(Vec2::new(world_x, world_y))
+            })
+            .map(|sprite| sprite.id.clone())
+    }
+
+    /// Replace editor selection without emitting move/create operations.
+    #[wasm_bindgen]
+    pub fn selection_set_sprites(&mut self, ids: Vec<String>) -> bool {
+        let Some(layer) = self.layer_manager.get_layers().get(&self.active_layer) else {
+            return false;
+        };
+        let Some(table_id) = self.table_manager.get_active_table_id() else {
+            return false;
+        };
+        if !layer.selectable
+            || !layer.visible()
+            || ids.len() > 2000
+            || ids.iter().any(|id| {
+                !layer
+                    .sprites
+                    .iter()
+                    .any(|sprite| &sprite.id == id && sprite.table_id == table_id)
+            })
+        {
+            return false;
+        }
+        self.input.clear_selection();
+        for id in ids {
+            self.input.add_to_selection(id);
+        }
+        true
+    }
+
     /// Get list of currently selected wall IDs.
     #[wasm_bindgen]
     pub fn get_selected_walls(&self) -> Vec<String> {

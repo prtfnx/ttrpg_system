@@ -1134,6 +1134,16 @@ export class RenderEngine {
         return ret !== 0;
     }
     /**
+     * @param {string} ids_json
+     * @returns {boolean}
+     */
+    paint_select_objects(ids_json) {
+        const ptr0 = passStringToWasm0(ids_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.renderengine_paint_select_objects(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
      * @returns {string | undefined}
      */
     paint_selected_object_id() {
@@ -1310,6 +1320,32 @@ export class RenderEngine {
      */
     select_all_sprites() {
         wasm.renderengine_select_all_sprites(this.__wbg_ptr);
+    }
+    /**
+     * Read-only picking for the shared editor selection controller.
+     * @param {number} world_x
+     * @param {number} world_y
+     * @returns {string | undefined}
+     */
+    selection_hit_test_sprite(world_x, world_y) {
+        const ret = wasm.renderengine_selection_hit_test_sprite(this.__wbg_ptr, world_x, world_y);
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
+    }
+    /**
+     * Replace editor selection without emitting move/create operations.
+     * @param {string[]} ids
+     * @returns {boolean}
+     */
+    selection_set_sprites(ids) {
+        const ptr0 = passArrayJsValueToWasm0(ids, wasm.__wbindgen_malloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.renderengine_selection_set_sprites(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
     }
     /**
      * @param {string} layer_name
@@ -2690,8 +2726,8 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 131, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h346c1d2cbe4d6714);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 60, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__hdc4384c541f1ca1c);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0) {
@@ -2740,8 +2776,8 @@ function __wbg_get_imports() {
     };
 }
 
-function wasm_bindgen__convert__closures_____invoke__h346c1d2cbe4d6714(arg0, arg1) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h346c1d2cbe4d6714(arg0, arg1);
+function wasm_bindgen__convert__closures_____invoke__hdc4384c541f1ca1c(arg0, arg1) {
+    wasm.wasm_bindgen__convert__closures_____invoke__hdc4384c541f1ca1c(arg0, arg1);
 }
 
 const ActionsClientFinalization = (typeof FinalizationRegistry === 'undefined')
@@ -2959,6 +2995,16 @@ function passArray8ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 1, 1) >>> 0;
     getUint8ArrayMemory0().set(arg, ptr / 1);
     WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passArrayJsValueToWasm0(array, malloc) {
+    const ptr = malloc(array.length * 4, 4) >>> 0;
+    for (let i = 0; i < array.length; i++) {
+        const add = addToExternrefTable0(array[i]);
+        getDataViewMemory0().setUint32(ptr + 4 * i, add, true);
+    }
+    WASM_VECTOR_LEN = array.length;
     return ptr;
 }
 

@@ -15,7 +15,7 @@ pub struct PaintObjectRenderer {
     object_scene: PaintScene,
     object_meshes: PaintMeshCache,
     transient_drafts: BTreeMap<String, PaintDraft>,
-    selected_object_id: Option<String>,
+    selected_object_ids: Vec<String>,
 }
 
 impl Default for PaintObjectRenderer {
@@ -30,7 +30,7 @@ impl PaintObjectRenderer {
             object_scene: PaintScene::default(),
             object_meshes: PaintMeshCache::default(),
             transient_drafts: BTreeMap::new(),
-            selected_object_id: None,
+            selected_object_ids: Vec::new(),
         }
     }
 
@@ -52,13 +52,8 @@ impl PaintObjectRenderer {
         }
         self.object_meshes
             .replace(self.object_scene.ordered_objects());
-        if self
-            .selected_object_id
-            .as_ref()
-            .is_some_and(|id| self.object_scene.get(id).is_none())
-        {
-            self.selected_object_id = None;
-        }
+        self.selected_object_ids
+            .retain(|id| self.object_scene.get(id).is_some());
         true
     }
 
@@ -95,9 +90,7 @@ impl PaintObjectRenderer {
             return false;
         }
         self.object_meshes.remove(object_id);
-        if self.selected_object_id.as_deref() == Some(object_id) {
-            self.selected_object_id = None;
-        }
+        self.selected_object_ids.retain(|id| id != object_id);
         true
     }
 
@@ -113,7 +106,14 @@ impl PaintObjectRenderer {
         world_x: f32,
         world_y: f32,
         tolerance: f32,
+        rotation_offset: f32,
     ) -> Option<String> {
+        if let Some(object) = self.object_scene.get(object_id) {
+            let handle = object.rotation_handle(rotation_offset);
+            if (handle.x - world_x).hypot(handle.y - world_y) <= tolerance {
+                return Some("rotate".to_owned());
+            }
+        }
         self.object_scene
             .hit_test_handle(object_id, world_x, world_y, tolerance)
             .map(str::to_owned)
@@ -123,16 +123,27 @@ impl PaintObjectRenderer {
         if self.object_scene.get(object_id).is_none() {
             return false;
         }
-        self.selected_object_id = Some(object_id.to_owned());
+        self.selected_object_ids = vec![object_id.to_owned()];
+        true
+    }
+
+    pub fn select_objects_json(&mut self, ids_json: &str) -> bool {
+        let Ok(ids) = serde_json::from_str::<Vec<String>>(ids_json) else {
+            return false;
+        };
+        if ids.len() > 2000 || ids.iter().any(|id| self.object_scene.get(id).is_none()) {
+            return false;
+        }
+        self.selected_object_ids = ids;
         true
     }
 
     pub fn clear_object_selection(&mut self) {
-        self.selected_object_id = None;
+        self.selected_object_ids.clear();
     }
 
     pub fn selected_object_id(&self) -> Option<String> {
-        self.selected_object_id.clone()
+        self.selected_object_ids.first().cloned()
     }
 
     pub fn object_revision(&self) -> u64 {
@@ -228,9 +239,15 @@ impl PaintObjectRenderer {
             }
             renderer.draw_triangles(&draft.mesh.stroke_vertices, draft.object.style.stroke_rgba)?;
         }
-        if let Some(object_id) = self.selected_object_id.as_deref() {
+        for object_id in &self.selected_object_ids {
             let radius = 5.0 / camera_zoom.max(f32::EPSILON);
-            for handle in self.object_scene.handles(object_id) {
+            let mut handles = self.object_scene.handles(object_id);
+            if self.selected_object_ids.len() == 1 {
+                if let Some(object) = self.object_scene.get(object_id) {
+                    handles.push(object.rotation_handle(28.0 / camera_zoom.max(f32::EPSILON)));
+                }
+            }
+            for handle in handles {
                 let vertices = [
                     handle.x - radius,
                     handle.y - radius,

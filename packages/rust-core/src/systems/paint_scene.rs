@@ -61,6 +61,8 @@ pub struct PaintTransform {
     pub y: f32,
     pub scale_x: f32,
     pub scale_y: f32,
+    #[serde(default)]
+    pub rotation: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -314,15 +316,51 @@ impl PaintScene {
 }
 
 impl PaintObject {
+    pub fn local_to_world(&self, x: f32, y: f32) -> (f32, f32) {
+        let (sin, cos) = (self.transform.rotation as f32).sin_cos();
+        let x = x * self.transform.scale_x;
+        let y = y * self.transform.scale_y;
+        (
+            self.transform.x + cos * x - sin * y,
+            self.transform.y + sin * x + cos * y,
+        )
+    }
+
+    pub fn rotation_handle(&self, offset: f32) -> PaintHandle {
+        let (min_x, min_y, max_x, _) = self.local_bounds();
+        let (x, y) = self.local_to_world((min_x + max_x) / 2.0, min_y);
+        let (sin, cos) = (self.transform.rotation as f32).sin_cos();
+        PaintHandle {
+            kind: "rotate",
+            x: x + sin * offset,
+            y: y - cos * offset,
+        }
+    }
+
     pub fn world_bounds(&self) -> PaintBounds {
         let (min_x, min_y, max_x, max_y) = self.local_bounds();
         let half_stroke =
             self.style.width * self.transform.scale_x.max(self.transform.scale_y) / 2.0;
+        let corners = [
+            (min_x, min_y),
+            (max_x, min_y),
+            (max_x, max_y),
+            (min_x, max_y),
+        ]
+        .map(|(x, y)| self.local_to_world(x, y));
         PaintBounds {
-            min_x: self.transform.x + min_x * self.transform.scale_x - half_stroke,
-            min_y: self.transform.y + min_y * self.transform.scale_y - half_stroke,
-            max_x: self.transform.x + max_x * self.transform.scale_x + half_stroke,
-            max_y: self.transform.y + max_y * self.transform.scale_y + half_stroke,
+            min_x: corners.iter().map(|p| p.0).fold(f32::INFINITY, f32::min) - half_stroke,
+            min_y: corners.iter().map(|p| p.1).fold(f32::INFINITY, f32::min) - half_stroke,
+            max_x: corners
+                .iter()
+                .map(|p| p.0)
+                .fold(f32::NEG_INFINITY, f32::max)
+                + half_stroke,
+            max_y: corners
+                .iter()
+                .map(|p| p.1)
+                .fold(f32::NEG_INFINITY, f32::max)
+                + half_stroke,
         }
     }
 
@@ -362,13 +400,13 @@ impl PaintObject {
             return vec![
                 PaintHandle {
                     kind: "line-start",
-                    x: self.transform.x + start.x * self.transform.scale_x,
-                    y: self.transform.y + start.y * self.transform.scale_y,
+                    x: self.local_to_world(start.x, start.y).0,
+                    y: self.local_to_world(start.x, start.y).1,
                 },
                 PaintHandle {
                     kind: "line-end",
-                    x: self.transform.x + end.x * self.transform.scale_x,
-                    y: self.transform.y + end.y * self.transform.scale_y,
+                    x: self.local_to_world(end.x, end.y).0,
+                    y: self.local_to_world(end.x, end.y).1,
                 },
             ];
         }
@@ -382,8 +420,8 @@ impl PaintObject {
         .into_iter()
         .map(|(kind, x, y)| PaintHandle {
             kind,
-            x: self.transform.x + x * self.transform.scale_x,
-            y: self.transform.y + y * self.transform.scale_y,
+            x: self.local_to_world(x, y).0,
+            y: self.local_to_world(x, y).1,
         })
         .collect()
     }
@@ -392,8 +430,11 @@ impl PaintObject {
         if !self.world_bounds().contains(world_x, world_y, tolerance) {
             return false;
         }
-        let x = (world_x - self.transform.x) / self.transform.scale_x;
-        let y = (world_y - self.transform.y) / self.transform.scale_y;
+        let (sin, cos) = (self.transform.rotation as f32).sin_cos();
+        let dx = world_x - self.transform.x;
+        let dy = world_y - self.transform.y;
+        let x = (cos * dx + sin * dy) / self.transform.scale_x;
+        let y = (-sin * dx + cos * dy) / self.transform.scale_y;
         let local_tolerance = tolerance / self.transform.scale_x.min(self.transform.scale_y);
         let stroke_tolerance = self.style.width / 2.0 + local_tolerance;
         match &self.geometry {
@@ -481,6 +522,8 @@ fn validate_object(object: &PaintObject) -> Result<(), PaintSceneError> {
         && finite(object.transform.scale_y)
         && object.transform.scale_y <= SCALE_LIMIT
         && object.transform.scale_y > 0.0
+        && object.transform.rotation.is_finite()
+        && object.transform.rotation.abs() <= std::f64::consts::PI
         && preserves_aspect
         && valid_rgba(&object.style.stroke_rgba)
         && object.style.fill_rgba.as_ref().is_none_or(valid_rgba)
@@ -554,6 +597,7 @@ mod tests {
                 y: 20.0,
                 scale_x: 2.0,
                 scale_y: 3.0,
+                rotation: 0.0,
             },
             style: PaintStyle {
                 stroke_rgba: [0.1, 0.2, 0.3, 1.0],
@@ -651,6 +695,25 @@ mod tests {
     }
 
     #[test]
+    fn rotated_geometry_shares_bounds_hit_tests_and_handles() {
+        let mut item = line("rotated", 1);
+        item.transform.rotation = std::f64::consts::FRAC_PI_2;
+        let bounds = item.world_bounds();
+        assert!((bounds.min_x - 7.0).abs() < 0.001);
+        assert!((bounds.max_y - 43.0).abs() < 0.001);
+        assert!(item.hit_test(10.0, 30.0, 0.0));
+        assert!(!item.hit_test(20.0, 20.0, 0.0));
+        let handles = item.handles();
+        assert!((handles[1].x - 10.0).abs() < 0.001);
+        assert!((handles[1].y - 40.0).abs() < 0.001);
+        let handle = item.rotation_handle(24.0);
+        assert!((handle.x - 34.0).abs() < 0.001);
+        assert!((handle.y - 30.0).abs() < 0.001);
+        item.transform.rotation = f64::NAN;
+        assert!(validate_object(&item).is_err());
+    }
+
+    #[test]
     fn hit_test_uses_geometry_and_returns_topmost_object() {
         let mut lower = line("lower", 1);
         lower.transform = PaintTransform {
@@ -658,6 +721,7 @@ mod tests {
             y: 0.0,
             scale_x: 1.0,
             scale_y: 1.0,
+            rotation: 0.0,
         };
         let mut upper = lower.clone();
         upper.id = "upper".to_owned();
@@ -848,6 +912,7 @@ mod tests {
                 y: 3.0,
                 scale_x: 1.0,
                 scale_y: 1.0,
+                rotation: 0.0,
             },
             style: PaintStyle {
                 stroke_rgba: [1.0, 0.0, 0.0, 1.0],

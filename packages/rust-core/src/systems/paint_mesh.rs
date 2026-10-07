@@ -111,8 +111,9 @@ pub(super) fn tessellate(object: &PaintObject) -> PaintMesh {
 
 fn transform_vertices(vertices: &mut [f32], object: &PaintObject) {
     for point in vertices.chunks_exact_mut(2) {
-        point[0] = object.transform.x + point[0] * object.transform.scale_x;
-        point[1] = object.transform.y + point[1] * object.transform.scale_y;
+        let (x, y) = object.local_to_world(point[0], point[1]);
+        point[0] = x;
+        point[1] = y;
     }
 }
 
@@ -313,6 +314,7 @@ mod tests {
                 y: 20.0,
                 scale_x: 2.0,
                 scale_y: 2.0,
+                rotation: 0.0,
             },
             style: PaintStyle {
                 stroke_rgba: [1.0, 0.0, 0.0, 1.0],
@@ -351,6 +353,32 @@ mod tests {
         assert!(mesh.stroke_vertices.len().is_multiple_of(6));
         assert!(mesh.fill_vertices.is_empty());
         assert!(mesh.stroke_vertices.iter().all(|value| value.is_finite()));
+    }
+
+    #[test]
+    fn rotation_transforms_every_cached_vertex_without_changing_topology() {
+        let mut item = object(
+            PaintGeometry::Rectangle {
+                width: 10.0,
+                height: 5.0,
+            },
+            true,
+        );
+        let original = tessellate(&item);
+        item.transform.rotation = std::f64::consts::FRAC_PI_2;
+        let rotated = tessellate(&item);
+        for (before, after) in original
+            .fill_vertices
+            .chunks_exact(2)
+            .zip(rotated.fill_vertices.chunks_exact(2))
+        {
+            assert!((after[0] - (10.0 - (before[1] - 20.0))).abs() < 0.001);
+            assert!((after[1] - (20.0 + (before[0] - 10.0))).abs() < 0.001);
+        }
+        assert_eq!(
+            original.stroke_vertices.len(),
+            rotated.stroke_vertices.len()
+        );
     }
 
     #[test]

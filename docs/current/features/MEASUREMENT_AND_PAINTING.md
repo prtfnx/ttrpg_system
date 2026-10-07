@@ -155,6 +155,10 @@ Geometry helpers preserve the opposite resize anchor in the rotated coordinate
 frame. Rotation uses the visual center as its pivot, adjusting translation so
 the center stays fixed; Shift snapping uses 15-degree increments.
 Selection/handles use screen-space hit tolerance through camera zoom.
+Rust uses the same scale/rotate/translate mapping for cached triangles, bounds,
+picking, and corner/endpoint handles. A single paint selection shows a rotation
+handle 28 backing pixels beyond its top edge. Multiple IDs can be selected
+through `paint_select_objects`; invalid IDs reject the selection replacement.
 Filled rectangles, squares, ellipses, and circles select from their interiors;
 outline-only forms select from the stroke band, not their empty centers.
 

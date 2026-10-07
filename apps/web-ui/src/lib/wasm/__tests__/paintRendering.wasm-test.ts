@@ -101,8 +101,12 @@ describe('paint triangle rendering (real browser)', () => {
       expect(engine.paint_replace_object_snapshot(TABLE_ID, 1, JSON.stringify([form]))).toBe(true);
       engine.render();
       expect(pixel(canvas, 50, centerY).slice(0, 3)).toEqual([0, 255, 0]);
+      expect(engine.paint_hit_test_object(50, centerY, 0)).toBe(form.id);
       expect(pixel(canvas, 20, centerY)[0]).toBeGreaterThan(200);
       expect(pixel(canvas, 10, centerY).slice(0, 3)).toEqual([0, 0, 0]);
+      form.style.fill_rgba = null;
+      expect(engine.paint_replace_object_snapshot(TABLE_ID, 2, JSON.stringify([form]))).toBe(true);
+      expect(engine.paint_hit_test_object(50, centerY, 0)).toBeUndefined();
     } finally {
       engine.free();
     }

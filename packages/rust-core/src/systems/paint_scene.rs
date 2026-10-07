@@ -672,6 +672,55 @@ mod tests {
     }
 
     #[test]
+    fn filled_forms_hit_their_interior_but_outlines_do_not() {
+        for geometry in [
+            PaintGeometry::Rectangle {
+                width: 40.0,
+                height: 20.0,
+            },
+            PaintGeometry::Square { size: 40.0 },
+            PaintGeometry::Ellipse {
+                width: 40.0,
+                height: 20.0,
+            },
+            PaintGeometry::Circle { diameter: 40.0 },
+        ] {
+            let center_y = if matches!(
+                geometry,
+                PaintGeometry::Square { .. } | PaintGeometry::Circle { .. }
+            ) {
+                20.0
+            } else {
+                10.0
+            };
+            let mut form = object("form", 1, geometry);
+            form.transform.scale_y = form.transform.scale_x;
+            let center_x = form.transform.x + 20.0 * form.transform.scale_x;
+            let center_y = form.transform.y + center_y * form.transform.scale_y;
+            let mut scene = PaintScene::default();
+            scene
+                .replace_snapshot("table", 1, vec![form.clone()])
+                .unwrap();
+            assert_eq!(
+                scene.hit_test(center_x, center_y, 0.0),
+                None,
+                "{:?}",
+                form.kind
+            );
+            form.style.fill_rgba = Some([0.0, 1.0, 0.0, 1.0]);
+            scene
+                .replace_snapshot("table", 2, vec![form.clone()])
+                .unwrap();
+            assert_eq!(
+                scene.hit_test(center_x, center_y, 0.0),
+                Some("form"),
+                "{:?}",
+                form.kind
+            );
+        }
+    }
+
+    #[test]
     fn handles_use_transformed_geometry_and_precise_line_endpoints() {
         let mut scene = PaintScene::default();
         scene

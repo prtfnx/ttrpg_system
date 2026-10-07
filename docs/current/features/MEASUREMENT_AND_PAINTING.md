@@ -148,6 +148,8 @@ Moving changes translation. Corner resizing anchors the opposite corner;
 rectangle, ellipse, and freehand scale independently by axis, while square and
 circle use uniform scale. Line handles edit the selected endpoint only.
 Selection/handles use screen-space hit tolerance through camera zoom.
+Filled rectangles, squares, ellipses, and circles select from their interiors;
+outline-only forms select from the stroke band, not their empty centers.
 
 ## Hydration, reconciliation, and previews
 
@@ -242,7 +244,9 @@ after those envelopes have passed validation.
 
 `apps/web-ui/src/lib/wasm/__tests__/paintRendering.wasm-test.ts` checks real
 WebGL pixels, pressure/width, shapes, alpha order, and busy-scene buffer/mesh
-retention. These deterministic tests are not a multiplayer latency benchmark.
+retention. It also checks that filled interiors and empty outline centers agree
+with Rust selection hit tests. These deterministic tests are not a multiplayer
+latency benchmark.
 Use [Testing strategy](../TESTING_STRATEGY.md#isolated-paint-acceptance-and-load-checks)
 for reproducible built-UI acceptance/load checks and safety constraints.
 Measured run results are not permanent guarantees about the live deployment.

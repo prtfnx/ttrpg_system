@@ -2,6 +2,9 @@ import { useOptionalPaintController } from '../controller/PaintControllerProvide
 import type { PaintStyle } from '../model/paintObject';
 import type { PaintTool } from '../controller/paintGeometry';
 import styles from './PaintPanel.module.css';
+import { useGameStore } from '@/store';
+import { useOptionalProtocol } from '@app/providers';
+import { saveSelectionPreference, useSelectionPreferences } from '../controller/selectionPreferences';
 
 interface PaintPanelProps {
   isVisible?: boolean;
@@ -45,6 +48,10 @@ export function PaintPanel({ isVisible = true, onToggle, onClose }: PaintPanelPr
   const interaction = paint?.interaction ?? null;
   const interactionState = paint?.interactionState ?? null;
   const scene = paint?.state ?? null;
+  const preference = useSelectionPreferences();
+  const protocol = useOptionalProtocol()?.protocol;
+  const userId = useGameStore(state => state.userId);
+  const setActiveTool = useGameStore(state => state.setActiveTool);
 
   if (!isVisible) return null;
 
@@ -91,6 +98,23 @@ export function PaintPanel({ isVisible = true, onToggle, onClose }: PaintPanelPr
       )}
       {scene?.lastError && <p className={styles.error} role="alert">{scene.lastError}</p>}
 
+      <label className={styles.controlRow}>
+        <input type="checkbox" aria-label="Select sprites and paint together"
+          checked={preference.mode === 'combined'}
+          disabled={!preference.scope || preference.loading || preference.saving}
+          onChange={event => {
+            if (protocol && userId !== null) void saveSelectionPreference(protocol.getSessionCode(), userId,
+              event.target.checked ? 'combined' : 'separate');
+          }} />
+        <span>Select sprites and paint together</span>
+      </label>
+      <p className={styles.notice}>
+        {preference.mode === 'combined' ? 'Select uses sprites in the active layer and paint. '
+          : 'Select uses sprites; Paint Select/Edit uses paintings. '}
+        Drag empty space to box-select. Shift/Ctrl/Cmd adds or toggles objects. Saved for this session.
+      </p>
+      {preference.error && <p className={styles.error} role="alert">{preference.error}</p>}
+
       <fieldset className={styles.section} disabled={!available}>
         <legend>Tool</legend>
         <div className={styles.toolGrid}>
@@ -100,7 +124,7 @@ export function PaintPanel({ isVisible = true, onToggle, onClose }: PaintPanelPr
               type="button"
               className={interactionState?.tool === tool ? styles.activeTool : undefined}
               aria-pressed={interactionState?.tool === tool}
-              onClick={() => interaction?.setTool(tool)}
+              onClick={() => { setActiveTool('paint'); interaction?.setTool(tool); }}
             >
               {label}
             </button>
@@ -152,6 +176,8 @@ export function PaintPanel({ isVisible = true, onToggle, onClose }: PaintPanelPr
 
       <section className={styles.selection} aria-label="Paint selection">
         <h4>Selection</h4>
+        {(interactionState?.selectionCount ?? 0) > 1 && <p>{interactionState?.selectionCount} objects selected</p>}
+        {(interactionState?.selectionCount ?? 0) > 1 && <p>Only editable objects are changed. Locked members stay selected.</p>}
         {interactionState?.selected ? (
           <>
             <dl>
@@ -176,7 +202,7 @@ export function PaintPanel({ isVisible = true, onToggle, onClose }: PaintPanelPr
                 disabled={!interactionState.canEditSelected}
                 onClick={() => interaction?.deleteSelected()}
               >
-                Delete object
+                {(interactionState.selectionCount ?? 1) > 1 ? 'Delete editable objects' : 'Delete object'}
               </button>
             </div>
           </>

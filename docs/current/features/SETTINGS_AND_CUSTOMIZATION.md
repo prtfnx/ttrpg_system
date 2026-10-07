@@ -1,5 +1,15 @@
 # Settings and Customization
 
+## Per-member selection mode
+
+The Paint panel offers **Select sprites and paint together**. The default is
+separate sprite selection and paint editing. The preference is saved through
+the authenticated selection-preference API on the user's game-session
+membership, not in browser-wide storage. Loading a different user/session
+starts in separate mode; late responses from the old scope are ignored.
+The checkbox stays disabled during load/save. A failed save keeps the accepted
+mode and shows an error. Removing the membership removes its preference.
+
 Audience: contributors changing account settings, session settings, table
 settings, or browser-only UI preferences.
 

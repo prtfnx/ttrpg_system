@@ -87,6 +87,7 @@ export function createMockWasmRuntime(overrides: Partial<MockWasmRuntime> = {}):
     hitTestPaintObject: vi.fn(() => null),
     hitTestPaintHandle: vi.fn(() => null),
     selectPaintObject: vi.fn(() => true),
+    selectPaintObjects: vi.fn(() => true),
     clearPaintObjectSelection: vi.fn(),
     getSelectedPaintObjectId: vi.fn(() => null),
     getPaintObjectRevision: vi.fn(() => 0),

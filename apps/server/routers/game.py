@@ -7,7 +7,7 @@ import string
 from functools import partial
 from hashlib import sha256
 from io import BytesIO
-from typing import Annotated, List
+from typing import Annotated, List, Literal
 
 from anyio import from_thread
 from core_table.protocol import Message, MessageType
@@ -18,6 +18,7 @@ from fastapi.responses import RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from models import game as game_models
 from PIL import Image, UnidentifiedImageError
+from pydantic import BaseModel, ConfigDict
 from service.game_session import get_connection_manager
 from sqlalchemy.orm import Session
 from utils.audit import audit_event
@@ -35,6 +36,45 @@ templates = Jinja2Templates(directory=templates_dir)
 _TABLE_PREVIEW_WIDTH = 640
 _TABLE_PREVIEW_HEIGHT = 360
 _MAX_TABLE_PREVIEW_BYTES = 512 * 1024
+
+
+class SelectionPreference(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    selection_mode: Literal["separate", "combined"]
+
+
+def _selection_member(db: Session, session_code: str, user_id: int) -> models.GamePlayer:
+    membership = db.query(models.GamePlayer).join(models.GameSession).filter(
+        models.GameSession.session_code == session_code,
+        models.GameSession.is_active.is_(True),
+        models.GamePlayer.user_id == user_id,
+    ).first()
+    if membership is None:
+        raise HTTPException(status_code=403, detail="Active session membership required")
+    return membership
+
+
+@router.get("/api/sessions/{session_code}/selection-preference", response_model=SelectionPreference)
+def get_selection_preference(
+    session_code: str,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db),
+):
+    member = _selection_member(db, session_code, current_user.id)
+    return SelectionPreference(selection_mode=member.selection_mode)
+
+
+@router.put("/api/sessions/{session_code}/selection-preference", response_model=SelectionPreference)
+def save_selection_preference(
+    session_code: str,
+    preference: SelectionPreference,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db),
+):
+    member = _selection_member(db, session_code, current_user.id)
+    member.selection_mode = preference.selection_mode
+    db.commit()
+    return preference
 
 
 def _dm_table(db: Session, session_code: str, table_id: str, user_id: int):

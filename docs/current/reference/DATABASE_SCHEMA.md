@@ -1,5 +1,13 @@
 # Database schema
 
+Selection preferences live on `game_players.selection_mode`. Migration
+`0011_selection_preferences` initializes existing and new memberships to
+`separate`. The authenticated member can read or replace their own mode through
+`GET`/`PUT /game/api/sessions/{session_code}/selection-preference`; only `separate`
+and `combined` are accepted. Preferences are independent across users and game
+sessions. The existing membership-table writer guard covers these updates.
+Leaving/removing a membership removes its preference with that membership.
+
 Audience: contributors changing persistence, migrations, or server state.
 
 Status: partial. This page describes the current model families and migration

@@ -109,6 +109,7 @@ class GamePlayer(Base):
     joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
     is_connected: Mapped[bool] = mapped_column(Boolean, default=False)
     active_table_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)  # UUID of user's active table
+    selection_mode: Mapped[str] = mapped_column(String(16), nullable=False, default="separate", server_default="separate")
 
     # Relationships
     session = relationship("GameSession", back_populates="players")

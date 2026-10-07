@@ -9,7 +9,7 @@ import {
 import paintObjectSchema from '../model/paint_object.schema.generated.json';
 
 export type PaintTool = 'draw' | PaintKind | 'select' | 'delete';
-export type PaintHandleKind = 'line-start' | 'line-end' | 'nw' | 'ne' | 'se' | 'sw';
+export type PaintHandleKind = 'line-start' | 'line-end' | 'nw' | 'ne' | 'se' | 'sw' | 'rotate';
 
 const MIN_DIMENSION = 0.001;
 export const MAX_FREEHAND_POINTS = paintObjectSchema.$defs.freehandGeometry.properties.points.maxItems;
@@ -35,7 +35,7 @@ function editableObject(object: PaintObject): PaintObjectInput {
   return structuredClone(editable) as PaintObjectInput;
 }
 
-function localBounds(object: PaintObject): [number, number, number, number] {
+export function localBounds(object: PaintObject): [number, number, number, number] {
   switch (object.geometry.kind) {
     case 'freehand': {
       const xs = object.geometry.points.map(point => point.x);
@@ -59,20 +59,64 @@ function localBounds(object: PaintObject): [number, number, number, number] {
   }
 }
 
+export function paintLocalToWorld(object: PaintObjectInput, x: number, y: number): { x: number; y: number } {
+  const angle = object.transform.rotation ?? 0;
+  const sx = x * object.transform.scale_x;
+  const sy = y * object.transform.scale_y;
+  return {
+    x: object.transform.x + Math.cos(angle) * sx - Math.sin(angle) * sy,
+    y: object.transform.y + Math.sin(angle) * sx + Math.cos(angle) * sy,
+  };
+}
+
+export function rotatePaintObject(object: PaintObject, start: PaintPoint, current: PaintPoint, snap = false): PaintObjectInput {
+  const [minX, minY, maxX, maxY] = localBounds(object);
+  const localX = (minX + maxX) / 2;
+  const localY = (minY + maxY) / 2;
+  const center = paintLocalToWorld(object, localX, localY);
+  let angle = (object.transform.rotation ?? 0)
+    + Math.atan2(current.y - center.y, current.x - center.x)
+    - Math.atan2(start.y - center.y, start.x - center.x);
+  if (snap) angle = Math.round(angle / (Math.PI / 12)) * (Math.PI / 12);
+  angle = Math.atan2(Math.sin(angle), Math.cos(angle));
+  const replacement = editableObject(object);
+  replacement.transform.rotation = angle;
+  const movedCenter = paintLocalToWorld(replacement, localX, localY);
+  replacement.transform.x += center.x - movedCenter.x;
+  replacement.transform.y += center.y - movedCenter.y;
+  return replacement;
+}
+
+export function paintWorldBounds(object: PaintObject): [number, number, number, number] {
+  const [minX, minY, maxX, maxY] = localBounds(object);
+  const corners = [[minX, minY], [maxX, minY], [maxX, maxY], [minX, maxY]]
+    .map(([x, y]) => paintLocalToWorld(object, x, y));
+  const padding = object.style.width * Math.max(object.transform.scale_x, object.transform.scale_y) / 2;
+  return [Math.min(...corners.map(p => p.x)) - padding, Math.min(...corners.map(p => p.y)) - padding,
+    Math.max(...corners.map(p => p.x)) + padding, Math.max(...corners.map(p => p.y)) + padding];
+}
+
 export function resizePaintObject(
   object: PaintObject,
   handle: PaintHandleKind,
   worldPoint: PaintPoint,
 ): PaintObjectInput {
   const replacement = editableObject(object);
+  const angle = object.transform.rotation ?? 0;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const dx = worldPoint.x - object.transform.x;
+  const dy = worldPoint.y - object.transform.y;
+  const point = { x: cos * dx + sin * dy, y: -sin * dx + cos * dy };
+  if (handle === 'rotate') return replacement;
   if (object.geometry.kind === 'line') {
     if (handle !== 'line-start' && handle !== 'line-end') return replacement;
     const target = handle === 'line-start'
       ? replacement.geometry.kind === 'line' && replacement.geometry.start
       : replacement.geometry.kind === 'line' && replacement.geometry.end;
     if (!target) return replacement;
-    target.x = (worldPoint.x - object.transform.x) / object.transform.scale_x;
-    target.y = (worldPoint.y - object.transform.y) / object.transform.scale_y;
+    target.x = point.x / object.transform.scale_x;
+    target.y = point.y / object.transform.scale_y;
     target.pressure = worldPoint.pressure;
     return replacement;
   }
@@ -85,15 +129,16 @@ export function resizePaintObject(
   const top = handle === 'nw' || handle === 'ne';
   const anchorLocalX = left ? maxX : minX;
   const anchorLocalY = top ? maxY : minY;
-  const anchorWorldX = object.transform.x + anchorLocalX * object.transform.scale_x;
-  const anchorWorldY = object.transform.y + anchorLocalY * object.transform.scale_y;
+  const anchor = paintLocalToWorld(object, anchorLocalX, anchorLocalY);
+  const anchorX = anchorLocalX * object.transform.scale_x;
+  const anchorY = anchorLocalY * object.transform.scale_y;
   let scaleX = Math.max(
     MIN_DIMENSION,
-    (left ? anchorWorldX - worldPoint.x : worldPoint.x - anchorWorldX) / width,
+    (left ? anchorX - point.x : point.x - anchorX) / width,
   );
   let scaleY = Math.max(
     MIN_DIMENSION,
-    (top ? anchorWorldY - worldPoint.y : worldPoint.y - anchorWorldY) / height,
+    (top ? anchorY - point.y : point.y - anchorY) / height,
   );
   if (object.kind === 'square' || object.kind === 'circle') {
     const uniform = Math.max(scaleX, scaleY);
@@ -101,10 +146,11 @@ export function resizePaintObject(
     scaleY = uniform;
   }
   replacement.transform = {
-    x: anchorWorldX - anchorLocalX * scaleX,
-    y: anchorWorldY - anchorLocalY * scaleY,
+    x: anchor.x - cos * anchorLocalX * scaleX + sin * anchorLocalY * scaleY,
+    y: anchor.y - sin * anchorLocalX * scaleX - cos * anchorLocalY * scaleY,
     scale_x: scaleX,
     scale_y: scaleY,
+    ...('rotation' in object.transform ? { rotation: angle } : {}),
   };
   return replacement;
 }

@@ -20,6 +20,8 @@ export interface PaintTransform {
   y: number;
   scale_x: number;
   scale_y: number;
+  /** Radians, with omitted legacy values treated as zero. */
+  rotation?: number;
 }
 
 export interface PaintStyle {
@@ -172,7 +174,9 @@ function geometry(value: unknown, expectedKind: PaintKind): void {
 
 function transform(value: unknown, kind: PaintKind): void {
   const candidate = recordAt(value, 'transform');
-  exactKeys(candidate, ['x', 'y', 'scale_x', 'scale_y'], 'transform');
+  exactKeys(candidate, ['x', 'y', 'scale_x', 'scale_y',
+    ...('rotation' in candidate ? ['rotation'] : [])], 'transform');
+  if ('rotation' in candidate) finiteInRange(candidate.rotation, -Math.PI, Math.PI, 'transform.rotation');
   finiteInRange(candidate.x, -COORDINATE_LIMIT, COORDINATE_LIMIT, 'transform.x');
   finiteInRange(candidate.y, -COORDINATE_LIMIT, COORDINATE_LIMIT, 'transform.y');
   const scaleX = finiteInRange(candidate.scale_x, 0, SCALE_LIMIT, 'transform.scale_x', true);

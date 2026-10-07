@@ -19,6 +19,17 @@ const base = (): PaintObjectInput => ({
 });
 
 describe('paint object contract', () => {
+  it.each([-Math.PI, 0, Math.PI])('accepts optional rotation %s', rotation => {
+    const value = base();
+    assertPaintObjectInput(value);
+    value.transform.rotation = rotation;
+    assertPaintObjectInput(value);
+  });
+
+  it.each([NaN, Infinity, -Math.PI - 0.01, Math.PI + 0.01, null, '0'])('rejects invalid rotation %s', rotation => {
+    const value = { ...base(), transform: { ...base().transform, rotation } };
+    expect(() => assertPaintObjectInput(value)).toThrow();
+  });
   it.each([
     ['freehand', { kind: 'freehand', points: [{ x: 1, y: 2, pressure: 0.25 }] }],
     ['line', { kind: 'line', start: { x: 0, y: 0, pressure: 0.5 }, end: { x: 20, y: 10, pressure: 0.5 } }],

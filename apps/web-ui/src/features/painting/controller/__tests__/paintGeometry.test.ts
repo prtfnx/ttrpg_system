@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compactFreehandPoints, createPaintDraft, MAX_FREEHAND_POINTS, resizePaintObject } from '../paintGeometry';
+import { compactFreehandPoints, createPaintDraft, MAX_FREEHAND_POINTS, resizePaintObject, rotatePaintObject, paintLocalToWorld } from '../paintGeometry';
 import { PaintValidationError } from '../../model/paintObject';
 import type { PaintObject, PaintPoint, PaintStyle } from '../../model/paintObject';
 
@@ -34,6 +34,35 @@ function object(kind: PaintObject['kind']): PaintObject {
 }
 
 describe('paint gesture geometry', () => {
+  it('rotates around the visual center and normalizes/snaps radians', () => {
+    const item = object('square');
+    const center = paintLocalToWorld(item, 5, 5);
+    const rotated = rotatePaintObject(item, { ...center, y: center.y - 20, pressure: 1 },
+      { ...center, x: center.x + 20, pressure: 1 });
+    expect(rotated.transform.rotation).toBeCloseTo(Math.PI / 2);
+    expect(paintLocalToWorld(rotated, 5, 5)).toEqual(center);
+    const snapped = rotatePaintObject(item, { ...center, x: center.x + 20, pressure: 1 },
+      { ...center, x: center.x + 20, y: center.y + 1, pressure: 1 }, true);
+    expect(snapped.transform.rotation).toBe(0);
+  });
+
+  it('resizes rotated squares without moving the opposite anchor', () => {
+    const item = object('square');
+    item.transform.rotation = Math.PI / 2;
+    const resized = resizePaintObject(item, 'se', { x: -20, y: 50, pressure: 1 });
+    expect(resized.transform.scale_x).toBeCloseTo(3);
+    expect(resized.transform.scale_y).toBeCloseTo(3);
+    expect(resized.transform.rotation).toBeCloseTo(Math.PI / 2);
+    expect(paintLocalToWorld(resized, 0, 0)).toEqual(paintLocalToWorld(item, 0, 0));
+  });
+
+  it('edits a rotated line endpoint in local coordinates', () => {
+    const item = object('line');
+    item.transform.rotation = Math.PI / 2;
+    const resized = resizePaintObject(item, 'line-end', { x: 0, y: 50, pressure: 0.8 });
+    expect(resized.geometry).toMatchObject({ end: { x: 15, pressure: 0.8 } });
+    if (resized.geometry.kind === 'line') expect(resized.geometry.end.y).toBeCloseTo(5);
+  });
   it('keeps a freehand click as one local point', () => {
     const draft = createPaintDraft('draw', crypto.randomUUID(), start, start, [start], style);
     expect(draft).toMatchObject({

@@ -151,6 +151,9 @@ errors cancel the gesture and use the panel/toast error channel.
 Moving changes translation. Corner resizing anchors the opposite corner;
 rectangle, ellipse, and freehand scale independently by axis, while square and
 circle use uniform scale. Line handles edit the selected endpoint only.
+Geometry helpers preserve the opposite resize anchor in the rotated coordinate
+frame. Rotation uses the visual center as its pivot, adjusting translation so
+the center stays fixed; Shift snapping uses 15-degree increments.
 Selection/handles use screen-space hit tolerance through camera zoom.
 Filled rectangles, squares, ellipses, and circles select from their interiors;
 outline-only forms select from the stroke band, not their empty centers.

@@ -16,6 +16,7 @@ packages = ["core_table"]
 artifacts = [
     "core_table/message.schema.generated.json",
     "core_table/paint_object.schema.generated.json",
+    "core_table/text_sprite.schema.generated.json",
 ]
 
 [tool.pytest.ini_options]

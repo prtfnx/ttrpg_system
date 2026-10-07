@@ -11,6 +11,7 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = PACKAGE_ROOT.parents[1]
 SCHEMA_PATH = PACKAGE_ROOT / "protocol" / "message.schema.json"
 PAINT_SCHEMA_PATH = PACKAGE_ROOT / "protocol" / "paint_object.schema.json"
+TEXT_SCHEMA_PATH = PACKAGE_ROOT / "protocol" / "text_sprite.schema.json"
 PYTHON_TARGET = PACKAGE_ROOT / "core_table" / "protocol.py"
 PYTHON_SCHEMA_TARGET = PYTHON_TARGET.with_name("message.schema.generated.json")
 PYTHON_PAINT_SCHEMA_TARGET = PYTHON_TARGET.with_name(
@@ -125,6 +126,8 @@ def main() -> int:
         TYPESCRIPT_PAINT_SCHEMA_TARGET: PAINT_SCHEMA_PATH.read_bytes(),
         PYTHON_SCHEMA_TARGET: SCHEMA_PATH.read_bytes(),
         PYTHON_PAINT_SCHEMA_TARGET: PAINT_SCHEMA_PATH.read_bytes(),
+        PACKAGE_ROOT / "core_table" / "text_sprite.schema.generated.json": TEXT_SCHEMA_PATH.read_bytes(),
+        REPOSITORY_ROOT / "apps" / "web-ui" / "src" / "features" / "canvas" / "components" / "TextSprite" / "text_sprite.schema.generated.json": TEXT_SCHEMA_PATH.read_bytes(),
     }
 
     stale = [

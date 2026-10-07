@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ttrpg-system.local/protocol/text_sprite.schema.json",
+  "title": "Text sprite descriptor v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "text", "font_size", "font_family", "font_weight", "font_style", "color", "language", "direction"],
+  "properties": {
+    "version": { "const": 1 },
+    "text": { "type": "string", "minLength": 1, "maxLength": 4096 },
+    "font_size": { "type": "number", "minimum": 8, "maximum": 128 },
+    "font_family": { "enum": ["sans-serif", "serif", "monospace"] },
+    "font_weight": { "enum": [400, 700] },
+    "font_style": { "enum": ["normal", "italic"] },
+    "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+    "language": { "type": "string", "minLength": 2, "maxLength": 35, "pattern": "^[A-Za-z]{2,8}(-[A-Za-z0-9]{1,8})*$" },
+    "direction": { "enum": ["auto", "ltr", "rtl"] }
+  },
+  "x-limits": { "maxMetadataBytes": 32768, "maxLines": 32, "maxDimension": 4096, "maxTextureDimension": 1024, "maxTexturePixels": 262144 }
+}

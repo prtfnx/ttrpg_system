@@ -1,21 +1,27 @@
 # Settings and Customization
 
-## Per-member selection mode
-
-The Paint panel offers **Select sprites and paint together**. The default is
-separate sprite selection and paint editing. The preference is saved through
-the authenticated selection-preference API on the user's game-session
-membership, not in browser-wide storage. Loading a different user/session
-starts in separate mode; late responses from the old scope are ignored.
-The checkbox stays disabled during load/save. A failed save keeps the accepted
-mode and shows an error. Removing the membership removes its preference.
-
 Audience: contributors changing account settings, session settings, table
 settings, or browser-only UI preferences.
 
 Status: current but split across several feature owners.
 
 Last source audit: 2026-09-22
+
+## Per-member selection mode
+
+The Paint panel offers **Select sprites and paint together**. The default is
+separate sprite selection and paint editing, including paint marquee selection.
+The authenticated GET/PUT `/game/api/sessions/{code}/selection-preference`
+route stores `selection_mode` on the caller's game-session membership. It
+accepts `separate` or `combined`, not a client user ID. Responses are private
+and non-cacheable. Removing the membership removes its preference.
+
+`selectionPreferences.ts` loads and saves this scope without `localStorage`.
+Loading a different user/session starts in separate mode; late responses from
+the old scope are ignored. The checkbox stays disabled during load/save. A
+failed save keeps the accepted mode and shows an error. The rest of this page
+retains its earlier audit date; this section is checked against the membership
+route and `test_selection_preferences.py` on 2026-10-06.
 
 ## Ownership
 

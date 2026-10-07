@@ -12,9 +12,23 @@ def test_selection_preference_round_trip(auth_client, test_db, test_game_session
     assert auth_client.get(url).json() == {"selection_mode": "separate"}
     response = auth_client.put(url, json={"selection_mode": "combined"})
     assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "private, no-store"
     test_db.expire_all()
     assert auth_client.get(url).json() == {"selection_mode": "combined"}
     assert test_db.get(models.GamePlayer, preference_member.id).selection_mode == "combined"
+
+
+def test_other_member_keeps_an_independent_selection_mode(auth_client, test_db, test_game_session, preference_member):
+    other_user = models.User(username="preference_other", hashed_password="unused")
+    test_db.add(other_user)
+    test_db.flush()
+    other = models.GamePlayer(session_id=test_game_session.id, user_id=other_user.id, role="player")
+    test_db.add(other)
+    test_db.commit()
+    url = f"/game/api/sessions/{test_game_session.session_code}/selection-preference"
+    assert auth_client.put(url, json={"selection_mode": "combined"}).status_code == 200
+    test_db.expire_all()
+    assert test_db.get(models.GamePlayer, other.id).selection_mode == "separate"
 
 
 @pytest.mark.parametrize("body", [{"selection_mode": "all"}, {"selection_mode": True},

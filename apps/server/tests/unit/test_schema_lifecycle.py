@@ -31,4 +31,4 @@ def test_schema_lifecycle_tracks_repository_head(tmp_path):
 
 def test_repository_baseline_matches_all_model_tables():
     assert len(Base.metadata.tables) == 33
-    assert repository_heads() == ("0010_paint_objects",)
+    assert repository_heads() == ("0011_selection_preferences",)

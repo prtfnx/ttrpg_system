@@ -4,7 +4,7 @@ Audience: operators and maintainers running schema changes.
 
 Status: usable.
 
-Last source audit: 2026-10-02
+Last source audit: 2026-10-06
 
 ## Contract
 
@@ -15,7 +15,14 @@ Alembic is the only hosted schema authority:
 - revisions: `apps/server/database/alembic/versions/`;
 - deployed revision ledger: `alembic_version`;
 - baseline: `0001_postgresql_baseline`;
-- current head: `0010_paint_objects`.
+- current head: `0011_selection_preferences`.
+
+Revision 0011 adds `game_players.selection_mode`, non-null with the default
+`separate`. Existing memberships keep separate selection. The authenticated
+GET/PUT selection-preference route saves only the caller's membership and
+returns private, non-cacheable responses. Downgrading to 0010 drops this
+preference; it does not remove paint objects or sprites. The schema lifecycle
+and membership isolation regressions run against this head.
 
 The retired numbered SQLite runner is available only in Git history. It is not
 an active schema authority and existing SQLite schemas are not upgraded in

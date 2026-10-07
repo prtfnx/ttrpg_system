@@ -57,10 +57,12 @@ def _selection_member(db: Session, session_code: str, user_id: int) -> models.Ga
 @router.get("/api/sessions/{session_code}/selection-preference", response_model=SelectionPreference)
 def get_selection_preference(
     session_code: str,
+    response: Response,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db),
 ):
     member = _selection_member(db, session_code, current_user.id)
+    response.headers["Cache-Control"] = "private, no-store"
     return SelectionPreference(selection_mode=member.selection_mode)
 
 
@@ -68,12 +70,14 @@ def get_selection_preference(
 def save_selection_preference(
     session_code: str,
     preference: SelectionPreference,
+    response: Response,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db),
 ):
     member = _selection_member(db, session_code, current_user.id)
     member.selection_mode = preference.selection_mode
     db.commit()
+    response.headers["Cache-Control"] = "private, no-store"
     return preference
 
 

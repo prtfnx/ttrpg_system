@@ -19,6 +19,20 @@ from jsonschema import Draft202012Validator, FormatChecker
 SCHEMA_PATH = Path(__file__).parents[1] / "protocol" / "paint_object.schema.json"
 
 
+@pytest.mark.parametrize("angle", [-math.pi, -1.2, 0, 1.2, math.pi])
+def test_rotation_is_optional_and_bounded(base_input: dict, angle: float) -> None:
+    validate_paint_object_input(base_input)
+    base_input["transform"]["rotation"] = angle
+    validate_paint_object_input(base_input)
+
+
+@pytest.mark.parametrize("angle", [True, "0", None, math.nan, math.inf, -math.pi - 0.01, math.pi + 0.01])
+def test_invalid_rotation_is_rejected(base_input: dict, angle: object) -> None:
+    base_input["transform"]["rotation"] = angle
+    with pytest.raises(PaintValidationError):
+        validate_paint_object_input(base_input)
+
+
 @pytest.fixture(scope="module")
 def schema() -> dict:
     loaded = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))

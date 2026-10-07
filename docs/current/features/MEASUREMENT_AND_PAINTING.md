@@ -38,8 +38,12 @@ objects do not replace gameplay shape sprites, walls, obstacles, or fog.
 ## Paint contract and authority
 
 Each freehand path, line, rectangle, square, ellipse, or circle is one editable
-object. Geometry uses local coordinates; translation and positive X/Y scale
-place it in world coordinates. Version one has no rotation. Square/circle
+object. Geometry uses local coordinates. The transform contract applies positive
+X/Y scale, then rotation in radians about the local origin, then translation.
+Rotation is optional for legacy objects and defaults to zero. Its inclusive
+range is `[-pi, pi]`; non-finite and out-of-range values are rejected. The angle
+is stored in the existing transform document, without new database columns.
+Square/circle
 resizing keeps uniform scale; freehand editing changes the whole object, not
 individual control points. A one-point freehand path renders as a dot.
 

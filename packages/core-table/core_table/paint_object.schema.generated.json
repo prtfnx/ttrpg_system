@@ -235,6 +235,13 @@
           "type": "number",
           "exclusiveMinimum": 0,
           "maximum": 1000
+        },
+        "rotation": {
+          "description": "Radians; scale then rotate about the local origin then translate. Omitted legacy values mean zero.",
+          "type": "number",
+          "minimum": -3.141592653589793,
+          "maximum": 3.141592653589793,
+          "default": 0
         }
       },
       "additionalProperties": false

@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   activeTool: 'paint',
   actorId: 42,
   sessionRole: 'owner',
-  protocol: {},
+  protocol: { getSessionCode: vi.fn(() => null) },
   runtime: {},
   runtimeStatus: { isCanvasAttached: false, isContextLost: false },
   controller: {
@@ -30,6 +30,10 @@ const mocks = vi.hoisted(() => ({
       return vi.fn();
     }),
     setActor: vi.fn(),
+    setSelectionMode: vi.fn(),
+    setSelectOnly: vi.fn(),
+    setSpriteSelectionPort: vi.fn(),
+    reconcileSelection: vi.fn(),
     setEnabled: vi.fn(),
     restoreRenderer: vi.fn(),
     dispose: vi.fn(),
@@ -42,14 +46,14 @@ vi.mock('@app/providers', () => ({
 }));
 
 vi.mock('@/store', () => ({
-  useGameStore: (selector: (state: object) => unknown) => (
+  useGameStore: Object.assign((selector: (state: object) => unknown) => (
     selector({
       activeTableId: mocks.activeTableId,
       activeTool: mocks.activeTool,
       userId: mocks.actorId,
       sessionRole: mocks.sessionRole,
     })
-  ),
+  ), { subscribe: vi.fn(() => vi.fn()) }),
 }));
 
 vi.mock('@lib/wasm/runtime', () => ({

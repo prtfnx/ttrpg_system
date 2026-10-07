@@ -172,6 +172,16 @@ paint version change cancels an in-flight edit based on the old version.
 Group writes remain separate commands, with individual errors and existing
 pending-operation/resource limits; a mixed group is not an atomic transaction.
 
+With the per-member combined-selection preference enabled, the default Select
+tool routes sprites and paint through the same interaction controller. Sprite
+picking stays on the visible, selectable active layer and active table. Sprites
+draw above paint and therefore win overlapping picks. Hidden/inactive sprites
+do not enter the selection. Tool, layer, membership, table, hydration, and
+renderer changes cancel stale gestures. The default separate mode keeps the
+existing sprite/wall selection route; combined mode is for sprites and paint,
+not wall editing. Mouse compatibility handlers suppress the shared controller's
+left-button gestures and delete/escape shortcuts, preserving camera input.
+
 ## Hydration, reconciliation, and previews
 
 Paint is not embedded in `TABLE_RESPONSE`. Each table selection requests a

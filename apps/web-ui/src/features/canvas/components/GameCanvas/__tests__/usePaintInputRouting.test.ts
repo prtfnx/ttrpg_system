@@ -2,9 +2,27 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameStore } from '@/store';
 import { usePaintInputRouting } from '../usePaintInputRouting';
+import { useSelectionPreferences } from '@features/painting/controller/selectionPreferences';
 
 describe('usePaintInputRouting', () => {
-  beforeEach(() => useGameStore.setState({ activeTool: 'select' }));
+  beforeEach(() => {
+    useGameStore.setState({ activeTool: 'select' });
+    useSelectionPreferences.setState({ mode: 'separate' });
+  });
+
+  it('routes combined Select through one pointer owner without intercepting pan', () => {
+    useSelectionPreferences.setState({ mode: 'combined' });
+    const handlers = { mouseDown: vi.fn(), mouseMove: vi.fn(), mouseUp: vi.fn(), keyDown: vi.fn() };
+    const { result } = renderHook(() => usePaintInputRouting(handlers));
+    result.current.routedMouseDown(new MouseEvent('mousedown', { button: 0 }));
+    result.current.routedMouseUp(new MouseEvent('mouseup', { button: 0 }));
+    result.current.routedKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }));
+    expect(handlers.mouseDown).not.toHaveBeenCalled();
+    expect(handlers.mouseUp).not.toHaveBeenCalled();
+    expect(handlers.keyDown).not.toHaveBeenCalled();
+    result.current.routedMouseDown(new MouseEvent('mousedown', { button: 2 }));
+    expect(handlers.mouseDown).toHaveBeenCalledOnce();
+  });
 
   it('retains listener identities across tool changes and reads the current mode at dispatch', () => {
     const handlers = { mouseDown: vi.fn(), mouseMove: vi.fn(), mouseUp: vi.fn(), keyDown: vi.fn() };

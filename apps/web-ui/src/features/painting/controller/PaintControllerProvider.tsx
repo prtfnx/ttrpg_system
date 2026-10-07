@@ -14,6 +14,8 @@ import {
   PaintInteractionController,
   type PaintInteractionState,
 } from './PaintInteractionController';
+import { createSpriteSelectionPort } from './spriteSelectionPort';
+import { loadSelectionPreference, useSelectionPreferences } from './selectionPreferences';
 
 const EMPTY_STATE: PaintControllerState = Object.freeze({
   tableId: null,
@@ -61,6 +63,8 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
   const activeTool = useGameStore(state => state.activeTool);
   const actorId = useGameStore(state => state.userId);
   const sessionRole = useGameStore(state => state.sessionRole);
+  const selectionMode = useSelectionPreferences(state => state.mode);
+  const sessionCode = protocol?.getSessionCode() ?? null;
   const controller = useMemo(() => {
     if (!protocol) return null;
     return new PaintController(
@@ -111,11 +115,34 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
     interaction?.setActor(actorId, isDM(sessionRole));
   }, [actorId, interaction, sessionRole]);
 
+  useEffect(() => loadSelectionPreference(sessionCode, actorId), [sessionCode, actorId]);
+
   useEffect(() => {
+    interaction?.setSpriteSelectionPort(protocol ? createSpriteSelectionPort(runtime, protocol) : null);
+    return () => interaction?.setSpriteSelectionPort(null);
+  }, [interaction, protocol, runtime]);
+
+  useEffect(() => {
+    interaction?.setSelectionMode(selectionMode);
+  }, [interaction, selectionMode]);
+
+  useEffect(() => {
+    if (!interaction) return;
+    return useGameStore.subscribe((current, previous) => {
+      if ((current.sprites !== previous.sprites && current.selectedSprites === previous.selectedSprites)
+        || current.activeLayer !== previous.activeLayer || current.layerVisibility !== previous.layerVisibility) {
+        interaction.reconcileSelection();
+      }
+    });
+  }, [interaction]);
+
+  useEffect(() => {
+    const combinedSelect = selectionMode === 'combined' && (activeTool === 'select' || activeTool === 'move');
+    interaction?.setSelectOnly(combinedSelect);
     interaction?.setEnabled(
-      activeTool === 'paint' && runtimeStatus.isCanvasAttached && !runtimeStatus.isContextLost,
+      (activeTool === 'paint' || combinedSelect) && runtimeStatus.isCanvasAttached && !runtimeStatus.isContextLost,
     );
-  }, [activeTool, interaction, runtimeStatus.isCanvasAttached, runtimeStatus.isContextLost]);
+  }, [activeTool, interaction, selectionMode, runtimeStatus.isCanvasAttached, runtimeStatus.isContextLost]);
 
   useEffect(() => {
     controller?.selectTable(activeTableId);

@@ -123,6 +123,16 @@ function harness(committed: PaintObject[] = []) {
 }
 
 describe('PaintInteractionController', () => {
+  it('does not delete a controllable sprite when its separate delete permission is absent', () => {
+    const { controller, runtime, scene } = harness([object()]);
+    const sprites = { items: () => [{ id: 'player-text', x: 35, y: 5, bounds: [35, 5, 50, 15] as const, canEdit: true, canDelete: false }],
+      hitTest: () => null, select: vi.fn(), preview: vi.fn(), move: vi.fn(), remove: vi.fn() };
+    controller.setSpriteSelectionPort(sprites); controller.setSelectionMode('combined'); controller.setSelectOnly(true);
+    runtime.hitTestPaintObject.mockReturnValue(null);
+    controller.handlePointerDown(pointer(1, 10, 20)); controller.handlePointerUp(pointer(1, 70, 40));
+    controller.deleteSelected();
+    expect(scene.submitDelete).toHaveBeenCalledOnce(); expect(sprites.remove).not.toHaveBeenCalled();
+  });
   it('marquee-selects paint in either direction and moves every selected editable object', () => {
     const first = object();
     const second = { ...object(), id: crypto.randomUUID(), transform: { x: 40, y: 6, scale_x: 1, scale_y: 1 } };

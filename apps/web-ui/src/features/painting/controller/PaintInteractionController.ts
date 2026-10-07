@@ -58,6 +58,7 @@ export interface SelectionSprite {
   y: number;
   bounds: SelectionBounds;
   canEdit: boolean;
+  canDelete?: boolean;
 }
 
 export interface SpriteSelectionPort {
@@ -154,6 +155,7 @@ function eventPressure(event: PointerEvent): number {
 function isEditableTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLInputElement
     || target instanceof HTMLTextAreaElement
+    || target instanceof HTMLSelectElement
     || (target instanceof HTMLElement && target.isContentEditable);
 }
 
@@ -283,6 +285,8 @@ export class PaintInteractionController {
 
   setSpriteSelectionPort(port: SpriteSelectionPort | null): void { this.sprites = port; }
 
+  cancelSelectionGesture(): void { this.cancelGesture(); }
+
   reconcileSelection(): void {
     const table = this.sceneState.tableId;
     const visibleSprites = table ? this.sprites?.items(table) ?? [] : [];
@@ -347,7 +351,7 @@ export class PaintInteractionController {
     for (const selected of this.selectedPaints().filter(item => this.canEdit(item))) {
       changed = this.scene.submitDelete(selected.id, selected.version) !== null || changed;
     }
-    for (const sprite of this.selectedSprites().filter(item => item.canEdit)) {
+    for (const sprite of this.selectedSprites().filter(item => item.canDelete === true)) {
       this.sprites?.remove(tableId, sprite.id);
       changed = true;
     }

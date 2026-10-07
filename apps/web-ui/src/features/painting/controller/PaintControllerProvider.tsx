@@ -3,7 +3,7 @@ import { useGameStore } from '@/store';
 import { useWasmRuntime, useWasmStatus } from '@lib/wasm/runtime';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { isDM } from '@features/session/types/roles';
+import { canInteract, isDM } from '@features/session/types/roles';
 import {
   PaintController,
   type PaintControllerState,
@@ -112,7 +112,7 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
   }, [interaction]);
 
   useEffect(() => {
-    interaction?.setActor(actorId, isDM(sessionRole));
+    interaction?.setActor(canInteract(sessionRole) ? actorId : null, isDM(sessionRole));
   }, [actorId, interaction, sessionRole]);
 
   useEffect(() => loadSelectionPreference(sessionCode, actorId), [sessionCode, actorId]);
@@ -129,6 +129,9 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
   useEffect(() => {
     if (!interaction) return;
     return useGameStore.subscribe((current, previous) => {
+      if (current.activeLayer !== previous.activeLayer || current.layerVisibility !== previous.layerVisibility) {
+        interaction.cancelSelectionGesture();
+      }
       if ((current.sprites !== previous.sprites && current.selectedSprites === previous.selectedSprites)
         || current.activeLayer !== previous.activeLayer || current.layerVisibility !== previous.layerVisibility) {
         interaction.reconcileSelection();

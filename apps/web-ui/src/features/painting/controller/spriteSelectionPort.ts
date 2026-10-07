@@ -1,5 +1,6 @@
 import { useGameStore } from '@/store';
 import type { Sprite } from '@/types';
+import { canInteract, isDM } from '@features/session/types/roles';
 import type { WebClientProtocol } from '@lib/websocket';
 import type { WasmRuntimePort } from '@lib/wasm/runtime';
 import type { SpriteSelectionPort } from './PaintInteractionController';
@@ -25,7 +26,9 @@ export function createSpriteSelectionPort(runtime: WasmRuntimePort, protocol: We
       return store.sprites.filter(sprite => sprite.tableId === tableId && sprite.layer === store.activeLayer
         && store.layerVisibility[sprite.layer] !== false && sprite.isVisible !== false)
         .map(sprite => ({ id: sprite.id, x: sprite.x, y: sprite.y,
-          bounds: spriteSelectionBounds(sprite), canEdit: store.canControlSprite(sprite.id) }));
+          bounds: spriteSelectionBounds(sprite),
+          canEdit: canInteract(store.sessionRole) && store.canControlSprite(sprite.id),
+          canDelete: isDM(store.sessionRole) }));
     },
     hitTest(x, y) { return runtime.getRenderEngine()?.selection_hit_test_sprite(x, y) ?? null; },
     select(ids) {

@@ -172,6 +172,9 @@ paint version change cancels an in-flight edit based on the old version.
 Group writes remain separate commands, with individual errors and existing
 pending-operation/resource limits; a mixed group is not an atomic transaction.
 
+Sprite movement uses control ownership; deletion remains DM-only even for
+player-controlled text. Changing layer visibility cancels local gestures.
+
 With the per-member combined-selection preference enabled, the default Select
 tool routes sprites and paint through the same interaction controller. Sprite
 picking stays on the visible, selectable active layer and active table. Sprites

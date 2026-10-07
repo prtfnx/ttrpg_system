@@ -213,6 +213,12 @@ cover, terrain, resources, and turns are accepted by the server through
 
 ## Add new WASM behavior
 
+Editor selection uses runtime-owned paint selection methods and the typed engine
+queries `selection_hit_test_sprite` and `selection_set_sprites`. Sprite queries
+are restricted to the active table and selectable, visible active layer. Selecting
+does not emit durable operations. `selectPaintObjects` replaces local paint IDs
+and invalidates renderer previews; durable writes still go through the protocol.
+
 1. Add the Rust method, event, or operation.
 2. Add a Rust or wasm-bindgen boundary test.
 3. Regenerate bindings.

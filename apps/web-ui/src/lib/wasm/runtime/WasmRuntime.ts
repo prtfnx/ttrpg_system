@@ -523,6 +523,12 @@ export class WasmRuntime implements WasmRuntimePort {
     return selected;
   }
 
+  selectPaintObjects(objectIds: readonly string[]): boolean {
+    const selected = this.renderEngine?.paint_select_objects(JSON.stringify(objectIds)) ?? false;
+    if (selected) this.invalidateFramedPreview();
+    return selected;
+  }
+
   clearPaintObjectSelection(): void {
     this.renderEngine?.paint_clear_object_selection();
     this.invalidateFramedPreview();

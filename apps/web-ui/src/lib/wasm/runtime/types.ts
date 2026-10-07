@@ -100,6 +100,9 @@ export interface RenderEngine {
   paint_hit_test_object(worldX: number, worldY: number, tolerance: number): string | undefined;
   paint_hit_test_handle(objectId: string, worldX: number, worldY: number, tolerance: number): string | undefined;
   paint_select_object(objectId: string): boolean;
+  paint_select_objects(idsJson: string): boolean;
+  selection_hit_test_sprite(worldX: number, worldY: number): string | undefined;
+  selection_set_sprites(ids: string[]): boolean;
   paint_clear_object_selection(): void;
   paint_selected_object_id(): string | undefined;
   paint_object_revision(): number;

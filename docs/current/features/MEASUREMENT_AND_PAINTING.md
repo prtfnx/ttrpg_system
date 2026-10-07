@@ -193,6 +193,12 @@ and clamps expiry to two seconds. Preview traffic uses a separate rate budget.
 The controller allows 256 remote drafts and retains at most 1,024 two-second
 sequence tombstones so stale previews cannot resurrect cancelled, expired,
 or committed drafts. Losing every preview does not affect durable state.
+New committed events also install an object-wide two-second preview grace
+period in the same bounded cache. This blocks a delayed first preview even
+when no actor sequence was observed before commit. Best-effort previews for
+a rapid next edit of that object may be suppressed during this period; local
+drafts and durable writes remain immediate. Replayed events at/below the
+confirmed revision do not clear a newer preview or extend the grace period.
 
 ## Renderer
 

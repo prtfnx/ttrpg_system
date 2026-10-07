@@ -273,13 +273,14 @@ export class PaintController {
     }
     this.pending.delete(event.operation_id);
     this.runtime.clearPaintDraft?.(this.pendingDraftKey(event.operation_id));
-    this.removePreviewForCommittedEvent(event);
-    if (this.hydrating) {
-      this.bufferEvent(event);
+    if (event.revision <= this.revision) {
+      // A replay acknowledges old intent, not the newer gesture on that object.
       this.emit();
       return;
     }
-    if (event.revision <= this.revision) {
+    this.removePreviewForCommittedEvent(event);
+    if (this.hydrating) {
+      this.bufferEvent(event);
       this.emit();
       return;
     }
@@ -490,6 +491,8 @@ export class PaintController {
   acceptPreview(preview: PaintPreview): void {
     const now = this.now();
     if (preview.table_id !== this.tableId || preview.expires_at <= now) return;
+    const committed = this.previewTombstones.get(`committed:${preview.temporary_id}`);
+    if (committed && committed.expiresAt > now) return;
     const key = `${preview.actor_id}:${preview.temporary_id}`;
     const cancelled = this.previewTombstones.get(key);
     if (cancelled && cancelled.expiresAt > now && preview.sequence <= cancelled.sequence) return;
@@ -719,6 +722,10 @@ export class PaintController {
         this.runtime.clearPaintDraft?.(this.remoteDraftKey(key));
       }
     }
+    // A first preview can arrive after its commit, before any actor sequence is
+    // known. Share the bounded tombstone cache and suppress it for the preview
+    // TTL; durable events are unaffected and newer gestures resume afterward.
+    this.rememberPreviewSequence(`committed:${objectId}`, Number.MAX_SAFE_INTEGER);
   }
 
   private rememberPreviewSequence(key: string, sequence: number): void {

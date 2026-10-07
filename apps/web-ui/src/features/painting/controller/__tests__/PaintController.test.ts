@@ -586,6 +586,49 @@ describe('PaintController', () => {
     expect(controller.getState().remotePreviews).toEqual([]);
   });
 
+  it.each(['create', 'update', 'delete'] as const)(
+    'does not resurrect a delayed first preview after a committed %s', action => {
+      const { controller, runtime, advance } = harness();
+      controller.selectTable(TABLE);
+      controller.acceptSnapshotChunk(chunk(0, 1, action === 'create' ? [] : [object()], action === 'create' ? 0 : 1));
+      const identity = { operation_id: OPERATION, table_id: TABLE, revision: action === 'create' ? 1 : 2 };
+      controller.acceptEvent(action === 'delete'
+        ? { ...identity, action, deleted_id: object().id, deleted_version: 1 }
+        : { ...identity, action, object: object(action === 'update' ? 2 : 1) });
+      const preview = {
+        table_id: TABLE, temporary_id: input().id, sequence: 2,
+        expires_at: 5_000, draft: input(), actor_id: 7,
+      };
+      controller.acceptPreview(preview);
+      expect(controller.getState().remotePreviews).toEqual([]);
+      expect(runtime.setPaintDraft).not.toHaveBeenCalled();
+      // The bounded post-commit grace period cannot permanently block new work.
+      advance(2_001);
+      controller.tick();
+      controller.acceptPreview({ ...preview, sequence: 3 });
+      expect(controller.getState().remotePreviews).toHaveLength(1);
+      expect(runtime.setPaintDraft).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('does not clear a newer remote gesture when an old committed event is duplicated', () => {
+    const { controller, runtime } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [object()], 4));
+    const preview = {
+      table_id: TABLE, temporary_id: input().id, sequence: 10,
+      expires_at: 3_000, draft: input(), actor_id: 7,
+    };
+    controller.acceptPreview(preview);
+    controller.acceptEvent({
+      operation_id: OPERATION, table_id: TABLE, revision: 4,
+      action: 'create', object: object(),
+    });
+    expect(controller.getState().remotePreviews).toEqual([preview]);
+    expect(runtime.clearPaintDraft).not.toHaveBeenCalledWith(`remote:7:${input().id}`);
+    expect(runtime.upsertPaintObject).not.toHaveBeenCalled();
+  });
+
   it('remembers cancellations received before previews and ignores reordered packets', () => {
     const { controller, runtime } = harness();
     controller.selectTable(TABLE);

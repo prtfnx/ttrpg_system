@@ -6,7 +6,7 @@ const mockAssetSync = vi.hoisted(() => ({
   areTexturesSettled: vi.fn(() => false),
   releaseTexturesExcept: vi.fn(),
 }));
-const mockSpriteSync = vi.hoisted(() => ({ init: vi.fn(), dispose: vi.fn() }));
+const mockSpriteSync = vi.hoisted(() => ({ init: vi.fn(), dispose: vi.fn(), areTextTexturesReady: vi.fn(() => true) }));
 const mockTableSync = vi.hoisted(() => ({
   init: vi.fn(),
   dispose: vi.fn(),
@@ -34,9 +34,19 @@ beforeEach(() => {
   vi.clearAllMocks();
   tableCallbacks.value = null;
   mockAssetSync.areTexturesSettled.mockReturnValue(false);
+  mockSpriteSync.areTextTexturesReady.mockReturnValue(true);
 });
 
 describe('WasmSyncCoordinator', () => {
+  it('does not frame a table while its derived text textures are pending', () => {
+    const coordinator = new WasmSyncCoordinator(vi.fn());
+    tableCallbacks.value?.onHydrated?.('text-table', []);
+    mockAssetSync.areTexturesSettled.mockReturnValue(true);
+    mockSpriteSync.areTextTexturesReady.mockReturnValue(false);
+    expect(coordinator.isTableVisuallyReady('text-table')).toBe(false);
+    mockSpriteSync.areTextTexturesReady.mockReturnValue(true);
+    expect(coordinator.isTableVisuallyReady('text-table')).toBe(true);
+  });
   const fakeEngine = { resize: vi.fn() } as never;
   const resolveDownloadedAsset = vi.fn(async () => 'blob:cached-asset');
 

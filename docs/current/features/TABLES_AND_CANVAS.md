@@ -107,6 +107,13 @@ Switch table:
 8. `frameTableId` becomes ready only after required textures settle and a
    subsequent render frame completes.
 
+Required texture readiness includes derived text textures. The coordinator
+does not publish `frameTableId` while text is awaiting font shaping or image
+decoding. Table replacement retains only the current table's text resources;
+detach/context restoration rebuilds them from authoritative metadata. This
+boundary is covered by `WasmSyncCoordinator.test.ts` and the real-browser text
+rendering tests.
+
 Table previews:
 
 1. For DMs, `table_list_response` includes `has_preview`, `preview_etag`, and

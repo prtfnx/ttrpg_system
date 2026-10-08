@@ -77,6 +77,7 @@ export class WasmSyncCoordinator {
 
   isTableVisuallyReady(tableId: string): boolean {
     const textureIds = this.tableTextureIds.get(tableId);
-    return textureIds !== undefined && this.assetSync.areTexturesSettled(textureIds);
+    return textureIds !== undefined && this.assetSync.areTexturesSettled(textureIds)
+      && this.spriteSync.areTextTexturesReady(tableId);
   }
 }

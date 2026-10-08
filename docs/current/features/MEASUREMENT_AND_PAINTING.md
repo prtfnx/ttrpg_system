@@ -181,6 +181,14 @@ selection without losing retained paint. Hidden or non-resident IDs are pruned;
 selection changes cancel a stale local gesture. This does not create a durable
 group entity or grant permission to edit other users' objects.
 
+The adapter uses `WasmRuntimePort` for picking, selection and previews. Sprite
+world bounds convert store degrees to radians, matching the renderer. Shared
+selection owns Delete/Escape/select-all shortcuts; it suppresses legacy
+sprite-only arrow nudges, clipboard/duplicate and undo/redo shortcuts in shared
+paint/combined mode. Those group operations are not implemented. Move mixed
+groups by dragging; use separate sprite mode for its existing sprite shortcuts.
+Form controls keep normal text-editing keyboard behavior.
+
 With the per-member combined-selection preference enabled, the default Select
 tool routes sprites and paint through the same interaction controller. Sprite
 picking stays on the visible, selectable active layer and active table. Sprites

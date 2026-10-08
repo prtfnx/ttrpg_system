@@ -9,7 +9,7 @@ import type { SelectionBounds } from './SelectionManager';
 export function spriteSelectionBounds(sprite: Sprite): SelectionBounds {
   const width = (sprite.width ?? 50) * sprite.scale.x;
   const height = (sprite.height ?? 50) * sprite.scale.y;
-  const angle = sprite.rotation;
+  const angle = sprite.rotation * Math.PI / 180;
   const cx = sprite.x + width / 2;
   const cy = sprite.y + height / 2;
   const corners = [[-width / 2, -height / 2], [width / 2, -height / 2],
@@ -30,16 +30,16 @@ export function createSpriteSelectionPort(runtime: WasmRuntimePort, protocol: We
           canEdit: canInteract(store.sessionRole) && store.canControlSprite(sprite.id),
           canDelete: isDM(store.sessionRole) }));
     },
-    hitTest(x, y) { return runtime.getRenderEngine()?.selection_hit_test_sprite(x, y) ?? null; },
+    hitTest(x, y) { return runtime.hitTestSelectionSprite(x, y); },
     select(ids) {
-      if (!runtime.getRenderEngine()?.selection_set_sprites([...ids])) return;
+      if (!runtime.selectSelectionSprites(ids)) return;
       const selected = new Set(ids);
       const current = useGameStore.getState().selectedSprites;
       if (current.length === ids.length && current.every((id, index) => id === ids[index])) return;
       useGameStore.setState(state => ({ selectedSprites: [...ids],
         sprites: state.sprites.map(sprite => ({ ...sprite, isSelected: selected.has(sprite.id) })) }));
     },
-    preview(id, x, y) { runtime.getRenderEngine()?.update_sprite_position(id, x, y); },
+    preview(id, x, y) { runtime.previewSelectionSprite(id, x, y); },
     move(tableId, id, x, y) { protocol.moveSprite(id, x, y, tableId); },
     remove(tableId, id) { protocol.removeSprite(id, tableId); },
   };

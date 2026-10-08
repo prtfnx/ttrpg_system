@@ -5,6 +5,10 @@ import { WasmRuntime } from '../WasmRuntime';
 const mocks = vi.hoisted(() => {
   const renderEngine = {
     render: vi.fn(),
+    remove_sprite: vi.fn(),
+    selection_hit_test_sprite: vi.fn(() => 'sprite-1'),
+    selection_set_sprites: vi.fn(() => true),
+    update_sprite_position: vi.fn(() => true),
     free: vi.fn(),
     set_camera: vi.fn(),
     set_current_user_id: vi.fn(),
@@ -119,6 +123,14 @@ vi.mock('@features/assets', () => ({
 }));
 
 describe('WasmRuntime', () => {
+  it('owns local sprite selection queries and previews without sending durable commands', async () => {
+    await runtime.attachCanvas(canvas, { userId: 1, role: 'owner', activeLayer: 'map' });
+    expect(runtime.hitTestSelectionSprite(10, 20)).toBe('sprite-1');
+    expect(runtime.selectSelectionSprites(['sprite-1'])).toBe(true);
+    expect(runtime.previewSelectionSprite('sprite-1', 30, 40)).toBe(true);
+    expect(mocks.renderEngine.selection_set_sprites).toHaveBeenCalledWith(['sprite-1']);
+    expect(mocks.renderEngine.update_sprite_position).toHaveBeenCalledWith('sprite-1', 30, 40);
+  });
   let runtime: WasmRuntime;
   let canvas: HTMLCanvasElement;
 
@@ -409,11 +421,13 @@ describe('WasmRuntime', () => {
     });
 
     expect(protocol.createSprite).toHaveBeenCalledWith({
-      sprite_id: 'shape-1',
+      sprite_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+      table_id: 'table-1',
       x: 10,
       y: 12,
       obstacle_type: 'rectangle',
     });
+    expect(mocks.renderEngine.remove_sprite).toHaveBeenCalledWith('shape-1');
   });
 
   it('bridges Rust spriteAdded runtime events to existing browser listeners', async () => {

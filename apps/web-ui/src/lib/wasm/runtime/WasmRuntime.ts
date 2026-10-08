@@ -534,6 +534,22 @@ export class WasmRuntime implements WasmRuntimePort {
     this.invalidateFramedPreview();
   }
 
+  hitTestSelectionSprite(worldX: number, worldY: number): string | null {
+    return this.renderEngine?.selection_hit_test_sprite(worldX, worldY) ?? null;
+  }
+
+  selectSelectionSprites(spriteIds: readonly string[]): boolean {
+    const selected = this.renderEngine?.selection_set_sprites([...spriteIds]) ?? false;
+    if (selected) this.invalidateFramedPreview();
+    return selected;
+  }
+
+  previewSelectionSprite(spriteId: string, x: number, y: number): boolean {
+    const updated = this.renderEngine?.update_sprite_position(spriteId, x, y) ?? false;
+    if (updated) this.invalidateFramedPreview();
+    return updated;
+  }
+
   getSelectedPaintObjectId(): string | null {
     return this.renderEngine?.paint_selected_object_id() ?? null;
   }
@@ -674,12 +690,17 @@ export class WasmRuntime implements WasmRuntimePort {
       return;
     }
 
-    if (!this.protocol?.createSprite || !this.isRecord(operation.data)) {
+    if (!this.isRecord(operation.data)) return;
+    // Rust shapes are placement previews. Only the server acknowledgement may
+    // put a persistent sprite back in the renderer and authoritative store.
+    if (typeof operation.data.sprite_id === 'string') this.renderEngine?.remove_sprite(operation.data.sprite_id);
+    const tableId = this.renderEngine?.get_active_table_id();
+    if (!this.protocol?.createSprite || !tableId) {
       logger.warn('[WasmRuntime] Cannot route WASM sprite creation without protocol and payload.');
       return;
     }
 
-    this.protocol.createSprite(operation.data);
+    this.protocol.createSprite({ ...operation.data, table_id: tableId, sprite_id: crypto.randomUUID() });
   }
 
   private toRuntimeProtocol(protocol: unknown | null): RuntimeProtocol | null {

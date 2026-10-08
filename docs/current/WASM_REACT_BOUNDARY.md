@@ -213,11 +213,18 @@ cover, terrain, resources, and turns are accepted by the server through
 
 ## Add new WASM behavior
 
-Editor selection uses runtime-owned paint selection methods and the typed engine
-queries `selection_hit_test_sprite` and `selection_set_sprites`. Sprite queries
+Editor selection uses runtime-owned paint selection methods and
+`hitTestSelectionSprite`, `selectSelectionSprites`, and `previewSelectionSprite`.
+The runtime maps these to typed engine queries and local preview updates. Queries
 are restricted to the active table and selectable, visible active layer. Selecting
 does not emit durable operations. `selectPaintObjects` replaces local paint IDs
 and invalidates renderer previews; durable writes still go through the protocol.
+
+Shape placement callbacks also pass through this boundary. The runtime removes
+the temporary Rust shape, captures the resident table ID, assigns a fresh UUID,
+and submits normal sprite creation. Only an accepted server response inserts
+the authoritative sprite into the store and renderer. Missing table/protocol or
+rejected creation cannot leave a persistent local-only shape.
 
 1. Add the Rust method, event, or operation.
 2. Add a Rust or wasm-bindgen boundary test.

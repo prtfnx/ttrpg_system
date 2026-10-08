@@ -83,6 +83,9 @@ export interface WasmRuntimePort {
   hitTestPaintHandle(objectId: string, worldX: number, worldY: number, tolerance: number): string | null;
   selectPaintObject(objectId: string): boolean;
   selectPaintObjects(objectIds: readonly string[]): boolean;
+  hitTestSelectionSprite(worldX: number, worldY: number): string | null;
+  selectSelectionSprites(spriteIds: readonly string[]): boolean;
+  previewSelectionSprite(spriteId: string, x: number, y: number): boolean;
   clearPaintObjectSelection(): void;
   getSelectedPaintObjectId(): string | null;
   getPaintObjectRevision(): number;

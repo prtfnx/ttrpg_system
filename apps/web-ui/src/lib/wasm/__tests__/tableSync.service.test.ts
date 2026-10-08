@@ -82,6 +82,15 @@ beforeEach(() => {
 });
 
 describe('TableSyncService', () => {
+  it('passes saved procedural anchors and geometry through the post-stage', () => {
+    const service = makeService(); service.init();
+    const geometry = { x1: 200, y1: 100, x2: 240, y2: 80 };
+    dispatch('table-data-received', { table_data: tableSnapshot({ layers: { obstacles: [{ sprite_id: 'line',
+      obstacle_type: 'line', position: [200, 80], width: 40, height: 20, obstacle_data: geometry }] } }) });
+    expect(mockSpriteSync.addSpriteToWasm).toHaveBeenCalledWith(expect.objectContaining({ x: 200, y: 80,
+      table_id: TABLE_A, obstacle_data: geometry }), { authoritativeSnapshot: true });
+    service.dispose();
+  });
   describe('lifecycle', () => {
     it('registers listeners once and removes them on dispose', () => {
       const service = makeService();

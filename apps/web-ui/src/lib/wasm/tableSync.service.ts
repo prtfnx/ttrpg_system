@@ -163,7 +163,7 @@ export class TableSyncService {
       snapshot.walls.forEach(wall => engine.add_wall(JSON.stringify(wall)));
       snapshot.specialSprites.forEach(sprite => {
         this.spriteSync.addSpriteToWasm(
-          { ...sprite, obstacle_data: undefined, table_id: tableId },
+          { ...sprite, x: sprite.coord_x, y: sprite.coord_y, table_id: tableId },
           { authoritativeSnapshot: true },
         );
       });

@@ -88,6 +88,11 @@ Procedural post-staging preserves saved world anchors and obstacle geometry.
 Paint has a separate radians-based transform contract; do not mix its angles
 with sprite protocol values.
 
+`TableSyncService` forwards normalized procedural coordinates as world `x/y`
+and retains obstacle geometry. The two-client WebGL text regression restores
+from a full saved table snapshot, verifies the saved anchor, and applies the
+accepted edit on both renderers.
+
 ## Protocol messages
 
 Current sprite messages:

@@ -5,6 +5,7 @@ import initWasm, { RenderEngine } from '../generated/ttrpg_rust_core';
 import { SpriteSyncService } from '../spriteSync.service';
 import { normalizeTableSnapshot } from '../tableSnapshot';
 import type { AssetSyncService } from '../assetSync.service';
+import { TableSyncService } from '../tableSync.service';
 
 const TABLE = '550e8400-e29b-41d4-a716-446655440030';
 beforeAll(async () => { await initWasm({ module_or_path: new URL('../generated/ttrpg_rust_core_bg.wasm', import.meta.url) }); });
@@ -16,7 +17,8 @@ function client() {
     grid_enabled: false, scale: 1, layers: {} } }).renderer);
   engine.set_grid_enabled(false); engine.set_background_color('#000000'); engine.set_camera(0, 0, 1);
   const sync = new SpriteSyncService(() => engine, { requestAssetDownload: vi.fn() } as unknown as AssetSyncService);
-  sync.init(); return { canvas, engine, sync, dispose() { sync.dispose(); engine.free(); } };
+  const tables = new TableSyncService(() => engine, sync);
+  sync.init(); tables.init(); return { canvas, engine, sync, dispose() { tables.dispose(); sync.dispose(); engine.free(); } };
 }
 function coloredPixels(canvas: HTMLCanvasElement, channel: number) {
   const gl = canvas.getContext('webgl2')!; const pixels = new Uint8Array(canvas.width * canvas.height * 4);
@@ -42,8 +44,12 @@ describe('Unicode text sprites (real browser and WebGL)', () => {
     const saved = { sprite_id: '550e8400-e29b-41d4-a716-446655440031', table_id: TABLE, x: 20, y: 20, width: 180, height: 45,
       layer: 'tokens', texture_path: '__TEXT__', metadata, controlled_by: [], rotation: 0 };
     try {
-      first.sync.addSpriteToWasm(JSON.parse(JSON.stringify(saved))); second.sync.addSpriteToWasm(JSON.parse(JSON.stringify(saved)));
+      window.dispatchEvent(new CustomEvent('table-data-received', { detail: { table_data: { table_id: TABLE,
+        table_name: 'Text', width: 400, height: 200, grid_enabled: false, background_color_hex: '#000000',
+        layers: { tokens: [JSON.parse(JSON.stringify(saved))] } } } }));
       await vi.waitFor(() => expect(first.sync.areTextTexturesReady(TABLE) && second.sync.areTextTexturesReady(TABLE)).toBe(true));
+      expect([...first.engine.get_sprite_position(saved.sprite_id)!]).toEqual([20, 20]);
+      expect([...second.engine.get_sprite_position(saved.sprite_id)!]).toEqual([20, 20]);
       first.engine.render(); second.engine.render();
       expect(coloredPixels(first.canvas, 0)).toBeGreaterThan(100); expect(coloredPixels(second.canvas, 0)).toBeGreaterThan(100);
       const updates = { metadata: JSON.stringify({ text_sprite: { ...DEFAULT_TEXT, text: 'Edited', color: '#00ff00' }, text_revision: 2 }), width: 160, height: 40 };

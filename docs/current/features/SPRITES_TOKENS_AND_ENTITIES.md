@@ -63,6 +63,12 @@ not persisted world dimensions. Generic fonts use platform fallback, so glyph
 availability and pixel-identical appearance across operating systems are not
 guaranteed. Rotation stays in the sprite transform, not in the texture.
 
+`TextSpriteTextureService` owns one derived `text:{table}:{sprite}` texture per
+resident text sprite. It deduplicates descriptors, waits for image decoding,
+and ignores stale asynchronous work after edits, removal, table changes or
+renderer replacement. `retain` and `dispose` release owned GPU textures.
+Only confirmed metadata enters this service; local authoring drafts never do.
+
 ## Protocol messages
 
 Current sprite messages:

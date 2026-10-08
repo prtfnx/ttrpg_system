@@ -10,6 +10,7 @@ from service.canvas_persistence_service import (
     sprite_identity_exists,
 )
 from service.movement_validator import MovementValidator
+from service.text_sprite import TextSpriteValidationError, encode_text_metadata, text_metadata
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import can_interact, get_sprite_limit, get_visible_layers, is_dm
@@ -146,6 +147,27 @@ class _SpritesMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'Only DMs can create sprites on this layer'})
 
         provided_id = sprite_data.get('sprite_id')
+        try:
+            text = text_metadata(sprite_data.get('metadata'))
+        except TextSpriteValidationError as exc:
+            return Message(MessageType.ERROR, {'error': str(exc)})
+        if text is None and sprite_data.get('texture_path') == '__TEXT__':
+            return Message(MessageType.ERROR, {'error': 'Text sprites require valid text metadata'})
+        if text is not None:
+            if layer not in {'map', 'tokens', 'dungeon_master'} or sprite_data.get('obstacle_type'):
+                return Message(MessageType.ERROR, {'error': 'Text sprites require a map, tokens, or DM layer without obstacle geometry'})
+            for field in ('width', 'height'):
+                dimension = _sprite_dimension(sprite_data.get(field))
+                if dimension is None or dimension > 4096:
+                    return Message(MessageType.ERROR, {'error': 'Text sprite dimensions must be between 0 and 4096'})
+            if any(_bounded_number(sprite_data.get(field), -1_000_000, 1_000_000) is None for field in ('x', 'y')):
+                return Message(MessageType.ERROR, {'error': 'Text sprite position must be finite and bounded'})
+            text['text_revision'] = 1
+            sprite_data['metadata'] = encode_text_metadata(text)
+            sprite_data['texture_path'] = '__TEXT__'
+            sprite_data['asset_id'] = None
+            sprite_data['asset_xxhash'] = None
+            sprite_data['texture_id'] = None
         if provided_id is not None:
             if not isinstance(provided_id, str) or not provided_id.strip() or len(provided_id) > 36:
                 return Message(MessageType.ERROR, {'error': 'Invalid sprite ID'})
@@ -588,12 +610,42 @@ class _SpritesMixin(_ProtocolBase):
         # Permission validation — DMs can always update any sprite
         role = self._get_client_role(client_id)
         user_id = self._get_user_id(msg, client_id)
+        if not can_interact(role):
+            return Message(MessageType.ERROR, {'error': 'Spectators cannot modify sprites'})
         if not is_dm(role) and not await self._can_control_sprite(sprite_id, user_id):
             logger.warning(f"User {user_id} attempted to update sprite {sprite_id} without permission")
             return Message(MessageType.ERROR, {'error': 'Permission denied: you cannot control this sprite'})
 
         # Extract character binding updates
         updates: dict[str, Any] = {}
+        try:
+            text = text_metadata(update_data.get('metadata'))
+        except TextSpriteValidationError as exc:
+            return Message(MessageType.ERROR, {'error': str(exc)})
+        if text is not None:
+            table = self.table_manager.get_table(table_id)
+            entity = table.find_entity_by_sprite_id(sprite_id) if table is not None else None
+            if entity is None:
+                return Message(MessageType.ERROR, {'error': 'Text sprite not found'})
+            try:
+                previous = text_metadata(entity.metadata, required=True)
+            except TextSpriteValidationError:
+                return Message(MessageType.ERROR, {'error': 'Only existing text sprites can be edited as text'})
+            if entity.layer not in {'map', 'tokens', 'dungeon_master'} or entity.obstacle_type:
+                return Message(MessageType.ERROR, {'error': 'This sprite cannot contain text'})
+            revision = previous.get('text_revision', 1)
+            expected = update_data.get('expected_text_revision')
+            if _bounded_integer(expected, 1, 2_147_483_646) != revision:
+                return Message(MessageType.ERROR, {'error': 'Text changed since this editor opened. Reload the saved text before editing again.',
+                    'code': 'text_version_conflict', 'sprite_id': sprite_id, 'table_id': table_id,
+                    'current_text_revision': revision})
+            text['text_revision'] = revision + 1
+            updates['metadata'] = encode_text_metadata(text)
+            for field in ('width', 'height'):
+                dimension = _sprite_dimension(update_data.get(field))
+                if dimension is None or dimension > 4096:
+                    return Message(MessageType.ERROR, {'error': 'Text sprite dimensions must be between 0 and 4096'})
+                updates[field] = dimension
         if 'character_id' in update_data:
             character_id = update_data['character_id']
             if character_id is not None and (
@@ -731,7 +783,8 @@ class _SpritesMixin(_ProtocolBase):
         response = Message(MessageType.SUCCESS, {
             'table_id': table_id,
             'sprite_id': sprite_id,
-            'message': 'Sprite updated successfully'
+            'message': 'Sprite updated successfully',
+            'updates': updates,
         })
         return response
 

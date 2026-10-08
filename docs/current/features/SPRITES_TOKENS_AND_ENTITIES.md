@@ -3,9 +3,9 @@
 Audience: contributors changing token placement, sprite updates, text sprites,
 character-token links, or vision fields on tokens.
 
-Status: current but partial.
+Status: usable.
 
-Last source audit: 2026-09-14
+Last source audit: 2026-10-06
 
 ## Source owners
 
@@ -36,9 +36,22 @@ meaning: character links, HP/AC, control ownership, aura fields, and vision
 fields. The server stores these as `Entity` rows and treats the server-side
 table actions as the persistence boundary.
 
-Text sprites are browser-created sprite-like objects. They render text to a
-texture, add that texture to the WASM renderer, and send normal sprite protocol
-messages for shared state.
+Text sprites are normal authoritative sprites. The server validates their
+versioned descriptor and stores it in `Entity.entity_metadata`; `__TEXT__` is
+their procedural texture marker, not an uploaded image or a local texture ID.
+Creation uses `sprite_create`. Editing uses `sprite_update` with
+`expected_text_revision`; the server increments `text_revision` and rejects
+stale edits without mutating or broadcasting. Successful responses carry the
+accepted metadata and dimensions. Existing `is_text` metadata is normalized
+when read or edited. No extra text table or database column is required.
+
+The shared contract is `packages/core-table/protocol/text_sprite.schema.json`.
+It bounds text to 4096 characters and 32 lines, font size to 8–128, metadata
+to 32 KiB and dimensions to 4096 world units. It accepts plain Unicode text,
+hex color, generic sans/serif/monospace typefaces, normal/italic style,
+regular/bold weight, a syntactic language tag and automatic/LTR/RTL direction.
+Language informs shaping; it does not translate text. Text cannot be an
+obstacle or light and is restricted to Map, Tokens and DM layers.
 
 ## Protocol messages
 
@@ -121,6 +134,7 @@ the render engine, not by importing generated bindings in feature code.
 ## Tests to run
 
 - `apps/server/tests/unit/test_sprites_protocol.py`
+- `apps/server/tests/unit/test_text_sprites.py`
 - `apps/server/tests/unit/test_canvas_persistence_service.py`
 - `apps/server/tests/unit/test_movement_validator.py`
 - `apps/web-ui/src/lib/websocket/__tests__/clientProtocol.test.ts`

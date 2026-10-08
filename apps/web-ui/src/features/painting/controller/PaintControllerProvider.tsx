@@ -129,6 +129,7 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
   useEffect(() => {
     if (!interaction) return;
     return useGameStore.subscribe((current, previous) => {
+      if (current.selectedSprites !== previous.selectedSprites) interaction.adoptSpriteSelection(current.selectedSprites);
       if (current.activeLayer !== previous.activeLayer || current.layerVisibility !== previous.layerVisibility) {
         interaction.cancelSelectionGesture();
       }

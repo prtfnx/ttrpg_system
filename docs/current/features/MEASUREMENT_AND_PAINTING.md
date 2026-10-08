@@ -4,7 +4,7 @@ Audience: contributors changing measurement, paint tools, reconciliation, or ren
 
 Status: usable. Completed measurements and paint objects are server-authoritative.
 
-Last source audit: 2026-10-05
+Last source audit: 2026-10-06
 
 ## Ownership
 
@@ -174,6 +174,12 @@ pending-operation/resource limits; a mixed group is not an atomic transaction.
 
 Sprite movement uses control ownership; deletion remains DM-only even for
 player-controlled text. Changing layer visibility cancels local gestures.
+
+Ctrl/Cmd+A selects confirmed paint and, in combined mode, visible active-layer
+sprites. Entity-list sprite selection is reconciled into the same namespaced
+selection without losing retained paint. Hidden or non-resident IDs are pruned;
+selection changes cancel a stale local gesture. This does not create a durable
+group entity or grant permission to edit other users' objects.
 
 With the per-member combined-selection preference enabled, the default Select
 tool routes sprites and paint through the same interaction controller. Sprite

@@ -287,6 +287,18 @@ export class PaintInteractionController {
 
   cancelSelectionGesture(): void { this.cancelGesture(); }
 
+  adoptSpriteSelection(ids: readonly string[]): void {
+    if (!this.enabled || this.selectionMode !== 'combined' || !this.sceneState.tableId) return;
+    const visible = this.sprites?.items(this.sceneState.tableId) ?? [];
+    const retained = ids.filter(id => visible.some(item => item.id === id));
+    const current = this.spriteIds();
+    if (retained.length === current.length && retained.every((id, index) => id === current[index])) return;
+    this.cancelGesture();
+    this.selection.replace([...this.selection.items.filter(ref => ref.kind === 'paint'),
+      ...retained.map(id => ({ kind: 'sprite' as const, id }))]);
+    this.syncSelection(); this.emit();
+  }
+
   reconcileSelection(): void {
     const table = this.sceneState.tableId;
     const visibleSprites = table ? this.sprites?.items(table) ?? [] : [];
@@ -667,6 +679,14 @@ export class PaintInteractionController {
 
   readonly handleKeyDown = (event: KeyboardEvent): void => {
     if (!this.enabled || isEditableTarget(event.target)) return;
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
+      if (this.sceneState.hydrating || this.gesture) return;
+      const sprites = this.selectionMode === 'combined' && this.sceneState.tableId
+        ? this.sprites?.items(this.sceneState.tableId) ?? [] : [];
+      this.selection.replace([...this.sceneState.committed.map(object => ({ kind: 'paint' as const, id: object.id })),
+        ...sprites.map(sprite => ({ kind: 'sprite' as const, id: sprite.id }))]);
+      this.syncSelection(); this.emit(); event.preventDefault(); return;
+    }
     if (event.key === 'Escape') {
       this.cancelGesture();
       this.clearSelection();

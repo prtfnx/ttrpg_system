@@ -123,6 +123,18 @@ function harness(committed: PaintObject[] = []) {
 }
 
 describe('PaintInteractionController', () => {
+  it('selects all visible paint/sprites and adopts entity-list selections in combined mode', () => {
+    const { controller } = harness([object()]);
+    const sprites = { items: () => [{ id: 'sprite', x: 35, y: 5, bounds: [35, 5, 50, 15] as const, canEdit: true }],
+      hitTest: () => null, select: vi.fn(), preview: vi.fn(), move: vi.fn(), remove: vi.fn() };
+    controller.setSpriteSelectionPort(sprites); controller.setSelectionMode('combined'); controller.setSelectOnly(true);
+    controller.handleKeyDown(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true }));
+    expect(controller.getState().selectionCount).toBe(2);
+    controller.adoptSpriteSelection(['hidden']);
+    expect(controller.getState().selectedSpriteIds).toEqual([]);
+    expect(controller.getState().selectedIds).toEqual([OBJECT_ID]);
+    controller.adoptSpriteSelection(['sprite']); expect(controller.getState().selectionCount).toBe(2);
+  });
   it('does not delete a controllable sprite when its separate delete permission is absent', () => {
     const { controller, runtime, scene } = harness([object()]);
     const sprites = { items: () => [{ id: 'player-text', x: 35, y: 5, bounds: [35, 5, 50, 15] as const, canEdit: true, canDelete: false }],

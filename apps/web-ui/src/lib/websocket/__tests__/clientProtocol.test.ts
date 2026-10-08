@@ -1009,6 +1009,19 @@ describe('WebClientProtocol', () => {
       expect(handler).toHaveBeenCalledOnce();
     });
 
+    it('applies accepted sprite edits only to the active table', async () => {
+      const p = makeProtocol(); const handler = vi.fn();
+      Object.assign(mocks.storeState, makeStoreState({ activeTableId: 'table-current' }));
+      window.addEventListener('sprite-updated', handler);
+      try {
+        await dispatch(p, 'success', { sprite_id: 'text-1', table_id: 'table-old', updates: { metadata: 'old' } });
+        expect(handler).not.toHaveBeenCalled();
+        await dispatch(p, 'success', { sprite_id: 'text-1', table_id: 'table-current', updates: { metadata: 'accepted' } });
+        expect(handler).toHaveBeenCalledOnce();
+        expect((handler.mock.calls[0][0] as CustomEvent).detail).toMatchObject({ operation: 'update', updates: { metadata: 'accepted' } });
+      } finally { window.removeEventListener('sprite-updated', handler); }
+    });
+
     it('BATCH_RESPONSE dispatches validated inner messages to handlers', async () => {
       const p = makeProtocol();
       const handler = vi.fn();
@@ -1856,6 +1869,13 @@ describe('WebClientProtocol', () => {
   // ── More outgoing request methods ────────────────────────────────────────
 
   describe('outgoing requests', () => {
+    it('does not let update fields overwrite captured table or sprite identity', () => {
+      const p = makeProtocol(); const ws = makeOpenWs(p);
+      p.updateSprite('text-captured', { sprite_id: 'evil', table_id: 'evil', metadata: 'text' }, 'table-captured');
+      p.sendBatch();
+      const msg = JSON.parse(ws.send.mock.calls[0][0]).data.messages[0];
+      expect(msg.data).toMatchObject({ sprite_id: 'text-captured', table_id: 'table-captured' });
+    });
     it('createSprite sends sprite_create with sprite_data', () => {
       const p = makeProtocol();
       const ws = makeOpenWs(p);

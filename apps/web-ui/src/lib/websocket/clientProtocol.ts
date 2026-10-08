@@ -969,6 +969,9 @@ export class WebClientProtocol {
       emitProtocolEvent('table-deleted', message.data);
     }
     
+    if (message.data?.sprite_id && message.data.updates && message.data.table_id && this.targetsActiveTable(message.data)) {
+      emitProtocolEvent('sprite-updated', { ...message.data, operation: 'update' });
+    }
     emitProtocolEvent('protocol-success', message.data);
   }
 
@@ -1756,19 +1759,19 @@ export class WebClientProtocol {
     this.sendMessage(createMessage(MessageType.SPRITE_CREATE, { sprite_data: spriteData, table_id: tableId }, 2));
   }
 
-  updateSprite(spriteId: string, updates: Record<string, unknown>): void {
-    const activeTableId = useGameStore.getState().activeTableId;
+  updateSprite(spriteId: string, updates: Record<string, unknown>, tableId?: string): void {
+    const activeTableId = tableId ?? useGameStore.getState().activeTableId;
     if (!activeTableId) {
       logger.error('[Protocol] No active table ID available for sprite update');
       return;
     }
     validateTableId(activeTableId);
-    this.sendMessage(createMessage(MessageType.SPRITE_UPDATE, { sprite_id: spriteId, table_id: activeTableId, ...updates }, 2));
+    this.sendMessage(createMessage(MessageType.SPRITE_UPDATE, { ...updates, sprite_id: spriteId, table_id: activeTableId }, 2));
   }
 
-  moveSprite(spriteId: string, x: number, y: number): void {
+  moveSprite(spriteId: string, x: number, y: number, tableId?: string): void {
     const state = useGameStore.getState();
-    const activeTableId = state.activeTableId;
+    const activeTableId = tableId ?? state.activeTableId;
     if (!activeTableId) {
       logger.error('[Protocol] No active table ID available for sprite move');
       return;
@@ -1800,8 +1803,8 @@ export class WebClientProtocol {
     }, 2));
   }
 
-  removeSprite(spriteId: string): void {
-    const activeTableId = useGameStore.getState().activeTableId;
+  removeSprite(spriteId: string, tableId?: string): void {
+    const activeTableId = tableId ?? useGameStore.getState().activeTableId;
     if (!activeTableId) {
       logger.error('[Protocol] No active table ID available for sprite remove');
       return;

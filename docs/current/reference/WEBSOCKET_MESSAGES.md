@@ -9,6 +9,24 @@ Last source audit: 2026-10-01
 
 ## Source of truth
 
+Text sprite command fields are checked against source on 2026-10-06. A
+`sprite_create` carries `sprite_data.metadata.text_sprite` (encoded JSON is
+accepted), measured `width`/`height`, the captured top-level `table_id`, and a
+client UUID. `sprite_update` carries the same descriptor/dimensions plus
+`sprite_id` and `expected_text_revision`. The server assigns/increments
+`text_revision`; stale edits return `error` with `code: text_version_conflict`
+and the current revision. Normal layer filtering and sprite-control rules apply.
+
+`sprite_response` confirms creation. `success` confirms an edit and carries
+accepted `updates`; the sender applies those only to the active table.
+`textSpriteCommands.ts` matches `correlation_id` to the outgoing `message_id`,
+registers before sending, and removes its handlers on completion, cancellation,
+or the 15-second deadline. Unrelated acknowledgements cannot close the editor.
+There is no automatic retry: a timeout or local cancellation cannot prove the
+server did not save. Check/reload saved state before retrying an uncertain write.
+See [Sprites, tokens, and entities](../features/SPRITES_TOKENS_AND_ENTITIES.md)
+for descriptor limits, database ownership and visibility.
+
 `packages/core-table/protocol/message.schema.json` is the canonical envelope,
 message registry, and incrementally typed payload schema. Run
 `python packages/core-table/scripts/generate_protocol_types.py` to generate

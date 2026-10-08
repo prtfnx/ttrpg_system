@@ -1,9 +1,9 @@
 import { useGameStore } from '@/store';
-import type { RenderEngine } from '@lib/wasm/runtime';
-import { useRenderEngine } from '@lib/wasm/runtime';
-import { logger } from '@shared/utils/logger';
-import { Check, X } from 'lucide-react';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useOptionalProtocol } from '@app/providers';
+import { canInteract } from '@features/session/types/roles';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { saveTextSprite, type TextSpriteCommand } from './textSpriteCommands';
+import { DEFAULT_TEXT, parseTextSpriteMetadata, type TextSpriteDescriptor } from './textSpriteModel';
 import styles from './TextSpriteTool.module.css';
 
 interface TextSpriteToolProps {
@@ -13,260 +13,141 @@ interface TextSpriteToolProps {
   onError?: (error: Error) => void;
 }
 
-interface InlineTextEditorProps {
-  worldPosition: { x: number; y: number };
-  renderEngine: RenderEngine;
-  onComplete: (text: string, fontSize: number, color: string) => void;
-  onCancel: () => void;
-}
+/** Text is a normal authoritative sprite, with a local, cancellable authoring form. */
+export function TextSpriteTool({ activeLayer, activeTool, onSpriteCreated, onError }: TextSpriteToolProps) {
+  const protocol = useOptionalProtocol()?.protocol ?? null;
+  const activeTableId = useGameStore(state => state.activeTableId);
+  const actorId = useGameStore(state => state.userId);
+  const role = useGameStore(state => state.sessionRole);
+  const selected = useGameStore(state => state.selectedSprites);
+  const sprites = useGameStore(state => state.sprites);
+  const canControl = useGameStore(state => state.canControlSprite);
+  const [draft, setDraft] = useState<TextSpriteCommand | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setDraft(null);
+    setSaving(false);
+    setError(null);
+  }, []);
 
-function InlineTextEditor({ worldPosition, renderEngine, onComplete, onCancel }: InlineTextEditorProps) {
-  const [text, setText] = useState('');
-  const [fontSize, setFontSize] = useState(16);  // Default 16px (0.5 multiplier)
-  const [color, setColor] = useState('#ffffff');
-  const [screenPos, setScreenPos] = useState<{ x: number; y: number } | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Convert world coords to screen coords — retry until rustRenderManager is ready
   useEffect(() => {
-    let cancelled = false;
-    let retryId: ReturnType<typeof setTimeout> | null = null;
+    cancel();
+    return () => abortRef.current?.abort();
+  }, [activeTableId, activeTool, activeLayer, actorId, role, protocol, cancel]);
 
-    const tryConvert = () => {
-      const canvas = document.querySelector('.game-canvas') as HTMLCanvasElement;
+  const draftId = draft?.id;
+  useEffect(() => { if (draftId) inputRef.current?.focus(); }, [draftId]);
 
-      if (!canvas) {
-        if (!cancelled) retryId = setTimeout(tryConvert, 100);
+  useEffect(() => {
+    if (draft?.revision !== null && draft) {
+      const target = sprites.find(sprite => sprite.id === draft.id && sprite.tableId === draft.tableId);
+      if (!target || !canControl(target.id)) cancel();
+    }
+  }, [sprites, canControl, draft, cancel]);
+
+  useEffect(() => {
+    if (activeTool !== 'text' || !activeTableId || !canInteract(role)) return;
+    const place = (event: Event) => {
+      if (draft) return;
+      const position = (event as CustomEvent<{ x: number; y: number }>).detail;
+      if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return;
+      if (!['map', 'tokens', 'dungeon_master'].includes(activeLayer)) {
+        setError('Text sprites belong on Map, Tokens, or the DM layer, not an obstacle or lighting layer.');
         return;
       }
-
-      try {
-        const rect = canvas.getBoundingClientRect();
-        const screenCoords = renderEngine.world_to_screen(worldPosition.x, worldPosition.y);
-
-        logger.debug('[InlineTextEditor] Converting coords', {
-          world: worldPosition,
-          screen: screenCoords,
-          canvasRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
-        });
-
-        // Validate screen coordinates
-        if (screenCoords && screenCoords.length >= 2 &&
-            !isNaN(screenCoords[0]) && !isNaN(screenCoords[1])) {
-          const finalX = rect.left + screenCoords[0];
-          const finalY = rect.top + screenCoords[1];
-
-          logger.debug('[InlineTextEditor] Final screen position', { x: finalX, y: finalY });
-
-          if (!cancelled) setScreenPos({ x: finalX, y: finalY });
-        } else {
-          logger.error('[InlineTextEditor] Invalid screen coords', { screenCoords });
-        }
-      } catch (error) {
-        logger.error('[InlineTextEditor] Error converting coords', error);
-      }
+      setDraft({ id: crypto.randomUUID(), tableId: activeTableId, x: position.x, y: position.y,
+        layer: activeLayer, descriptor: { ...DEFAULT_TEXT }, metadata: {}, revision: null });
+      setError(null);
     };
+    window.addEventListener('textSpriteClick', place);
+    return () => window.removeEventListener('textSpriteClick', place);
+  }, [activeLayer, activeTableId, activeTool, draft, role]);
 
-    tryConvert();
-    return () => {
-      cancelled = true;
-      if (retryId !== null) clearTimeout(retryId);
-    };
-  }, [renderEngine, worldPosition]);
+  const selectedSprite = selected.length === 1 ? sprites.find(sprite => sprite.id === selected[0] && sprite.tableId === activeTableId) : null;
+  const saved = parseTextSpriteMetadata(selectedSprite?.metadata);
+  const canEdit = selectedSprite && saved && canInteract(role) && canControl(selectedSprite.id);
+  const update = (changes: Partial<TextSpriteDescriptor>) => setDraft(current => current
+    ? { ...current, descriptor: { ...current.descriptor, ...changes } } : null);
 
-  // Auto-focus input
-  useEffect(() => {
-    if (screenPos && inputRef.current) {
-      inputRef.current.focus();
+  const save = async () => {
+    if (!draft || !protocol || saving) return;
+    const abort = new AbortController();
+    abortRef.current = abort;
+    setSaving(true);
+    setError(null);
+    try {
+      await saveTextSprite(protocol, draft, abort.signal);
+      if (abort.signal.aborted || abortRef.current !== abort) return;
+      if (draft.revision === null) onSpriteCreated?.(draft.id);
+      cancel();
+      useGameStore.getState().setActiveTool('select');
+    } catch (cause) {
+      if (abort.signal.aborted || abortRef.current !== abort) return;
+      const failure = cause instanceof Error ? cause : new Error('Text could not be saved.');
+      setError(failure.message);
+      setSaving(false);
+      onError?.(failure);
     }
-  }, [screenPos]);
+  };
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onCancel();
-      } else if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        if (text.trim()) {
-          onComplete(text.trim(), fontSize, color);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [text, fontSize, color, onComplete, onCancel]);
-
-  if (!screenPos) return null;
+  const onEditorKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === 'Escape') { event.stopPropagation(); cancel(); }
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); void save(); }
+  };
 
   return (
-    <>
-      {/* Floating toolbar above input - centered */}
-      <div
-        className={styles.toolbar}
-        style={{
-          '--editor-x': `${screenPos.x}px`,
-          '--toolbar-y': `${screenPos.y - 50}px`,
-        } as CSSProperties}
-      >
-        <label className={styles.controlLabel}>
-          Size:
-          <input
-            type="range"
-            min="12"
-            max="48"
-            value={fontSize}
-            onChange={(e) => setFontSize(Number(e.target.value))}
-            className={styles.sizeSlider}
-          />
-          <span className={styles.sizeValue}>{fontSize}px</span>
-        </label>
-        
-        <label className={styles.controlLabel}>
-          Color:
-          <input
-            type="color"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-            className={styles.colorInput}
-          />
-        </label>
-        
-        <button
-          onClick={() => text.trim() && onComplete(text.trim(), fontSize, color)}
-          aria-label="Confirm"
-          className={`${styles.toolbarButton} ${styles.confirmButton}`}
-        >
-          <Check size={14} aria-hidden />
-        </button>
-        <button
-          onClick={onCancel}
-          aria-label="Cancel"
-          className={`${styles.toolbarButton} ${styles.cancelButton}`}
-        >
-          <X size={14} aria-hidden />
-        </button>
-      </div>
-
-      {/* Inline text input - centered to match Rust text rendering */}
-      <input
-        ref={inputRef}
-        type="text"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Type text..."
-        className={styles.textInput}
-        style={{
-          '--editor-x': `${screenPos.x}px`,
-          '--editor-y': `${screenPos.y}px`,
-          '--editor-font-size': `${fontSize}px`,
-          '--editor-color': color,
-        } as CSSProperties}
-      />
-    </>
+    <section className={styles.editor} aria-label="Text sprite editor">
+      {!draft && <>
+        {activeTool === 'text' && <p>Click the table to place text. Text is saved after server confirmation.</p>}
+        <button type="button" disabled={!canEdit || !protocol} onClick={() => {
+          if (!selectedSprite || !saved) return;
+          setDraft({ id: selectedSprite.id, tableId: selectedSprite.tableId, x: selectedSprite.x, y: selectedSprite.y,
+            layer: selectedSprite.layer, descriptor: { ...saved.descriptor }, metadata: saved.metadata, revision: saved.revision });
+          setError(null);
+        }}>Edit selected text</button>
+      </>}
+      {error && <p role="alert">{error}</p>}
+      {draft && <form aria-label="Text sprite settings" onSubmit={event => { event.preventDefault(); void save(); }}>
+        <h5>{draft.revision === null ? 'Create text sprite' : 'Edit text sprite'}</h5>
+        <fieldset disabled={saving} className={styles.fields}>
+          <label>Text<textarea ref={inputRef} onKeyDown={onEditorKeyDown} aria-label="Text" placeholder="Type text..." value={draft.descriptor.text}
+            rows={4} maxLength={4096} lang={draft.descriptor.language} dir={draft.descriptor.direction}
+            onChange={event => update({ text: event.target.value })} /></label>
+          <label>Size<input onKeyDown={onEditorKeyDown} aria-label="Text size" type="number" min={8} max={128}
+            value={draft.descriptor.font_size} onChange={event => update({ font_size: Number(event.target.value) })} /></label>
+          <label>Color<input onKeyDown={onEditorKeyDown} aria-label="Text color" type="color" value={draft.descriptor.color}
+            onChange={event => update({ color: event.target.value })} /></label>
+          <label>Typeface<select onKeyDown={onEditorKeyDown} aria-label="Typeface" value={draft.descriptor.font_family}
+            onChange={event => update({ font_family: event.target.value as TextSpriteDescriptor['font_family'] })}>
+            <option value="sans-serif">Sans serif</option><option value="serif">Serif</option><option value="monospace">Monospace</option>
+          </select></label>
+          <label><input onKeyDown={onEditorKeyDown} type="checkbox" checked={draft.descriptor.font_weight === 700}
+            onChange={event => update({ font_weight: event.target.checked ? 700 : 400 })} />Bold</label>
+          <label><input onKeyDown={onEditorKeyDown} type="checkbox" checked={draft.descriptor.font_style === 'italic'}
+            onChange={event => update({ font_style: event.target.checked ? 'italic' : 'normal' })} />Italic</label>
+          <label>Language<input onKeyDown={onEditorKeyDown} aria-label="Language" value={draft.descriptor.language} maxLength={35}
+            placeholder="uk, en, ar" onChange={event => update({ language: event.target.value })} /></label>
+          <label>Direction<select onKeyDown={onEditorKeyDown} aria-label="Text direction" value={draft.descriptor.direction}
+            onChange={event => update({ direction: event.target.value as TextSpriteDescriptor['direction'] })}>
+            <option value="auto">Automatic</option><option value="ltr">Left to right</option><option value="rtl">Right to left</option>
+          </select></label>
+        </fieldset>
+        <div className={styles.actions}>
+          <button type="submit" disabled={saving || !draft.descriptor.text.trim()}>{saving ? 'Saving…' : 'Save text'}</button>
+          <button type="button" onClick={cancel}>Cancel</button>
+          {error && draft.revision !== null && <button type="button" onClick={() => {
+            protocol?.requestSpriteData(draft.id, draft.tableId); cancel();
+          }}>Reload saved text (discard draft)</button>}
+        </div>
+      </form>}
+    </section>
   );
-}
-
-export function TextSpriteTool({ 
-  activeLayer,
-  activeTool,
-  onSpriteCreated,
-  onError 
-}: TextSpriteToolProps) {
-  const [showDialog, setShowDialog] = useState(false);
-  const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null);
-  const { setActiveTool } = useGameStore();
-  const renderEngine = useRenderEngine();
-
-  // Listen for map clicks when text tool is active
-  useEffect(() => {
-    if (activeTool !== 'text') {
-      setShowDialog(false);
-      setClickPosition(null);
-      return;
-    }
-
-    const handleMapClick = (event: CustomEvent) => {
-      const { x, y } = event.detail;
-      logger.debug('[TextSpriteTool] Received textSpriteClick event', { x, y });
-      setClickPosition({ x, y });
-      setShowDialog(true);
-    };
-
-    logger.debug('[TextSpriteTool] Registering textSpriteClick event listener');
-    window.addEventListener('textSpriteClick' as keyof WindowEventMap, handleMapClick as EventListener);
-
-    return () => {
-      logger.debug('[TextSpriteTool] Removing textSpriteClick event listener');
-      window.removeEventListener('textSpriteClick' as keyof WindowEventMap, handleMapClick as EventListener);
-    };
-  }, [activeTool]);
-
-  const handleComplete = (text: string, fontSize: number, color: string) => {
-    if (!clickPosition) {
-      logger.error('[TextSpriteTool] No click position available');
-      return;
-    }
-
-    try {
-      if (!renderEngine) {
-        throw new Error('Rust render manager not available');
-      }
-
-      // Convert font size from pixels to multiplier for Rust renderer
-      // The bitmap font atlas has 32px base size, so:
-      // 16px = 0.5, 24px = 0.75, 32px = 1.0, 48px = 1.5
-      const sizeMultiplier = fontSize / 32.0;
-
-      logger.debug('[TextSpriteTool] Creating text sprite', {
-        text,
-        position: clickPosition,
-        fontSize,
-        sizeMultiplier,
-        color,
-        layer: activeLayer
-      });
-
-      // Call Rust function to create text sprite directly in WebGL
-      const rm = renderEngine as unknown as { create_text_sprite: (text: string, x: number, y: number, size: number, color: string, layer: string) => string };
-      const spriteId = rm.create_text_sprite(
-        text,
-        clickPosition.x,
-        clickPosition.y,
-        sizeMultiplier,  // Use multiplier, not pixel size
-        color,
-        activeLayer || 'tokens'
-      );
-
-      logger.info('[TextSpriteTool] Successfully created text sprite', { spriteId });
-      onSpriteCreated?.(spriteId);
-      
-      // Auto-switch to select tool after creating text
-      setActiveTool('select');
-      
-      setShowDialog(false);
-      setClickPosition(null);
-    } catch (error) {
-      logger.error('[TextSpriteTool] Error creating text sprite', error);
-      const err = error instanceof Error ? error : new Error('Unknown error');
-      onError?.(err);
-    }
-  };
-
-  const handleCancel = () => {
-    setShowDialog(false);
-    setClickPosition(null);
-  };
-
-  return showDialog && clickPosition && renderEngine ? (
-    <InlineTextEditor
-      worldPosition={clickPosition}
-      renderEngine={renderEngine}
-      onComplete={handleComplete}
-      onCancel={handleCancel}
-    />
-  ) : null;
 }
 
 export default TextSpriteTool;

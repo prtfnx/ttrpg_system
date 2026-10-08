@@ -165,6 +165,8 @@ session and returns only plain values to the async protocol handler.
 
 ## Browser and WASM flow
 
+For the user workflow, see [Create and edit text sprites](../how-to/CREATE_AND_EDIT_TEXT_SPRITES.md).
+
 The browser store owns the React-visible sprite array and permission helpers.
 Protocol handlers update store state and dispatch DOM events such as
 `sprite-created`, `sprite-moved`, and `sprite-removed`.

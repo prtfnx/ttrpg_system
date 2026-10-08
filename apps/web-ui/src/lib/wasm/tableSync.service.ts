@@ -140,6 +140,8 @@ export class TableSyncService {
         if (this.hydratedTableId !== tableId) engine.clear_vision_polygons?.();
       }
 
+      this.spriteSync.retainTextSprites(snapshot.specialSprites
+        .filter(sprite => sprite.texture_path === '__TEXT__').map(sprite => sprite.sprite_id));
       engine.handle_table_data(snapshot.renderer);
       engine.set_grid_size(snapshot.renderer.grid_cell_px);
       engine.set_grid_enabled(snapshot.renderer.show_grid);

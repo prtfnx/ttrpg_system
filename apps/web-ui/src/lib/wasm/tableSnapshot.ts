@@ -1,4 +1,5 @@
 import type { Sprite } from '@/types';
+import { parseTextSpriteMetadata } from '@features/canvas/components/TextSprite/textSpriteModel';
 
 const TABLE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CANONICAL_ASSET_ID_PATTERN = /^[0-9a-f]{16}$/;
@@ -15,7 +16,7 @@ export const RENDERER_LAYER_NAMES = [
 
 export type RendererLayerName = typeof RENDERER_LAYER_NAMES[number];
 
-const PROCEDURAL_TEXTURE_IDS = new Set(['__LIGHT__', '__FOG_HIDE__', '__FOG_REVEAL__']);
+const PROCEDURAL_TEXTURE_IDS = new Set(['__LIGHT__', '__FOG_HIDE__', '__FOG_REVEAL__', '__TEXT__']);
 
 export interface TableSummary {
   table_id: string;
@@ -249,6 +250,7 @@ function coordinate(sprite: Record<string, unknown>, axis: 'x' | 'y', path: stri
 }
 
 function rendererTextureKey(sprite: Record<string, unknown>, path: string): string {
+  if (parseTextSpriteMetadata(sprite.metadata)) return '__TEXT__';
   const legacyPath = optionalText(sprite.texture_path, `${path}.texture_path`);
   if (legacyPath && PROCEDURAL_TEXTURE_IDS.has(legacyPath)) return legacyPath;
 
@@ -449,7 +451,8 @@ export function normalizeTableSnapshot(input: unknown): NormalizedTableSnapshot 
     entries.forEach((entry, index) => {
       const { renderer: sprite, store } = normalizeSprite(entry, layerName, tableId, `table.layers.${layerName}[${index}]`);
       storeSprites.push(store);
-      if (PROCEDURAL_TEXTURE_IDS.has(sprite.texture_path)) {
+      if (PROCEDURAL_TEXTURE_IDS.has(sprite.texture_path)
+        || ['rectangle', 'circle', 'line'].includes(sprite.obstacle_type ?? '')) {
         specialSprites.push(sprite);
       } else {
         layers[layerName].push(sprite);

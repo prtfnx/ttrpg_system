@@ -26,7 +26,7 @@ const mockEngine = {
   clear_fog: vi.fn(),
 };
 
-const mockSpriteSync = { addSpriteToWasm: vi.fn() };
+const mockSpriteSync = { addSpriteToWasm: vi.fn(), retainTextSprites: vi.fn() };
 
 const mockGameState = {
   tables: [] as Array<Record<string, unknown>>,

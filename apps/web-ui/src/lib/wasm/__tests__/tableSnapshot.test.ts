@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeTableSnapshot, TableSnapshotValidationError } from '../tableSnapshot';
+import { DEFAULT_TEXT } from '@features/canvas/components/TextSprite/textSpriteModel';
 
 const TABLE_ID = '550e8400-e29b-41d4-a716-446655440000';
 
@@ -73,6 +74,21 @@ function pythonSerializedTable(overrides: Record<string, unknown> = {}) {
 }
 
 describe('normalizeTableSnapshot', () => {
+  it('reconstructs text from saved metadata instead of a stale asset or local texture ID', () => {
+    const metadata = JSON.stringify({ text_sprite: { ...DEFAULT_TEXT, text: 'Saved text' }, text_revision: 2 });
+    const snapshot = normalizeTableSnapshot({ table_data: { table_id: TABLE_ID, table_name: 'Text', width: 500, height: 500,
+      layers: { tokens: [{ sprite_id: 'text', x: 10, y: 20, width: 120, height: 40, asset_id: 'old-asset', metadata }] } } });
+    expect(snapshot.specialSprites[0]).toMatchObject({ sprite_id: 'text', texture_path: '__TEXT__', metadata });
+    expect(snapshot.renderer.layers.tokens).toEqual([]);
+    expect(snapshot.storeSprites[0]).toMatchObject({ metadata, width: 120, height: 40 });
+  });
+  it.each(['rectangle', 'circle', 'line'])('restores procedural %s through the authoritative styled-sprite path', obstacle_type => {
+    const metadata = JSON.stringify({ shape_color: '#123456', shape_filled: true, opacity: 0.5 });
+    const snapshot = normalizeTableSnapshot({ table_data: { table_id: TABLE_ID, table_name: 'Objects', width: 500, height: 500,
+      layers: { obstacles: [{ sprite_id: 'shape', x: 10, y: 20, width: 80, height: 40, obstacle_type, metadata }] } } });
+    expect(snapshot.specialSprites[0]).toMatchObject({ sprite_id: 'shape', obstacle_type, metadata });
+    expect(snapshot.renderer.layers.obstacles).toEqual([]);
+  });
   it('maps the Python serializer shape to the strict Rust renderer DTO', () => {
     const result = normalizeTableSnapshot({ table_data: pythonSerializedTable() });
 

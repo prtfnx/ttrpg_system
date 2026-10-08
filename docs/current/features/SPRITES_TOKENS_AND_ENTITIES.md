@@ -75,6 +75,12 @@ fields during text edits, and does not request an asset URL for derived text.
 Procedural lines also retain their saved endpoint direction; shape color, fill
 and opacity are restored from metadata rather than defaulting to white.
 
+Complete snapshots classify text and rectangle/circle/line objects for the
+same runtime reconstruction path. `TableSyncService` releases textures that
+belong to the previous table before applying the new snapshot. The browser
+retains server dimensions, descriptors and ownership; it does not substitute
+a stale PNG asset or browser-local texture ID during reload.
+
 ## Protocol messages
 
 Current sprite messages:

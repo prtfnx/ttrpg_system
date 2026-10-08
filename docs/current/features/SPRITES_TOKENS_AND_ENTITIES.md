@@ -53,6 +53,16 @@ regular/bold weight, a syntactic language tag and automatic/LTR/RTL direction.
 Language informs shaping; it does not translate text. Text cannot be an
 obstacle or light and is restricted to Map, Tokens and DM layers.
 
+`textSpriteModel.ts` validates the same generated contract with an ahead-of-time
+validator emitted by `scripts/message-validator-plugin.ts`; browser validation
+does not require `unsafe-eval`. It adapts legacy text to the same descriptor.
+Canvas shapes Unicode after fonts settle, measures ink overhangs and multiline
+baselines, and uses explicit language/direction. Raster textures are bounded to
+1024 pixels per edge and 262144 pixels total; DPR changes raster resolution,
+not persisted world dimensions. Generic fonts use platform fallback, so glyph
+availability and pixel-identical appearance across operating systems are not
+guaranteed. Rotation stays in the sprite transform, not in the texture.
+
 ## Protocol messages
 
 Current sprite messages:

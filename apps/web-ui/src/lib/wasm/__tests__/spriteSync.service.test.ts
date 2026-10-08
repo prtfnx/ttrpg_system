@@ -120,6 +120,13 @@ describe('SpriteSyncService', () => {
   });
 
   describe('addSpriteToWasm routing', () => {
+    it('restores descending line endpoints and procedural shape color/fill from saved metadata', () => {
+      service.addSpriteToWasm({ sprite_id: 'line', table_id: 'tbl1', layer: 'obstacles', obstacle_type: 'line',
+        obstacle_data: { x1: 10, y1: 60, x2: 90, y2: 20 }, metadata: JSON.stringify({ shape_color: '#123456', shape_filled: false, opacity: 0.5 }) });
+      expect(engine.add_sprite_to_layer).toHaveBeenCalledWith('obstacles', expect.objectContaining({
+        polygon_vertices: [[10, 60], [90, 20]], shape_filled: false, tint_color: [18 / 255, 52 / 255, 86 / 255, 0.5],
+      }));
+    });
     it('routes __LIGHT__ with layer=light to an explicitly scoped light', () => {
       service.addSpriteToWasm({ texture_path: '__LIGHT__', layer: 'light', sprite_id: 'l1', table_id: 'tbl1', x: 10, y: 20 });
       expect(engine.add_light_for_table).toHaveBeenCalledWith('l1', 10, 20, 'tbl1');

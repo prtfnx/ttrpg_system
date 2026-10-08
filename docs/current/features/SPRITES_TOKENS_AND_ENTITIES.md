@@ -69,6 +69,12 @@ and ignores stale asynchronous work after edits, removal, table changes or
 renderer replacement. `retain` and `dispose` release owned GPU textures.
 Only confirmed metadata enters this service; local authoring drafts never do.
 
+`SpriteSyncService` reconstructs text on create, response and accepted update
+events. It uses normal sprite transforms and ownership, preserves other entity
+fields during text edits, and does not request an asset URL for derived text.
+Procedural lines also retain their saved endpoint direction; shape color, fill
+and opacity are restored from metadata rather than defaulting to white.
+
 ## Protocol messages
 
 Current sprite messages:

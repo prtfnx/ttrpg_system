@@ -11,6 +11,8 @@ import { logger } from '@shared/utils/logger';
 import { wasmBridgeService } from './wasmBridge';
 import type { AssetSyncService } from './assetSync.service';
 import type { RenderEngine } from './runtime';
+import { TextSpriteTextureService } from './textSpriteTexture.service';
+import { parseTextSpriteMetadata } from '@features/canvas/components/TextSprite/textSpriteModel';
 
 // Typed payload for sprite-related custom events
 interface SpritePayload {
@@ -52,7 +54,7 @@ interface SpritePayload {
   darkvision_radius_units?: number;
   obstacle_type?: string;
   polygon_vertices?: Array<{ x: number; y: number }>;
-  obstacle_data?: { vertices?: Array<{ x: number; y: number }> };
+  obstacle_data?: { vertices?: Array<{ x: number; y: number }>; x1?: number; y1?: number; x2?: number; y2?: number };
   shape_filled?: boolean;
   character_id?: string;
   layer_changed?: boolean;
@@ -148,6 +150,7 @@ function lightSettings(metadata: unknown): LightSettings {
 }
 
 export class SpriteSyncService {
+  private readonly textTextures = new TextSpriteTextureService();
   private optimisticTimers = new Map<string, number>();
   private pendingScaleOperations = new Set<string>();
   private eventCleanups: Array<() => void> = [];
@@ -237,6 +240,7 @@ export class SpriteSyncService {
   }
 
   dispose(): void {
+    this.textTextures.dispose();
     this.eventCleanups.forEach(fn => fn());
     this.eventCleanups = [];
     this.optimisticTimers.forEach(t => clearTimeout(t));
@@ -309,6 +313,12 @@ export class SpriteSyncService {
       logger.error('[SpriteSyncService] updateSpritePosition failed:', err);
     }
   }
+
+  retainTextSprites(spriteIds: readonly string[]): void {
+    this.textTextures.retain(spriteIds);
+  }
+
+  areTextTexturesReady(tableId: string): boolean { return this.textTextures.isReady(tableId); }
 
   resizeSpriteInWasm(spriteId: string, width: number, height: number): void {
     const engine = this.getEngine();
@@ -648,7 +658,10 @@ export class SpriteSyncService {
       y = spriteData.y ?? 0;
     }
     // asset_xxhash is the server-computed verification hash; asset_id is the canonical identifier.
-    const assetId = spriteData.asset_id || spriteData.texture_id || spriteData.texture_path || null;
+    const text = parseTextSpriteMetadata(spriteData.metadata);
+    const spriteId = spriteData.sprite_id || spriteData.id || `sprite_${Date.now()}`;
+    const assetId = text ? null : spriteData.asset_id || spriteData.texture_id || spriteData.texture_path || null;
+    const textTexture = text ? this.textTextures.update(spriteId, spriteData.table_id, text.descriptor, engine) : null;
     // For shapes, restore color and fill mode from metadata JSON (stored by client at creation time)
     const isShape = spriteData.obstacle_type === 'rectangle' || spriteData.obstacle_type === 'circle' || spriteData.obstacle_type === 'line';
     let tintColor = spriteData.tint_color || [1.0, 1.0, 1.0, 1.0];
@@ -668,19 +681,23 @@ export class SpriteSyncService {
         if (typeof m.shape_filled === 'boolean') shapeFilled = m.shape_filled;
     }
     const normalizedControllerIds = controllerIds(spriteData.controlled_by);
+    const line = spriteData.obstacle_data;
+    const lineVertices = spriteData.obstacle_type === 'line' && line
+      && [line.x1, line.y1, line.x2, line.y2].every(value => typeof value === 'number' && Number.isFinite(value))
+      ? [[line.x1, line.y1], [line.x2, line.y2]] : null;
     const wasmSprite = {
-      id: spriteData.sprite_id || spriteData.id || `sprite_${Date.now()}`,
+      id: spriteId,
       world_x: x, world_y: y,
       width: spriteData.width || 50, height: spriteData.height || 50,
       scale_x: spriteData.scale_x || 1.0, scale_y: spriteData.scale_y || 1.0,
       rotation: spriteData.rotation || 0.0, layer,
-      texture_id: assetId || '',
+      texture_id: textTexture ?? assetId ?? '',
       tint_color: tintColor,
       table_id: spriteData.table_id,
       // controlled_by: normalize to number[] — server may send string IDs
       controlled_by: normalizedControllerIds,
       obstacle_type: spriteData.obstacle_type || null,
-      polygon_vertices: spriteData.polygon_vertices ?? spriteData.obstacle_data?.vertices ?? null,
+      polygon_vertices: spriteData.polygon_vertices ?? spriteData.obstacle_data?.vertices ?? lineVertices,
       shape_filled: shapeFilled,
     };
 
@@ -691,7 +708,8 @@ export class SpriteSyncService {
       useGameStore.getState().addSprite({
         id: wasmSprite.id, name: spriteData.name || 'Unnamed Entity',
         tableId: wasmSprite.table_id, x, y, layer,
-        texture: assetId || '', width: wasmSprite.width, height: wasmSprite.height,
+        texture: text ? '__TEXT__' : assetId || '', width: wasmSprite.width, height: wasmSprite.height,
+        metadata: spriteData.metadata,
         scale: { x: wasmSprite.scale_x, y: wasmSprite.scale_y }, rotation: wasmSprite.rotation,
         characterId: spriteData.character_id,
         controlledBy: normalizedControllerIds.map(String),
@@ -749,6 +767,7 @@ export class SpriteSyncService {
   }
 
   private removeSceneEntity(spriteId: string): void {
+    this.textTextures.remove(spriteId);
     const engine = this.getEngine();
     if (engine) {
       // Scene ids are globally unique. Removing from every specialized registry
@@ -823,6 +842,25 @@ export class SpriteSyncService {
 
   private handlePartialSpriteUpdate(spriteId: string, data: SpritePayload): void {
     const u = data.updates ?? {};
+    const metadata = data.metadata ?? u.metadata;
+    if (metadata !== undefined && parseTextSpriteMetadata(metadata)) {
+      const existing = useGameStore.getState().sprites.find(sprite => sprite.id === spriteId);
+      const engine = this.getEngine();
+      if (existing && engine) {
+        this.addRegularSpriteToWasm(engine, {
+          sprite_id: spriteId, table_id: existing.tableId, x: existing.x, y: existing.y, name: existing.name,
+          layer: existing.layer, width: data.width ?? u.width ?? existing.width,
+          height: data.height ?? u.height ?? existing.height,
+          scale_x: existing.scale.x, scale_y: existing.scale.y, rotation: existing.rotation,
+          controlled_by: existing.controlledBy, metadata,
+          character_id: existing.characterId, hp: existing.hp, max_hp: existing.maxHp, ac: existing.ac,
+          aura_radius: existing.auraRadius, aura_radius_units: existing.auraRadiusUnits,
+          vision_radius: existing.visionRadius, vision_radius_units: existing.visionRadiusUnits,
+          has_darkvision: existing.hasDarkvision, darkvision_radius: existing.darkvisionRadius,
+          darkvision_radius_units: existing.darkvisionRadiusUnits,
+        }, existing.layer);
+      }
+    }
     if (data.position || u.position || data.x !== undefined || u.x !== undefined) {
       const rawPos = data.position ?? u.position;
       const pos = rawPos

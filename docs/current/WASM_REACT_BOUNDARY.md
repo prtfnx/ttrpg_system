@@ -225,3 +225,14 @@ and invalidates renderer previews; durable writes still go through the protocol.
 4. Add a runtime method or callback mapping.
 5. Add a runtime contract test.
 6. Call the runtime from React, store, or protocol code.
+
+## Derived text textures
+
+Checked against source and real Chromium/WebGL tests on 2026-10-06.
+`load_text_texture` uploads an ordinary sprite texture with linear filtering;
+asset textures retain their existing filtering. Browser shaping and texture
+ownership stay in runtime-owned TypeScript services. Rust does not retain text
+editors, font promises, network commands or uploaded PNG assets. Text continues
+to use normal sprite transforms, table/layer visibility, fog and ownership.
+`textRendering.wasm-test.ts` exercises Unicode ink and independent client
+reconstruction/editing through this boundary.

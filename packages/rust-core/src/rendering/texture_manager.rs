@@ -102,6 +102,20 @@ impl TextureManager {
         self.load_texture_with_residency(name, image, TextureResidency::SceneRequired)
     }
 
+    pub fn load_text_texture(
+        &mut self,
+        name: &str,
+        image: &HtmlImageElement,
+    ) -> Result<(), JsValue> {
+        self.load_texture(name, image)?;
+        if let Some(record) = self.textures.get(name) {
+            self.gl
+                .bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(&record.texture));
+            Self::configure_texture(&self.gl, WebGlRenderingContext::LINEAR as i32);
+        }
+        Ok(())
+    }
+
     fn load_texture_with_residency(
         &mut self,
         name: &str,

@@ -168,6 +168,15 @@ impl RenderEngine {
     pub fn load_texture(&mut self, name: &str, image: &HtmlImageElement) -> Result<(), JsValue> {
         self.texture_manager.load_texture(name, image)
     }
+
+    #[wasm_bindgen]
+    pub fn load_text_texture(
+        &mut self,
+        name: &str,
+        image: &HtmlImageElement,
+    ) -> Result<(), JsValue> {
+        self.texture_manager.load_text_texture(name, image)
+    }
 }
 
 impl RenderEngine {

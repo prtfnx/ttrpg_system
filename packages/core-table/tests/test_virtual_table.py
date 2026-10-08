@@ -127,6 +127,18 @@ class TestFindEntity:
 
 
 class TestMoveEntity:
+    @pytest.mark.parametrize("shape,geometry,expected", [
+        ("line", {"x1": 1, "y1": 8, "x2": 5, "y2": 2}, {"x1": 4, "y1": 12, "x2": 8, "y2": 6}),
+        ("line", {"vertices": [[1, 8], [5, 2]]}, {"vertices": [[4, 12], [8, 6]]}),
+        ("polygon", {"vertices": [[1, 2], [5, 2], [5, 8]]}, {"vertices": [[4, 6], [8, 6], [8, 12]]}),
+    ])
+    def test_move_translates_durable_world_space_obstacle_geometry(self, shape, geometry, expected):
+        table = make_table()
+        entity = add_entity(table, x=1, y=2, obstacle_type=shape, obstacle_data=geometry)
+        table.move_entity(entity_id(entity), (4, 6))
+        assert entity.obstacle_data == expected
+        assert geometry != expected
+
     def test_move_to_valid_position(self):
         t = make_table()
         e = add_entity(t, x=0, y=0)

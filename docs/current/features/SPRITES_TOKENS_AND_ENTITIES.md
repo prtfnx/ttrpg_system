@@ -93,6 +93,12 @@ and retains obstacle geometry. The two-client WebGL text regression restores
 from a full saved table snapshot, verifies the saved anchor, and applies the
 accepted edit on both renderers.
 
+Line and polygon obstacle vertices are persisted in world coordinates.
+`VirtualTable.move_entity` translates that geometry together with the accepted
+anchor, after occupancy checks. Reloading a moved line therefore restores its
+new endpoints instead of its creation location. Shape persistence regressions
+cover normal server creation, style metadata and database reload.
+
 ## Protocol messages
 
 Current sprite messages:

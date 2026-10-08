@@ -493,6 +493,24 @@ class VirtualTable:
         if any(occupant_id != entity_id for occupant_id in occupant_ids):
             raise ValueError("Target position occupied")
 
+        # Line/polygon obstacle vertices are world-space geometry, not a local
+        # render cache. Persist their translation with the accepted anchor.
+        if entity.obstacle_type in {"line", "polygon"} and isinstance(entity.obstacle_data, dict):
+            dx = new_position[0] - entity.position[0]
+            dy = new_position[1] - entity.position[1]
+            geometry = dict(entity.obstacle_data)
+            vertices = geometry.get("vertices")
+            if isinstance(vertices, list) and all(isinstance(point, (list, tuple)) and len(point) == 2
+                    and all(isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+                            for value in point) for point in vertices):
+                geometry["vertices"] = [[point[0] + dx, point[1] + dy] for point in vertices]
+            if entity.obstacle_type == "line" and all(isinstance(geometry.get(key), (int, float))
+                    and not isinstance(geometry[key], bool) and math.isfinite(geometry[key])
+                    for key in ("x1", "y1", "x2", "y2")):
+                for key, delta in (("x1", dx), ("x2", dx), ("y1", dy), ("y2", dy)):
+                    geometry[key] += delta
+            entity.obstacle_data = geometry
+
         self._unindex_entity(entity)
         entity.position = new_position
         entity.layer = target_layer

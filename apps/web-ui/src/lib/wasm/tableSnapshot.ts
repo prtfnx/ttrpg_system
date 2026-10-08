@@ -455,7 +455,7 @@ export function normalizeTableSnapshot(input: unknown): NormalizedTableSnapshot 
         || ['rectangle', 'circle', 'line'].includes(sprite.obstacle_type ?? '')) {
         specialSprites.push(sprite);
       } else {
-        layers[layerName].push(sprite);
+        layers[layerName].push({ ...sprite, rotation: (sprite.rotation ?? 0) * Math.PI / 180 });
       }
     });
   }

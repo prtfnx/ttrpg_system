@@ -120,6 +120,11 @@ describe('SpriteSyncService', () => {
   });
 
   describe('addSpriteToWasm routing', () => {
+    it('converts protocol degrees for rendering but keeps store rotation in degrees', () => {
+      service.addSpriteToWasm({ sprite_id: 'rotated', table_id: 'tbl1', layer: 'tokens', rotation: 90 });
+      expect(engine.add_sprite_to_layer).toHaveBeenCalledWith('tokens', expect.objectContaining({ rotation: Math.PI / 2 }));
+      expect(mockAddSprite).toHaveBeenCalledWith(expect.objectContaining({ rotation: 90 }));
+    });
     it('restores descending line endpoints and procedural shape color/fill from saved metadata', () => {
       service.addSpriteToWasm({ sprite_id: 'line', table_id: 'tbl1', layer: 'obstacles', obstacle_type: 'line',
         obstacle_data: { x1: 10, y1: 60, x2: 90, y2: 20 }, metadata: JSON.stringify({ shape_color: '#123456', shape_filled: false, opacity: 0.5 }) });

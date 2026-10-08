@@ -81,6 +81,13 @@ belong to the previous table before applying the new snapshot. The browser
 retains server dimensions, descriptors and ownership; it does not substitute
 a stale PNG asset or browser-local texture ID during reload.
 
+Sprite protocol and store rotations are degrees; Rust sprite transforms are
+radians. `SpriteSyncService` and ordinary snapshot payloads convert at the
+render boundary, while store values and rollback seeds remain degrees.
+Procedural post-staging preserves saved world anchors and obstacle geometry.
+Paint has a separate radians-based transform contract; do not mix its angles
+with sprite protocol values.
+
 ## Protocol messages
 
 Current sprite messages:

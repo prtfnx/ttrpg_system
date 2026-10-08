@@ -74,6 +74,12 @@ function pythonSerializedTable(overrides: Record<string, unknown> = {}) {
 }
 
 describe('normalizeTableSnapshot', () => {
+  it('converts ordinary sprite rotation to radians only in the Rust payload', () => {
+    const snapshot = normalizeTableSnapshot({ table_data: { table_id: TABLE_ID, table_name: 'Angles', width: 500, height: 500,
+      layers: { tokens: [{ sprite_id: 'rotated', x: 10, y: 20, width: 120, height: 40, rotation: 90 }] } } });
+    expect(snapshot.renderer.layers.tokens[0].rotation).toBe(Math.PI / 2);
+    expect(snapshot.storeSprites[0].rotation).toBe(90);
+  });
   it('reconstructs text from saved metadata instead of a stale asset or local texture ID', () => {
     const metadata = JSON.stringify({ text_sprite: { ...DEFAULT_TEXT, text: 'Saved text' }, text_revision: 2 });
     const snapshot = normalizeTableSnapshot({ table_data: { table_id: TABLE_ID, table_name: 'Text', width: 500, height: 500,

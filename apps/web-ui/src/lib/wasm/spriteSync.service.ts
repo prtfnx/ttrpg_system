@@ -626,7 +626,7 @@ export class SpriteSyncService {
       world_x: x, world_y: y,
       width: spriteData.width || 50, height: spriteData.height || 50,
       scale_x: spriteData.scale_x || 1.0, scale_y: spriteData.scale_y || 1.0,
-      rotation: spriteData.rotation || 0.0, layer,
+      rotation: (spriteData.rotation ?? 0) * Math.PI / 180, layer,
       texture_id: '', tint_color: [1.0, 1.0, 1.0, 1.0],
       table_id: spriteData.table_id,
       controlled_by: [],
@@ -690,7 +690,7 @@ export class SpriteSyncService {
       world_x: x, world_y: y,
       width: spriteData.width || 50, height: spriteData.height || 50,
       scale_x: spriteData.scale_x || 1.0, scale_y: spriteData.scale_y || 1.0,
-      rotation: spriteData.rotation || 0.0, layer,
+      rotation: (spriteData.rotation ?? 0) * Math.PI / 180, layer,
       texture_id: textTexture ?? assetId ?? '',
       tint_color: tintColor,
       table_id: spriteData.table_id,
@@ -702,7 +702,7 @@ export class SpriteSyncService {
     };
 
     engine.add_sprite_to_layer(layer, wasmSprite);
-    wasmBridgeService.seedSpriteState(wasmSprite.id, { x, y, width: wasmSprite.width, height: wasmSprite.height, rotation: wasmSprite.rotation });
+    wasmBridgeService.seedSpriteState(wasmSprite.id, { x, y, width: wasmSprite.width, height: wasmSprite.height, rotation: spriteData.rotation ?? 0 });
 
     try {
       useGameStore.getState().addSprite({
@@ -710,7 +710,7 @@ export class SpriteSyncService {
         tableId: wasmSprite.table_id, x, y, layer,
         texture: text ? '__TEXT__' : assetId || '', width: wasmSprite.width, height: wasmSprite.height,
         metadata: spriteData.metadata,
-        scale: { x: wasmSprite.scale_x, y: wasmSprite.scale_y }, rotation: wasmSprite.rotation,
+        scale: { x: wasmSprite.scale_x, y: wasmSprite.scale_y }, rotation: spriteData.rotation ?? 0,
         characterId: spriteData.character_id,
         controlledBy: normalizedControllerIds.map(String),
         hp: spriteData.hp, maxHp: spriteData.max_hp, ac: spriteData.ac,

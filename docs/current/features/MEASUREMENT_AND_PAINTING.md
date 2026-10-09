@@ -198,6 +198,10 @@ The Help window uses the current Table objects/Text sprite/Paint tool names,
 distinguishes separate camera-pan behavior from combined dragging, and labels
 the 15-degree paint rotation shortcut separately from sprite rotation.
 
+The real-WebGL paint regression checks that a rotated filled object renders
+and picks at the same world position, exposes its center-pivot rotation handle,
+and retains a valid multi-object selection after rejecting unknown IDs.
+
 With the per-member combined-selection preference enabled, the default Select
 tool routes sprites and paint through the same interaction controller. Sprite
 picking stays on the visible, selectable active layer and active table. Sprites

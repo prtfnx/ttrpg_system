@@ -59,6 +59,24 @@ function pixel(canvas: HTMLCanvasElement, x: number, y: number): number[] {
 }
 
 describe('paint triangle rendering (real browser)', () => {
+  it('renders and picks rotated paint with a retained group selection', () => {
+    const { canvas, engine } = renderer();
+    const rotated = object({ kind: 'rectangle', width: 60, height: 20 });
+    rotated.transform = { ...rotated.transform, x: 80, y: 40, rotation: Math.PI / 2 };
+    rotated.style.fill_rgba = [0, 1, 0, 1];
+    const second = object({ kind: 'circle', diameter: 20 }, 2);
+    try {
+      expect(engine.paint_replace_object_snapshot(TABLE_ID, 1, JSON.stringify([rotated, second]))).toBe(true);
+      engine.render();
+      expect(pixel(canvas, 70, 70)[1]).toBeGreaterThan(240);
+      expect(engine.paint_hit_test_object(70, 70, 1)).toBe(rotated.id);
+      expect(engine.paint_hit_test_object(100, 50, 1)).toBeUndefined();
+      expect(engine.paint_select_object(rotated.id)).toBe(true);
+      expect(engine.paint_hit_test_handle(rotated.id, 108, 70, 2)).toBe('rotate');
+      expect(engine.paint_select_objects(JSON.stringify([rotated.id, second.id]))).toBe(true);
+      expect(engine.paint_select_objects(JSON.stringify(['missing']))).toBe(false);
+    } finally { engine.free(); }
+  });
   it('renders pressure-scaled dots and portable thick line widths', () => {
     const { canvas, engine } = renderer();
     const low = object({ kind: 'freehand', points: [{ x: 0, y: 0, pressure: 0.25 }] });

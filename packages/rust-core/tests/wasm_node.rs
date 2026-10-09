@@ -10,6 +10,11 @@ use wasm_bindgen_test::*;
 
 wasm_bindgen_test_configure!(run_in_node_experimental);
 
+fn js_json(value: &serde_json::Value) -> Result<wasm_bindgen::JsValue, serde_wasm_bindgen::Error> {
+    use serde::Serialize;
+    value.serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+}
+
 // ── Core utilities ────────────────────────────────────────────────────────
 
 #[wasm_bindgen_test]
@@ -104,6 +109,104 @@ fn actions_client_undo_and_redo_table_create() {
     assert_eq!(js_sys::Array::from(&client.get_all_tables()).length(), 1);
     assert!(client.can_undo(), "redo should restore undoable action");
     assert!(!client.can_redo(), "redo stack should be empty after redo");
+}
+
+#[wasm_bindgen_test]
+fn actions_client_undo_redo_sprite_update_and_layer_changes() {
+    let mut client = core::ActionsClient::new();
+    let position = js_json(&serde_json::json!({"x": 10, "y": 20})).unwrap();
+    let created: serde_json::Value =
+        serde_wasm_bindgen::from_value(client.create_sprite("t", "tokens", &position, "token"))
+            .unwrap();
+    let id = created["data"]["sprite_id"].as_str().unwrap();
+    let updates = js_json(&serde_json::json!({"rotation": 90})).unwrap();
+    client.update_sprite(id, &updates);
+    client.undo();
+    let sprite: serde_json::Value =
+        serde_wasm_bindgen::from_value(client.get_sprite_info(id)).unwrap();
+    assert_eq!(sprite["rotation"].as_f64(), Some(0.0));
+    client.redo();
+    client.move_sprite_to_layer(id, "map");
+    client.undo();
+    let sprite: serde_json::Value =
+        serde_wasm_bindgen::from_value(client.get_sprite_info(id)).unwrap();
+    assert_eq!(sprite["layer"], "tokens");
+    assert_eq!(sprite["rotation"].as_f64(), Some(90.0));
+    client.set_layer_visibility("map", false);
+    client.undo();
+    assert!(client.get_layer_visibility("map"));
+    client.delete_sprite(id);
+    client.undo();
+    assert!(!client.get_sprite_info(id).is_null());
+}
+
+#[wasm_bindgen_test]
+fn actions_client_batch_is_atomic_and_undoes_as_one_step() {
+    let mut client = core::ActionsClient::new();
+    let actions = js_json(&serde_json::json!([
+        {"type": "create_table", "params": {"name": "A", "width": 100, "height": 100}},
+        {"type": "set_layer_visibility", "params": {"layer": "map", "visible": false}}
+    ]))
+    .unwrap();
+    let result: serde_json::Value =
+        serde_wasm_bindgen::from_value(client.batch_actions(&actions)).unwrap();
+    assert_eq!(result["success"], true);
+    assert_eq!(
+        js_sys::Array::from(&client.get_action_history()).length(),
+        1
+    );
+    client.undo();
+    assert_eq!(js_sys::Array::from(&client.get_all_tables()).length(), 0);
+    assert!(client.get_layer_visibility("map"));
+    client.redo();
+    assert_eq!(js_sys::Array::from(&client.get_all_tables()).length(), 1);
+    assert!(!client.get_layer_visibility("map"));
+}
+
+#[wasm_bindgen_test]
+fn actions_client_rejects_bad_batches_without_state_or_history_changes() {
+    let mut client = core::ActionsClient::new();
+    for value in [
+        serde_json::json!([]),
+        serde_json::json!({}),
+        serde_json::json!([
+            {"type": "create_table", "params": {"name": "A", "width": 100, "height": 100}},
+            {"type": "unsupported", "params": {}}
+        ]),
+    ] {
+        let actions = js_json(&value).unwrap();
+        let result: serde_json::Value =
+            serde_wasm_bindgen::from_value(client.batch_actions(&actions)).unwrap();
+        assert_eq!(result["success"], false);
+        assert_eq!(js_sys::Array::from(&client.get_all_tables()).length(), 0);
+        assert!(!client.can_undo());
+    }
+}
+
+#[wasm_bindgen_test]
+fn actions_client_rejects_invalid_updates_without_recording_history() {
+    let mut client = core::ActionsClient::new();
+    let result: serde_json::Value =
+        serde_wasm_bindgen::from_value(client.create_table("A", 100.0, 100.0)).unwrap();
+    let id = result["data"]["table_id"].as_str().unwrap();
+    for value in [
+        serde_json::json!(null),
+        serde_json::json!({"width": -1}),
+        serde_json::json!({"name": "Changed", "width": "invalid"}),
+        serde_json::json!({"unknown": true}),
+    ] {
+        let result: serde_json::Value =
+            serde_wasm_bindgen::from_value(client.update_table(id, &js_json(&value).unwrap()))
+                .unwrap();
+        assert_eq!(result["success"], false);
+        assert_eq!(
+            js_sys::Array::from(&client.get_action_history()).length(),
+            1
+        );
+    }
+    let state: serde_json::Value =
+        serde_wasm_bindgen::from_value(client.get_table_info(id)).unwrap();
+    assert_eq!(state["name"], "A");
 }
 
 // TableSync is an inbound engine adapter. Browser transport remains in TypeScript.

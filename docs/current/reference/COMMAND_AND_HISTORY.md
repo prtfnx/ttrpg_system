@@ -36,6 +36,20 @@ Regression owners: `apps/server/tests/unit/test_command_batches.py` and
 
 ## Existing history boundaries
 
+Rust `ActionsClient` is an isolated local-domain utility, not the renderer's
+authoritative multiplayer scene. Its undo/redo reverses table and sprite CRUD,
+updates, layer changes and visibility. Each inverse checks the expected current
+state; a conflicting or unsupported entry fails without advancing the stacks.
+Undo and audit stacks retain at most 100 entries. Local batches accept 1–100
+supported actions, suppress intermediate notifications, roll back on any failure,
+and produce one history entry on success. These guarantees concern only the
+utility's local maps; they do not persist or broadcast a canvas edit.
+Action results and history serialize as JSON-compatible plain objects rather
+than JavaScript `Map` instances. Invalid fields, malformed updates, non-finite
+positions and non-positive dimensions reject before mutation or history recording.
+Regression owners: `packages/rust-core/src/actions/mod.rs` and
+`packages/rust-core/tests/wasm_node.rs`.
+
 `ActionsCore` and Rust `ActionsClient` have separate process-local history stacks.
 They are not a shared durable per-user editor history. The runtime bridge tracks
 pending confirmations, not undo steps. Paint's retry ledger is an idempotency

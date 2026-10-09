@@ -7,6 +7,14 @@ use super::{ActionHistoryEntry, ActionResult, ActionsClient, TableInfo};
 impl ActionsClient {
     #[wasm_bindgen]
     pub fn create_table(&mut self, name: &str, width: f64, height: f64) -> JsValue {
+        if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
+            return super::serialize_for_js(&ActionResult {
+                success: false,
+                message: "Table dimensions must be finite and positive".into(),
+                data: None,
+            })
+            .unwrap_or(JsValue::NULL);
+        }
         let table_id = self.generate_id();
 
         let table_info = TableInfo {
@@ -38,7 +46,7 @@ impl ActionsClient {
             data: Some(serde_json::to_value(&table_info).unwrap_or(serde_json::Value::Null)),
         };
 
-        serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+        super::serialize_for_js(&result).unwrap_or(JsValue::NULL)
     }
 
     #[wasm_bindgen]
@@ -60,7 +68,7 @@ impl ActionsClient {
                 data: None,
             };
 
-            serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+            super::serialize_for_js(&result).unwrap_or(JsValue::NULL)
         } else {
             let result = ActionResult {
                 success: false,
@@ -68,12 +76,33 @@ impl ActionsClient {
                 data: None,
             };
 
-            serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+            super::serialize_for_js(&result).unwrap_or(JsValue::NULL)
         }
     }
 
     #[wasm_bindgen]
     pub fn update_table(&mut self, table_id: &str, updates: &JsValue) -> JsValue {
+        let valid =
+            serde_wasm_bindgen::from_value::<HashMap<String, serde_json::Value>>(updates.clone())
+                .is_ok_and(|values| {
+                    !values.is_empty()
+                        && values.iter().all(|(key, value)| match key.as_str() {
+                            "name" => value.is_string(),
+                            "width" | "height" | "scale_x" | "scale_y" => value
+                                .as_f64()
+                                .is_some_and(|number| number.is_finite() && number > 0.0),
+                            "offset_x" | "offset_y" => value.as_f64().is_some_and(f64::is_finite),
+                            _ => false,
+                        })
+                });
+        if !valid {
+            return super::serialize_for_js(&ActionResult {
+                success: false,
+                message: "Invalid table updates".into(),
+                data: None,
+            })
+            .unwrap_or(JsValue::NULL);
+        }
         let old_table = if let Some(table_info) = self.tables.get(table_id) {
             table_info.clone()
         } else {
@@ -82,7 +111,7 @@ impl ActionsClient {
                 message: format!("Table '{}' not found", table_id),
                 data: None,
             };
-            return serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL);
+            return super::serialize_for_js(&result).unwrap_or(JsValue::NULL);
         };
 
         if let Some(table_info) = self.tables.get_mut(table_id) {
@@ -157,7 +186,7 @@ impl ActionsClient {
                 data: Some(serde_json::to_value(&updated_table).unwrap_or(serde_json::Value::Null)),
             };
 
-            serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+            super::serialize_for_js(&result).unwrap_or(JsValue::NULL)
         } else {
             let result = ActionResult {
                 success: false,
@@ -165,7 +194,7 @@ impl ActionsClient {
                 data: None,
             };
 
-            serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+            super::serialize_for_js(&result).unwrap_or(JsValue::NULL)
         }
     }
 }

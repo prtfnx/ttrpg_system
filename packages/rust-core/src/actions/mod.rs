@@ -45,6 +45,13 @@ pub struct ActionHistoryEntry {
     pub reversible: bool,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+struct LocalActionState {
+    tables: HashMap<String, TableInfo>,
+    sprites: HashMap<String, SpriteInfo>,
+    layer_visibility: HashMap<String, bool>,
+}
+
 #[wasm_bindgen]
 pub struct ActionsClient {
     // Core state
@@ -57,6 +64,7 @@ pub struct ActionsClient {
     pub(crate) undo_stack: Vec<ActionHistoryEntry>,
     pub(crate) redo_stack: Vec<ActionHistoryEntry>,
     pub(crate) max_history: usize,
+    pub(crate) history_suspended: bool,
 
     // Event handlers
     pub(crate) on_action_callback: Option<Function>,
@@ -86,6 +94,7 @@ impl ActionsClient {
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
             max_history: 100,
+            history_suspended: false,
             on_action_callback: None,
             on_state_change_callback: None,
             on_error_callback: None,
@@ -111,10 +120,12 @@ impl ActionsClient {
     // Undo/Redo System
     #[wasm_bindgen]
     pub fn undo(&mut self) -> JsValue {
-        if let Some(action) = self.undo_stack.pop() {
-            self.redo_stack.push(action.clone());
-
+        if let Some(action) = self.undo_stack.last().cloned() {
             let success = self.execute_undo(&action);
+            if success {
+                self.undo_stack.pop();
+                self.redo_stack.push(action.clone());
+            }
 
             let result = ActionResult {
                 success,
@@ -126,8 +137,10 @@ impl ActionsClient {
                 data: None,
             };
 
-            self.notify_state_change("action_undone", &action.action_type);
-            serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+            if success {
+                self.notify_state_change("action_undone", &action.action_type);
+            }
+            serialize_for_js(&result).unwrap_or(JsValue::NULL)
         } else {
             let result = ActionResult {
                 success: false,
@@ -135,16 +148,18 @@ impl ActionsClient {
                 data: None,
             };
 
-            serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+            serialize_for_js(&result).unwrap_or(JsValue::NULL)
         }
     }
 
     #[wasm_bindgen]
     pub fn redo(&mut self) -> JsValue {
-        if let Some(action) = self.redo_stack.pop() {
-            self.undo_stack.push(action.clone());
-
+        if let Some(action) = self.redo_stack.last().cloned() {
             let success = self.execute_redo(&action);
+            if success {
+                self.redo_stack.pop();
+                self.undo_stack.push(action.clone());
+            }
 
             let result = ActionResult {
                 success,
@@ -156,8 +171,10 @@ impl ActionsClient {
                 data: None,
             };
 
-            self.notify_state_change("action_redone", &action.action_type);
-            serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+            if success {
+                self.notify_state_change("action_redone", &action.action_type);
+            }
+            serialize_for_js(&result).unwrap_or(JsValue::NULL)
         } else {
             let result = ActionResult {
                 success: false,
@@ -165,7 +182,7 @@ impl ActionsClient {
                 data: None,
             };
 
-            serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+            serialize_for_js(&result).unwrap_or(JsValue::NULL)
         }
     }
 
@@ -173,7 +190,7 @@ impl ActionsClient {
     #[wasm_bindgen]
     pub fn get_table_info(&self, table_id: &str) -> JsValue {
         if let Some(table_info) = self.tables.get(table_id) {
-            serde_wasm_bindgen::to_value(table_info).unwrap_or(JsValue::NULL)
+            serialize_for_js(table_info).unwrap_or(JsValue::NULL)
         } else {
             JsValue::NULL
         }
@@ -182,7 +199,7 @@ impl ActionsClient {
     #[wasm_bindgen]
     pub fn get_sprite_info(&self, sprite_id: &str) -> JsValue {
         if let Some(sprite_info) = self.sprites.get(sprite_id) {
-            serde_wasm_bindgen::to_value(sprite_info).unwrap_or(JsValue::NULL)
+            serialize_for_js(sprite_info).unwrap_or(JsValue::NULL)
         } else {
             JsValue::NULL
         }
@@ -191,7 +208,7 @@ impl ActionsClient {
     #[wasm_bindgen]
     pub fn get_all_tables(&self) -> JsValue {
         let tables: Vec<&TableInfo> = self.tables.values().collect();
-        serde_wasm_bindgen::to_value(&tables).unwrap_or(JsValue::NULL)
+        serialize_for_js(&tables).unwrap_or(JsValue::NULL)
     }
 
     #[wasm_bindgen]
@@ -201,12 +218,12 @@ impl ActionsClient {
             .values()
             .filter(|sprite| sprite.layer == layer)
             .collect();
-        serde_wasm_bindgen::to_value(&sprites).unwrap_or(JsValue::NULL)
+        serialize_for_js(&sprites).unwrap_or(JsValue::NULL)
     }
 
     #[wasm_bindgen]
     pub fn get_action_history(&self) -> JsValue {
-        serde_wasm_bindgen::to_value(&self.action_history).unwrap_or(JsValue::NULL)
+        serialize_for_js(&self.action_history).unwrap_or(JsValue::NULL)
     }
 
     #[wasm_bindgen]
@@ -231,6 +248,9 @@ impl ActionsClient {
     }
 
     pub(crate) fn add_to_history(&mut self, action: ActionHistoryEntry) {
+        if self.history_suspended {
+            return;
+        }
         self.action_history.push(action.clone());
 
         if self.action_history.len() > self.max_history {
@@ -239,51 +259,122 @@ impl ActionsClient {
 
         if action.reversible {
             self.undo_stack.push(action);
+            if self.undo_stack.len() > self.max_history {
+                self.undo_stack.remove(0);
+            }
             self.redo_stack.clear();
         }
     }
 
     fn execute_undo(&mut self, action: &ActionHistoryEntry) -> bool {
-        match action.action_type.as_str() {
-            "create_table" => {
-                if let Some(table_info) = action.data.as_object() {
-                    if let Some(table_id) = table_info.get("table_id").and_then(|v| v.as_str()) {
-                        return self.tables.remove(table_id).is_some();
-                    }
-                }
-            }
-            "delete_table" => {
-                if let Ok(table_info) = serde_json::from_value::<TableInfo>(action.data.clone()) {
-                    self.tables.insert(table_info.table_id.clone(), table_info);
-                    return true;
-                }
-            }
-            _ => {}
-        }
-        false
+        self.apply_history_action(action, true)
     }
 
     fn execute_redo(&mut self, action: &ActionHistoryEntry) -> bool {
+        self.apply_history_action(action, false)
+    }
+
+    fn apply_history_action(&mut self, action: &ActionHistoryEntry, undo: bool) -> bool {
+        let from = if undo { "new_values" } else { "old_values" };
+        let to = if undo { "old_values" } else { "new_values" };
         match action.action_type.as_str() {
-            "create_table" => {
-                if let Ok(table_info) = serde_json::from_value::<TableInfo>(action.data.clone()) {
-                    self.tables.insert(table_info.table_id.clone(), table_info);
-                    return true;
+            "batch" => {
+                let (Ok(old), Ok(new)) = (
+                    serde_json::from_value::<LocalActionState>(action.data[from].clone()),
+                    serde_json::from_value::<LocalActionState>(action.data[to].clone()),
+                ) else {
+                    return false;
+                };
+                if serde_json::to_value(self.local_state()).ok() != serde_json::to_value(old).ok() {
+                    return false;
                 }
+                self.restore_local_state(new);
+                true
             }
-            "delete_table" => {
-                if let Some(table_info) = action.data.as_object() {
-                    if let Some(table_id) = table_info.get("table_id").and_then(|v| v.as_str()) {
-                        return self.tables.remove(table_id).is_some();
-                    }
+            "create_table" | "delete_table" => {
+                let Ok(value) = serde_json::from_value::<TableInfo>(action.data.clone()) else {
+                    return false;
+                };
+                let remove = (action.action_type == "create_table") == undo;
+                change_record(
+                    &mut self.tables,
+                    &value.table_id,
+                    remove.then_some(&value),
+                    (!remove).then_some(&value),
+                )
+            }
+            "update_table" => {
+                change_serialized_record(&mut self.tables, &action.data, "table_id", from, to)
+            }
+            "create_sprite" | "delete_sprite" => {
+                let data = if action.action_type == "create_sprite" {
+                    &action.data["sprite_info"]
+                } else {
+                    &action.data
+                };
+                let Ok(value) = serde_json::from_value::<SpriteInfo>(data.clone()) else {
+                    return false;
+                };
+                let remove = (action.action_type == "create_sprite") == undo;
+                change_record(
+                    &mut self.sprites,
+                    &value.sprite_id,
+                    remove.then_some(&value),
+                    (!remove).then_some(&value),
+                )
+            }
+            "update_sprite" => {
+                change_serialized_record(&mut self.sprites, &action.data, "sprite_id", from, to)
+            }
+            "move_sprite_to_layer" => {
+                let (Some(id), Some(old), Some(new)) = (
+                    action.data["sprite_id"].as_str(),
+                    action.data[if undo { "new_layer" } else { "old_layer" }].as_str(),
+                    action.data[if undo { "old_layer" } else { "new_layer" }].as_str(),
+                ) else {
+                    return false;
+                };
+                let Some(sprite) = self.sprites.get_mut(id) else {
+                    return false;
+                };
+                if sprite.layer != old {
+                    return false;
                 }
+                sprite.layer = new.to_owned();
+                true
             }
-            _ => {}
+            "set_layer_visibility" => {
+                let (Some(layer), Some(old), Some(new)) = (
+                    action.data["layer"].as_str(),
+                    action.data[if undo {
+                        "new_visibility"
+                    } else {
+                        "old_visibility"
+                    }]
+                    .as_bool(),
+                    action.data[if undo {
+                        "old_visibility"
+                    } else {
+                        "new_visibility"
+                    }]
+                    .as_bool(),
+                ) else {
+                    return false;
+                };
+                if self.layer_visibility.get(layer).copied().unwrap_or(true) != old {
+                    return false;
+                }
+                self.layer_visibility.insert(layer.to_owned(), new);
+                true
+            }
+            _ => false,
         }
-        false
     }
 
     pub(crate) fn notify_state_change(&self, event_type: &str, target_id: &str) {
+        if self.history_suspended {
+            return;
+        }
         if let Some(ref callback) = self.on_state_change_callback {
             let _ = callback.call2(
                 &JsValue::NULL,
@@ -292,11 +383,70 @@ impl ActionsClient {
             );
         }
     }
+
+    fn local_state(&self) -> LocalActionState {
+        LocalActionState {
+            tables: self.tables.clone(),
+            sprites: self.sprites.clone(),
+            layer_visibility: self.layer_visibility.clone(),
+        }
+    }
+
+    fn restore_local_state(&mut self, state: LocalActionState) {
+        self.tables = state.tables;
+        self.sprites = state.sprites;
+        self.layer_visibility = state.layer_visibility;
+    }
+}
+
+fn change_record<T: Serialize + Clone>(
+    map: &mut HashMap<String, T>,
+    id: &str,
+    expected: Option<&T>,
+    replacement: Option<&T>,
+) -> bool {
+    // Compare the precondition before mutation. Failed history must not overwrite
+    // subsequent state or advance the undo/redo stacks.
+    if map.get(id).map(|value| serde_json::to_value(value).ok())
+        != expected.map(|value| serde_json::to_value(value).ok())
+    {
+        return false;
+    }
+    match replacement {
+        Some(value) => {
+            map.insert(id.to_owned(), value.clone());
+        }
+        None => {
+            map.remove(id);
+        }
+    }
+    true
+}
+
+fn serialize_for_js<T: Serialize>(value: &T) -> Result<JsValue, serde_wasm_bindgen::Error> {
+    value.serialize(&serde_wasm_bindgen::Serializer::json_compatible())
+}
+
+fn change_serialized_record<T: Serialize + Clone + serde::de::DeserializeOwned>(
+    map: &mut HashMap<String, T>,
+    data: &serde_json::Value,
+    id_key: &str,
+    from: &str,
+    to: &str,
+) -> bool {
+    let (Some(id), Ok(old), Ok(new)) = (
+        data[id_key].as_str(),
+        serde_json::from_value::<T>(data[from].clone()),
+        serde_json::from_value::<T>(data[to].clone()),
+    ) else {
+        return false;
+    };
+    change_record(map, id, Some(&old), Some(&new))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ActionResult, SpriteInfo, TableInfo};
+    use super::{ActionHistoryEntry, ActionResult, ActionsClient, SpriteInfo, TableInfo};
     use crate::types::{Position, Size};
 
     #[test]
@@ -356,5 +506,56 @@ mod tests {
         let s2: SpriteInfo = serde_json::from_str(&json).unwrap();
         assert_eq!(s.sprite_id, s2.sprite_id);
         assert!(s2.visible);
+    }
+
+    #[wasm_bindgen_test::wasm_bindgen_test]
+    fn history_rejects_conflicts_and_unknown_actions_without_mutation() {
+        let mut client = ActionsClient::new();
+        let table = TableInfo {
+            table_id: "t".into(),
+            name: "original".into(),
+            width: 100.0,
+            height: 100.0,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            offset_x: 0.0,
+            offset_y: 0.0,
+        };
+        let action = ActionHistoryEntry {
+            action_type: "create_table".into(),
+            timestamp: 0.0,
+            data: serde_json::to_value(&table).unwrap(),
+            reversible: true,
+        };
+        client.tables.insert(
+            "t".into(),
+            TableInfo {
+                name: "changed".into(),
+                ..table
+            },
+        );
+        assert!(!client.execute_undo(&action));
+        assert_eq!(client.tables["t"].name, "changed");
+        assert!(!client.execute_redo(&action));
+        assert!(!client.execute_undo(&ActionHistoryEntry {
+            action_type: "unknown".into(),
+            ..action
+        }));
+    }
+
+    #[wasm_bindgen_test::wasm_bindgen_test]
+    fn history_stacks_are_bounded_and_entries_are_independent() {
+        let mut client = ActionsClient::new();
+        for index in 0..150 {
+            client.add_to_history(ActionHistoryEntry {
+                action_type: "test".into(),
+                timestamp: 0.0,
+                data: serde_json::json!({"index": index}),
+                reversible: true,
+            });
+        }
+        assert_eq!(client.action_history.len(), 100);
+        assert_eq!(client.undo_stack.len(), 100);
+        assert_eq!(client.undo_stack[0].data["index"], 50);
     }
 }

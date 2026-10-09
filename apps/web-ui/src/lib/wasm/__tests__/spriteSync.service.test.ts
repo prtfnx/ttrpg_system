@@ -120,6 +120,11 @@ describe('SpriteSyncService', () => {
   });
 
   describe('addSpriteToWasm routing', () => {
+    it('normalizes unknown wire obstacle records before reading their endpoints', () => {
+      service.addSpriteToWasm({ sprite_id: 'wire-line', table_id: 'tbl1', layer: 'obstacles', obstacle_type: 'line',
+        obstacle_data: JSON.stringify({ x1: 10, y1: 60, x2: 90, y2: 20 }) });
+      expect(engine.add_sprite_to_layer).toHaveBeenCalledWith('obstacles', expect.objectContaining({ polygon_vertices: [[10, 60], [90, 20]] }));
+    });
     it('converts protocol degrees for rendering but keeps store rotation in degrees', () => {
       service.addSpriteToWasm({ sprite_id: 'rotated', table_id: 'tbl1', layer: 'tokens', rotation: 90 });
       expect(engine.add_sprite_to_layer).toHaveBeenCalledWith('tokens', expect.objectContaining({ rotation: Math.PI / 2 }));

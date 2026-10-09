@@ -109,6 +109,11 @@ anchor, after occupancy checks. Reloading a moved line therefore restores its
 new endpoints instead of its creation location. Shape persistence regressions
 cover normal server creation, style metadata and database reload.
 
+Wire obstacle metadata remains `unknown` at the incoming payload boundary.
+`SpriteSyncService` normalizes JSON/object records and checks finite line
+endpoints before reading geometry. Table post-staging forwards that wire data
+without pretending an unvalidated record is a typed editor object.
+
 ## Protocol messages
 
 Current sprite messages:

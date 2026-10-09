@@ -7,7 +7,7 @@ and the main browser message families. It does not document every payload field.
 
 Last source audit: 2026-10-01
 
-## Source of truth
+## Text sprite save acknowledgements
 
 Text sprite command fields are checked against source on 2026-10-06. A
 `sprite_create` carries `sprite_data.metadata.text_sprite` (encoded JSON is
@@ -26,6 +26,8 @@ There is no automatic retry: a timeout or local cancellation cannot prove the
 server did not save. Check/reload saved state before retrying an uncertain write.
 See [Sprites, tokens, and entities](../features/SPRITES_TOKENS_AND_ENTITIES.md)
 for descriptor limits, database ownership and visibility.
+
+## Source of truth
 
 `packages/core-table/protocol/message.schema.json` is the canonical envelope,
 message registry, and incrementally typed payload schema. Run

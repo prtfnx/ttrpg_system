@@ -54,7 +54,7 @@ interface SpritePayload {
   darkvision_radius_units?: number;
   obstacle_type?: string;
   polygon_vertices?: Array<{ x: number; y: number }>;
-  obstacle_data?: { vertices?: Array<{ x: number; y: number }>; x1?: number; y1?: number; x2?: number; y2?: number };
+  obstacle_data?: unknown;
   shape_filled?: boolean;
   character_id?: string;
   layer_changed?: boolean;
@@ -285,7 +285,7 @@ export class SpriteSyncService {
       }
 
       // Polygon obstacle (no texture, geometry only)
-      const polyVertices = normalizedSpriteData.polygon_vertices ?? normalizedSpriteData.obstacle_data?.vertices ?? null;
+      const polyVertices = normalizedSpriteData.polygon_vertices ?? parseRecord(normalizedSpriteData.obstacle_data).vertices ?? null;
       if (normalizedSpriteData.obstacle_type === 'polygon' && polyVertices && Array.isArray(polyVertices)) {
         this.addPolygonToWasm(engine, normalizedSpriteData, polyVertices, layer);
         return;
@@ -681,7 +681,7 @@ export class SpriteSyncService {
         if (typeof m.shape_filled === 'boolean') shapeFilled = m.shape_filled;
     }
     const normalizedControllerIds = controllerIds(spriteData.controlled_by);
-    const line = spriteData.obstacle_data;
+    const line = parseRecord(spriteData.obstacle_data);
     const lineVertices = spriteData.obstacle_type === 'line' && line
       && [line.x1, line.y1, line.x2, line.y2].every(value => typeof value === 'number' && Number.isFinite(value))
       ? [[line.x1, line.y1], [line.x2, line.y2]] : null;
@@ -697,7 +697,7 @@ export class SpriteSyncService {
       // controlled_by: normalize to number[] — server may send string IDs
       controlled_by: normalizedControllerIds,
       obstacle_type: spriteData.obstacle_type || null,
-      polygon_vertices: spriteData.polygon_vertices ?? spriteData.obstacle_data?.vertices ?? lineVertices,
+      polygon_vertices: spriteData.polygon_vertices ?? (Array.isArray(line.vertices) ? line.vertices : null) ?? lineVertices,
       shape_filled: shapeFilled,
     };
 

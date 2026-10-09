@@ -189,6 +189,11 @@ paint/combined mode. Those group operations are not implemented. Move mixed
 groups by dragging; use separate sprite mode for its existing sprite shortcuts.
 Form controls keep normal text-editing keyboard behavior.
 
+Losing an interactive role immediately disables Paint authoring and cancels its
+local gesture. Combined Select remains a read-only inspection path for a
+spectator; creator/DM paint checks and normal sprite-control checks still guard
+every attempted mutation.
+
 The Help window uses the current Table objects/Text sprite/Paint tool names,
 distinguishes separate camera-pan behavior from combined dragging, and labels
 the 15-degree paint rotation shortcut separately from sprite rotation.

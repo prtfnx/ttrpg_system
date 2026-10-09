@@ -87,6 +87,8 @@ describe('PaintControllerProvider', () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     mocks.activeTableId = 'table-1';
+    mocks.sessionRole = 'owner';
+    mocks.activeTool = 'paint';
     mocks.runtimeStatus = { isCanvasAttached: true, isContextLost: false };
   });
 
@@ -109,6 +111,14 @@ describe('PaintControllerProvider', () => {
     unmount();
     expect(mocks.controller.dispose).toHaveBeenCalledOnce();
     expect(mocks.interaction.dispose).toHaveBeenCalledOnce();
+  });
+
+  it('disables paint authoring immediately when the member becomes a spectator', () => {
+    const { rerender } = render(<PaintControllerProvider><Consumer /></PaintControllerProvider>);
+    expect(mocks.interaction.setEnabled).toHaveBeenLastCalledWith(true);
+    mocks.sessionRole = 'spectator'; rerender(<PaintControllerProvider><Consumer /></PaintControllerProvider>);
+    expect(mocks.interaction.setActor).toHaveBeenLastCalledWith(null, false);
+    expect(mocks.interaction.setEnabled).toHaveBeenLastCalledWith(false);
   });
 
   it('restores confirmed objects after a canvas is attached', () => {

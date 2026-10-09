@@ -144,9 +144,10 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
     const combinedSelect = selectionMode === 'combined' && (activeTool === 'select' || activeTool === 'move');
     interaction?.setSelectOnly(combinedSelect);
     interaction?.setEnabled(
-      (activeTool === 'paint' || combinedSelect) && runtimeStatus.isCanvasAttached && !runtimeStatus.isContextLost,
+      (activeTool === 'paint' && canInteract(sessionRole) || combinedSelect)
+        && runtimeStatus.isCanvasAttached && !runtimeStatus.isContextLost,
     );
-  }, [activeTool, interaction, selectionMode, runtimeStatus.isCanvasAttached, runtimeStatus.isContextLost]);
+  }, [activeTool, interaction, selectionMode, sessionRole, runtimeStatus.isCanvasAttached, runtimeStatus.isContextLost]);
 
   useEffect(() => {
     controller?.selectTable(activeTableId);

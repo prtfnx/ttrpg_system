@@ -151,6 +151,12 @@ describe('ToolsPanel — render', () => {
 });
 
 describe('ToolsPanel — toolbar tools', () => {
+  it('offers authoritative text authoring to interactive players without exposing DM object tools', () => {
+    render(<ToolsPanel userInfo={makeUser('player')} />);
+    expect(screen.getByTitle('Create text sprite')).toBeInTheDocument();
+    expect(screen.queryByTitle('Create rectangle object')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Brush Size:')).not.toBeInTheDocument();
+  });
   it('renders primary tool buttons (Select, Measure, Align)', () => {
     render(<ToolsPanel userInfo={makeUser()} />);
     expect(screen.getByTitle('Select Tool')).toBeInTheDocument();
@@ -184,7 +190,7 @@ describe('ToolsPanel — toolbar tools', () => {
 
   it('DM-only tools not shown for player', () => {
     render(<ToolsPanel userInfo={makeUser('player')} />);
-    expect(screen.queryByTitle('Draw Shapes')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Table objects')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Draw Wall')).not.toBeInTheDocument();
   });
 
@@ -195,7 +201,7 @@ describe('ToolsPanel — toolbar tools', () => {
       ) as unknown as typeof useGameStore
     );
     render(<ToolsPanel userInfo={makeUser('dm')} />);
-    expect(screen.getByTitle('Draw Shapes')).toBeInTheDocument();
+    expect(screen.getByTitle('Table objects')).toBeInTheDocument();
     expect(screen.getByTitle('Draw Wall')).toBeInTheDocument();
   });
 
@@ -265,33 +271,33 @@ function dmStore(extra: Partial<typeof baseStoreState> = {}) {
 }
 
 describe('ToolsPanel — DM creation toolbar', () => {
-  it('shows Create Rectangle / Circle / Line / Text buttons for DM', () => {
+  it('shows Create rectangle object / Circle / Line / Text buttons for DM', () => {
     dmStore();
     render(<ToolsPanel userInfo={makeUser('dm')} />);
-    expect(screen.getByTitle('Create Rectangle')).toBeInTheDocument();
-    expect(screen.getByTitle('Create Circle')).toBeInTheDocument();
-    expect(screen.getByTitle('Create Line')).toBeInTheDocument();
-    expect(screen.getByTitle('Create Text')).toBeInTheDocument();
+    expect(screen.getByTitle('Create rectangle object')).toBeInTheDocument();
+    expect(screen.getByTitle('Create circle object')).toBeInTheDocument();
+    expect(screen.getByTitle('Create line object')).toBeInTheDocument();
+    expect(screen.getByTitle('Create text sprite')).toBeInTheDocument();
   });
 
-  it('clicking Create Rectangle calls setActiveTool("rectangle")', () => {
+  it('clicking Create rectangle object calls setActiveTool("rectangle")', () => {
     dmStore();
     render(<ToolsPanel userInfo={makeUser('dm')} />);
-    fireEvent.click(screen.getByTitle('Create Rectangle'));
+    fireEvent.click(screen.getByTitle('Create rectangle object'));
     expect(mockSetActiveTool).toHaveBeenCalledWith('rectangle');
   });
 
-  it('clicking Create Circle calls setActiveTool("circle")', () => {
+  it('clicking Create circle object calls setActiveTool("circle")', () => {
     dmStore();
     render(<ToolsPanel userInfo={makeUser('dm')} />);
-    fireEvent.click(screen.getByTitle('Create Circle'));
+    fireEvent.click(screen.getByTitle('Create circle object'));
     expect(mockSetActiveTool).toHaveBeenCalledWith('circle');
   });
 
-  it('clicking Create Line calls setActiveTool("line")', () => {
+  it('clicking Create line object calls setActiveTool("line")', () => {
     dmStore();
     render(<ToolsPanel userInfo={makeUser('dm')} />);
-    fireEvent.click(screen.getByTitle('Create Line'));
+    fireEvent.click(screen.getByTitle('Create line object'));
     expect(mockSetActiveTool).toHaveBeenCalledWith('line');
   });
 

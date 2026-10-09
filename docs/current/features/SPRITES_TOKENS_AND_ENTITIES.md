@@ -22,7 +22,8 @@ Last source audit: 2026-10-06
 - `apps/web-ui/src/features/canvas/components/TokenConfigModal.tsx`: token
   stats, ownership, character link, aura, and vision settings.
 - `apps/web-ui/src/features/canvas/components/TextSprite/`: text sprite create,
-  edit, update, and delete helpers.
+  edit, descriptor validation and acknowledged command submission. Deletion
+  uses the normal sprite command, not a separate text persistence path.
 - `apps/web-ui/src/lib/websocket/clientProtocol.ts`: sprite protocol senders
   and incoming event handlers.
 - `packages/rust-core/src/actions/sprite_ops.rs`: WASM-side sprite actions.
@@ -30,6 +31,15 @@ Last source audit: 2026-10-06
   `packages/rust-core/src/render/sprites.rs`: sprite rendering.
 
 ## What the feature does
+
+The tools panel distinguishes **Table objects / obstacles**, **Paint** and
+**Text sprite**. DMs retain rectangle/circle/line objects because the Obstacles
+layer contributes light and vision geometry; decorative paint does not.
+Object color, opacity and fill use the existing shape-style runtime method.
+The unused duplicate drawing panel and disconnected brush-size control are
+not exposed. Text authoring is available to interactive roles, and editing is
+available from normal selection. Legacy browser-only text helper components
+are not exported from the active canvas barrels or used by the authoring flow.
 
 Sprites are the renderable objects on a table. Tokens are sprites with gameplay
 meaning: character links, HP/AC, control ownership, aura fields, and vision

@@ -187,7 +187,7 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
   
   useEffect(() => {
     if (!renderEngine) return;
-    if (activeTool !== 'paint') {
+    if (activeTool !== 'paint' && activeTool !== 'select' && activeTool !== 'move') {
       setPaintPanelVisible(false);
     }
     wasmRuntime.setShapeStyle(shapeColor, shapeOpacity, shapeFilled);
@@ -306,8 +306,8 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
             <button className={`${styles.toolButton} ${activeTool === 'align' ? styles.active : ''}`} onClick={() => setActiveTool('align')} title="Alignment Helper">
               <AlignLeft size={14} aria-hidden /> Align
             </button>
-            {dmMode && <button className={`${styles.toolButton} ${activeTool === 'draw_shapes' ? styles.active : ''}`} onClick={() => setActiveTool('draw_shapes')} title="Draw Shapes">
-              <Pencil size={14} aria-hidden /> Draw Shapes
+            {dmMode && <button className={`${styles.toolButton} ${['rectangle', 'circle', 'line'].includes(activeTool) ? styles.active : ''}`} onClick={() => setActiveTool('rectangle')} title="Table objects">
+              <Pencil size={14} aria-hidden /> Table objects
             </button>}
             {dmMode && <button className={`${styles.toolButton} ${activeTool === 'draw_wall' ? styles.active : ''}`} onClick={() => setActiveTool('draw_wall')} title="Draw Wall">
               <BrickWall size={14} aria-hidden /> Draw Wall
@@ -363,19 +363,17 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
           {/* Sprite Creation Tools - DM only */}
           {dmMode && (
             <div className={styles.creationToolbar}>
-              <h4>Create Sprites</h4>
+              <h4>Table objects / obstacles</h4>
+              <p>Use Paint for decoration. Objects on the Obstacles layer block light and vision.</p>
               <div className={styles.creationButtons}>
-                <button className={`${styles.toolButton} ${activeTool === 'rectangle' ? styles.active : ''}`} onClick={() => { setActiveTool('rectangle'); window.fromDrawShapes = true; }} title="Create Rectangle">
-                  <Square size={14} aria-hidden /> Rectangle
+                <button className={`${styles.toolButton} ${activeTool === 'rectangle' ? styles.active : ''}`} onClick={() => setActiveTool('rectangle')} title="Create rectangle object">
+                  <Square size={14} aria-hidden /> Rectangle object
                 </button>
-                <button className={`${styles.toolButton} ${activeTool === 'circle' ? styles.active : ''}`} onClick={() => setActiveTool('circle')} title="Create Circle">
-                  <Circle size={14} aria-hidden /> Circle
+                <button className={`${styles.toolButton} ${activeTool === 'circle' ? styles.active : ''}`} onClick={() => setActiveTool('circle')} title="Create circle object">
+                  <Circle size={14} aria-hidden /> Circle object
                 </button>
-                <button className={`${styles.toolButton} ${activeTool === 'line' ? styles.active : ''}`} onClick={() => setActiveTool('line')} title="Create Line">
-                  <Minus size={14} aria-hidden /> Line
-                </button>
-                <button className={`${styles.toolButton} ${activeTool === 'text' ? styles.active : ''}`} onClick={() => setActiveTool('text')} title="Create Text">
-                  <Type size={14} aria-hidden /> Text
+                <button className={`${styles.toolButton} ${activeTool === 'line' ? styles.active : ''}`} onClick={() => setActiveTool('line')} title="Create line object">
+                  <Minus size={14} aria-hidden /> Line object
                 </button>
               </div>
               {(['rectangle', 'circle', 'line'].includes(activeTool)) && (
@@ -414,6 +412,8 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
                   <Paintbrush size={14} aria-hidden /> Paint
                 </button>
               )}
+              {interactMode && <button className={`${styles.toolButton} ${activeTool === 'text' ? styles.active : ''}`}
+                onClick={() => setActiveTool('text')} title="Create text sprite"><Type size={14} aria-hidden /> Text sprite</button>}
             </div>
           </div>
 
@@ -422,40 +422,17 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
             setActiveTool('select');
           }} />}
 
-          {activeTool === 'text' && (
+          {interactMode && (
             <div className={styles.textSettings}>
               <h5>Text Sprites</h5>
               <div className={styles.settingRow}>
-                <TextSpriteTool activeLayer={activeLayer} activeTool={activeTool} onSpriteCreated={() => {}} onError={() => {}} />
+                <TextSpriteTool activeLayer={activeLayer} activeTool={activeTool} />
               </div>
             </div>
           )}
 
           {dmMode && <WallConfigModal />}
           {dmMode && <PolygonConfigModal />}
-
-          {(activeTool === 'draw_shapes' || (activeTool === 'rectangle' && window.fromDrawShapes)) && (
-            <div className={styles.drawingSettings}>
-              <h5>Drawing Tools</h5>
-              <div className={styles.settingRow}>
-                <label htmlFor="drawing-color">Color:</label>
-                <input id="drawing-color" type="color" value={shapeColor} onChange={(e) => setShapeColor(e.target.value)} />
-                <div className={styles.colorPresets}>
-                  <button data-testid="color-gray" onClick={() => setShapeColor('#808080')} style={{ backgroundColor: '#808080' }} title="Gray" />
-                  <button data-testid="color-brown" onClick={() => setShapeColor('#8B4513')} style={{ backgroundColor: '#8B4513' }} title="Brown" />
-                  <button data-testid="color-green" onClick={() => setShapeColor('#228B22')} style={{ backgroundColor: '#228B22' }} title="Green" />
-                </div>
-              </div>
-              <div className={styles.settingRow}>
-                <label htmlFor="brush-size">Brush Size:</label>
-                <input id="brush-size" type="number" min="1" max="20" defaultValue="3" />
-                <span>px</span>
-              </div>
-              <div className={styles.settingRow}>
-                <label htmlFor="draw-filled"><input id="draw-filled" type="checkbox" checked={shapeFilled} onChange={(e) => setShapeFilled(e.target.checked)} /> Filled Shape</label>
-              </div>
-            </div>
-          )}
 
           {activeTool === 'spell_templates' && (
             <div className={styles.spellTemplatesSection}>

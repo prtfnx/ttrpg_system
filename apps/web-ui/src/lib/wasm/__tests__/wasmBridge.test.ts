@@ -20,6 +20,7 @@ vi.mock('@features/auth', () => ({
 
 vi.mock('@features/session/types/roles', () => ({
   isDM: vi.fn(() => true),
+  canInteract: vi.fn(() => true),
 }));
 
 vi.mock('@lib/api', () => ({
@@ -40,7 +41,7 @@ vi.mock('react-toastify', () => ({
 }));
 
 import { useGameStore } from '@/store';
-import { isDM } from '@features/session/types/roles';
+import { canInteract, isDM } from '@features/session/types/roles';
 import { wasmBridgeService } from '@lib/wasm/wasmBridge';
 import { toast } from 'react-toastify';
 
@@ -67,6 +68,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   mockStore();
   vi.mocked(isDM).mockReturnValue(true);
+  vi.mocked(canInteract).mockReturnValue(true);
   wasmBridgeService.init();
 });
 
@@ -76,6 +78,71 @@ afterEach(() => {
 });
 
 describe('WasmBridgeService', () => {
+  it('registers a pending command before a synchronous acknowledgement', () => {
+    const protocol = { sendMessage: vi.fn(message => window.dispatchEvent(new CustomEvent('sprite-action-confirmed', {
+      detail: { actionId: message.data.action_id },
+    }))) };
+    wasmBridgeService.setProtocol(protocol as never);
+    dispatchWasmOp('move', 'sync', { x: 10, y: 20 });
+    vi.advanceTimersByTime(6000);
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('does not send a second unconfirmed transform for the same sprite property', () => {
+    const protocol = { sendMessage: vi.fn() };
+    wasmBridgeService.setProtocol(protocol as never);
+    dispatchWasmOp('move', 'busy', { x: 10, y: 20 });
+    dispatchWasmOp('move', 'busy', { x: 30, y: 40 });
+    expect(protocol.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not overwrite newer authoritative state with an old confirmation', () => {
+    const protocol = { sendMessage: vi.fn() };
+    wasmBridgeService.setProtocol(protocol as never);
+    wasmBridgeService.seedSpriteState('newer', { x: 0, y: 0 });
+    dispatchWasmOp('move', 'newer', { x: 10, y: 20 });
+    const actionId = protocol.sendMessage.mock.calls[0][0].data.action_id;
+    wasmBridgeService.seedSpriteState('newer', { x: 50, y: 60 });
+    window.dispatchEvent(new CustomEvent('sprite-action-confirmed', { detail: { actionId } }));
+    dispatchWasmOp('move', 'newer', { x: 70, y: 80 });
+    expect(protocol.sendMessage.mock.calls[1][0].data.from).toEqual({ x: 50, y: 60 });
+  });
+
+  it('ignores stale timeouts after table switches and clears tracking on protocol changes', () => {
+    const protocol = { sendMessage: vi.fn() };
+    wasmBridgeService.setProtocol(protocol as never);
+    dispatchWasmOp('move', 'old', { x: 10, y: 20 });
+    mockStore({ activeTableId: 'tbl-2' });
+    vi.advanceTimersByTime(6000);
+    expect(toast.error).not.toHaveBeenCalled();
+    mockStore();
+    dispatchWasmOp('move', 'old', { x: 10, y: 20 });
+    wasmBridgeService.setProtocol(null);
+    vi.advanceTimersByTime(6000);
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('handles send exceptions immediately without leaving a timeout', () => {
+    const protocol = { sendMessage: vi.fn(() => { throw new Error('offline'); }) };
+    wasmBridgeService.setProtocol(protocol as never);
+    wasmBridgeService.seedSpriteState('failed', { x: 1, y: 2 });
+    dispatchWasmOp('move', 'failed', { x: 10, y: 20 });
+    expect(toast.error).toHaveBeenCalledOnce();
+    vi.advanceTimersByTime(6000);
+    expect(toast.error).toHaveBeenCalledOnce();
+  });
+
+  it('cancels pending commands for deleted sprites and rejects spectator authoring', () => {
+    const protocol = { sendMessage: vi.fn() };
+    wasmBridgeService.setProtocol(protocol as never);
+    dispatchWasmOp('move', 'deleted', { x: 10, y: 20 });
+    window.dispatchEvent(new CustomEvent('sprite-removed', { detail: { sprite_id: 'deleted' } }));
+    vi.advanceTimersByTime(6000);
+    expect(toast.error).not.toHaveBeenCalled();
+    vi.mocked(canInteract).mockReturnValue(false);
+    dispatchWasmOp('move', 'spectator', { x: 10, y: 20 });
+    expect(protocol.sendMessage).toHaveBeenCalledTimes(1);
+  });
   describe('init / cleanup', () => {
     it('init is idempotent — double init does not double-register', () => {
       const eventsReceived: number[] = [];
@@ -178,6 +245,7 @@ describe('WasmBridgeService', () => {
     });
 
     it('denies operation and emits revert when non-DM cannot control sprite', () => {
+      wasmBridgeService.setProtocol({ sendMessage: vi.fn() } as never);
       vi.mocked(isDM).mockReturnValue(false);
       const canControlSprite = vi.fn(() => false);
       mockStore({ sessionRole: 'player', canControlSprite });

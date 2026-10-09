@@ -11,7 +11,7 @@ import {
   nextMovementSequenceId,
   sendSpriteMovement,
 } from '@features/combat/services/movementCommand.service';
-import { isDM } from '@features/session/types/roles';
+import { canInteract, isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
 import { onProtocolEvent, type ProtocolEventMap } from '@lib/websocket/protocolEvents';
 import { createMessage, MessageType } from '@lib/websocket';
@@ -26,6 +26,7 @@ const CONFIRM_TIMEOUT_MS = 5000;
 type Operation = 'move' | 'resize' | 'rotate';
 
 interface PendingAction {
+  tableId: string;
   spriteId: string;
   operation: Operation;
   /** Last confirmed (pre-operation) state — used for rollback */
@@ -33,6 +34,7 @@ interface PendingAction {
   /** Optimistic new state — committed to tracking on server confirmation */
   newState: Record<string, number>;
   timerId: ReturnType<typeof setTimeout>;
+  baselineGeneration: number;
 }
 
 class WasmBridgeService {
@@ -46,6 +48,7 @@ class WasmBridgeService {
   private committedRotations = new Map<string, number>();
 
   private pendingActions = new Map<string, PendingAction>();
+  private baselineGenerations = new Map<string, number>();
   init() {
     if (this.isInitialized) return;
     this.eventCleanups = [
@@ -55,11 +58,13 @@ class WasmBridgeService {
       onProtocolEvent('sprite-created', this.onSpriteCreated),
       onProtocolEvent('sprite-action-confirmed', this.onActionConfirmed),
       onProtocolEvent('sprite-action-rejected', this.onActionRejected),
+      onProtocolEvent('sprite-removed', this.onSpriteRemoved),
     ];
     this.isInitialized = true;
   }
 
   setProtocol(protocol: WebClientProtocol | null) {
+    if (this.protocol && this.protocol !== protocol) this.clearTracking();
     this.protocol = protocol;
   }
 
@@ -72,21 +77,30 @@ class WasmBridgeService {
   seedSpriteState(spriteId: string, state: { x?: number; y?: number; width?: number; height?: number; rotation?: number }): void {
     if (!spriteId) return;
     if (state.x !== undefined && state.y !== undefined) {
-      this.committedPositions.set(spriteId, { x: state.x, y: state.y });
+      if (Number.isFinite(state.x) && Number.isFinite(state.y)) {
+        this.committedPositions.set(spriteId, { x: state.x, y: state.y });
+        this.advanceBaseline(spriteId, 'move');
+      }
     }
     if (state.width !== undefined && state.height !== undefined) {
-      this.committedSizes.set(spriteId, { width: state.width, height: state.height });
+      if (Number.isFinite(state.width) && Number.isFinite(state.height) && state.width > 0 && state.height > 0) {
+        this.committedSizes.set(spriteId, { width: state.width, height: state.height });
+        this.advanceBaseline(spriteId, 'resize');
+      }
     }
     if (state.rotation !== undefined) {
-      this.committedRotations.set(spriteId, state.rotation);
+      if (Number.isFinite(state.rotation)) {
+        this.committedRotations.set(spriteId, state.rotation);
+        this.advanceBaseline(spriteId, 'rotate');
+      }
     }
   }
 
   cleanup() {
     this.eventCleanups.forEach(cleanup => cleanup());
     this.eventCleanups = [];
-    this.pendingActions.forEach(p => clearTimeout(p.timerId));
-    this.pendingActions.clear();
+    this.clearTracking();
+    this.protocol = null;
     this.isInitialized = false;
   }
 
@@ -96,7 +110,9 @@ class WasmBridgeService {
     const pending = this.pendingActions.get(actionId);
     if (!pending) return;
     clearTimeout(pending.timerId);
-    this.applyToCommitted(pending.spriteId, pending.operation, pending.newState);
+    if (pending.baselineGeneration === this.baselineGeneration(pending.spriteId, pending.operation)) {
+      this.applyToCommitted(pending.spriteId, pending.operation, pending.newState);
+    }
     this.pendingActions.delete(actionId);
   };
 
@@ -113,9 +129,38 @@ class WasmBridgeService {
   private onSpriteCreated = (detail: ProtocolEventMap['sprite-created']) => {
     const { sprite_id, x, y } = detail ?? {};
     if (sprite_id != null && x != null && y != null) {
-      this.committedPositions.set(String(sprite_id), { x: Number(x), y: Number(y) });
+      this.seedSpriteState(String(sprite_id), { x: Number(x), y: Number(y) });
     }
   };
+
+  private onSpriteRemoved = (detail: ProtocolEventMap['sprite-removed']) => {
+    const id = detail?.sprite_id ?? detail?.id;
+    if (typeof id !== 'string') return;
+    this.committedPositions.delete(id);
+    this.committedSizes.delete(id);
+    this.committedRotations.delete(id);
+    for (const operation of ['move', 'resize', 'rotate'] as const) this.baselineGenerations.delete(`${id}:${operation}`);
+    for (const [actionId, pending] of this.pendingActions) {
+      if (pending.spriteId === id) { clearTimeout(pending.timerId); this.pendingActions.delete(actionId); }
+    }
+  };
+
+  private baselineGeneration(id: string, operation: Operation): number {
+    return this.baselineGenerations.get(`${id}:${operation}`) ?? 0;
+  }
+
+  private advanceBaseline(id: string, operation: Operation): void {
+    this.baselineGenerations.set(`${id}:${operation}`, this.baselineGeneration(id, operation) + 1);
+  }
+
+  private clearTracking(): void {
+    this.pendingActions.forEach(p => clearTimeout(p.timerId));
+    this.pendingActions.clear();
+    this.committedPositions.clear();
+    this.committedSizes.clear();
+    this.committedRotations.clear();
+    this.baselineGenerations.clear();
+  }
 
   private onLightMoved = ({ lightId, x, y }: WasmEventMap['wasm-light-moved']) => {
     if (!this.protocol || !lightId) return;
@@ -141,13 +186,22 @@ class WasmBridgeService {
 
   private onWasmOperation = ({ operation, spriteId, data }: WasmEventMap['wasm-sprite-operation']) => {
     if (!this.protocol || !spriteId || !operation) return;
+    if (!['move', 'resize', 'rotate'].includes(operation)) return;
+    const tableId = useGameStore.getState().activeTableId;
+    if (!tableId) return;
+    const inFlight = [...this.pendingActions.values()].find(p => p.spriteId === spriteId && p.operation === operation);
+    if (inFlight) {
+      emitWasmEvent('sprite-revert', { spriteId, operation, originalState: inFlight.newState, reason: 'operation_pending' });
+      toast.error('Wait for the previous change to be confirmed.', { autoClose: 4000 });
+      return;
+    }
 
     // Permission check: only DM/co-DM can move ownerless sprites;
     // players may only move sprites that list them in controlled_by.
     const { canControlSprite, sessionRole } = useGameStore.getState();
-    if (!isDM(sessionRole)) {
+    if (!canInteract(sessionRole) || !isDM(sessionRole)) {
       const userId = authService.getUserInfo()?.id;
-      if (!canControlSprite(spriteId, userId)) {
+      if (!canInteract(sessionRole) || !canControlSprite(spriteId, userId)) {
         logger.warn('[WasmBridge] Permission denied: cannot control sprite', spriteId);
         // Revert the optimistic WASM move back to last committed state
         const originalState = this.snapshotCommitted(spriteId, operation);
@@ -161,11 +215,19 @@ class WasmBridgeService {
     const actionId = String(nextMovementSequenceId());
     const originalState = this.snapshotCommitted(spriteId, operation);
     const newState = this.dataToState(operation, data);
-
-    this.sendCommit(operation, spriteId, data, actionId);
-
     const timerId = setTimeout(() => this.onTimeout(actionId), CONFIRM_TIMEOUT_MS);
-    this.pendingActions.set(actionId, { spriteId, operation, originalState, newState, timerId });
+    const pending = { tableId, spriteId, operation, originalState, newState, timerId,
+      baselineGeneration: this.baselineGeneration(spriteId, operation) };
+    this.pendingActions.set(actionId, pending);
+    if (this.pendingActions.size > 100 || !Object.values(newState).every(Number.isFinite)
+      || operation === 'resize' && (newState.width <= 0 || newState.height <= 0)) {
+      clearTimeout(timerId); this.pendingActions.delete(actionId); this.emitRevert(pending, 'invalid_operation'); return;
+    }
+    try {
+      this.sendCommit(operation, spriteId, data, actionId, tableId);
+    } catch {
+      clearTimeout(timerId); this.pendingActions.delete(actionId); this.emitRevert(pending, 'send_failed');
+    }
   };
 
   private onTimeout(actionId: string) {
@@ -220,12 +282,7 @@ class WasmBridgeService {
   // ──────────────────────────────────────────────
   // Network send helpers
 
-  private sendCommit(op: Operation, spriteId: string, data: Record<string, number>, actionId: string) {
-    const tableId = useGameStore.getState().activeTableId;
-    if (!tableId) {
-      logger.error('[WasmBridge] No active table for commit');
-      return;
-    }
+  private sendCommit(op: Operation, spriteId: string, data: Record<string, number>, actionId: string, tableId: string) {
 
     switch (op) {
       case 'move': {
@@ -257,14 +314,18 @@ class WasmBridgeService {
   }
 
   private emitRevert(pending: PendingAction, reason: string) {
+    // Do not move a renderer in a different table or restore a stale baseline
+    // over state already supplied by a later authoritative event.
+    if (pending.tableId !== useGameStore.getState().activeTableId) return;
+    const currentState = this.snapshotCommitted(pending.spriteId, pending.operation);
     // Only revert WASM state if we have a known baseline to go back to.
     // If originalState is empty (sprite never confirmed a position with this client),
     // touching WASM with undefined values would send the sprite to NaN coordinates.
-    if (Object.keys(pending.originalState).length > 0) {
+    if (Object.keys(currentState).length > 0) {
       emitWasmEvent('sprite-revert', {
         spriteId: pending.spriteId,
         operation: pending.operation,
-        originalState: pending.originalState,
+        originalState: currentState,
         reason,
       });
     }
@@ -284,7 +345,7 @@ export function useWasmBridge() {
 
   React.useEffect(() => {
     wasmBridgeService.init();
-    if (protocol) wasmBridgeService.setProtocol(protocol);
+    wasmBridgeService.setProtocol(protocol);
   }, [protocol]);
 
   return wasmBridgeService;

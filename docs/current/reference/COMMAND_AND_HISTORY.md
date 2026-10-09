@@ -36,6 +36,18 @@ Regression owners: `apps/server/tests/unit/test_command_batches.py` and
 
 ## Existing history boundaries
 
+The sprite bridge registers pending state before sending, including synchronous
+acknowledgements. It allows at most one unconfirmed transform per sprite/property
+and 100 pending commands overall. A subsequent transform of that property restores
+the pending preview and asks the user to wait. Accepted server seeds take
+precedence over late acknowledgements; rejection restores the current authoritative
+baseline, not an obsolete pre-command snapshot. Timers cannot revert another
+active table. Protocol replacement, cleanup and sprite removal release tracking.
+Non-interactive roles, invalid transforms and synchronous send failures do not
+leave untracked writes or delayed failure timers. The bridge remains a confirmation
+tracker, not an undo journal. Regression owner:
+`apps/web-ui/src/lib/wasm/__tests__/wasmBridge.test.ts`.
+
 Rust `ActionsClient` is an isolated local-domain utility, not the renderer's
 authoritative multiplayer scene. Its undo/redo reverses table and sprite CRUD,
 updates, layer changes and visibility. Each inverse checks the expected current

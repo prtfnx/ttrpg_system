@@ -711,6 +711,7 @@ export const GameCanvas: React.FC = () => {
 
         updateConnectionState('connected');
       } catch (error) {
+        if (!mounted || ((error instanceof Error || error instanceof DOMException) && error.name === 'AbortError')) return;
         logger.error('Failed to load WASM module', error);
         updateConnectionState('error');
       }

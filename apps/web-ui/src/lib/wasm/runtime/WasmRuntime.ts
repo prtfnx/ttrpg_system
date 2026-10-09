@@ -79,6 +79,9 @@ export class WasmRuntime implements WasmRuntimePort {
   readonly store = new WasmRuntimeStore();
 
   private initPromise: Promise<void> | null = null;
+  private started = false;
+  private generation = 0;
+  private attachmentGeneration = 0;
   private renderEngine: RenderEngine | null = null;
   private actionsEngine: ActionsClient | null = null;
   private assetCache: BrowserAssetCache | null = null;
@@ -89,6 +92,7 @@ export class WasmRuntime implements WasmRuntimePort {
   private attachedCanvas: HTMLCanvasElement | null = null;
   private attachedOptions: AttachCanvasOptions | null = null;
   private protocol: RuntimeProtocol | null = null;
+  private bridgeProtocol: unknown = null;
   private readonly syncCoordinator = new WasmSyncCoordinator(
     (url, expectedHash) => this.resolveDownloadedAsset(url, expectedHash),
     {
@@ -159,15 +163,23 @@ export class WasmRuntime implements WasmRuntimePort {
   }
 
   start(): void {
+    if (this.started) return;
+    this.started = true;
+    this.generation += 1;
     this.syncCoordinator.start();
+    wasmBridgeService.setProtocol(this.bridgeProtocol as never);
   }
 
   async initialize(): Promise<void> {
     this.start();
     if (this.initPromise) return this.initPromise;
+    const generation = this.generation;
 
     this.initPromise = initializeWasmCore()
       .then(() => {
+        if (!this.started || generation !== this.generation) {
+          throw new DOMException('Runtime initialization was cancelled', 'AbortError');
+        }
         this.actionsEngine ??= new ActionsClient();
         this.assetCache ??= createBrowserAssetCache(calculate_asset_hash);
         this.tableManager ??= new TableManager();
@@ -178,9 +190,11 @@ export class WasmRuntime implements WasmRuntimePort {
         });
       })
       .catch(error => {
-        const err = error instanceof Error ? error : new Error(String(error));
-        this.initPromise = null;
-        this.store.setSnapshot({ error: err, isModuleReady: false });
+        const err = error instanceof Error || error instanceof DOMException ? error : new Error(String(error));
+        if (this.started && generation === this.generation) {
+          this.initPromise = null;
+          this.store.setSnapshot({ error: err, isModuleReady: false });
+        }
         throw err;
       });
 
@@ -188,7 +202,13 @@ export class WasmRuntime implements WasmRuntimePort {
   }
 
   async attachCanvas(canvas: HTMLCanvasElement, options: AttachCanvasOptions): Promise<RenderEngine> {
+    this.start();
+    const generation = this.generation;
+    const attachmentGeneration = ++this.attachmentGeneration;
     await this.initialize();
+    if (!this.started || generation !== this.generation || attachmentGeneration !== this.attachmentGeneration) {
+      throw new DOMException('Canvas attachment was cancelled', 'AbortError');
+    }
 
     if (this.renderEngine) {
       if (this.attachedCanvas !== canvas) this.detachCanvas();
@@ -223,6 +243,7 @@ export class WasmRuntime implements WasmRuntimePort {
   }
 
   detachCanvas(): void {
+    this.attachmentGeneration += 1;
     this.attachedCanvas?.removeEventListener('webglcontextlost', this.contextLostHandler);
     this.attachedCanvas?.removeEventListener('webglcontextrestored', this.contextRestoredHandler);
     this.attachedCanvas = null;
@@ -257,8 +278,12 @@ export class WasmRuntime implements WasmRuntimePort {
   }
 
   dispose(): void {
+    this.started = false;
+    this.generation += 1;
     this.detachCanvas();
+    this.syncCoordinator.dispose();
     wasmBridgeService.cleanup();
+    wasmBridgeService.setProtocol(null);
 
     try { this.actionsEngine?.free(); } catch {}
     this.assetCache?.dispose();
@@ -284,6 +309,7 @@ export class WasmRuntime implements WasmRuntimePort {
 
   setProtocol(protocol: unknown | null): void {
     this.protocol = this.toRuntimeProtocol(protocol);
+    this.bridgeProtocol = protocol;
     wasmBridgeService.setProtocol(protocol as never);
   }
 

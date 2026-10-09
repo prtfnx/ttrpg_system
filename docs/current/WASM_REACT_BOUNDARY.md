@@ -71,8 +71,22 @@ WASM type, expose a runtime-owned type from
    fresh engine, restores user/layer callbacks, replays the retained snapshot,
    and resumes rendering. `isContextLost` distinguishes this recoverable state
    from a detached canvas; readiness is withheld until a restored frame renders.
-8. On provider disposal, all subscriptions, callbacks, DOM listeners, and Rust objects are
-   released.
+8. Full runtime disposal removes coordinator/table subscriptions, renderer
+   callbacks and canvas listeners, and frees owned Rust/cache objects. It
+   invalidates pending initialization and attachment generations. A stale
+   continuation rejects with `AbortError` without allocating a renderer or
+   changing a newer generation's readiness.
+9. `start()` can begin a new generation on the same runtime for React effect
+   replay. It restores the full protocol bridge and installs fresh table
+   subscriptions. Canvas detach alone retains session subscriptions/snapshots,
+   but invalidates an unfinished attachment. Only the newest pending attachment
+   can allocate a renderer. `GameCanvas` ignores cancelled/stale initialization
+   rather than publishing a connection error.
+
+`WasmRuntime.test.ts` covers delayed initialization, stop/restart, and pending
+attachment cancellation. `WasmRuntime.lifecycle.test.tsx` uses the real
+coordinator and table event bus to verify listener cleanup and StrictMode
+setup/cleanup replay. This ownership behavior was reviewed on 2026-10-06.
 
 The real-browser WASM regression suite covers this lifecycle end to end: it
 hydrates two distinct table scenes, verifies stale sprites are removed, forces

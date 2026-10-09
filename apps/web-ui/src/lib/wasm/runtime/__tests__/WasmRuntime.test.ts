@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emitWasmEvent } from '../../wasmEvents';
+import { ActionsClient, TableManager } from '../../generated/ttrpg_rust_core';
 import { WasmRuntime } from '../WasmRuntime';
 
 const mocks = vi.hoisted(() => {
@@ -359,6 +360,78 @@ describe('WasmRuntime', () => {
     expect(mocks.renderEngine.free).toHaveBeenCalled();
     expect(runtime.getRenderEngine()).toBeNull();
     expect(runtime.status.isCanvasAttached).toBe(false);
+    expect(mocks.integrationDispose).not.toHaveBeenCalled();
+  });
+
+  it('fully disposes session synchronization and can restart for effect replay', async () => {
+    const protocol = { createSprite: vi.fn() };
+    runtime.setProtocol(protocol);
+    await runtime.initialize();
+    runtime.dispose();
+    expect(mocks.integrationDispose).toHaveBeenCalledOnce();
+    expect(mocks.actionsFree).toHaveBeenCalledOnce();
+    expect(mocks.tableFree).toHaveBeenCalledOnce();
+    expect(runtime.status.isModuleReady).toBe(false);
+
+    runtime.start();
+    expect(mocks.bridgeSetProtocol).toHaveBeenLastCalledWith(protocol);
+    await runtime.attachCanvas(canvas, { userId: 1, role: 'owner', activeLayer: 'map' });
+    expect(runtime.status.isCanvasAttached).toBe(true);
+    expect(ActionsClient).toHaveBeenCalledTimes(2);
+    runtime.dispose();
+    expect(mocks.actionsFree).toHaveBeenCalledTimes(2);
+  });
+
+  it('cannot allocate runtime objects after disposal during module initialization', async () => {
+    let resolve!: () => void;
+    mocks.initializeWasmCore.mockReturnValueOnce(new Promise<void>(done => { resolve = done; }));
+    const initializing = runtime.initialize();
+    const rejected = expect(initializing).rejects.toMatchObject({ name: 'AbortError' });
+    runtime.dispose();
+    resolve();
+    await rejected;
+    expect(ActionsClient).not.toHaveBeenCalled();
+    expect(TableManager).not.toHaveBeenCalled();
+    expect(runtime.status).toMatchObject({ isModuleReady: false, error: null });
+  });
+
+  it('a stale initialization failure cannot clear readiness from a restarted generation', async () => {
+    let reject!: (error: Error) => void;
+    mocks.initializeWasmCore.mockReturnValueOnce(new Promise<void>((_done, failed) => { reject = failed; }));
+    const initializing = runtime.initialize();
+    const rejected = expect(initializing).rejects.toThrow('old generation');
+    runtime.dispose();
+    await runtime.initialize();
+    reject(new Error('old generation'));
+    await rejected;
+    expect(runtime.status).toMatchObject({ isModuleReady: true, error: null });
+    expect(ActionsClient).toHaveBeenCalledOnce();
+  });
+
+  it('cannot attach a canvas after detaching while initialization is pending', async () => {
+    let resolve!: () => void;
+    mocks.initializeWasmCore.mockReturnValueOnce(new Promise<void>(done => { resolve = done; }));
+    const attaching = runtime.attachCanvas(canvas, { userId: 1, role: 'owner', activeLayer: 'map' });
+    const rejected = expect(attaching).rejects.toMatchObject({ name: 'AbortError' });
+    runtime.detachCanvas();
+    resolve();
+    await rejected;
+    expect(mocks.initGameRenderer).not.toHaveBeenCalled();
+    expect(runtime.status.isCanvasAttached).toBe(false);
+  });
+
+  it('only the newest canvas attachment allocates a renderer after delayed initialization', async () => {
+    let resolve!: () => void;
+    mocks.initializeWasmCore.mockReturnValueOnce(new Promise<void>(done => { resolve = done; }));
+    const oldAttachment = runtime.attachCanvas(canvas, { userId: 1, role: 'owner', activeLayer: 'map' });
+    const rejected = expect(oldAttachment).rejects.toMatchObject({ name: 'AbortError' });
+    const newCanvas = document.createElement('canvas');
+    const newAttachment = runtime.attachCanvas(newCanvas, { userId: 1, role: 'owner', activeLayer: 'tokens' });
+    resolve();
+    await rejected;
+    await newAttachment;
+    expect(mocks.initGameRenderer).toHaveBeenCalledOnce();
+    expect(mocks.initGameRenderer).toHaveBeenCalledWith(newCanvas);
   });
 
   it('recreates the renderer and replays synchronization after WebGL context restoration', async () => {

@@ -1,13 +1,14 @@
-from core_table.table import VirtualTable
-from database import crud, schemas
-from core_table.protocol import Message, MessageType
-from core_table.server import TableManager
-from service.server_protocol import ServerProtocol
-from service import canvas_persistence_service
-from sqlalchemy.orm import sessionmaker
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+
 import pytest
+from core_table.protocol import Message, MessageType
+from core_table.server import TableManager
+from core_table.table import VirtualTable
+from database import crud, schemas
+from service import canvas_persistence_service
+from service.server_protocol import ServerProtocol
+from sqlalchemy.orm import sessionmaker
 
 SETTINGS = {
     "grid_enabled": False,

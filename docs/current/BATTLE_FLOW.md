@@ -162,6 +162,21 @@ If movement would trigger an opportunity attack, the server rejects the move
 with warning details before moving the token. The client stores the pending
 command batch and can resend it with confirmation.
 
+Combat movement and its compensating moves bind persistence to the
+authenticated numeric game-session database ID. The public session code
+identifies combat state and journal lookup; it is not a table-persistence
+foreign key. Weapon-range checks convert pixel positions using the saved
+`grid_cell_px` and `cell_distance`, converting meters to feet when needed.
+Grid visibility does not change physical range.
+
+`test_combat_range_units.py` checks adjacent and distant targets for feet,
+meters, custom cell scales, and hidden grids.
+`tests/integration/test_trusted_session_workflow.py` exercises production
+session dispatch, a move/attack envelope, successful compensating movement
+after a later command fails, duplicate replay, end turn, reconnect, and
+combat/table reconstruction from SQLite. This is not a claim that
+compensation always succeeds or that all writes share one transaction.
+
 ## Planned turns
 
 The player or DM can plan a sequence in React:

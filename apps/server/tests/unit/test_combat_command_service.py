@@ -2,9 +2,9 @@
 
 import asyncio
 import threading
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from service.attack_resolver import AttackResult
 from service.combat_command_service import (
     CombatCommandContext,

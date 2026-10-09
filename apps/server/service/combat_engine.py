@@ -743,10 +743,12 @@ class CombatEngine:
         te = table.entities.get(tgt_sprite) if tgt_sprite else None
         if ae is None or te is None:
             return None  # can't determine; allow
-        ft_per_unit = getattr(table, 'ft_per_unit', 1.0)
         dist_px = math.hypot(te.position[0] - ae.position[0], te.position[1] - ae.position[1])
-        dist_ft = dist_px * ft_per_unit
-        # 5-ft grid tolerance (half-diagonal of a square)
+        # Positions are pixels; weapon ranges are feet regardless of the
+        # displayed grid unit or whether the grid is visible.
+        distance = dist_px * table.cell_distance / table.grid_cell_px
+        dist_ft = distance / 0.3048 if table.distance_unit == 'm' else distance
+        # Preserve the existing 2.5-foot range allowance.
         if dist_ft > range_ft + 2.5:
             return f'Target out of range ({dist_ft:.0f} ft > {range_ft:.0f} ft)'
         return None

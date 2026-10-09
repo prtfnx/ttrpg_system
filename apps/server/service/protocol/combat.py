@@ -250,7 +250,13 @@ class _CombatMixin(_ProtocolBase):
                 role=self._get_client_role(client_id),
                 user_id=self._get_user_id(msg, client_id),
                 table_lookup=self._get_table_by_id,
-                move_sprite=self._move_sprite_for_combat_command,
+                # Combat uses the public session code; canvas persistence uses
+                # the authenticated numeric database identity, including undo.
+                move_sprite=lambda table_id, sprite_id, old_position, new_position, _session_code:
+                    self._move_sprite_for_combat_command(
+                        table_id, sprite_id, old_position, new_position,
+                        session_id=self._get_session_id(msg),
+                    ),
                 validate_move=self._validate_move_for_combat_command,
                 build_combatants=lambda table_id, entity_ids, combatants: CombatantFactory().build_many(
                     entity_ids,
@@ -294,8 +300,10 @@ class _CombatMixin(_ProtocolBase):
         sprite_id: str,
         old_position: dict[str, float],
         new_position: dict[str, float],
-        session_id: str,
+        session_id: int | None,
     ) -> dict[str, Any]:
+        if session_id is None:
+            return {"success": False, "message": "Authenticated session identity required"}
         result = await self.actions.move_sprite(
             table_id=table_id,
             sprite_id=sprite_id,

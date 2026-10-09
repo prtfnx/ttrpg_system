@@ -156,7 +156,7 @@ class TableManager:
         finally:
             self.release_db_session()
 
-    async def save_table_async(self, table_id: str, session_id: int) -> bool:
+    async def save_table_async(self, table_id: str, session_id: int, *, draft: Optional[VirtualTable] = None) -> bool:
         """Snapshot on-loop; write with a fresh worker-owned ORM session."""
         if not self.db_session:
             return False
@@ -164,8 +164,8 @@ class TableManager:
         from utils.blocking import run_blocking
 
         async with self._save_locks.setdefault(table_id, asyncio.Lock()):
-            table = self.tables.get(table_id)
-            if table is None:
+            table = draft if draft is not None else self.tables.get(table_id)
+            if table is None or str(table.table_id) != table_id:
                 return False
             snapshot = copy.deepcopy(table)
             session_factory = sessionmaker(bind=self.db_session.get_bind(), expire_on_commit=False)

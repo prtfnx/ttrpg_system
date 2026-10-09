@@ -142,7 +142,7 @@ export const TableCard: FC<TableCardProps> = ({
         <button onClick={(e) => { e.stopPropagation(); onSettings(table.table_id); }} className={styles.actionBtn} title="Settings" aria-label={`Settings for ${table.table_name}`}>
           <Settings2 size={12} aria-hidden />
         </button>
-        <button onClick={(e) => { e.stopPropagation(); onDuplicate(table.table_id); }} className={styles.actionBtn} title="Duplicate" aria-label={`Duplicate ${table.table_name}`}>
+        <button onClick={(e) => { e.stopPropagation(); onDuplicate(table.table_id); }} className={styles.actionBtn} title="Duplicate table and sprites; paint objects and previews are not copied" aria-label={`Duplicate ${table.table_name}`}>
           <Copy size={12} aria-hidden />
         </button>
         {canSetForAll && (

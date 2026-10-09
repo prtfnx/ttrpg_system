@@ -88,6 +88,26 @@ Create table:
    the normal role-filtered `table_request`. The creating DM receives
    `new_table_response` with the full scene to map the local ID to server data.
 
+Copy a populated table:
+
+`new_table_request` with `source_table_id` deep-copies the source scene and
+assigns new table, sprite, wall, and cover-zone IDs. Local entity indexes,
+asset references, linked characters, and controller lists are retained;
+copying a map does not clone its character records or asset bytes. Paint
+objects and saved previews are separate resources and are not copied. The
+duplicate button explains this limitation.
+
+Persistent creation saves a detached draft before registering it in live
+table indexes or action history. A reported save failure leaves no phantom
+live table, dirty-table retry, or undo entry. Raw `table_data` imports retain
+their proposed sprite IDs and can fail on ownership conflicts.
+
+TODO: copying paint/previews and durable create receipts. A connection lost
+after commit can leave an uncertain database-only draft; reload before
+retrying an unconfirmed create. This is not universal create idempotency.
+`test_table_copy_persistence.py` covers populated copy/reload/delete and
+a conflicting import against a real SQLite database.
+
 Switch table:
 
 1. `switchToTable()` validates the id and calls `setActiveTableId()`.

@@ -396,7 +396,11 @@ class TestNewTableRequest:
         )
 
         assert resp.type == MessageType.NEW_TABLE_RESPONSE
-        assert proto.actions.create_table.await_args.kwargs["initial_data"] == source.to_dict.return_value
+        copied = proto.actions.create_table.await_args.kwargs["initial_data"]
+        assert "table_id" not in copied
+        assert copied["layers"]["tokens"]["1"]["entity_id"] == 1
+        assert copied["layers"]["tokens"]["1"]["sprite_id"]
+        assert "sprite_id" not in source.to_dict.return_value["layers"]["tokens"]["1"]
 
     async def test_import_rejects_excessive_entity_metadata(self):
         proto = _ProtoStub(role="owner")

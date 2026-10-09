@@ -1,6 +1,8 @@
 import asyncio
 import json
 import math
+import uuid
+from copy import deepcopy
 from typing import Any
 
 from core_table.async_actions_protocol import Position
@@ -24,6 +26,21 @@ _MAX_TABLE_DIMENSION = 10_000
 _MAX_TABLE_NAME_LENGTH = 50
 _MAX_IMPORTED_ENTITIES = 5_000
 _MAX_IMPORTED_TABLE_BYTES = 5 * 1024 * 1024
+
+
+def _copy_table_data(source: dict[str, Any]) -> dict[str, Any]:
+    """Copy snapshot content with new global identities; linked data stays shared."""
+    copied = deepcopy(source)
+    copied.pop('table_id', None)
+    for entities in copied.get('layers', {}).values():
+        for entity in entities.values() if isinstance(entities, dict) else entities:
+            entity['sprite_id'] = str(uuid.uuid4())
+    for wall in copied.get('walls', []):
+        wall['wall_id'] = str(uuid.uuid4())
+        wall.pop('table_id', None)
+    for zone in copied.get('cover_zones', []):
+        zone['zone_id'] = str(uuid.uuid4())
+    return copied
 
 
 def _validated_table_dimension(value: object) -> int | None:
@@ -145,7 +162,7 @@ class _TablesMixin(_ProtocolBase):
             )
             if source_table is None:
                 return Message(MessageType.ERROR, {'error': 'Source table not found'})
-            initial_table_data = source_table.to_dict()
+            initial_table_data = _copy_table_data(source_table.to_dict())
         if initial_table_data is not None:
             if not isinstance(initial_table_data, dict):
                 return Message(MessageType.ERROR, {'error': 'table_data must be an object'})
@@ -192,6 +209,12 @@ class _TablesMixin(_ProtocolBase):
             )
 
         if not result.success or not result.data or result.data.get('table') is None:
+            if result.data and result.data.get('reload_required'):
+                return Message(MessageType.ERROR, {
+                    'error': 'Could not confirm table creation. Reload before retrying.',
+                    'code': 'table_creation_save_failed',
+                    'reload_required': True,
+                })
             return Message(MessageType.ERROR, {'error': 'Failed to create new table'})
         else:
             # Get table data and ensure assets are in R2

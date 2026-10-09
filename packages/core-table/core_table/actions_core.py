@@ -180,7 +180,29 @@ class ActionsCore(AsyncActionsProtocol):
         except (KeyError, TypeError, ValueError) as exc:
             return ActionResult(False, f"Invalid initial table data: {exc}")
 
-        # CRITICAL: Add table to BOTH dictionaries in table_manager
+        # New tables are drafts until storage confirms them. Failed imports or
+        # copies must not enter the live indexes/history or background retries.
+        cancelled = False
+        try:
+            if self.table_manager.db_session:
+                if session_id is None:
+                    raise RuntimeError("Session identity is required for persistence")
+                worker = asyncio.create_task(self.table_manager.save_table_async(
+                    str(table.table_id), session_id=session_id, draft=table,
+                ))
+                try:
+                    saved = await asyncio.shield(worker)
+                except asyncio.CancelledError:
+                    cancelled = True
+                    saved = await worker
+                if not saved:
+                    raise RuntimeError("Could not confirm table creation; reload before retrying")
+        except Exception as exc:
+            if cancelled:
+                raise asyncio.CancelledError
+            return ActionResult(False, str(exc), {'table_id': str(table.table_id), 'reload_required': True})
+
+        # Add confirmed tables to BOTH dictionaries in table_manager.
         self.table_manager.add_table(table)  # Adds to tables (by name) and tables_id (by UUID)
         logger.info(f"Added new table '{name}' (ID: {table.table_id}) to table_manager memory")
 
@@ -193,12 +215,8 @@ class ActionsCore(AsyncActionsProtocol):
         }
         await self._add_to_history(action)
 
-        # Force immediate save for table creation (critical operation)
-        try:
-            await self._force_persist_table_state(table, "table creation", session_id)
-        except Exception as exc:
-            return ActionResult(False, str(exc), {'table_id': str(table.table_id), 'persistence_pending': True})
-
+        if cancelled:
+            raise asyncio.CancelledError
         return ActionResult(True, f"Table {name} created successfully", {'table': table})
 
 

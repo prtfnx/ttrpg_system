@@ -39,8 +39,8 @@ Last source audit: 2026-10-01
 
 A table is one playable map or scene inside a session. The browser keeps a
 table list and active table in the game store. The server keeps persisted
-`VirtualTable` rows and serves the complete table payload when a client asks
-for a table.
+`VirtualTable` rows and serves a role-filtered table payload when a client
+asks for a table.
 
 The canvas is the interactive render surface. React owns panels, selected
 tools, active table choice, and protocol calls. Rust/WASM owns the render
@@ -82,8 +82,11 @@ Create table:
 2. The store sends `new_table_request` with `local_table_id`.
 3. The server creates the table through table actions and confirms persistence
    for the authenticated session before returning success.
-4. The server broadcasts `table_update` with `operation: create` and returns
-   `new_table_response` to map the local id to server data.
+4. The server broadcasts `table_update` with `operation: create` containing
+   only table ID, name, width, and height. Scene layers, walls, and metadata are
+   excluded from this announcement. Other clients obtain scene contents through
+   the normal role-filtered `table_request`. The creating DM receives
+   `new_table_response` with the full scene to map the local ID to server data.
 
 Switch table:
 

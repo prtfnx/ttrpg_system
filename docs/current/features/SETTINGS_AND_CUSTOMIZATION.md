@@ -76,10 +76,20 @@ validates and persists:
 - grid enabled and snap-to-grid
 - grid color and background color
 
-`handle_table_settings_update` applies the values to the in-memory table,
-persists them through `VirtualTableUpdate`, then broadcasts
-`table_settings_changed`. The browser handler updates `useGameStore` and syncs
-grid/background values to the WASM runtime when available.
+`handle_table_settings_update` validates a settings draft and persists it
+through a worker-owned `VirtualTableUpdate` before installing live values or
+broadcasting `table_settings_changed`. A false save result or exception sends
+`table_settings_save_failed` and leaves live settings unchanged. The error
+asks the caller to reload before retrying: a lost connection can leave the
+commit outcome uncertain. Cancellation waits for the submitted write to settle
+and installs confirmed committed values before releasing mutation ownership.
+The browser handler updates `useGameStore` and syncs grid/background values to
+the WASM runtime when available. Failure, cancellation, and real database
+save/reload regressions are in `test_tables_protocol.py` and
+`test_table_settings_roundtrip.py`. This path was reviewed on 2026-10-06.
+
+TODO: durable operation receipts and automatic reconciliation for unknown
+commit outcomes; these are not current settings guarantees.
 
 Layer settings are separate. `layer_settings_update` is handled by the session
 protocol, persists into `VirtualTable.layer_settings`, and is applied by the

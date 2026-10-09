@@ -1,3 +1,4 @@
+import asyncio
 import json
 import math
 from typing import Any
@@ -214,12 +215,18 @@ class _TablesMixin(_ProtocolBase):
             if local_table_id:
                 logger.debug("Table identity synchronized", extra={"event_name": "table.identity.synchronized"})
 
-            # Broadcast new table creation to all clients in the session
+            # Creation announces the table, not its private scene contents.
+            # Recipients hydrate through the normal role-filtered table request.
+            table_metadata = {
+                name: table_data[name]
+                for name in ('table_id', 'table_name', 'width', 'height')
+                if name in table_data
+            }
             update_message = Message(MessageType.TABLE_UPDATE, {
                 'operation': 'create',
                 'table_id': table_data.get('table_id'),
                 'table_name': table_name,
-                'table_data': table_data
+                'table_data': table_metadata
             })
             await self.broadcast_to_session(update_message, client_id)
 
@@ -359,74 +366,63 @@ class _TablesMixin(_ProtocolBase):
             if not isinstance(background_color_hex, str) or not _re.match(HEX_PATTERN, background_color_hex):
                 return Message(MessageType.ERROR, {'error': 'background_color_hex must be a valid hex color'})
 
-        # Apply to in-memory table
+        session_id = self._get_session_id(msg)
+        if not session_id:
+            return Message(MessageType.ERROR, {'error': 'Session identity is required to save table settings'})
+
+        # Stage values without exposing an uncommitted change to the live table.
         table = self.table_manager.tables_id.get(table_id)
         if table is None:
             table = self.table_manager.tables.get(table_id)
         if table is None:
             return Message(MessageType.ERROR, {'error': 'Table not found'})
 
-        if dynamic_lighting is not None:
-            table.dynamic_lighting_enabled = dynamic_lighting
-        if fog_mode is not None:
-            table.fog_exploration_mode = fog_mode
-        if ambient is not None:
-            table.ambient_light_level = float(ambient)
-        if grid_cell_px is not None:
-            table.grid_cell_px = float(grid_cell_px)
-        if cell_distance is not None:
-            table.cell_distance = float(cell_distance)
-        if distance_unit is not None:
-            table.distance_unit = distance_unit
-        if grid_enabled is not None:
-            table.grid_enabled = grid_enabled
-        if snap_to_grid is not None:
-            table.snap_to_grid = snap_to_grid
-        if grid_color_hex is not None:
-            table.grid_color_hex = grid_color_hex
-        if background_color_hex is not None:
-            table.background_color_hex = background_color_hex
-
-        # Persist to DB
-        session_id = self._get_session_id(msg)
-        if session_id:
-            try:
-                await run_blocking(
-                    persist_table_settings,
-                    str(table.table_id),
-                    {
-                        'dynamic_lighting_enabled': table.dynamic_lighting_enabled,
-                        'fog_exploration_mode': table.fog_exploration_mode,
-                        'ambient_light_level': table.ambient_light_level,
-                        'grid_cell_px': table.grid_cell_px,
-                        'cell_distance': table.cell_distance,
-                        'distance_unit': table.distance_unit,
-                        'grid_enabled': table.grid_enabled,
-                        'snap_to_grid': table.snap_to_grid,
-                        'grid_color_hex': table.grid_color_hex,
-                        'background_color_hex': table.background_color_hex,
-                    },
-                )
-            except Exception:
-                logger.exception("Table lighting persistence failed")
-
-        # Broadcast to all clients in session
-        broadcast_data = {
-            'table_id': table_id,
-            'dynamic_lighting_enabled': table.dynamic_lighting_enabled,
-            'fog_exploration_mode': table.fog_exploration_mode,
-            'ambient_light_level': table.ambient_light_level,
-            'grid_cell_px': table.grid_cell_px,
-            'cell_distance': table.cell_distance,
-            'distance_unit': table.distance_unit,
-            'grid_enabled': table.grid_enabled,
-            'snap_to_grid': table.snap_to_grid,
-            'grid_color_hex': table.grid_color_hex,
-            'background_color_hex': table.background_color_hex,
+        changes = {
+            'dynamic_lighting_enabled': dynamic_lighting,
+            'fog_exploration_mode': fog_mode,
+            'ambient_light_level': ambient,
+            'grid_cell_px': grid_cell_px,
+            'cell_distance': cell_distance,
+            'distance_unit': distance_unit,
+            'grid_enabled': grid_enabled,
+            'snap_to_grid': snap_to_grid,
+            'grid_color_hex': grid_color_hex,
+            'background_color_hex': background_color_hex,
         }
+        settings = {
+            name: value if value is not None else getattr(table, name)
+            for name, value in changes.items()
+        }
+        worker = asyncio.create_task(run_blocking(persist_table_settings, str(table.table_id), settings))
+        cancelled = False
+        try:
+            try:
+                persisted = await asyncio.shield(worker)
+            except asyncio.CancelledError:
+                # Synchronous SQL cannot be cancelled. Keep session mutation
+                # ownership until it settles and install any committed values.
+                cancelled = True
+                persisted = await worker
+            if not persisted:
+                raise RuntimeError('Table settings were not persisted')
+        except Exception:
+            logger.exception("Table settings persistence could not be confirmed")
+            if cancelled:
+                raise asyncio.CancelledError
+            return Message(MessageType.ERROR, {
+                'code': 'table_settings_save_failed',
+                'error': 'Could not confirm the settings save. Reload the table before retrying.',
+                'table_id': table_id,
+            })
+
+        for name, value in settings.items():
+            setattr(table, name, value)
+        broadcast_data = {'table_id': table_id, **settings}
         await self.broadcast_to_session(
             Message(MessageType.TABLE_SETTINGS_CHANGED, broadcast_data), client_id
         )
+        if cancelled:
+            raise asyncio.CancelledError
         return Message(MessageType.TABLE_SETTINGS_CHANGED, broadcast_data)
 
     async def handle_table_update(self, msg: Message, client_id: str) -> Message:

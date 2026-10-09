@@ -1,5 +1,13 @@
 from core_table.table import VirtualTable
 from database import crud, schemas
+from core_table.protocol import Message, MessageType
+from core_table.server import TableManager
+from service.server_protocol import ServerProtocol
+from service import canvas_persistence_service
+from sqlalchemy.orm import sessionmaker
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+import pytest
 
 SETTINGS = {
     "grid_enabled": False,
@@ -44,3 +52,41 @@ def test_settings_update_survives_session_rehydration(test_db, test_game_session
     loaded, success = crud.load_table_from_db(test_db, str(table.table_id))
     assert success
     assert_settings(loaded)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fail_commit", [False, True])
+async def test_protocol_settings_save_then_reload(test_db, test_db_engine, test_game_session, monkeypatch, fail_commit):
+    table = VirtualTable("Protocol settings", 1000, 1000)
+    crud.save_table_to_db(test_db, table, test_game_session.id)
+    factory = sessionmaker(bind=test_db_engine)
+    if fail_commit:
+        def failed_session():
+            db = factory()
+            db.commit = lambda: (_ for _ in ()).throw(RuntimeError("commit failed"))
+            return db
+        monkeypatch.setattr(canvas_persistence_service, "SessionLocal", failed_session)
+    else:
+        monkeypatch.setattr(canvas_persistence_service, "SessionLocal", factory)
+    manager = TableManager(test_db)
+    manager.add_table(table)
+    session = SimpleNamespace(game_session_db_id=test_game_session.id, client_info={"dm": {"role": "owner"}})
+    protocol = ServerProtocol(manager, session_manager=session)
+    protocol.broadcast_to_session = AsyncMock()
+    response = await protocol.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_UPDATE, {
+        "table_id": str(table.table_id), **SETTINGS,
+    }), "dm")
+    with factory() as db:
+        loaded, success = crud.load_table_from_db(db, str(table.table_id))
+    assert success
+    for name, value in SETTINGS.items():
+        assert getattr(table, name) == getattr(loaded, name)
+        if not fail_commit:
+            assert getattr(loaded, name) == value
+    if fail_commit:
+        assert response.type == MessageType.ERROR
+        assert table.grid_enabled is True
+        protocol.broadcast_to_session.assert_not_awaited()
+    else:
+        assert response.type == MessageType.TABLE_SETTINGS_CHANGED
+        protocol.broadcast_to_session.assert_awaited_once()

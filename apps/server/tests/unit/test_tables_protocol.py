@@ -347,6 +347,29 @@ class TestNewTableRequest:
         assert broadcast.type == MessageType.TABLE_UPDATE
         assert broadcast.data["table_id"] == "t-new"
 
+    async def test_import_announces_metadata_without_broadcasting_private_scene_contents(self):
+        proto = _ProtoStub(role="owner")
+        proto.broadcast_to_session = AsyncMock()
+        scene = {
+            "table_id": "t-new", "table_name": "Dungeon", "width": 2000, "height": 2000,
+            "layers": {"dungeon_master": {"1": {"name": "Secret enemy", "metadata": "DM notes"}}},
+            "walls": [{"is_secret": True}],
+        }
+        table = MagicMock()
+        table.to_dict.return_value = scene
+        proto.actions.create_table = AsyncMock(return_value=_ok_result(table=table))
+        response = await proto.handle_new_table_request(Message(MessageType.NEW_TABLE_REQUEST, {
+            "table_name": "Dungeon", "table_data": scene,
+        }), "c1")
+        broadcast = proto.broadcast_to_session.await_args.args[0]
+        assert broadcast.data["table_data"] == {
+            "table_id": "t-new", "table_name": "Dungeon", "width": 2000, "height": 2000,
+        }
+        assert "Secret enemy" not in broadcast.to_json()
+        assert "DM notes" not in broadcast.to_json()
+        assert "is_secret" not in broadcast.to_json()
+        assert response.data["table_data"] == scene  # The requesting DM retains the complete scene.
+
     async def test_duplicate_hydrates_from_a_session_table(self):
         proto = _ProtoStub(role="owner")
         source = MagicMock()
@@ -585,12 +608,68 @@ class TestTableSettingsUpdate:
             "grid_enabled": False,
             "snap_to_grid": False,
         })
-        resp = await proto.handle_table_settings_update(msg, "c1")
+        with patch("service.protocol.tables.persist_table_settings", return_value=True):
+            resp = await proto.handle_table_settings_update(msg, "c1")
         assert resp.type == MessageType.TABLE_SETTINGS_CHANGED
         assert resp.data["dynamic_lighting_enabled"] is True
         assert resp.data["grid_enabled"] is False
         assert resp.data["snap_to_grid"] is False
         assert len(broadcasts) == 1
+
+    @pytest.mark.parametrize("outcome", [False, RuntimeError("database unavailable")])
+    async def test_failed_save_keeps_live_settings_and_does_not_broadcast(self, outcome):
+        proto = self._proto()
+        proto.broadcast_to_session = AsyncMock()
+        table = proto.table_manager.tables_id["t1"]
+        kwargs = {"side_effect": outcome} if isinstance(outcome, Exception) else {"return_value": outcome}
+        with patch("service.protocol.tables.persist_table_settings", **kwargs):
+            response = await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_CHANGED, {
+                "table_id": "t1", "dynamic_lighting_enabled": True,
+                "ambient_light_level": 0.25, "grid_enabled": False,
+            }), "c1")
+        assert response.type == MessageType.ERROR
+        assert response.data["code"] == "table_settings_save_failed"
+        assert table.dynamic_lighting_enabled is False
+        assert table.ambient_light_level == 1.0
+        assert table.grid_enabled is True
+        proto.broadcast_to_session.assert_not_awaited()
+
+    async def test_missing_session_identity_never_attempts_save(self):
+        proto = self._proto()
+        proto._get_session_id = lambda _msg: None
+        with patch("service.protocol.tables.persist_table_settings") as save:
+            response = await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_CHANGED, {
+                "table_id": "t1", "dynamic_lighting_enabled": True,
+            }), "c1")
+        assert response.type == MessageType.ERROR
+        save.assert_not_called()
+        assert proto.table_manager.tables_id["t1"].dynamic_lighting_enabled is False
+
+    async def test_cancelled_save_settles_before_publishing_committed_values(self):
+        proto = self._proto()
+        proto.broadcast_to_session = AsyncMock()
+        table = proto.table_manager.tables_id["t1"]
+        entered, release = asyncio.Event(), asyncio.Event()
+
+        async def slow_save(*_args):
+            entered.set()
+            await release.wait()
+            return True
+
+        with patch("service.protocol.tables.run_blocking", side_effect=slow_save):
+            task = asyncio.create_task(proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_CHANGED, {
+                "table_id": "t1", "dynamic_lighting_enabled": True,
+            }), "c1"))
+            await entered.wait()
+            assert table.dynamic_lighting_enabled is False
+            task.cancel()
+            await asyncio.sleep(0)
+            assert not task.done()
+            release.set()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        assert table.dynamic_lighting_enabled is True
+        proto.broadcast_to_session.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------

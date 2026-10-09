@@ -314,7 +314,9 @@ class ServerProtocol(
     async def _invoke_handler(self, msg: Message, client_id: str):
         """Run one handler and persist mutation-coupled table state in order."""
         response = await self.handlers[msg.type](msg, client_id)
-        if msg.type in {MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE_REQUEST}:
+        if (msg.type in {MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE_REQUEST}
+                and response is not None
+                and response.type not in {MessageType.ERROR, MessageType.ACTION_REJECTED}):
             auto_save = getattr(getattr(self, "session_manager", None), "auto_save", None)
             if callable(auto_save):
                 auto_save_result = auto_save()
@@ -334,43 +336,54 @@ class ServerProtocol(
         return Message(MessageType.PONG, {'timestamp': time.time(), 'client_id': client_id})
 
     async def handle_batch_request(self, msg: Message, client_id: str) -> Message:
-        """Process a batch of messages and return aggregated responses."""
-        if not msg.data:
-            return Message(MessageType.ERROR, {'error': 'No data provided in batch message'})
-        messages_data = msg.data.get('messages', [])
+        """Aggregate transport messages, not an atomic domain transaction."""
+        if not isinstance(msg.data, dict):
+            return Message(MessageType.ERROR, {'error': 'Batch data must be an object'})
+        messages_data = msg.data.get('messages')
+        # Repeat the endpoint's structural checks for other protocol callers.
+        # Preflight the whole envelope before invoking any mutating handler.
+        if (not isinstance(messages_data, list) or not 1 <= len(messages_data) <= 100
+                or any(not isinstance(item, dict) or item.get('type') == MessageType.BATCH_REQUEST.value
+                       for item in messages_data)):
+            return Message(MessageType.ERROR, {'error': 'Batch requires 1–100 messages and cannot contain nested batches'})
         sequence_id = msg.data.get('seq', 0)
         logger.debug(f"Batch of {len(messages_data)} messages from {client_id}")
         responses = []
         for msg_data in messages_data:
             try:
                 if is_legacy_paint_message(msg_data):
-                    responses.append(
-                        Message(MessageType.ERROR, legacy_paint_upgrade_data())
-                    )
+                    response = Message(MessageType.ERROR, legacy_paint_upgrade_data())
+                    response.correlation_id = msg_data.get('correlation_id') or msg_data.get('message_id')
+                    response.causation_id = msg_data.get('message_id')
+                    responses.append(response)
                     continue
                 individual_msg = Message.from_dict(msg_data)
                 handler = self.handlers.get(individual_msg.type)
                 if handler:
                     response = await self._invoke_handler(individual_msg, client_id)
                     if response and hasattr(response, 'to_json'):
+                        response.correlation_id = individual_msg.correlation_id or individual_msg.message_id
+                        response.causation_id = individual_msg.message_id
                         responses.append(response)
                 else:
                     logger.warning(f"No handler for batch message type: {individual_msg.type}")
-            except Exception as exc:
+                    response = Message(MessageType.ERROR, {'error': 'Unsupported batch message type'})
+                    response.correlation_id = individual_msg.correlation_id or individual_msg.message_id
+                    response.causation_id = individual_msg.message_id
+                    responses.append(response)
+            except Exception:
                 logger.exception("Batch message processing failed")
                 responses.append(Message(MessageType.ERROR, {
-                    'error': f'Batch message processing error: {str(exc)}',
-                    'original_message': msg_data,
+                    'error': 'Batch message processing failed',
                 }))
-        if responses:
-            return Message(MessageType.BATCH_RESPONSE, {
-                'messages': [response.to_dict() for response in responses],
-                'seq': sequence_id,
-                'processed_count': len(messages_data),
-                'response_count': len(responses),
-            })
-        return Message(MessageType.SUCCESS, {
-            'message': f'Batch processed: {len(messages_data)} messages',
+                responses[-1].correlation_id = msg_data.get('correlation_id') or msg_data.get('message_id')
+                responses[-1].causation_id = msg_data.get('message_id')
+        return Message(MessageType.BATCH_RESPONSE, {
+            'messages': [response.to_dict() for response in responses],
             'seq': sequence_id,
             'processed_count': len(messages_data),
+            'response_count': len(responses),
+            'failed_count': sum(response.type in {MessageType.ERROR, MessageType.ACTION_REJECTED}
+                                for response in responses),
+            'atomic': False,
         })

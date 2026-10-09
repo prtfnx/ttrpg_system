@@ -28,6 +28,7 @@ async def test_session_mutations_are_dispatched_in_waiter_order():
             first_started.set()
             await release_first.wait()
         events.append(f"end:{label}")
+        return Message(MessageType.SUCCESS, {})
 
     protocol = _protocol({
         MessageType.TABLE_UPDATE_REQUEST: mutate,

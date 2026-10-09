@@ -153,14 +153,12 @@ function PreCombatSetup({ onCancel }: { onCancel?: () => void }) {
 export function DMCombatPanel({ onCancelSetup }: { onCancelSetup?: () => void } = {}) {
   const combat = useCombatStore((s) => s.combat);
   const role = useGameStore((s) => s.sessionRole);
-  const activeTableId = useGameStore((s) => s.activeTableId);
   const {
     revertLastAction,
     sendDMOverride,
     sendDMOverrides,
     addCombatant,
     endCombat: sendEndCombat,
-    setTerrain,
   } = useCombatCommands();
   const linkedTokenOptions = useLinkedTokenOptions();
   const [selectedId, setSelectedId] = useState('');
@@ -460,15 +458,12 @@ export function DMCombatPanel({ onCancelSetup }: { onCancelSetup?: () => void } 
       {/* ── Difficult Terrain ── */}
       <div className={styles.section}>
         <h4 className={styles.sectionTitle}>Difficult Terrain</h4>
-        <p className={styles.hint}>Mark cells as difficult terrain on the canvas, or clear all.</p>
+        <p className={styles.hint}>Terrain and cover are read-only during combat. End combat before editing them.</p>
         <div className={styles.row}>
           <button
             className={styles.btn}
-            disabled={!activeTableId && !combat.table_id}
-            onClick={() => {
-              const tableId = activeTableId || combat.table_id;
-              if (tableId) setTerrain({ tableId, mode: 'clear' });
-            }}
+            disabled
+            title="End combat before editing terrain"
           >Clear All</button>
         </div>
       </div>

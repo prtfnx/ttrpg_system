@@ -12,7 +12,7 @@ from core_table.combat import CombatAction, CombatState
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from service.combat_persistence_service import CombatPersistenceService
 from utils.blocking import run_blocking
-from utils.roles import is_dm
+from utils.roles import can_interact, is_dm
 
 
 class CombatCommandType(str, Enum):
@@ -242,6 +242,8 @@ class CombatCommandService:
         envelope: CombatCommandEnvelope,
         context: CombatCommandContext,
     ) -> CombatCommandResult:
+        if not can_interact(context.role):
+            return self._reject(envelope.sequence_id, 0, "An interactive role is required for combat commands")
         for idx, command in enumerate(envelope.commands):
             if command.type == CombatCommandType.MOVE:
                 return self._reject(envelope.sequence_id, idx, "Movement commands require async application")
@@ -317,6 +319,8 @@ class CombatCommandService:
         envelope: CombatCommandEnvelope,
         context: CombatCommandContext,
     ) -> CombatCommandResult:
+        if not can_interact(context.role):
+            return self._reject(envelope.sequence_id, 0, "An interactive role is required for combat commands")
         single_command_types = {CombatCommandType.START_COMBAT, CombatCommandType.END_COMBAT}
         if len(envelope.commands) > 1 and any(command.type in single_command_types for command in envelope.commands):
             return self._reject(
@@ -327,6 +331,20 @@ class CombatCommandService:
 
         table_environment_types = self._table_environment_types()
         state = self._engine.get_state(context.session_code)
+        environment_index = next((
+            idx for idx, command in enumerate(envelope.commands)
+            if command.type in table_environment_types
+        ), None)
+        if environment_index is not None:
+            # Table saves and combat journals have independent commits. Until
+            # they share a transaction, allow only one pre-combat environment
+            # edit, rejecting unsupported envelopes before any side effect.
+            if len(envelope.commands) != 1:
+                return self._reject(envelope.sequence_id, environment_index,
+                                    "Terrain and cover edits must be sent individually before combat")
+            if state is not None:
+                return self._reject(envelope.sequence_id, environment_index,
+                                    "End combat before editing terrain or cover")
         if (
             not state
             and envelope.commands[0].type != CombatCommandType.START_COMBAT

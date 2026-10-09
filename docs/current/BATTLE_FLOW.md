@@ -234,17 +234,28 @@ The server records:
 - a journal row in `combat_actions`.
 
 The current encounter snapshot is updated after each accepted command. This
-allows mid-round restore and durable DM revert. Persistence failure rolls the
-in-memory combat state and token movement back before any success broadcast.
+allows mid-round restore and durable DM revert. Persistence failure restores
+the in-memory combat snapshot and attempts compensating token moves before
+returning rejection. Token/table saves and the encounter journal are separate
+transactions; a failed compensation is not an atomic durable rollback.
+
+TODO: a shared table/combat transaction and durable outcome reconciliation for
+required mixed effects. Until then, do not promise complete rollback of every
+accepted/rejected batch across all persisted resources.
 
 Synchronous combat database work runs in worker threads while the per-session
 mutation lock remains held. This includes duplicate-command lookup, accepted
 journal/snapshot persistence, restart restore, linked-character lookup during
 combatant construction, session-rule loading during movement validation, and
-terrain/cover table saves. Plain snapshots and validated command values cross
-the boundary; state-version application, rollback, and broadcasts remain on
-the serialized event-loop task. A slow database therefore does not stall
-unrelated sessions or other event-loop work.
+pre-combat terrain/cover table saves. Combat journal workers use their own
+ORM sessions. The environment save callback still reads a live table through
+`TableManager.save_table`; it is not the detached async snapshot path.
+State-version application, restoration, and broadcasts remain on the
+serialized event-loop task.
+
+TODO: detached environment-save inputs and cancellation-safe ordering across
+all combat writes. Other synchronous wall/join/choice-encounter and permission
+lookup paths can still block the event loop; worker coverage is not universal.
 
 ## Table environment
 
@@ -255,9 +266,18 @@ they use the command path too:
 - `add_cover_zone`;
 - `remove_cover_zone`.
 
-These commands are DM-only. They can run without an active combat encounter
-because the table environment can be prepared before initiative starts. They
-persist table state off-thread and roll back in memory if persistence fails.
+These commands are DM-only and currently require **one command per envelope
+and no active combat**. Unsupported combinations are rejected before table
+lookup, mutation, save, or journal access. Ordinary move/attack batches remain
+supported. Prepare terrain/cover before starting initiative; the DM panel
+explains the limitation and disables its Clear All control during combat.
+A pre-combat edit saves the table without a combat journal and restores its
+previous live environment values on a reported save failure.
+
+TODO: transactional live terrain/cover editing and environment batches. This
+restriction prevents the known partial-write cases; it does not establish
+atomicity for all other combat/table effects. `test_combat_command_service.py`
+and `DMCombatPanel.test.tsx` cover the restriction.
 
 ## Rust/WASM role
 

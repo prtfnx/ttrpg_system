@@ -165,8 +165,10 @@ combat view appropriate for their role.
 
 ## Persistence and rollback
 
-Accepted commands are persisted through
-`CombatPersistenceService.persist_accepted`.
+Accepted encounter mutations are persisted through
+`CombatPersistenceService.persist_accepted`. Noninteractive roles are rejected
+before duplicate lookup or command execution, even if a controller list still
+contains the caller.
 
 The persisted record includes the command payload, result payload, requester,
 before/after state, and state version. If persistence fails, the service
@@ -174,7 +176,18 @@ restores the prior combat state and rejects the command.
 
 Movement commands also use the protocol combat context to move sprites and
 validate movement. If a batch fails after movement, the service restores the
-combat state and moves affected sprites back when possible.
+combat state and moves affected sprites back when possible. These are
+compensating writes, not a database transaction covering the whole envelope.
+
+Table environment commands (`set_terrain`, `add_cover_zone`,
+`remove_cover_zone`) are restricted to one DM command outside active combat.
+They save table state without an encounter journal. Environment batches, mixed
+envelopes, and environment edits during combat are rejected before mutation.
+Normal move/attack planning is still supported.
+
+TODO: one table/combat transaction for mixed effects and crash-safe result
+reconciliation. Do not interpret the current restoration code as complete
+durable rollback when compensating saves fail.
 
 ## Related non-mutation messages
 

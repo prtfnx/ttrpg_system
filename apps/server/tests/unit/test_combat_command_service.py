@@ -2,6 +2,7 @@
 
 import asyncio
 import threading
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from service.attack_resolver import AttackResult
@@ -392,6 +393,79 @@ async def test_cover_zone_persistence_failure_rolls_back():
     assert result.accepted is False
     assert result.reason == "Failed to persist table state"
     assert table.cover_zones == [existing]
+
+
+@pytest.mark.parametrize("active_combat", [False, True])
+@pytest.mark.parametrize("commands", [
+    [{"type": "set_terrain", "actor_id": "__dm__", "table_id": "t1", "cells": [[1, 1]]},
+     {"type": "set_terrain", "actor_id": "__dm__", "table_id": "missing", "cells": [[2, 2]]}],
+    [{"type": "dash", "actor_id": "sprite-a"},
+     {"type": "remove_cover_zone", "actor_id": "__dm__", "table_id": "t1", "zone_id": "z1"}],
+])
+async def test_environment_batches_rejected_before_any_mutation_or_save(active_combat, commands):
+    CombatEngine._active.pop("cmd", None)
+    before = _state()[0].to_dict() if active_combat else None
+    lookup, save = MagicMock(), MagicMock()
+    persistence = MagicMock()
+    service = CombatCommandService(persistence=persistence)
+    result = await service.apply_async(service.parse_envelope({
+        "sequence_id": 110, "commands": commands,
+    }), CombatCommandContext(
+        session_code="cmd", client_id="c1", role="owner", user_id=1,
+        table_lookup=lookup, save_table=save,
+    ))
+    assert not result.accepted
+    assert "individually before combat" in result.reason
+    lookup.assert_not_called()
+    save.assert_not_called()
+    persistence.persist_accepted.assert_not_called()
+    current = CombatEngine.get_state("cmd")
+    assert (current.to_dict() if current else None) == before
+
+
+@pytest.mark.parametrize("command", [
+    {"type": "set_terrain", "actor_id": "__dm__", "table_id": "t1", "cells": [[1, 1]]},
+    {"type": "add_cover_zone", "actor_id": "__dm__", "table_id": "t1", "zone": {"zone_id": "z1", "shape_type": "rect", "coords": [0, 0, 10, 10]}},
+    {"type": "remove_cover_zone", "actor_id": "__dm__", "table_id": "t1", "zone_id": "z1"},
+])
+async def test_single_environment_edit_during_combat_rejected_before_table_or_journal_access(command):
+    state, _, _ = _state()
+    before = state.to_dict()
+    lookup, save = MagicMock(), MagicMock()
+    persistence = MagicMock()
+    service = CombatCommandService(persistence=persistence)
+    result = await service.apply_async(service.parse_envelope({
+        "sequence_id": 111, "commands": [command],
+    }), CombatCommandContext(
+        session_code="cmd", client_id="c1", role="owner", user_id=1,
+        table_lookup=lookup, save_table=save,
+    ))
+    assert not result.accepted
+    assert result.reason == "End combat before editing terrain or cover"
+    lookup.assert_not_called()
+    save.assert_not_called()
+    persistence.find_result.assert_not_called()
+    persistence.persist_accepted.assert_not_called()
+    assert CombatEngine.get_state("cmd").to_dict() == before
+
+
+@pytest.mark.parametrize("command_type", ["dash", "roll_initiative", "roll_death_save", "resolve_opportunity_attack"])
+@pytest.mark.parametrize("role", ["spectator", "unknown"])
+async def test_noninteractive_controller_cannot_mutate_combat_or_replay_a_command(command_type, role):
+    state, actor, _ = _state()
+    before = state.to_dict()
+    persistence = MagicMock()
+    service = CombatCommandService(persistence=persistence)
+    envelope = service.parse_envelope({"sequence_id": 112, "commands": [{
+        "type": command_type, "actor_id": actor.combatant_id,
+    }]})
+    for result in (service.apply(envelope, _context(role=role)),
+                   await service.apply_async(envelope, _context(role=role))):
+        assert not result.accepted
+        assert "interactive role" in result.reason
+    persistence.find_result.assert_not_called()
+    persistence.persist_accepted.assert_not_called()
+    assert CombatEngine.get_state("cmd").to_dict() == before
 
 
 def test_player_cannot_apply_dm_override_to_owned_actor():

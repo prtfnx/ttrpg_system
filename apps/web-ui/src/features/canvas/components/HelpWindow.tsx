@@ -12,13 +12,14 @@ interface ShortcutRow {
 }
 
 const MOUSE_CONTROLS: ShortcutRow[] = [
-  { keys: ['LMB drag (Select)'], description: 'Area-select sprites' },
-  { keys: ['LMB drag (Move)'], description: 'Pan camera' },
-  { keys: ['Ctrl + click'], description: 'Add/remove sprite from selection' },
+  { keys: ['LMB drag (Select)'], description: 'Rectangle-select sprites; include paint in combined mode' },
+  { keys: ['LMB drag (Move)'], description: 'Pan in separate mode; drag selected objects in combined mode' },
+  { keys: ['Ctrl/Cmd/Shift + click'], description: 'Add/remove objects in shared selection' },
   { keys: ['Click sprite (Align)'], description: 'Snap sprite to nearest grid cell' },
   { keys: ['Scroll wheel'], description: 'Zoom in / out' },
   { keys: ['Release move/resize'], description: 'Auto-snap to grid cell' },
-  { keys: ['Release rotate'], description: 'Snap rotation to 90°' },
+  { keys: ['Release sprite rotate'], description: 'Snap sprite rotation to 90°' },
+  { keys: ['Shift + paint rotation handle'], description: 'Snap paint rotation in 15° increments' },
   { keys: ['Alt + drag'], description: 'Move/resize without grid snap' },
 ];
 
@@ -33,14 +34,15 @@ const KEYBOARD_SHORTCUTS: ShortcutRow[] = [
 ];
 
 const TOOL_DESCRIPTIONS: { name: string; description: string }[] = [
-  { name: 'Select', description: 'Drag to area-select. Ctrl+click to multi-select. Auto-switches to Move after selection.' },
-  { name: 'Move', description: 'LMB drag pans the camera. Sprites still draggable with click-and-hold.' },
+  { name: 'Select', description: 'Rectangle-select sprites, or sprites and paint with the combined-selection preference in Paint.' },
+  { name: 'Move', description: 'Separate sprite mode keeps camera pan. Combined mode moves the selected editable objects by dragging.' },
   { name: 'Measure', description: 'Click and drag to measure distance in feet.' },
   { name: 'Align', description: 'Click a sprite to snap it to the nearest grid cell.' },
-  { name: 'Draw Shapes', description: 'Draw rectangles, circles, lines, and text on the canvas.' },
+  { name: 'Table objects', description: 'DM rectangle, circle and line sprites. The Obstacles layer blocks light and vision.' },
+  { name: 'Text sprite', description: 'Create or edit saved Unicode text and styling in the sidebar. Save waits for server confirmation.' },
   { name: 'Draw Wall', description: 'Draw walls that block line-of-sight.' },
   { name: 'Polygon Obstacle', description: 'Draw filled polygon obstacles.' },
-  { name: 'Paint', description: 'Freehand paint brush on the canvas.' },
+  { name: 'Paint', description: 'Saved decorative freehand and shapes, paint rectangle selection, and individual rotation handles.' },
 ];
 
 function ShortcutTable({ rows }: { rows: ShortcutRow[] }) {

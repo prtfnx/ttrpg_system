@@ -189,6 +189,10 @@ paint/combined mode. Those group operations are not implemented. Move mixed
 groups by dragging; use separate sprite mode for its existing sprite shortcuts.
 Form controls keep normal text-editing keyboard behavior.
 
+The Help window uses the current Table objects/Text sprite/Paint tool names,
+distinguishes separate camera-pan behavior from combined dragging, and labels
+the 15-degree paint rotation shortcut separately from sprite rotation.
+
 With the per-member combined-selection preference enabled, the default Select
 tool routes sprites and paint through the same interaction controller. Sprite
 picking stays on the visible, selectable active layer and active table. Sprites

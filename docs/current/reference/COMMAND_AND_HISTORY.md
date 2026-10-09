@@ -59,6 +59,9 @@ utility's local maps; they do not persist or broadcast a canvas edit.
 Action results and history serialize as JSON-compatible plain objects rather
 than JavaScript `Map` instances. Invalid fields, malformed updates, non-finite
 positions and non-positive dimensions reject before mutation or history recording.
+The checked-in optimized artifact in `apps/web-ui/src/lib/wasm/generated/`
+includes these local action fixes. Rebuild it from `packages/rust-core` with
+`wasm-pack build --release --target web --out-dir ../../apps/web-ui/src/lib/wasm/generated --features wasm-start`.
 Regression owners: `packages/rust-core/src/actions/mod.rs` and
 `packages/rust-core/tests/wasm_node.rs`.
 

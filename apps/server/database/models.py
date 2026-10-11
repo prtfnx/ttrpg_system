@@ -1010,6 +1010,27 @@ class PaintOperationResult(Base):
     actor = relationship("User", foreign_keys=[actor_id])
 
 
+class CanvasCommandJournal(Base):
+    """Durable actor/table-scoped editor receipts and reversible object deltas."""
+    __tablename__ = "canvas_command_journal"
+    __table_args__ = (
+        UniqueConstraint("table_id", "actor_id", "operation_id", name="uq_canvas_command_operation"),
+        Index("ix_canvas_command_scope", "table_id", "actor_id", "id"),
+        Index("ix_canvas_command_created_at", "created_at"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    table_id: Mapped[str] = mapped_column(String(36), ForeignKey("virtual_tables.table_id", ondelete="CASCADE"), nullable=False)
+    actor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    operation_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    result_json: Mapped[dict] = mapped_column(JSON_DOCUMENT, nullable=False)
+    changes: Mapped[Optional[list]] = mapped_column(JSON_DOCUMENT, nullable=True)
+    changes_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=utc_now)
+
+
 class SharedMeasurement(Base):
     """A completed line or shape shared on one virtual table."""
     __tablename__ = "shared_measurements"

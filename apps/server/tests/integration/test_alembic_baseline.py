@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 SERVER_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_INI = SERVER_ROOT / "alembic.ini"
-HEAD_REVISION = "0011_selection_preferences"
+HEAD_REVISION = "0012_canvas_command_journal"
 
 
 def _config(monkeypatch, database_url: str) -> Config:

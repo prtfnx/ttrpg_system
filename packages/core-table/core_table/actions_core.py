@@ -34,12 +34,21 @@ class ActionsCore(AsyncActionsProtocol):
         self._save_delay = 2.0  # seconds to wait before saving
 
     async def _add_to_history(self, action: Dict[str, Any]):
-        """Add action to history for undo/redo functionality"""
+        """Audit accepted commands; retain reversible, context-scoped batches."""
+        from .action_batches import MAX_HISTORY_BYTES
+        action = copy.deepcopy(action)
         self.action_history.append(action)
         if len(self.action_history) > self.max_history:
             self.action_history.pop(0)
-        self.undo_stack.append(action)
-        self.redo_stack.clear()  # Clear redo stack when new action is performed
+        if action.get('type') == 'batch' and 'history_scope' in action:
+            self.undo_stack.append(action)
+            self.redo_stack = [entry for entry in self.redo_stack
+                               if entry.get('history_scope') != action['history_scope']]
+        while sum(entry.get('history_bytes', 0) for entry in self.action_history) > MAX_HISTORY_BYTES:
+            self.action_history.pop(0)
+        retained = {id(entry) for entry in self.action_history}
+        self.undo_stack = [entry for entry in self.undo_stack if id(entry) in retained]
+        self.redo_stack = [entry for entry in self.redo_stack if id(entry) in retained]
 
     async def _get_table(self, table_id: str) -> Optional[VirtualTable]:
         """Get table by ID or name"""
@@ -292,8 +301,8 @@ class ActionsCore(AsyncActionsProtocol):
                 'old_values': old_values,
                 'new_values': kwargs
             }
-            await self._add_to_history(action)
             await self._persist_table_state(table, "table update", session_id)
+            await self._add_to_history(action)
 
             return ActionResult(True, f"Table {table_id} updated successfully", kwargs)
         except Exception as e:
@@ -339,9 +348,8 @@ class ActionsCore(AsyncActionsProtocol):
                 'old_position': old_pos,
                 'new_position': position
             }
-            await self._add_to_history(action)
-
             await self._persist_table_state(table, "table move", session_id)
+            await self._add_to_history(action)
             return ActionResult(True, f"Table {table_id} moved to ({position.x}, {position.y})")
         except Exception as e:
             return ActionResult(False, f"Failed to move table: {str(e)}")
@@ -369,9 +377,8 @@ class ActionsCore(AsyncActionsProtocol):
                 'old_scale': old_scale,
                 'new_scale': (scale_x, scale_y)
             }
-            await self._add_to_history(action)
-
             await self._persist_table_state(table, "table scale", session_id)
+            await self._add_to_history(action)
             return ActionResult(True, f"Table {table_id} scaled to ({scale_x}, {scale_y})")
         except Exception as e:
             return ActionResult(False, f"Failed to scale table: {str(e)}")
@@ -817,73 +824,25 @@ class ActionsCore(AsyncActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to get table sprites: {str(e)}")
 
-    # Batch Actions
-    async def batch_actions(self, actions: List[Dict[str, Any]]) -> ActionResult:
-        """Execute multiple actions in a batch"""
-        try:
-            results = []
-            for action in actions:
-                action_type = action.get('type')
-                params = action.get('params', {})
+    # Trusted domain batches; the WebSocket transport batch is separate.
+    async def batch_actions(self, actions: List[Dict[str, Any]], *, table_id=None,
+                            session_id=None, actor_id=None, expected_state=None) -> ActionResult:
+        from .action_batches import apply_batch
+        if (table_id is None and isinstance(actions, list) and actions and isinstance(actions[0], dict)
+                and isinstance(actions[0].get('params'), dict)):
+            table_id = actions[0].get('params', {}).get('table_id')
+        return await apply_batch(self, actions, table_id=table_id, session_id=session_id,
+                                 actor_id=actor_id, expected_state=expected_state)
 
-                # Map action types to methods
-                method_map = {
-                    'create_table': self.create_table,
-                    'delete_table': self.delete_table,
-                    'update_table': self.update_table,
-                    'move_table': self.move_table,
-                    'scale_table': self.scale_table,
-                    'create_sprite': self.create_sprite,
-                    'delete_sprite': self.delete_sprite,
-                    'move_sprite': self.move_sprite,
-                    'scale_sprite': self.scale_sprite,
-                    'rotate_sprite': self.rotate_sprite,
-                    'update_sprite': self.update_sprite,
-                    'set_layer_visibility': self.set_layer_visibility,
-                    'move_sprite_to_layer': self.move_sprite_to_layer
-                }
+    async def undo_action(self, *, table_id=None, session_id=None, actor_id=None) -> ActionResult:
+        from .action_batches import apply_history
+        return await apply_history(self, undo=True, table_id=table_id,
+                                   session_id=session_id, actor_id=actor_id)
 
-                if action_type in method_map:
-                    result = await method_map[action_type](**params)
-                    results.append(result)
-                else:
-                    results.append(ActionResult(False, f"Unknown action type: {action_type}"))
-
-            success_count = sum(1 for r in results if r.success)
-            return ActionResult(True, f"Batch completed: {success_count}/{len(results)} successful",
-                              {'results': results})
-        except Exception as e:
-            return ActionResult(False, f"Failed to execute batch actions: {str(e)}")
-
-    # Undo/Redo Actions
-    async def undo_action(self) -> ActionResult:
-        """Undo the last action"""
-        try:
-            if not self.undo_stack:
-                return ActionResult(False, "No actions to undo")
-
-            action = self.undo_stack.pop()
-            self.redo_stack.append(action)
-
-            # Implement undo logic based on action type
-            # This is a simplified version - full implementation would reverse each action
-            return ActionResult(True, f"Undid action: {action.get('type', 'unknown')}")
-        except Exception as e:
-            return ActionResult(False, f"Failed to undo action: {str(e)}")
-
-    async def redo_action(self) -> ActionResult:
-        """Redo the last undone action"""
-        try:
-            if not self.redo_stack:
-                return ActionResult(False, "No actions to redo")
-
-            action = self.redo_stack.pop()
-            self.undo_stack.append(action)
-
-            # Implement redo logic based on action type
-            return ActionResult(True, f"Redid action: {action.get('type', 'unknown')}")
-        except Exception as e:
-            return ActionResult(False, f"Failed to redo action: {str(e)}")
+    async def redo_action(self, *, table_id=None, session_id=None, actor_id=None) -> ActionResult:
+        from .action_batches import apply_history
+        return await apply_history(self, undo=False, table_id=table_id,
+                                   session_id=session_id, actor_id=actor_id)
 
     # Utility Actions
     async def get_sprite_at_position(self, table_id: str, position: Position, layer: Optional[str] = None) -> ActionResult:

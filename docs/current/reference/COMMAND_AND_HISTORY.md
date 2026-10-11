@@ -36,6 +36,35 @@ Regression owners: `apps/server/tests/unit/test_command_batches.py` and
 
 ## Existing history boundaries
 
+Python `ActionsCore.batch_actions` is a trusted domain API, separate from
+`batch_request`. It accepts 1–100 supported sprite/table edits for one canonical
+table ID. Child commands cannot override session/table context or update identity,
+indexing and control fields through generic updates. The caller must authorize
+each edit using existing protocol rules and hold the session mutation lock; this
+API is not registered as a client message and does not itself verify membership.
+Undo/redo callers must also recheck current permissions; history is not permission
+to edit an object after role or control changes.
+Persistent calls require explicit trusted session/actor IDs. An optional
+`expected_state` content hash rejects stale starting state.
+
+Commands apply to an isolated table. All must succeed and round-trip through table
+serialization before one snapshot save. Failure leaves live state and history
+unchanged, with no delayed retry of a rejected batch. Publication and history
+follow durable success. Cancellation waits for commit/publication/history before
+the caller releases its mutation lock; a cancelled request may have committed.
+
+Accepted batches form one undo step in the existing Python stacks, scoped by
+table/session/actor. Undo/redo checks the complete expected table state and saves
+the inverse before publication. Conflicts and failed saves keep both stacks
+unchanged. Another actor's command does not clear your redo entries; conflicting
+state still blocks replay. History is process-local, at most 100 entries and
+4 MiB of snapshot data; each before/after snapshot is bounded to 1 MiB.
+Server restart does not preserve this undo history. Legacy single commands are
+accepted-command audit entries, not falsely reversible history. Python table
+update/move/scale enter the audit only after persistence succeeds.
+Regression owners: `packages/core-table/tests/test_action_batches.py` and
+`apps/server/tests/unit/test_action_batch_persistence.py`.
+
 The sprite bridge registers pending state before sending, including synchronous
 acknowledgements. It allows at most one unconfirmed transform per sprite/property
 and 100 pending commands overall. A subsequent transform of that property restores
@@ -73,8 +102,9 @@ unconfirmed previews as accepted local edits.
 
 ## Missing
 
-Mixed paint/sprite transactional writes, per-user accepted-command history,
-conflict-safe inverse commands, and group clipboard/resize/rotation shortcuts are
-not implemented. Existing transport batches cannot supply those guarantees.
+Mixed paint/sprite transactional writes, durable multiplayer editor history,
+client-facing history commands, and group clipboard/resize/rotation shortcuts are
+not implemented. Domain batch history does not yet include paint. Existing
+transport batches cannot supply those guarantees.
 See [Measurement and painting](../features/MEASUREMENT_AND_PAINTING.md) for the
 currently supported selection operations and limits.

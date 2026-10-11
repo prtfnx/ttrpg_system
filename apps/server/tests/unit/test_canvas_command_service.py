@@ -1,0 +1,381 @@
+import copy
+import math
+import uuid
+from datetime import UTC, datetime, timedelta
+
+import pytest
+from core_table.table import VirtualTable
+from database import crud, models
+from service import canvas_command_service as module
+from service.canvas_command_service import CanvasCommandService, CanvasRejected, sprite_transform
+from service.paint_object_service import PaintObjectService
+from sqlalchemy import event
+from sqlalchemy.orm import Session, sessionmaker
+
+TABLE = "9e8ed60d-f18c-4f47-a5ce-fc04db50506a"
+PAINT = "dd830253-e2bf-4a92-9862-eabe85f79c99"
+IDENTITY = {"dx": 0, "dy": 0, "scale": 1, "rotation": 0, "pivot_x": 0, "pivot_y": 0}
+
+
+@pytest.fixture
+def scene(test_db, test_db_engine, test_game_session, test_user):
+    factory = sessionmaker(bind=test_db_engine)
+    table = VirtualTable("Canvas", 1000, 1000, table_id=TABLE)
+    table.snap_to_grid = False
+    table.add_entity(
+        {
+            "sprite_id": "sprite",
+            "x": 10,
+            "y": 20,
+            "width": 20,
+            "height": 10,
+            "name": "Text",
+            "controlled_by": [test_user.id],
+            "metadata": '{"saved":"Unicode РџСЂРёРІС–С‚"}',
+        }
+    )
+    crud.save_table_to_db(test_db, table, test_game_session.id)
+    paint = {
+        "id": PAINT,
+        "kind": "rectangle",
+        "geometry": {"kind": "rectangle", "width": 20, "height": 10},
+        "transform": {"x": 50, "y": 60, "scale_x": 1, "scale_y": 1},
+        "style": {"stroke_rgba": [1, 0, 0, 1], "width": 2, "fill_rgba": None},
+    }
+    result = PaintObjectService(factory, writes_enabled=True).create(
+        session_id=test_game_session.id,
+        actor_id=test_user.id,
+        table_id=TABLE,
+        operation_id=str(uuid.uuid4()),
+        editable=paint,
+    )
+    assert result.error is None
+    service = CanvasCommandService(factory, writes_enabled=True)
+    current = {"table": table}
+
+    def members():
+        with factory() as db:
+            version = db.get(models.PaintObject, PAINT).version
+        return [
+            {"kind": "paint", "id": PAINT, "version": version},
+            {
+                "kind": "sprite",
+                "id": "sprite",
+                "expected": sprite_transform(current["table"].find_entity_by_sprite_id("sprite")),
+            },
+        ]
+
+    def command(mode="transform", **values):
+        base = {
+            "operation_id": str(uuid.uuid4()),
+            "table_id": TABLE,
+            "mode": mode,
+            "issued_at": datetime.now(UTC).timestamp() * 1000,
+        }
+        if mode in {"transform", "delete", "copy", "cut"}:
+            base["members"] = members()
+        if mode == "transform":
+            base["transform"] = {**IDENTITY, "dx": 10, "dy": 20}
+        return {**base, **values}
+
+    def execute(value=None, actor_id=None, **kwargs):
+        result = service.execute(
+            session_id=test_game_session.id,
+            actor_id=actor_id or test_user.id,
+            command=value or command(),
+            table_snapshot=current["table"].to_dict(),
+            **kwargs,
+        )
+        if result.table is not None:
+            current["table"] = result.table
+        return result
+
+    return {
+        "factory": factory,
+        "table": current,
+        "service": service,
+        "command": command,
+        "execute": execute,
+        "members": members,
+        "actor": test_user.id,
+        "session": test_game_session.id,
+    }
+
+
+def test_mixed_transform_is_one_durable_history_step_across_service_restart(scene):
+    result = scene["execute"]()
+    assert result.receipt["can_undo"] and not result.receipt["can_redo"]
+    assert [event["type"] for event in result.events] == ["paint_object_event", "sprite_update"]
+    with scene["factory"]() as db:
+        assert db.get(models.PaintObject, PAINT).transform["x"] == 60
+        loaded, ok = crud.load_table_from_db(db, TABLE)
+        assert ok and loaded.find_entity_by_sprite_id("sprite").position == (20, 40)
+    restarted = CanvasCommandService(scene["factory"], writes_enabled=True)
+    undo = restarted.execute(
+        session_id=scene["session"],
+        actor_id=scene["actor"],
+        command=scene["command"]("undo"),
+        table_snapshot=loaded.to_dict(),
+    )
+    assert undo.table.find_entity_by_sprite_id("sprite").position == (10, 20)
+    assert undo.receipt["can_redo"] and not undo.receipt["can_undo"]
+    redo = restarted.execute(
+        session_id=scene["session"],
+        actor_id=scene["actor"],
+        command=scene["command"]("redo"),
+        table_snapshot=undo.table.to_dict(),
+    )
+    assert redo.table.find_entity_by_sprite_id("sprite").position == (20, 40)
+    with scene["factory"]() as db:
+        assert db.get(models.PaintObject, PAINT).version == 4
+
+
+def test_identical_retry_returns_receipt_and_requests_fresh_state_without_old_events(scene):
+    command = scene["command"]()
+    first = scene["execute"](command)
+    retry = scene["execute"](command)
+    assert first.events
+    assert retry.replayed and retry.table is None and not retry.events
+    assert retry.receipt["resync_required"]
+    with scene["factory"]() as db:
+        assert db.get(models.PaintObject, PAINT).version == 2
+        assert db.query(models.CanvasCommandJournal).count() == 1
+    with pytest.raises(CanvasRejected, match="different canvas command"):
+        scene["execute"]({**command, "transform": {**IDENTITY, "dx": 100}})
+
+
+def test_late_member_failure_rolls_back_paint_revision_ledger_and_sprite_snapshot(scene):
+    table = scene["table"]["table"]
+    table.add_entity({"sprite_id": "occupied", "x": 20, "y": 40})
+    before = copy.deepcopy(table.to_dict())
+    with pytest.raises(CanvasRejected, match="occupied"):
+        scene["execute"]()
+    assert table.to_dict() == before
+    with scene["factory"]() as db:
+        assert db.get(models.PaintObject, PAINT).version == 1
+        assert db.get(models.PaintState, TABLE).revision == 1
+        assert db.query(models.PaintOperationResult).count() == 1
+        assert db.query(models.CanvasCommandJournal).count() == 0
+
+
+def test_group_can_move_into_another_members_vacated_anchor(scene):
+    table = scene["table"]["table"]
+    table.add_entity({"sprite_id": "second", "x": 20, "y": 40, "width": 20, "height": 10})
+    members = scene["members"]() + [
+        {"kind": "sprite", "id": "second", "expected": sprite_transform(table.find_entity_by_sprite_id("second"))}
+    ]
+    result = scene["execute"](scene["command"](members=members))
+    assert result.table.find_entity_by_sprite_id("sprite").position == (20, 40)
+    assert result.table.find_entity_by_sprite_id("second").position == (30, 60)
+
+
+def test_stale_selection_rejects_the_entire_command(scene):
+    command = scene["command"]()
+    command["members"][0]["version"] = 100
+    with pytest.raises(CanvasRejected, match="paint object changed"):
+        scene["execute"](command)
+    command = scene["command"]()
+    command["members"][1]["expected"]["x"] = 900
+    with pytest.raises(CanvasRejected, match="sprite changed"):
+        scene["execute"](command)
+
+
+def test_history_checks_only_affected_objects_and_does_not_overwrite_other_members(scene):
+    scene["execute"]()
+    scene["table"]["table"].add_entity({"sprite_id": "unrelated", "x": 800, "y": 800, "name": "Remote edit"})
+    result = scene["execute"](scene["command"]("undo"))
+    assert result.table.find_entity_by_sprite_id("unrelated").name == "Remote edit"
+
+
+def test_history_conflict_leaves_scene_and_stacks_unchanged(scene):
+    scene["execute"]()
+    scene["table"]["table"].find_entity_by_sprite_id("sprite").rotation = 90
+    with pytest.raises(CanvasRejected, match="another edit"):
+        scene["execute"](scene["command"]("undo"))
+    history = scene["service"].history(session_id=scene["session"], actor_id=scene["actor"], table_id=TABLE)
+    assert history["can_undo"] and not history["can_redo"]
+    with scene["factory"]() as db:
+        assert db.get(models.PaintObject, PAINT).version == 2
+
+
+def test_multiple_local_steps_can_undo_and_redo_despite_monotonic_paint_versions(scene):
+    scene["execute"]()
+    scene["execute"]()
+    for _ in range(2):
+        scene["execute"](scene["command"]("undo"))
+    assert scene["table"]["table"].find_entity_by_sprite_id("sprite").position == (10, 20)
+    for _ in range(2):
+        scene["execute"](scene["command"]("redo"))
+    assert scene["table"]["table"].find_entity_by_sprite_id("sprite").position == (30, 60)
+
+
+def test_copy_cut_and_paste_use_captured_server_content_and_new_ids(scene):
+    copied = scene["execute"](scene["command"]("copy"))
+    assert not copied.events and not copied.receipt["can_undo"]
+    original_members = scene["members"]()
+    scene["execute"](scene["command"]("cut", members=original_members))
+    new_paint, new_sprite = str(uuid.uuid4()), str(uuid.uuid4())
+    pasted = scene["execute"](
+        scene["command"](
+            "paste",
+            clipboard_id=copied.receipt["clipboard_id"],
+            ids=[
+                {"kind": "paint", "source_id": PAINT, "id": new_paint},
+                {"kind": "sprite", "source_id": "sprite", "id": new_sprite},
+            ],
+            transform={**IDENTITY, "dx": 100},
+        )
+    )
+    assert pasted.table.find_entity_by_sprite_id(new_sprite).position == (110, 20)
+    assert pasted.table.find_entity_by_sprite_id(new_sprite).metadata.startswith('{"saved"')
+    with scene["factory"]() as db:
+        assert db.get(models.PaintObject, new_paint).created_by == scene["actor"]
+        assert db.get(models.PaintObject, new_paint).version == 1
+        assert db.get(models.PaintObject, PAINT) is None
+
+
+def test_delete_undo_preserves_original_paint_provenance_and_sprite_control(scene):
+    before = scene["members"]()
+    original_controllers = list(scene["table"]["table"].find_entity_by_sprite_id("sprite").controlled_by)
+    scene["execute"](scene["command"]("delete", members=before))
+    result = scene["execute"](scene["command"]("undo"))
+    assert result.table.find_entity_by_sprite_id("sprite").controlled_by == original_controllers
+    with scene["factory"]() as db:
+        restored = db.get(models.PaintObject, PAINT)
+        assert restored.version == 2 and restored.z_order == 1 and restored.created_by == scene["actor"]
+
+
+@pytest.mark.parametrize("mode", ["transform", "delete", "cut", "copy"])
+def test_authorization_is_current_and_cannot_be_forged_in_members(scene, mode):
+    with scene["factory"].begin() as db:
+        player = models.User(username="stranger", hashed_password="x")
+        db.add(player)
+        db.flush()
+        actor = player.id
+        db.add(models.GamePlayer(session_id=scene["session"], user_id=actor, role="player"))
+    with pytest.raises(CanvasRejected, match="creator|control"):
+        scene["execute"](scene["command"](mode), actor_id=actor)
+    with scene["factory"]() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 0
+
+
+def test_combat_members_cannot_bypass_combat_command_authority(scene):
+    with pytest.raises(CanvasRejected, match="Combat tokens"):
+        scene["execute"](combat_sprite_ids=("sprite",))
+
+
+def test_bounded_history_expires_old_deltas_without_deleting_retry_receipts(scene, monkeypatch):
+    monkeypatch.setattr(module, "MAX_HISTORY_ENTRIES", 1)
+    first = scene["command"]()
+    scene["execute"](first)
+    scene["execute"]()
+    with scene["factory"]() as db:
+        rows = db.query(models.CanvasCommandJournal).order_by(models.CanvasCommandJournal.id).all()
+        assert rows[0].state == "expired" and rows[0].changes is None
+        assert rows[1].changes is not None
+    assert scene["execute"](first).replayed
+
+
+def test_expired_intents_unknown_fields_and_duplicate_members_fail_before_writing(scene):
+    command = scene["command"]()
+    with pytest.raises(CanvasRejected, match="expired"):
+        scene["execute"]({**command, "issued_at": command["issued_at"] - 25 * 3600 * 1000})
+    with pytest.raises(CanvasRejected, match="Unknown"):
+        scene["execute"]({**command, "actor_id": scene["actor"]})
+    with pytest.raises(CanvasRejected, match="duplicate"):
+        scene["execute"]({**command, "members": [command["members"][0]] * 2})
+
+
+def test_commit_failure_leaves_live_scene_and_all_durable_domains_unchanged(scene):
+    before = copy.deepcopy(scene["table"]["table"].to_dict())
+
+    def fail_commit(db):
+        raise RuntimeError("simulated storage failure")
+
+    event.listen(Session, "before_commit", fail_commit)
+    try:
+        with pytest.raises(RuntimeError, match="storage failure"):
+            scene["execute"]()
+    finally:
+        event.remove(Session, "before_commit", fail_commit)
+    assert scene["table"]["table"].to_dict() == before
+    with scene["factory"]() as db:
+        assert db.get(models.PaintObject, PAINT).version == 1
+        assert db.get(models.PaintState, TABLE).revision == 1
+        assert db.query(models.CanvasCommandJournal).count() == 0
+        loaded, ok = crud.load_table_from_db(db, TABLE)
+        assert ok and loaded.find_entity_by_sprite_id("sprite").position == (10, 20)
+
+
+def test_transform_delete_restore_then_undo_earlier_step_preserves_paint_creation_time(scene):
+    with scene["factory"]() as db:
+        created = db.get(models.PaintObject, PAINT).created_at
+    scene["execute"]()
+    scene["execute"](scene["command"]("delete"))
+    scene["execute"](scene["command"]("undo"))
+    scene["execute"](scene["command"]("undo"))
+    with scene["factory"]() as db:
+        paint = db.get(models.PaintObject, PAINT)
+        assert paint.created_at == created and paint.transform["x"] == 50
+
+
+def test_uniform_group_resize_and_rotation_share_a_pivot(scene):
+    result = scene["execute"](
+        scene["command"](
+            transform={**IDENTITY, "scale": 2, "rotation": math.pi / 2, "pivot_x": 100, "pivot_y": 100, "dy": 200}
+        )
+    )
+    sprite = result.table.find_entity_by_sprite_id("sprite")
+    assert sprite.position == (230, 130)
+    assert (sprite.scale_x, sprite.scale_y, sprite.rotation) == (2, 2, 90)
+    with scene["factory"]() as db:
+        transform = db.get(models.PaintObject, PAINT).transform
+        assert transform["x"] == pytest.approx(180)
+        assert transform["y"] == pytest.approx(200)
+        assert transform["rotation"] == pytest.approx(math.pi / 2)
+        assert transform["scale_x"] == transform["scale_y"] == 2
+
+
+def test_group_out_of_bounds_rolls_back_the_entire_transform(scene):
+    with pytest.raises(CanvasRejected, match="leave the table"):
+        scene["execute"](scene["command"](transform={**IDENTITY, "dx": -500}))
+    with scene["factory"]() as db:
+        assert db.get(models.PaintObject, PAINT).version == 1
+
+
+def test_copy_does_not_clear_redo_but_a_new_edit_does(scene):
+    scene["execute"]()
+    scene["execute"](scene["command"]("undo"))
+    assert scene["execute"](scene["command"]("copy")).receipt["can_redo"]
+    assert not scene["execute"]().receipt["can_redo"]
+
+
+def test_expired_clipboard_and_other_actor_clipboard_are_not_usable(scene):
+    copied = scene["execute"](scene["command"]("copy"))
+    paste = scene["command"](
+        "paste",
+        clipboard_id=copied.receipt["clipboard_id"],
+        ids=[
+            {"kind": member["kind"], "source_id": member["id"], "id": str(uuid.uuid4())}
+            for member in scene["members"]()
+        ],
+        transform=IDENTITY,
+    )
+    with scene["factory"].begin() as db:
+        row = db.query(models.CanvasCommandJournal).one()
+        row.created_at -= timedelta(hours=25)
+    with pytest.raises(CanvasRejected, match="Clipboard is unavailable"):
+        scene["execute"](paste)
+
+
+def test_sprite_expected_transform_rejects_boolean_numbers(scene):
+    command = scene["command"]()
+    command["members"][1]["expected"]["scale_x"] = True
+    with pytest.raises(CanvasRejected, match="Invalid or out-of-range"):
+        scene["execute"](command)
+
+
+def test_journal_receipts_do_not_duplicate_large_scene_events(scene):
+    scene["execute"]()
+    with scene["factory"]() as db:
+        assert set(db.query(models.CanvasCommandJournal).one().result_json) == {"receipt"}

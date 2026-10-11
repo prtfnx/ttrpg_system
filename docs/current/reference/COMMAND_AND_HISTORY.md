@@ -2,8 +2,8 @@
 
 Audience: contributors changing canvas mutations, selection, or undo/redo.
 
-Status: partial. Current command paths exist; mixed-domain atomic history is not
-implemented.
+Status: partial. A trusted mixed-domain transaction service exists; browser
+commands and group controls do not yet use it.
 
 Last source audit: 2026-10-07
 
@@ -22,6 +22,56 @@ trusted caller's active ORM transaction. It retains normal authorization,
 version, budget and retry checks. The caller must roll back on an error result
 and publish only after its outer commit succeeds. Standalone paint commands
 still own their own transaction.
+
+## Durable canvas transaction service
+
+`apps/server/service/canvas_command_service.py` composes paint and sprite edits
+inside one database transaction. This is a trusted service API, not currently
+a registered WebSocket command. Its caller must hold the session mutation lock,
+serialize against table saves, provide an isolated live table snapshot, and
+publish the returned table and events only after durable success.
+
+Supported modes are transform, delete, copy, cut, paste, undo and redo. A
+transform uses one translation, uniform scale and rotation around a shared world
+pivot. Paint angles use radians; persisted sprite angles use degrees. Sprite
+anchors round to integer coordinates. Line endpoints and polygon vertices remain
+world-space geometry. Light moves are supported; group light resize and rotation
+reject. Movement checks validate the exact group endpoint rather than snapping
+each member independently. Combat tokens cannot use editor mutations.
+
+The service rechecks database membership and permissions for every command,
+including retries and inverse commands. Paint requires creator or DM authority.
+Sprites require a visible layer and control or DM authority. Sprite deletion,
+including undoing a paste, remains DM-only. Player sprite quotas still apply.
+One invalid, stale, forbidden, occupied or out-of-bounds member rejects the whole
+command. Commit failure does not publish a table or advance history.
+
+`canvas_command_journal` stores per-actor, per-table deltas. Undo checks only the
+affected objects, so unrelated remote edits survive. A changed affected object
+blocks undo without advancing history. Paint comparisons ignore monotonically
+increasing version/update timestamps, but retain content and provenance checks.
+Restoring a deletion preserves creator, creation time, order and sprite controls.
+New edits abandon that actor's redo branch; copying does not.
+
+Copy captures authoritative server content. Paste accepts a clipboard token,
+new IDs and a transform, not arbitrary sprite metadata or ownership fields.
+Clipboard tokens are actor/table-scoped and expire after 24 hours. Fresh copies
+receive server-owned paint provenance and normal sprite controls. Linked sprite
+character and asset references stay shared, as with table copying.
+
+Commands allow 1–100 objects, a 60 KiB request, a 1 MiB delta and bounded individual
+event frames. Retained deltas share a 100-entry/4 MiB budget per actor/table and
+expire after 48 hours. Expiring a delta preserves its small retry receipt.
+The existing hourly paint retention job also removes journal rows older than
+48 hours. Intent timestamps reject commands older than 24 hours or more than
+60 seconds in the future. An identical operation ID/body returns the accepted
+receipt without another write. Reusing an ID with another body rejects. Retries
+request fresh hydration rather than replaying unversioned historical sprite
+events. Process restart preserves journal history; legacy command paths do not
+automatically enter this journal.
+
+Regression owners: `apps/server/tests/unit/test_canvas_command_service.py` and
+`test_paint_operation_cleanup.py`.
 
 ## Transport batching
 
@@ -133,9 +183,9 @@ unconfirmed previews as accepted local edits.
 
 ## Missing
 
-Mixed paint/sprite transactional writes, durable multiplayer editor history,
-client-facing history commands, and group clipboard/resize/rotation shortcuts are
-not implemented. Domain batch history does not yet include paint. Existing
-transport batches cannot supply those guarantees.
+The trusted durable canvas service is not wired into browser commands. Current
+group writes still use individual domain commands. Client-facing history and
+group clipboard/resize/rotation controls are missing. Legacy single-command
+history remains separate. Transport batches cannot supply atomicity.
 See [Measurement and painting](../features/MEASUREMENT_AND_PAINTING.md) for the
 currently supported selection operations and limits.

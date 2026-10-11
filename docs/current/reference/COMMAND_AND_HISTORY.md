@@ -40,7 +40,8 @@ Regression owners: `apps/server/tests/unit/test_command_batches.py` and
 Python `ActionsCore.batch_actions` is a trusted domain API, separate from
 `batch_request`. It accepts 1–100 supported sprite/table edits for one canonical
 table ID. Child commands cannot override session/table context or update identity,
-indexing and control fields through generic updates. The caller must authorize
+indexing and control fields through generic updates. Malformed command names
+reject without staging edits. The caller must authorize
 each edit using existing protocol rules and hold the session mutation lock; this
 API is not registered as a client message and does not itself verify membership.
 Undo/redo callers must also recheck current permissions; history is not permission

@@ -47,6 +47,7 @@ async def test_failed_command_rolls_back_entire_batch(scene):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("commands", [[], [{}] * 101, [{"type": "delete_table", "params": {}}],
+                                     [{"type": [], "params": {}}], [{"type": {}, "params": {}}],
                                      [{"type": "update_sprite", "params": {"table_id": "other"}}],
                                      [{"type": "update_sprite", "params": {"sprite_id": "s", "controlled_by": [2]}}],
                                      [{"type": "update_table", "params": {"table_id": "wrong"}}]])

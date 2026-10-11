@@ -99,7 +99,8 @@ async def _apply_batch(actions, commands, *, table_id, session_id=None, actor_id
     # Reject the complete envelope before staging any action. Identity/context
     # cannot be overridden by a child. Creating/deleting tables is not supported.
     for command in commands:
-        if (not isinstance(command, dict) or command.get("type") not in SUPPORTED
+        if (not isinstance(command, dict) or not isinstance(command.get("type"), str)
+                or command["type"] not in SUPPORTED
                 or not isinstance(command.get("params"), dict)
                 or command["params"].get("table_id", table_id) != table_id
                 or command["params"].get("session_id", session_id) != session_id):

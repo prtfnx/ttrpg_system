@@ -5,7 +5,7 @@ Audience: contributors changing canvas mutations, selection, or undo/redo.
 Status: partial. Current command paths exist; mixed-domain atomic history is not
 implemented.
 
-Last source audit: 2026-10-06
+Last source audit: 2026-10-07
 
 ## Ownership and current flow
 
@@ -97,6 +97,11 @@ Non-interactive roles, invalid transforms and synchronous send failures do not
 leave untracked writes or delayed failure timers. The bridge remains a confirmation
 tracker, not an undo journal. Regression owner:
 `apps/web-ui/src/lib/wasm/__tests__/wasmBridge.test.ts`.
+Combined-selection sprite moves use this same confirmation owner, including
+action IDs, permissions, combat routing, in-flight limits, rejection and timeout.
+The adapter supplies its captured table and protocol; stale adapters cannot
+submit into a different session or table. Paint and sprite members still commit
+separately; sharing confirmations does not make a group atomic.
 
 Rust `ActionsClient` is an isolated local-domain utility, not the renderer's
 authoritative multiplayer scene. Its undo/redo reverses table and sprite CRUD,

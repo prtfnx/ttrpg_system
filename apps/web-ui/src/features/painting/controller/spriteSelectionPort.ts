@@ -3,6 +3,7 @@ import type { Sprite } from '@/types';
 import { canInteract, isDM } from '@features/session/types/roles';
 import type { WebClientProtocol } from '@lib/websocket';
 import type { WasmRuntimePort } from '@lib/wasm/runtime';
+import { wasmBridgeService } from '@lib/wasm/wasmBridge';
 import type { SpriteSelectionPort } from './PaintInteractionController';
 import type { SelectionBounds } from './SelectionManager';
 
@@ -46,7 +47,7 @@ export function createSpriteSelectionPort(runtime: WasmRuntimePort, protocol: We
       const sprite = store.sprites.find(item => item.id === id && item.tableId === tableId);
       if (sprite) runtime.previewSelectionSprite(id, sprite.x, sprite.y);
     },
-    move(tableId, id, x, y) { protocol.moveSprite(id, x, y, tableId); },
+    move(tableId, id, x, y) { wasmBridgeService.commitSelectionMove(protocol, tableId, id, x, y); },
     remove(tableId, id) { protocol.removeSprite(id, tableId); },
   };
 }

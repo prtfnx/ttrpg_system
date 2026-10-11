@@ -67,6 +67,12 @@ class WasmBridgeService {
     this.protocol = protocol;
   }
 
+  /** Route shared-selection moves through the same confirmation owner as WASM gestures. */
+  commitSelectionMove(protocol: WebClientProtocol, tableId: string, spriteId: string, x: number, y: number): void {
+    if (!this.isInitialized || this.protocol !== protocol || useGameStore.getState().activeTableId !== tableId) return;
+    this.onWasmOperation({ operation: 'move', spriteId, data: { x, y } });
+  }
+
   /**
    * Seed committed state for a sprite from authoritative server data.
    * Must be called whenever the server sends confirmed sprite state

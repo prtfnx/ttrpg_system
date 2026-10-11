@@ -78,6 +78,45 @@ afterEach(() => {
 });
 
 describe('WasmBridgeService', () => {
+  it('tracks combined-selection moves with the existing acknowledgement and timeout owner', () => {
+    const protocol = { sendMessage: vi.fn() };
+    wasmBridgeService.setProtocol(protocol as never);
+    wasmBridgeService.seedSpriteState('combined', { x: 1, y: 2 });
+    wasmBridgeService.commitSelectionMove(protocol as never, 'tbl-1', 'combined', 10, 20);
+    const message = protocol.sendMessage.mock.calls[0][0];
+    expect(message.data).toMatchObject({ table_id: 'tbl-1', sprite_id: 'combined',
+      from: { x: 1, y: 2 }, to: { x: 10, y: 20 }, action_id: expect.any(String) });
+    window.dispatchEvent(new CustomEvent('sprite-action-confirmed', { detail: { actionId: message.data.action_id } }));
+    vi.advanceTimersByTime(6000);
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('rejects selection moves bound to an old protocol, inactive table or disposed owner', () => {
+    const protocol = { sendMessage: vi.fn() };
+    const stale = { sendMessage: vi.fn() };
+    wasmBridgeService.setProtocol(protocol as never);
+    wasmBridgeService.commitSelectionMove(stale as never, 'tbl-1', 'sprite', 10, 20);
+    wasmBridgeService.commitSelectionMove(protocol as never, 'old-table', 'sprite', 10, 20);
+    wasmBridgeService.cleanup();
+    wasmBridgeService.commitSelectionMove(protocol as never, 'tbl-1', 'sprite', 10, 20);
+    expect(protocol.sendMessage).not.toHaveBeenCalled();
+    expect(stale.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('bounds unconfirmed selection moves and reports rejection through the shared owner', () => {
+    const protocol = { sendMessage: vi.fn() };
+    wasmBridgeService.setProtocol(protocol as never);
+    wasmBridgeService.commitSelectionMove(protocol as never, 'tbl-1', 'sprite', 10, 20);
+    wasmBridgeService.commitSelectionMove(protocol as never, 'tbl-1', 'sprite', 30, 40);
+    expect(protocol.sendMessage).toHaveBeenCalledOnce();
+    const actionId = protocol.sendMessage.mock.calls[0][0].data.action_id;
+    vi.mocked(toast.error).mockClear();
+    window.dispatchEvent(new CustomEvent('sprite-action-rejected', { detail: { actionId, reason: 'denied' } }));
+    expect(toast.error).toHaveBeenCalledOnce();
+    vi.advanceTimersByTime(6000);
+    expect(toast.error).toHaveBeenCalledOnce();
+  });
+
   it('defers renderer rollback until the WASM callback unwinds and uses the latest server seed', async () => {
     const protocol = { sendMessage: vi.fn(() => { throw new Error('offline'); }) };
     wasmBridgeService.setProtocol(protocol as never);

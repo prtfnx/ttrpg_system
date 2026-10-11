@@ -1,9 +1,12 @@
 import { useGameStore } from '@/store';
 import type { Sprite } from '@/types';
 import type { WebClientProtocol } from '@lib/websocket';
+import { wasmBridgeService } from '@lib/wasm/wasmBridge';
 import { createMockWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSpriteSelectionPort, spriteSelectionBounds } from '../spriteSelectionPort';
+
+vi.mock('@lib/wasm/wasmBridge', () => ({ wasmBridgeService: { commitSelectionMove: vi.fn() } }));
 
 const sprite: Sprite = { id: 'sprite', name: 'Text', tableId: 'table', x: 0, y: 0, width: 20, height: 10,
   scale: { x: 1, y: 1 }, rotation: 90, layer: 'tokens', texture: '__TEXT__', controlledBy: ['7'] };
@@ -31,7 +34,9 @@ describe('runtime-owned sprite selection adapter', () => {
     port.select(['sprite']); expect(useGameStore.getState().selectedSprites).toEqual([]);
     port.select(['sprite']); expect(useGameStore.getState().selectedSprites).toEqual(['sprite']);
     port.preview('sprite', 10, 20); expect(runtime.previewSelectionSprite).toHaveBeenCalledWith('sprite', 10, 20);
-    port.move('captured', 'sprite', 10, 20); expect(protocol.moveSprite).toHaveBeenCalledWith('sprite', 10, 20, 'captured');
+    port.move('captured', 'sprite', 10, 20);
+    expect(wasmBridgeService.commitSelectionMove).toHaveBeenCalledWith(protocol, 'captured', 'sprite', 10, 20);
+    expect(protocol.moveSprite).not.toHaveBeenCalled();
     port.remove('captured', 'sprite'); expect(protocol.removeSprite).toHaveBeenCalledWith('sprite', 'captured');
   });
 

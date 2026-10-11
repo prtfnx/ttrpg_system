@@ -4,7 +4,7 @@ Audience: contributors changing measurement, paint tools, reconciliation, or ren
 
 Status: usable. Completed measurements and paint objects are server-authoritative.
 
-Last source audit: 2026-10-06
+Last source audit: 2026-10-07
 
 ## Ownership
 
@@ -171,6 +171,10 @@ Marquee and group previews are local and cleared on cancellation. A committed
 paint version change cancels an in-flight edit based on the old version.
 Group writes remain separate commands, with individual errors and existing
 pending-operation/resource limits; a mixed group is not an atomic transaction.
+Ending or cancelling a sprite preview restores the latest authoritative store
+position, not the gesture's starting position. Hidden-layer sprites can still
+restore, but removed sprites and inactive tables cannot. Replacing the sprite
+adapter cancels through the old adapter before releasing it.
 
 Sprite movement uses control ownership; deletion remains DM-only even for
 player-controlled text. Changing layer visibility cancels local gestures.

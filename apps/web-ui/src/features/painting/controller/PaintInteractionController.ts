@@ -66,6 +66,7 @@ export interface SpriteSelectionPort {
   hitTest(x: number, y: number): string | null;
   select(ids: readonly string[]): void;
   preview(id: string, x: number, y: number): void;
+  restore(tableId: string, id: string): void;
   move(tableId: string, id: string, x: number, y: number): void;
   remove(tableId: string, id: string): void;
 }
@@ -283,7 +284,14 @@ export class PaintInteractionController {
     this.emit();
   }
 
-  setSpriteSelectionPort(port: SpriteSelectionPort | null): void { this.sprites = port; }
+  setSpriteSelectionPort(port: SpriteSelectionPort | null): void {
+    if (this.sprites === port) return;
+    this.cancelGesture();
+    this.sprites = port;
+    this.selection.retain(ref => ref.kind !== 'sprite');
+    this.syncSelection();
+    this.emit();
+  }
 
   cancelSelectionGesture(): void { this.cancelGesture(); }
 
@@ -778,7 +786,7 @@ export class PaintInteractionController {
     this.gesture = null;
     if (gesture.kind === 'group') {
       for (const object of gesture.paints) this.runtime.clearPaintDraft(`selection:${object.id}`);
-      for (const sprite of gesture.sprites) this.sprites?.preview(sprite.id, sprite.x, sprite.y);
+      for (const sprite of gesture.sprites) this.sprites?.restore(gesture.tableId, sprite.id);
     }
     if (gesture.kind === 'marquee') this.runtime.clearPaintDraft('selection-marquee');
     else if (gesture.kind !== 'group') {

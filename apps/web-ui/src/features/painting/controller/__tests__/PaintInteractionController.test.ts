@@ -126,7 +126,7 @@ describe('PaintInteractionController', () => {
   it('selects all visible paint/sprites and adopts entity-list selections in combined mode', () => {
     const { controller } = harness([object()]);
     const sprites = { items: () => [{ id: 'sprite', x: 35, y: 5, bounds: [35, 5, 50, 15] as const, canEdit: true }],
-      hitTest: () => null, select: vi.fn(), preview: vi.fn(), move: vi.fn(), remove: vi.fn() };
+      hitTest: () => null, select: vi.fn(), preview: vi.fn(), restore: vi.fn(), move: vi.fn(), remove: vi.fn() };
     controller.setSpriteSelectionPort(sprites); controller.setSelectionMode('combined'); controller.setSelectOnly(true);
     controller.handleKeyDown(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true }));
     expect(controller.getState().selectionCount).toBe(2);
@@ -138,7 +138,7 @@ describe('PaintInteractionController', () => {
   it('does not delete a controllable sprite when its separate delete permission is absent', () => {
     const { controller, runtime, scene } = harness([object()]);
     const sprites = { items: () => [{ id: 'player-text', x: 35, y: 5, bounds: [35, 5, 50, 15] as const, canEdit: true, canDelete: false }],
-      hitTest: () => null, select: vi.fn(), preview: vi.fn(), move: vi.fn(), remove: vi.fn() };
+      hitTest: () => null, select: vi.fn(), preview: vi.fn(), restore: vi.fn(), move: vi.fn(), remove: vi.fn() };
     controller.setSpriteSelectionPort(sprites); controller.setSelectionMode('combined'); controller.setSelectOnly(true);
     runtime.hitTestPaintObject.mockReturnValue(null);
     controller.handlePointerDown(pointer(1, 10, 20)); controller.handlePointerUp(pointer(1, 70, 40));
@@ -164,7 +164,7 @@ describe('PaintInteractionController', () => {
   it('selects and moves sprites and paint together, restoring previews after cancel', () => {
     const { controller, runtime, scene } = harness([object()]);
     const sprites = { items: vi.fn(() => [{ id: 'sprite', x: 35, y: 5, bounds: [35, 5, 50, 15] as const, canEdit: true }]),
-      hitTest: vi.fn((): string | null => null), select: vi.fn(), preview: vi.fn(), move: vi.fn(), remove: vi.fn() };
+      hitTest: vi.fn((): string | null => null), select: vi.fn(), preview: vi.fn(), restore: vi.fn(), move: vi.fn(), remove: vi.fn() };
     controller.setSpriteSelectionPort(sprites);
     controller.setSelectionMode('combined');
     controller.setSelectOnly(true);
@@ -176,13 +176,50 @@ describe('PaintInteractionController', () => {
     controller.handlePointerDown(pointer(2, 20, 28));
     controller.handlePointerMove(pointer(2, 30, 38));
     controller.handlePointerCancel(pointer(2, 30, 38));
-    expect(sprites.preview).toHaveBeenLastCalledWith('sprite', 35, 5);
+    expect(sprites.restore).toHaveBeenLastCalledWith(TABLE, 'sprite');
     expect(sprites.move).not.toHaveBeenCalled();
     expect(scene.submitUpdate).not.toHaveBeenCalled();
     controller.handlePointerDown(pointer(3, 20, 28));
     controller.handlePointerUp(pointer(3, 30, 38));
     expect(sprites.move).toHaveBeenCalledWith(TABLE, 'sprite', 45, 15);
     expect(scene.submitUpdate).toHaveBeenCalledOnce();
+  });
+
+  it('restores through the authoritative adapter when remote movement cancels a group gesture', () => {
+    const { controller, runtime, scene } = harness([object()]);
+    let current = { id: 'sprite', x: 35, y: 5, bounds: [35, 5, 50, 15] as const, canEdit: true };
+    const sprites = { items: () => [current], hitTest: () => 'sprite', select: vi.fn(),
+      preview: vi.fn(), restore: vi.fn(), move: vi.fn(), remove: vi.fn() };
+    controller.setSpriteSelectionPort(sprites);
+    controller.setSelectionMode('combined');
+    controller.setSelectOnly(true);
+    runtime.hitTestPaintObject.mockReturnValue(null);
+    controller.handlePointerDown(pointer(1, 45, 25));
+    controller.handlePointerMove(pointer(1, 55, 35));
+    expect(sprites.preview).toHaveBeenLastCalledWith('sprite', 45, 15);
+    current = { ...current, x: 80, y: 90 };
+    controller.reconcileSelection();
+    expect(controller.getState().gestureActive).toBe(false);
+    expect(sprites.restore).toHaveBeenCalledWith(TABLE, 'sprite');
+    expect(sprites.preview).not.toHaveBeenCalledWith('sprite', 35, 5);
+    controller.handlePointerUp(pointer(1, 55, 35));
+    expect(sprites.move).not.toHaveBeenCalled();
+    expect(scene.submitUpdate).not.toHaveBeenCalled();
+  });
+
+  it('cancels through the old sprite adapter before replacing or detaching it', () => {
+    const { controller, runtime } = harness();
+    const sprites = { items: () => [{ id: 'sprite', x: 35, y: 5, bounds: [35, 5, 50, 15] as const, canEdit: true }],
+      hitTest: () => 'sprite', select: vi.fn(), preview: vi.fn(), restore: vi.fn(), move: vi.fn(), remove: vi.fn() };
+    controller.setSpriteSelectionPort(sprites);
+    controller.setSelectionMode('combined');
+    controller.setSelectOnly(true);
+    runtime.hitTestPaintObject.mockReturnValue(null);
+    controller.handlePointerDown(pointer(1, 45, 25));
+    controller.handlePointerMove(pointer(1, 55, 35));
+    controller.setSpriteSelectionPort(null);
+    expect(sprites.restore).toHaveBeenCalledWith(TABLE, 'sprite');
+    expect(controller.getState()).toMatchObject({ gestureActive: false, selectedSpriteIds: [] });
   });
 
   it('rotates from the handle using the visual center', () => {

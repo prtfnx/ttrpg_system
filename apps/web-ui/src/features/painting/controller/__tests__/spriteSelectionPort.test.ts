@@ -34,4 +34,23 @@ describe('runtime-owned sprite selection adapter', () => {
     port.move('captured', 'sprite', 10, 20); expect(protocol.moveSprite).toHaveBeenCalledWith('sprite', 10, 20, 'captured');
     port.remove('captured', 'sprite'); expect(protocol.removeSprite).toHaveBeenCalledWith('sprite', 'captured');
   });
+
+  it('restores the latest authoritative position even after the selected layer becomes hidden', () => {
+    const runtime = createMockWasmRuntime();
+    const port = createSpriteSelectionPort(runtime, {} as WebClientProtocol);
+    port.preview('sprite', 20, 30);
+    useGameStore.setState({ sprites: [{ ...sprite, x: 80, y: 90 }], layerVisibility: { tokens: false } });
+    port.restore('table', 'sprite');
+    expect(runtime.previewSelectionSprite).toHaveBeenLastCalledWith('sprite', 80, 90);
+  });
+
+  it('never restores removed sprites or a different active table', () => {
+    const runtime = createMockWasmRuntime();
+    const port = createSpriteSelectionPort(runtime, {} as WebClientProtocol);
+    useGameStore.setState({ activeTableId: 'other' });
+    port.restore('table', 'sprite');
+    useGameStore.setState({ activeTableId: 'table', sprites: [] });
+    port.restore('table', 'sprite');
+    expect(runtime.previewSelectionSprite).not.toHaveBeenCalled();
+  });
 });

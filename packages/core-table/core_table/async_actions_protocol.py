@@ -145,16 +145,26 @@ class AsyncActionsProtocol(ABC):
 
     # Batch Actions
     @abstractmethod
-    async def batch_actions(self, actions: List[Dict[str, Any]]) -> ActionResult:
+    async def batch_actions(
+        self, actions: List[Dict[str, Any]], *, table_id: Optional[str] = None,
+        session_id: Optional[int] = None, actor_id: Optional[int] = None,
+        expected_state: Optional[str] = None,
+    ) -> ActionResult:
         pass
 
     # Undo/Redo Actions
     @abstractmethod
-    async def undo_action(self) -> ActionResult:
+    async def undo_action(
+        self, *, table_id: Optional[str] = None, session_id: Optional[int] = None,
+        actor_id: Optional[int] = None,
+    ) -> ActionResult:
         pass
 
     @abstractmethod
-    async def redo_action(self) -> ActionResult:
+    async def redo_action(
+        self, *, table_id: Optional[str] = None, session_id: Optional[int] = None,
+        actor_id: Optional[int] = None,
+    ) -> ActionResult:
         pass
 
     # Utility Actions

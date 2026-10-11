@@ -47,6 +47,23 @@ Undo/redo callers must also recheck current permissions; history is not permissi
 to edit an object after role or control changes.
 Persistent calls require explicit trusted session/actor IDs. An optional
 `expected_state` content hash rejects stale starting state.
+Supported edits are sprite create/delete/move/scale/rotate/update, sprite layer
+changes, table update/move/scale, and layer visibility. Table create/delete,
+wall, paint and combat commands are not domain batch operations. Light sprites
+use the same sprite commands; renderer lighting APIs do not write domain history.
+
+After authorization, inside the existing session mutation lock, a caller can use:
+
+```python
+result = await actions.batch_actions(
+    [{"type": "rotate_sprite", "params": {"sprite_id": sprite_id, "angle": 90}}],
+    table_id=table_id, session_id=session_id, actor_id=user_id,
+)
+```
+
+The same trusted context scopes `undo_action` and `redo_action`. These calls are
+declared by `core_table.async_actions_protocol.AsyncActionsProtocol`. They are
+Python domain APIs, not new browser or WebSocket commands.
 
 Commands apply to an isolated table. All must succeed and round-trip through table
 serialization before one snapshot save. Failure leaves live state and history

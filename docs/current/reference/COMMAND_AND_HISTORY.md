@@ -73,6 +73,12 @@ automatically enter this journal.
 Regression owners: `apps/server/tests/unit/test_canvas_command_service.py` and
 `test_paint_operation_cleanup.py`.
 
+The canonical protocol schema defines `canvas_command`, `canvas_command_result`,
+`canvas_history_request` and `canvas_history_state`. Command payloads reject
+unknown fields and mode-inconsistent fields. Both generated language registries
+share this contract. `packages/core-table/tests/test_canvas_protocol_schema.py`
+owns the payload boundary tests. Defining a message does not register a handler.
+
 ## Transport batching
 
 `batch_request` reduces WebSocket framing overhead. It is not a database

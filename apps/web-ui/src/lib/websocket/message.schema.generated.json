@@ -159,6 +159,10 @@
         "multiclass_response",
         "batch_request",
         "batch_response",
+        "canvas_command",
+        "canvas_command_result",
+        "canvas_history_request",
+        "canvas_history_state",
         "table_settings_update",
         "table_settings_changed",
         "wall_create",
@@ -335,6 +339,10 @@
         "MULTICLASS_RESPONSE",
         "BATCH_REQUEST",
         "BATCH_RESPONSE",
+        "CANVAS_COMMAND",
+        "CANVAS_COMMAND_RESULT",
+        "CANVAS_HISTORY_REQUEST",
+        "CANVAS_HISTORY_STATE",
         "TABLE_SETTINGS_UPDATE",
         "TABLE_SETTINGS_CHANGED",
         "WALL_CREATE",
@@ -1719,6 +1727,132 @@
         }
       ]
     },
+    "canvasUuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "canvasTransform": {
+      "type": "object",
+      "required": ["dx", "dy", "scale", "rotation", "pivot_x", "pivot_y"],
+      "properties": {
+        "dx": {"type": "number", "minimum": -1000000, "maximum": 1000000},
+        "dy": {"type": "number", "minimum": -1000000, "maximum": 1000000},
+        "pivot_x": {"type": "number", "minimum": -1000000, "maximum": 1000000},
+        "pivot_y": {"type": "number", "minimum": -1000000, "maximum": 1000000},
+        "scale": {"type": "number", "minimum": 0.001, "maximum": 1000},
+        "rotation": {"type": "number", "minimum": -3.141592653589793, "maximum": 3.141592653589793}
+      },
+      "additionalProperties": false
+    },
+    "canvasReference": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": {"enum": ["paint", "sprite"]},
+        "id": {"type": "string", "minLength": 1, "maxLength": 128}
+      },
+      "additionalProperties": false
+    },
+    "canvasMember": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind", "id", "version"],
+          "properties": {
+            "kind": {"const": "paint"},
+            "id": {"$ref": "#/$defs/canvasUuid"},
+            "version": {"type": "integer", "minimum": 1}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["kind", "id", "expected"],
+          "properties": {
+            "kind": {"const": "sprite"},
+            "id": {"type": "string", "minLength": 1, "maxLength": 128},
+            "expected": {
+              "type": "object",
+              "required": ["x", "y", "width", "height", "scale_x", "scale_y", "rotation"],
+              "properties": {
+                "x": {"type": "number", "minimum": -1000000, "maximum": 1000000},
+                "y": {"type": "number", "minimum": -1000000, "maximum": 1000000},
+                "width": {"type": "number", "minimum": -1000000, "maximum": 1000000},
+                "height": {"type": "number", "minimum": -1000000, "maximum": 1000000},
+                "scale_x": {"type": "number", "minimum": -1000000, "maximum": 1000000},
+                "scale_y": {"type": "number", "minimum": -1000000, "maximum": 1000000},
+                "rotation": {"type": "number", "minimum": -1000000, "maximum": 1000000}
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "canvasCommand": {
+      "type": "object",
+      "required": ["operation_id", "table_id", "issued_at", "mode"],
+      "properties": {
+        "operation_id": {"$ref": "#/$defs/canvasUuid"},
+        "table_id": {"$ref": "#/$defs/canvasUuid"},
+        "issued_at": {"type": "number", "minimum": 0, "maximum": 9007199254740991},
+        "mode": {"enum": ["transform", "delete", "copy", "cut", "paste", "undo", "redo"]},
+        "members": {"type": "array", "minItems": 1, "maxItems": 100, "items": {"$ref": "#/$defs/canvasMember"}},
+        "transform": {"$ref": "#/$defs/canvasTransform"},
+        "clipboard_id": {"$ref": "#/$defs/canvasUuid"},
+        "ids": {
+          "type": "array", "minItems": 1, "maxItems": 100,
+          "items": {
+            "type": "object", "required": ["kind", "source_id", "id"],
+            "properties": {
+              "kind": {"enum": ["paint", "sprite"]},
+              "source_id": {"type": "string", "minLength": 1, "maxLength": 128},
+              "id": {"$ref": "#/$defs/canvasUuid"}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "oneOf": [
+        {"properties": {"mode": {"const": "transform"}}, "required": ["members", "transform"], "not": {"anyOf": [{"required": ["ids"]}, {"required": ["clipboard_id"]}]}},
+        {"properties": {"mode": {"enum": ["delete", "copy", "cut"]}}, "required": ["members"], "not": {"anyOf": [{"required": ["transform"]}, {"required": ["ids"]}, {"required": ["clipboard_id"]}]}},
+        {"properties": {"mode": {"const": "paste"}}, "required": ["clipboard_id", "ids", "transform"], "not": {"required": ["members"]}},
+        {"properties": {"mode": {"enum": ["undo", "redo"]}}, "not": {"anyOf": [{"required": ["members"]}, {"required": ["transform"]}, {"required": ["ids"]}, {"required": ["clipboard_id"]}]}}
+      ],
+      "additionalProperties": false
+    },
+    "canvasCommandResult": {
+      "type": "object", "required": ["success"],
+      "properties": {
+        "success": {"type": "boolean"},
+        "operation_id": {"type": "string", "maxLength": 36},
+        "table_id": {"type": "string", "maxLength": 128},
+        "selection": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/canvasReference"}},
+        "clipboard_id": {"$ref": "#/$defs/canvasUuid"},
+        "can_undo": {"type": "boolean"}, "can_redo": {"type": "boolean"},
+        "resync_required": {"type": "boolean"},
+        "code": {"type": "string"}, "error": {"type": "string"}
+      },
+      "if": {"properties": {"success": {"const": true}}},
+      "then": {"required": ["operation_id", "table_id", "selection", "can_undo", "can_redo"]},
+      "else": {"required": ["code", "error"]},
+      "additionalProperties": false
+    },
+    "canvasHistoryRequest": {
+      "type": "object", "required": ["table_id"],
+      "properties": {"table_id": {"$ref": "#/$defs/canvasUuid"}},
+      "additionalProperties": false
+    },
+    "canvasHistoryState": {
+      "type": "object", "required": ["table_id", "can_undo", "can_redo"],
+      "properties": {
+        "table_id": {"type": "string", "maxLength": 128},
+        "can_undo": {"type": "boolean"}, "can_redo": {"type": "boolean"},
+        "code": {"type": "string"}, "error": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
     "paintObjectCreateData": {
       "type": "object",
       "required": [
@@ -1999,6 +2133,22 @@
     }
   },
   "allOf": [
+    {
+      "if": {"properties": {"type": {"const": "canvas_command"}}, "required": ["type"]},
+      "then": {"required": ["data"], "properties": {"data": {"$ref": "#/$defs/canvasCommand"}}}
+    },
+    {
+      "if": {"properties": {"type": {"const": "canvas_command_result"}}, "required": ["type"]},
+      "then": {"required": ["data"], "properties": {"data": {"$ref": "#/$defs/canvasCommandResult"}}}
+    },
+    {
+      "if": {"properties": {"type": {"const": "canvas_history_request"}}, "required": ["type"]},
+      "then": {"required": ["data"], "properties": {"data": {"$ref": "#/$defs/canvasHistoryRequest"}}}
+    },
+    {
+      "if": {"properties": {"type": {"const": "canvas_history_state"}}, "required": ["type"]},
+      "then": {"required": ["data"], "properties": {"data": {"$ref": "#/$defs/canvasHistoryState"}}}
+    },
     {
       "if": {
         "properties": {

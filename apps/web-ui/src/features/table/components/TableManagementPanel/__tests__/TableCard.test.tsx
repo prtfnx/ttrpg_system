@@ -94,7 +94,9 @@ describe('TableCard', () => {
   it('calls onDuplicate when duplicate button is clicked', async () => {
     const onDuplicate = vi.fn();
     render(<TableCard {...defaultProps} onDuplicate={onDuplicate} />);
-    await userEvent.click(screen.getByTitle('Duplicate'));
+    const button = screen.getByRole('button', { name: 'Duplicate Main' });
+    expect(button).toHaveAttribute('title', 'Duplicate table and sprites; paint objects and previews are not copied');
+    await userEvent.click(button);
     expect(onDuplicate).toHaveBeenCalledWith('t1');
   });
 

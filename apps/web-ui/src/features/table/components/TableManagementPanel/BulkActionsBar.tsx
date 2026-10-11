@@ -19,7 +19,7 @@ export const BulkActionsBar: FC<BulkActionsBarProps> = ({
       <button 
         onClick={onDuplicate}
         className={styles.bulkDuplicateButton}
-        title="Duplicate selected"
+        title="Duplicate selected tables; paint objects and previews are not copied"
       >
         <Copy size={13} /> Duplicate
       </button>

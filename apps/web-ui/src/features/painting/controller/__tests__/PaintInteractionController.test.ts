@@ -222,6 +222,57 @@ describe('PaintInteractionController', () => {
     expect(controller.getState()).toMatchObject({ gestureActive: false, selectedSpriteIds: [] });
   });
 
+  it.each(['delete', 'restyle'] as const)('cancels an active paint drag before %s and ignores its late pointer-up', command => {
+    const { controller, scene, runtime, canvas } = harness([object()]);
+    controller.setTool('select');
+    controller.handlePointerDown(pointer(1, 20, 28));
+    controller.handlePointerMove(pointer(1, 30, 38));
+    expect(controller.getState().gestureActive).toBe(true);
+
+    if (command === 'delete') controller.deleteSelected();
+    else controller.restyleSelected({ stroke_rgba: [0, 0, 1, 1], width: 6, fill_rgba: null });
+
+    expect(controller.getState().gestureActive).toBe(false);
+    expect(canvas.hasPointerCapture(1)).toBe(false);
+    expect(runtime.clearPaintDraft).toHaveBeenCalledWith('local');
+    expect(scene.cancelLocalPreview).toHaveBeenCalledOnce();
+    controller.handlePointerUp(pointer(1, 40, 48));
+    if (command === 'delete') {
+      expect(scene.submitDelete).toHaveBeenCalledExactlyOnceWith(OBJECT_ID, 3);
+      expect(scene.submitUpdate).not.toHaveBeenCalled();
+    } else {
+      expect(scene.submitDelete).not.toHaveBeenCalled();
+      expect(scene.submitUpdate).toHaveBeenCalledExactlyOnceWith(OBJECT_ID, 3,
+        expect.objectContaining({ transform: object().transform,
+          style: { stroke_rgba: [0, 0, 1, 1], width: 6, fill_rgba: null } }));
+    }
+  });
+
+  it('restores a mixed drag before group deletion and never commits its abandoned move', () => {
+    const { controller, scene, runtime, canvas } = harness([object()]);
+    const sprites = { items: () => [{ id: 'sprite', x: 35, y: 5, bounds: [35, 5, 50, 15] as const,
+      canEdit: true, canDelete: true }], hitTest: () => null, select: vi.fn(),
+      preview: vi.fn(), restore: vi.fn(), move: vi.fn(), remove: vi.fn() };
+    controller.setSpriteSelectionPort(sprites);
+    controller.setSelectionMode('combined');
+    controller.setSelectOnly(true);
+    controller.handleKeyDown(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true }));
+    controller.handlePointerDown(pointer(1, 20, 28));
+    controller.handlePointerMove(pointer(1, 30, 38));
+
+    controller.handleKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }));
+    expect(sprites.restore).toHaveBeenCalledExactlyOnceWith(TABLE, 'sprite');
+    expect(sprites.remove).toHaveBeenCalledExactlyOnceWith(TABLE, 'sprite');
+    expect(sprites.restore.mock.invocationCallOrder[0]).toBeLessThan(sprites.remove.mock.invocationCallOrder[0]);
+    expect(runtime.clearPaintDraft).toHaveBeenCalledWith(`selection:${OBJECT_ID}`);
+    expect(canvas.hasPointerCapture(1)).toBe(false);
+    expect(controller.getState()).toMatchObject({ gestureActive: false, selectionCount: 0 });
+    controller.handlePointerUp(pointer(1, 40, 48));
+    expect(scene.submitDelete).toHaveBeenCalledExactlyOnceWith(OBJECT_ID, 3);
+    expect(scene.submitUpdate).not.toHaveBeenCalled();
+    expect(sprites.move).not.toHaveBeenCalled();
+  });
+
   it('rotates from the handle using the visual center', () => {
     const { controller, runtime, scene } = harness([object()]);
     controller.setTool('select');

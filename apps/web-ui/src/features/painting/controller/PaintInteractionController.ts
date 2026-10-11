@@ -347,6 +347,7 @@ export class PaintInteractionController {
   }
 
   restyleSelected(style: PaintStyle): boolean {
+    this.cancelGesture();
     const selected = this.selectedObject();
     if (
       !selected
@@ -364,6 +365,7 @@ export class PaintInteractionController {
   }
 
   deleteSelected(): boolean {
+    this.cancelGesture();
     if (this.sceneState.hydrating) return false;
     const tableId = this.sceneState.tableId;
     if (!tableId) return false;

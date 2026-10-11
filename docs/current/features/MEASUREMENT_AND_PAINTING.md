@@ -175,6 +175,9 @@ Ending or cancelling a sprite preview restores the latest authoritative store
 position, not the gesture's starting position. Hidden-layer sprites can still
 restore, but removed sprites and inactive tables cannot. Replacing the sprite
 adapter cancels through the old adapter before releasing it.
+Delete and paint restyle cancel an active gesture before submitting their
+commands. They discard drag previews and release pointer capture; a late
+pointer-up cannot submit the abandoned transform after the command.
 
 Sprite movement uses control ownership; deletion remains DM-only even for
 player-controlled text. Changing layer visibility cancels local gestures.

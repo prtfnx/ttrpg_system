@@ -17,6 +17,11 @@ acknowledgements. Sprite protocol handlers authorize commands and invoke
 success. Paint commands use `PaintObjectService` transactions, object versions,
 table revisions and an operation-result ledger. Combat uses its separate
 `CombatCommandService`, not canvas history.
+`PaintObjectService.apply_in_transaction` stages a paint command inside a
+trusted caller's active ORM transaction. It retains normal authorization,
+version, budget and retry checks. The caller must roll back on an error result
+and publish only after its outer commit succeeds. Standalone paint commands
+still own their own transaction.
 
 ## Transport batching
 

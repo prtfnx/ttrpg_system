@@ -106,6 +106,34 @@ def create(service, ids, *, actor="player", operation_id=None, value=None):
     )
 
 
+def test_composed_paint_commands_share_the_callers_commit_and_rollback(paint_service):
+    service, factory, ids = paint_service
+    context = {"session_id": ids["session"], "actor_id": ids["player"], "table_id": TABLE_ID}
+    with pytest.raises(RuntimeError, match="later domain failed"):
+        with factory.begin() as db:
+            result = service.apply_in_transaction(db, "create", operation_id=str(uuid.uuid4()),
+                                                  editable=editable(), **context)
+            assert result.error is None and result.event["revision"] == 1
+            assert db.in_transaction()
+            raise RuntimeError("later domain failed")
+    with factory() as db:
+        assert db.get(models.PaintObject, OBJECT_ID) is None
+        assert db.query(models.PaintOperationResult).count() == 0
+    with factory.begin() as db:
+        result = service.apply_in_transaction(db, "create", operation_id=str(uuid.uuid4()),
+                                              editable=editable(), **context)
+        assert result.error is None
+        result = service.apply_in_transaction(db, "update", operation_id=str(uuid.uuid4()),
+                                              object_id=OBJECT_ID, expected_version=1, editable=editable(), **context)
+        assert result.error is None and result.event["revision"] == 2
+    with factory() as db:
+        assert db.get(models.PaintObject, OBJECT_ID).version == 2
+    with factory() as db:
+        with pytest.raises(ValueError, match="active transaction"):
+            service.apply_in_transaction(db, "delete", operation_id=str(uuid.uuid4()),
+                                         object_id=OBJECT_ID, expected_version=2, **context)
+
+
 @pytest.mark.parametrize("action", ["create", "update"])
 def test_server_metadata_cannot_make_an_accepted_object_exceed_wire_limit(paint_service, action):
     service, factory, ids = paint_service

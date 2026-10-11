@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Callable, Mapping
@@ -135,6 +136,28 @@ class PaintObjectService:
     def _require_writes(self) -> None:
         if not self._writes_enabled:
             raise _Rejected("paint_disabled", "Painting is read-only during rollout or maintenance")
+
+    @contextmanager
+    def _transaction(self, db: Session | None = None):
+        if db is not None:
+            if not db.in_transaction():
+                raise ValueError("A composed paint command requires an active transaction")
+            yield db
+        else:
+            with self._session_factory() as owned, owned.begin():
+                yield owned
+
+    def apply_in_transaction(self, db: Session, action: str, **kwargs) -> PaintCommandResult:
+        """Stage a trusted command without committing or publishing.
+
+        The caller owns rollback, including when the returned result has an
+        error, and must not publish any events until its outer commit succeeds.
+        Normal membership, ownership, version, budget and retry checks still run.
+        """
+        methods = {"create": self.create, "update": self.update, "delete": self.delete}
+        if action not in methods:
+            raise ValueError("Unsupported composed paint action")
+        return methods[action](_db=db, **kwargs)
 
     @staticmethod
     def _lock_table_and_role(
@@ -298,13 +321,14 @@ class PaintObjectService:
         table_id: str,
         operation_id: str,
         editable: Mapping[str, Any],
+        _db: Session | None = None,
     ) -> PaintCommandResult:
         try:
             self._require_writes()
             candidate = _canonical_payload(editable)
             validate_paint_object_input(candidate)
             request_hash = _request_hash("create", candidate)
-            with self._session_factory() as db, db.begin():
+            with self._transaction(_db) as db:
                 _, role = self._lock_table_and_role(
                     db,
                     table_id=table_id,
@@ -378,6 +402,7 @@ class PaintObjectService:
         object_id: str,
         expected_version: int,
         editable: Mapping[str, Any],
+        _db: Session | None = None,
     ) -> PaintCommandResult:
         try:
             self._require_writes()
@@ -391,7 +416,7 @@ class PaintObjectService:
                 "object": candidate,
             }
             request_hash = _request_hash("update", request)
-            with self._session_factory() as db, db.begin():
+            with self._transaction(_db) as db:
                 _, role = self._lock_table_and_role(
                     db,
                     table_id=table_id,
@@ -478,12 +503,13 @@ class PaintObjectService:
         operation_id: str,
         object_id: str,
         expected_version: int,
+        _db: Session | None = None,
     ) -> PaintCommandResult:
         try:
             self._require_writes()
             request = {"id": object_id, "expected_version": expected_version}
             request_hash = _request_hash("delete", request)
-            with self._session_factory() as db, db.begin():
+            with self._transaction(_db) as db:
                 _, role = self._lock_table_and_role(
                     db,
                     table_id=table_id,

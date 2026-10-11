@@ -78,6 +78,60 @@ afterEach(() => {
 });
 
 describe('WasmBridgeService', () => {
+  it('defers renderer rollback until the WASM callback unwinds and uses the latest server seed', async () => {
+    const protocol = { sendMessage: vi.fn(() => { throw new Error('offline'); }) };
+    wasmBridgeService.setProtocol(protocol as never);
+    wasmBridgeService.seedSpriteState('deferred', { x: 1, y: 2 });
+    const onRevert = vi.fn();
+    window.addEventListener('sprite-revert', onRevert);
+    try {
+      dispatchWasmOp('move', 'deferred', { x: 10, y: 20 });
+      expect(onRevert).not.toHaveBeenCalled();
+      wasmBridgeService.seedSpriteState('deferred', { x: 30, y: 40 });
+      await Promise.resolve();
+      expect(onRevert).toHaveBeenCalledOnce();
+      expect(onRevert.mock.calls[0][0].detail.originalState).toEqual({ x: 30, y: 40 });
+    } finally {
+      window.removeEventListener('sprite-revert', onRevert);
+    }
+  });
+
+  it.each(['switch', 'cleanup', 'protocol', 'remove'])('drops queued rollback after %s', async (change) => {
+    const protocol = { sendMessage: vi.fn(() => { throw new Error('offline'); }) };
+    wasmBridgeService.setProtocol(protocol as never);
+    wasmBridgeService.seedSpriteState('queued', { x: 1, y: 2 });
+    const onRevert = vi.fn();
+    window.addEventListener('sprite-revert', onRevert);
+    try {
+      dispatchWasmOp('move', 'queued', { x: 10, y: 20 });
+      if (change === 'switch') mockStore({ activeTableId: 'other-table' });
+      if (change === 'cleanup') wasmBridgeService.cleanup();
+      if (change === 'protocol') wasmBridgeService.setProtocol(null);
+      if (change === 'remove') window.dispatchEvent(new CustomEvent('sprite-removed', { detail: { sprite_id: 'queued' } }));
+      await Promise.resolve();
+      expect(onRevert).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('sprite-revert', onRevert);
+    }
+  });
+
+  it('restores an in-flight preview after a second transform without renderer re-entry', async () => {
+    const protocol = { sendMessage: vi.fn() };
+    wasmBridgeService.setProtocol(protocol as never);
+    const onRevert = vi.fn();
+    window.addEventListener('sprite-revert', onRevert);
+    try {
+      dispatchWasmOp('move', 'preview', { x: 10, y: 20 });
+      dispatchWasmOp('move', 'preview', { x: 30, y: 40 });
+      expect(onRevert).not.toHaveBeenCalled();
+      await Promise.resolve();
+      expect(onRevert.mock.calls[0][0].detail.originalState).toEqual({ x: 10, y: 20 });
+      expect(protocol.sendMessage).toHaveBeenCalledOnce();
+    } finally {
+      window.removeEventListener('sprite-revert', onRevert);
+    }
+  });
+
   it('registers a pending command before a synchronous acknowledgement', () => {
     const protocol = { sendMessage: vi.fn(message => window.dispatchEvent(new CustomEvent('sprite-action-confirmed', {
       detail: { actionId: message.data.action_id },
@@ -244,7 +298,7 @@ describe('WasmBridgeService', () => {
       expect(protocol.sendMessage).not.toHaveBeenCalled();
     });
 
-    it('denies operation and emits revert when non-DM cannot control sprite', () => {
+    it('denies operation and emits revert when non-DM cannot control sprite', async () => {
       wasmBridgeService.setProtocol({ sendMessage: vi.fn() } as never);
       vi.mocked(isDM).mockReturnValue(false);
       const canControlSprite = vi.fn(() => false);
@@ -252,11 +306,16 @@ describe('WasmBridgeService', () => {
       wasmBridgeService.seedSpriteState('s1', { x: 0, y: 0 });
 
       const revertEvents: Event[] = [];
-      window.addEventListener('sprite-revert', (e) => revertEvents.push(e));
-
-      dispatchWasmOp('move', 's1', { x: 99, y: 99 });
-
-      expect(revertEvents).toHaveLength(1);
+      const onRevert = (e: Event) => revertEvents.push(e);
+      window.addEventListener('sprite-revert', onRevert);
+      try {
+        dispatchWasmOp('move', 's1', { x: 99, y: 99 });
+        expect(revertEvents).toHaveLength(0);
+        await Promise.resolve();
+        expect(revertEvents).toHaveLength(1);
+      } finally {
+        window.removeEventListener('sprite-revert', onRevert);
+      }
     });
 
     it('timeouts a pending action and shows toast', () => {

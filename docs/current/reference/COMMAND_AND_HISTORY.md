@@ -90,6 +90,8 @@ the pending preview and asks the user to wait. Accepted server seeds take
 precedence over late acknowledgements; rejection restores the current authoritative
 baseline, not an obsolete pre-command snapshot. Timers cannot revert another
 active table. Protocol replacement, cleanup and sprite removal release tracking.
+Renderer rollback waits for the current WASM callback to unwind. It rechecks the
+table, lifecycle and latest baseline before applying; stale queued work is dropped.
 Non-interactive roles, invalid transforms and synchronous send failures do not
 leave untracked writes or delayed failure timers. The bridge remains a confirmation
 tracker, not an undo journal. Regression owner:

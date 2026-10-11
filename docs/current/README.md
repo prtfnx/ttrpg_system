@@ -43,6 +43,8 @@ older plans or reports in `docs/`.
 
 ## Reference
 
+- [Canvas commands and history](reference/COMMAND_AND_HISTORY.md): transport
+  versus atomic domain batches, confirmation tracking, scoped undo and limits.
 - [WebSocket messages](reference/WEBSOCKET_MESSAGES.md): registered server
   message handlers, response families, and protocol ownership.
 - [Combat commands](reference/COMBAT_COMMANDS.md): current

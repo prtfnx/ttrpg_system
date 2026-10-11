@@ -8,12 +8,14 @@ from service.protocol.base import ServerProtocol
 
 def protocol():
     result = ServerProtocol.__new__(ServerProtocol)
-    result.handlers = {MessageType.PING: AsyncMock(return_value=Message(MessageType.PONG, {}))}
+    result.handlers = {MessageType.PING: AsyncMock(return_value=Message(MessageType.PONG, {
+        "timestamp": 1, "client_id": "client",
+    }))}
     return result
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("items", [None, [], "invalid", [None], [{}] * 101,
+@pytest.mark.parametrize("items", [None, [], "invalid", [None], [{}] * 51,
                                   [{"type": "ping"}, {"type": "batch_request"}]])
 async def test_batch_preflight_prevents_partial_dispatch(items):
     server = protocol()
@@ -35,6 +37,19 @@ async def test_children_keep_their_own_correlation_and_failures_are_reported():
     assert response.data["messages"][0]["correlation_id"] == "correlation-1"
     assert response.data["messages"][0]["causation_id"] == "request-1"
     assert response.data["messages"][1]["correlation_id"] == "request-2"
+    assert Message.from_json(response.to_json()).data == response.data
+
+
+@pytest.mark.asyncio
+async def test_silent_children_still_receive_a_schema_valid_batch_summary():
+    server = protocol()
+    server.handlers[MessageType.PING].return_value = None
+    response = await server.handle_batch_request(Message(MessageType.BATCH_REQUEST, {
+        "messages": [Message(MessageType.PING, {}).to_dict()] * 50,
+    }), "client")
+    assert response.data["processed_count"] == 50
+    assert response.data["response_count"] == response.data["failed_count"] == 0
+    assert Message.from_json(response.to_json()).data == response.data
 
 
 @pytest.mark.asyncio

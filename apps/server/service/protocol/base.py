@@ -342,10 +342,10 @@ class ServerProtocol(
         messages_data = msg.data.get('messages')
         # Repeat the endpoint's structural checks for other protocol callers.
         # Preflight the whole envelope before invoking any mutating handler.
-        if (not isinstance(messages_data, list) or not 1 <= len(messages_data) <= 100
+        if (not isinstance(messages_data, list) or not 1 <= len(messages_data) <= 50
                 or any(not isinstance(item, dict) or item.get('type') == MessageType.BATCH_REQUEST.value
                        for item in messages_data)):
-            return Message(MessageType.ERROR, {'error': 'Batch requires 1–100 messages and cannot contain nested batches'})
+            return Message(MessageType.ERROR, {'error': 'Batch requires 1–50 messages and cannot contain nested batches'})
         sequence_id = msg.data.get('seq', 0)
         logger.debug(f"Batch of {len(messages_data)} messages from {client_id}")
         responses = []

@@ -23,10 +23,11 @@ table revisions and an operation-result ledger. Combat uses its separate
 `batch_request` reduces WebSocket framing overhead. It is not a database
 transaction and does not create one undo step. The session mutation lock covers
 the batch; each child retains its normal authorization and persistence path.
-The dispatcher preflights 1–100 message objects and rejects nested batches before
+The dispatcher preflights 1–50 message objects and rejects nested batches before
 dispatching any child. Malformed children and unsupported types produce errors.
 Child responses preserve their own correlation/causation IDs. `batch_response`
 reports `failed_count` and `atomic: false`; no response does not prove persistence.
+The summary remains schema-valid when no child returns a response.
 Errors do not echo complete input payloads or internal exception details.
 Mutation-coupled session autosave runs only after an accepted response, not after
 permission or validation rejection.

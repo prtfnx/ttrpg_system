@@ -104,7 +104,9 @@ React canvas -> WasmRuntimePort -> Rust RenderEngine -> runtime callback
   authority.
 - Server code owns combat rules, resources, action economy, movement
   acceptance, and persisted combat outcomes.
-- `core-table` owns reusable tabletop domain behavior.
+- `core-table` contains reusable tabletop rules and models, alongside
+  persistence coupling that remains TODO under
+  [ADR-005](decisions/ADR-005-core-table-is-reusable-domain-logic.md).
 - React owns UI workflow and browser state.
 - `WasmRuntime` owns generated WASM bindings and Rust object lifecycle.
 - Rust owns local rendering and geometry-heavy engine behavior.
@@ -128,8 +130,10 @@ For combat details, read [Battle flow](BATTLE_FLOW.md).
 Hosted relational state uses external PostgreSQL; configured R2 stores asset
 bytes. The server keeps live session caches in one active application process.
 Database writer ownership fences a replaced process before its successor
-hydrates committed state. Table snapshots use bounded workers and atomic
-transactions. Read [Persistence and application ownership](explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md)
+hydrates committed state. Async full-table snapshots use bounded workers
+and atomic transactions. Other writes use separate boundaries; this is not
+atomicity across table, character, token, and combat state. Read
+[Persistence and application ownership](explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md)
 for failure semantics and [Writer handover](operations/WRITER_HANDOVER.md)
 for the one-worker deployment contract.
 

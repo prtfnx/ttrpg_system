@@ -72,7 +72,7 @@ disconnect save also run in worker threads. Each worker resolves a fresh
 session from the task/thread-scoped registry. Never construct an ORM `Session`
 on the event-loop thread and pass that instance to `asyncio.to_thread`.
 
-All async-to-sync submissions use `utils.blocking.run_blocking`. Its semaphore
+Migrated async-to-sync paths use `utils.blocking.run_blocking`. Its semaphore
 applies admission control on the server process's application event loop before
 work is submitted to Python's executor, so a slow database or object store
 cannot grow the executor queue without bound. Configure the limit with
@@ -80,6 +80,12 @@ cannot grow the executor queue without bound. Configure the limit with
 without submitting work. Cancelling an already-submitted coroutine keeps its
 capacity reserved until the underlying thread finishes because Python cannot
 stop a running thread.
+
+TODO: migrate remaining synchronous wall writes, client-join database and
+choice-encounter restoration, choice handlers, sprite-control permission
+fallbacks, and compendium token lookups to worker-owned sessions. These paths
+can still block the event loop. The worker limit covers submitted worker jobs;
+it does not make all protocol handlers nonblocking.
 
 Chat write, history, and moderation handlers follow the same rule: validate
 the command on the event loop, execute the complete database transaction and
@@ -130,7 +136,9 @@ before the mutation releases the lock.
 
 When the last socket leaves, `ConnectionManager` waits for all earlier queued
 mutations before the final save and protocol cleanup. Because each protocol
-service owns its lock, work in separate game sessions remains concurrent.
+service owns its lock, separate sessions do not share mutation ordering.
+Remaining synchronous operations can still stall all work on the event loop;
+independent locks do not guarantee responsiveness across sessions.
 
 `TableManager` starts empty. It contains only tables created for or loaded
 from the current session. Missing table IDs return no table; the domain layer
@@ -182,9 +190,15 @@ Important supporting services:
 
 The async command path offloads duplicate lookup, accepted-command
 persistence, restore, character lookup, movement rule loading/validation, and
-table saves. The session mutation lock stays held until the worker returns;
-state-version updates, rollback, and role-filtered delivery occur on the event
-loop. Worker database operations create or resolve a worker-owned ORM session.
+table saves. Normal completion applies state versions, restoration, and
+role-filtered delivery on the event loop. Cancelling `run_blocking` does not
+stop an already running thread; not every combat write waits for that worker
+to settle before releasing mutation ownership. Environment save callbacks
+still read a live table rather than a detached snapshot.
+
+TODO: cancellation-safe ordering and detached inputs across all combat writes.
+Current terrain/cover commands require one DM command outside active combat;
+see [Battle flow](BATTLE_FLOW.md).
 
 `protocol/combat.py` should stay a boundary layer: parse the websocket message,
 build context, call the service, and send filtered responses.
@@ -199,8 +213,16 @@ The server imports `packages/core-table` for reusable tabletop behavior:
 - `core_table.combat`, `game_mode`, `session_rules`: game systems.
 - `core_table.pathfinding`, `dice`, `conditions`: reusable rules utilities.
 
-Keep reusable tabletop rules in `core-table`. Keep FastAPI, database,
-WebSocket, and deployment behavior in `apps/server`.
+Reusable rule modules live in `core-table`, but the package boundary is
+currently incomplete: `TableManager` owns database persistence, wall actions
+import server CRUD, and token/compendium resolution imports server database
+code. Installing the package alone does not establish independence for these
+paths.
+
+TODO: extract infrastructure behind explicit server adapters when reuse needs
+it. Keep new FastAPI, database, WebSocket, and deployment behavior in
+`apps/server`; [ADR-005](decisions/ADR-005-core-table-is-reusable-domain-logic.md)
+describes the intended boundary and its current exceptions.
 
 ## Change guide
 
@@ -241,9 +263,11 @@ ownership to this manager before loading live sessions. The ownership monitor
 rejects replaced-server admission and closes its real sockets with retry code
 1012. One Uvicorn worker is enforced by `scripts/migrate_and_start.py`.
 
-Table saves capture detached snapshots on the event loop and persist them
-atomically in worker-owned sessions. Failed saves remain pending; normal final
-disconnect retains failed state for retry, while a superseded process retires
+Async full-table saves capture detached snapshots on the event loop and
+persist them atomically in worker-owned sessions. This does not describe every
+synchronous wall or environment-save path. Failed existing-table saves remain
+pending; normal final disconnect retains failed state for retry, while a
+superseded process retires
 its obsolete cache. A failed command is not a universal in-memory rollback.
 See [Persistence and application ownership](explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md).
 

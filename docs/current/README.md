@@ -32,6 +32,8 @@ older plans or reports in `docs/`.
 - [Rust/WASM engine](RUST_WASM_ENGINE.md): Rust crate shape, `RenderEngine`,
   exported objects, callbacks, and change rules.
 - [State ownership](STATE_OWNERSHIP.md): which domain owns which kind of state.
+- [Trusted session scope](explanation/TRUSTED_SESSION_SCOPE.md): current
+  reliability boundaries and deferred architecture work.
 - [Persistence and application ownership](explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md):
   atomic snapshots, pending failures, workers, and PostgreSQL process fencing.
 - [Testing strategy](TESTING_STRATEGY.md): which tests match each kind of

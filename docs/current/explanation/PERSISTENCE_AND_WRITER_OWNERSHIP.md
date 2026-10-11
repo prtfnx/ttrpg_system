@@ -10,8 +10,8 @@ Last source audit: 2026-09-10
 
 | Boundary | Owner | Guarantee |
 | --- | --- | --- |
-| Live session mutation | `ServerProtocol` in `apps/server/service/protocol/base.py` | One session lock orders classified mutations and shared-state reads. Different sessions can proceed independently. |
-| Table snapshot | `TableManager` in `packages/core-table/core_table/server.py`, with `database/crud.py` | A detached snapshot is saved in one database transaction; saves for a table cannot overtake one another. |
+| Live session mutation | `ServerProtocol` in `apps/server/service/protocol/base.py` | One session lock orders classified mutations and shared-state reads. Separate session locks do not prevent event-loop stalls from remaining synchronous handlers. |
+| Async full-table snapshot | `TableManager` in `packages/core-table/core_table/server.py`, with `database/crud.py` | A detached snapshot is saved in one database transaction; saves for a table cannot overtake one another. |
 | Application process | `apps/server/database/writer.py` and migration `0008_application_writer` | One PostgreSQL application owner may write; a replaced process cannot overwrite its successor's committed state. |
 
 A session lock alone does not coordinate processes. A successful SQL commit
@@ -32,9 +32,11 @@ Its nested CRUD calls flush without committing. An error rolls back the whole
 snapshot. This is not a transaction across every session resource: chat,
 characters, combat journals, paint, and assets have their own service boundaries.
 
-`ActionsCore` marks a table dirty and awaits confirmed persistence before
-returning success for its persistent mutations. A failed save remains dirty;
-retries use capped backoff. Failed table deletion retains live state. On an
+For existing-table mutations, `ActionsCore` marks the table dirty and awaits
+confirmed persistence before returning success. A failed save remains dirty;
+retries use capped backoff. New-table creation instead saves a detached draft
+before installing live indexes/history. A failed create is not registered or
+queued for dirty-table retries. Failed table deletion retains live state. On an
 ordinary final disconnect, the manager drains mutations and retains a session
 whose final save failed so it can retry.
 
@@ -43,6 +45,15 @@ retry; failure does not universally mean the in-memory mutation was reversed.
 Do not promise generic command idempotency or automatically resubmit creates.
 The database snapshot is atomic, but there is no durable command log for every
 canvas operation. Unconfirmed edits cannot survive abrupt process loss.
+
+## Deferred consistency work
+
+TODO: durable receipts and outcome reconciliation for ordinary canvas/settings
+commands; shared transactions or repair for linked character/token/combat
+writes; cancellation-safe ordering for combat workers; detached environment
+save callbacks; and complete worker migration for synchronous protocol paths.
+These are not current guarantees. Environment commands are limited to a single
+pre-combat edit to contain known partial-write cases.
 
 ## PostgreSQL process handover
 

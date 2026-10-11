@@ -127,6 +127,15 @@ Combat UI rules:
 - Keep `sendProtocolMessage` for non-combat mutations or approved
   query/suggestion messages only.
 
+## Current dependency limits
+
+The ownership rules describe intended responsibilities, not an acyclic import
+graph. Runtime/asset service/barrel and store/protocol/provider imports still
+form cycles. TODO: split those dependency loops when they obstruct features or
+testing; broad import cleanup is deferred for one trusted session. Runtime
+disposal and cancellation have focused regressions in
+`WasmRuntime.test.ts` and `WasmRuntime.lifecycle.test.tsx`.
+
 ## WASM access
 
 Use exports from `apps/web-ui/src/lib/wasm/runtime/`:

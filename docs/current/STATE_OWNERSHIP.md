@@ -29,15 +29,19 @@ encounter, chat-write, player-status, moderation, and asset-write handlers use
 that lock. Accepted mutations for one session therefore run in arrival-waiter
 order. Reads of shared session state use the same boundary, while transport
 ping, ephemeral previews, independent durable-store reads, and different
-sessions can proceed concurrently. Final disconnect waits for earlier
-mutations before persisting and cleaning the session service.
+sessions do not share this lock. Remaining synchronous database handlers
+can still block the process event loop; concurrent responsiveness is not a
+universal guarantee. TODO: complete worker migration. Final disconnect waits
+for earlier mutations before persisting and cleaning the session service.
 
 ## Python domain state
 
 Owned by `packages/core-table`.
 
 Use the domain package for reusable tabletop rules and data models that the
-server can test without FastAPI or browser code.
+server can test without FastAPI or browser code. `TableManager` and some
+actions still depend on server persistence. TODO: complete the infrastructure
+boundary described in [ADR-005](decisions/ADR-005-core-table-is-reusable-domain-logic.md).
 
 ## Browser protocol state
 
@@ -131,7 +135,7 @@ per-session mutation lock orders work inside that process; database ownership
 separately fences other processes. A replacement hydrates committed state only
 after earlier transactions drain. See [Persistence and application ownership](explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md).
 
-Core table save failure leaves pending in-memory state for retry and returns
-failure rather than success. It is not a universal rollback of the live cache.
+Existing-table mutation save failure leaves pending in-memory state for
+retry and returns failure rather than success. It is not a universal rollback of the live cache.
 Unconfirmed edits have no crash-durable command log. A superseded cache cannot
 reclaim ownership or replay its old snapshot onto the new writer.

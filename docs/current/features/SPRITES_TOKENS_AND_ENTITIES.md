@@ -174,6 +174,9 @@ state after the same control check, but do not write the database.
 
 `handle_sprite_update()` also syncs HP, max HP, and AC back to a linked
 character when a token stat changes and a character id can be resolved.
+This is a best-effort separate write: failures are logged, and character, token,
+and combat persistence are not one transaction. TODO: define stat authority
+and add transactional synchronization or durable repair.
 Sprite-limit counts, uncached movement rules, and durable character-link
 fallbacks run in worker threads. Each helper creates and closes its own ORM
 session and returns only plain values to the async protocol handler.

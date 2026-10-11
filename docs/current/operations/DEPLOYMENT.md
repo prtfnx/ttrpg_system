@@ -237,7 +237,9 @@ verified and an operator has explicitly accepted any data loss.
 
 ## Writer handover requirements
 
-The current head is `0008_application_writer`. Follow
+Use [Database migrations](DATABASE_MIGRATIONS.md) and `alembic heads` for
+the current migration head; `0008_application_writer` introduced fencing and
+is not the current head. Follow
 [Writer handover](WRITER_HANDOVER.md) for role privileges, one-worker startup,
 maintenance writes, and rollback compatibility. Both database URLs must target
 the same application schema. Never clear the owner token to make older code

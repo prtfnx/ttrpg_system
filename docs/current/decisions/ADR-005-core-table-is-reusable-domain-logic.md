@@ -1,6 +1,6 @@
 # ADR-005: Core-Table Is Reusable Domain Logic
 
-Status: accepted
+Status: accepted; implementation incomplete
 Date: 2026-07-09
 
 ## Context
@@ -17,12 +17,17 @@ Current server code imports it for reusable behavior, for example
 
 ## Decision
 
-`packages/core-table` owns reusable tabletop domain logic. It does not own
-FastAPI routes, database sessions, WebSocket connection lifecycle, React UI, or
-Rust rendering.
+The intended boundary puts reusable rules and models in `packages/core-table`
+and infrastructure in the server. Current rule modules can be tested without
+FastAPI or browser state, but the package is not fully infrastructure-free:
+`TableManager` owns database sessions/persistence, wall actions import server
+CRUD, and token/compendium resolution imports server database code. These paths
+also rely on SQLAlchemy outside the package's declared independent contract.
 
-Server code adapts domain objects to persistence and protocol behavior. Browser
-and Rust code do not become direct owners of Python domain state.
+TODO: move database adapters and worker/transaction ownership into the server,
+then test the package in an isolated installation. This extraction is deferred
+for the one trusted session scope. Browser and Rust code do not become direct
+owners of Python domain state.
 
 ## Consequences
 

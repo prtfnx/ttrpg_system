@@ -83,6 +83,38 @@ function chunk(index: number, count: number, objects: PaintObject[], revision = 
 }
 
 describe('PaintController', () => {
+  it('keeps only one unconfirmed mutation per paint object across update/delete intents', () => {
+    const { controller, transport, errors } = harness(1_000, () => crypto.randomUUID());
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [object()], 4));
+    const operation = controller.submitUpdate(object().id, 1, input());
+    expect(operation).not.toBeNull();
+    expect(controller.submitUpdate(object().id, 1, input())).toBeNull();
+    expect(controller.submitDelete(object().id, 1)).toBeNull();
+    expect(transport.updatePaintObject).toHaveBeenCalledOnce();
+    expect(transport.deletePaintObject).not.toHaveBeenCalled();
+    expect(controller.getState().pending).toHaveLength(1);
+    expect(errors).toHaveLength(2);
+    controller.acceptEvent({ operation_id: operation!, table_id: TABLE, revision: 5,
+      action: 'update', object: object(2) });
+    expect(controller.submitDelete(object().id, 2)).not.toBeNull();
+    expect(transport.deletePaintObject).toHaveBeenCalledOnce();
+  });
+
+  it('keeps pending creates exclusive until their rejection and permits independent objects', () => {
+    const { controller, transport } = harness(1_000, () => crypto.randomUUID());
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    const operation = controller.submitCreate(input());
+    expect(controller.submitCreate(input())).toBeNull();
+    expect(controller.submitUpdate(input().id, 1, input())).toBeNull();
+    expect(controller.submitDelete(input().id, 1)).toBeNull();
+    expect(controller.submitCreate(input(crypto.randomUUID()))).not.toBeNull();
+    expect(transport.createPaintObject).toHaveBeenCalledTimes(2);
+    controller.rejectOperation({ operation_id: operation!, code: 'forbidden', error: 'Denied' });
+    expect(controller.submitCreate(input())).not.toBeNull();
+  });
+
   it('retains snapshots and contiguous events while the renderer is detached', () => {
     const { controller, runtime, transport } = harness();
     runtime.getRenderEngine = vi.fn(() => null);

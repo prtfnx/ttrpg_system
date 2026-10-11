@@ -577,6 +577,12 @@ export class PaintController {
         return null;
       }
     }
+    const objectId = command.kind === 'create' ? command.object.id : command.objectId;
+    if ([...this.pending.values()].some(({ command: previous }) => previous.tableId === command.tableId
+      && (previous.kind === 'create' ? previous.object.id : previous.objectId) === objectId)) {
+      this.reportLocalError('Wait for the previous paint change to be confirmed before editing this object again.');
+      return null;
+    }
     const operationId = this.operationId();
     const candidate = { operationId, createdAt: this.now(), command };
     const bytes = new TextEncoder().encode(JSON.stringify(candidate)).byteLength;

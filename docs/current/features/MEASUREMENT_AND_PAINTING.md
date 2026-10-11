@@ -245,6 +245,11 @@ without changing or resynchronizing the visible table. Pending intent across
 tables is capped at 128 operations or 4 MiB. Regular expiry checks discard
 stale intent even without reconnect; active-table expiry starts hydration.
 Rejections remove optimistic drafts and retain confirmed state.
+Only one unresolved create/update/delete intent may target an object at a time.
+A second local edit reports a wait-for-confirmation error without sending or
+replacing the retained draft. Acceptance or rejection releases that object;
+unrelated objects may still be edited. This prevents a local group gesture from
+immediately conflicting with its own earlier unconfirmed version.
 
 The browser retains validated authoritative snapshots/events independently of
 WebGL. A recreated renderer receives the latest confirmed scene plus current

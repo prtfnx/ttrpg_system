@@ -2,8 +2,8 @@
 
 Audience: contributors changing canvas mutations, selection, or undo/redo.
 
-Status: partial. Mixed-domain transactions and authenticated history messages
-exist; browser group controls do not yet use them.
+Status: partial. Mixed-domain transactions, browser group commands and durable
+selection history exist. Legacy single-command history remains separate.
 
 Last source audit: 2026-10-07
 
@@ -104,8 +104,9 @@ intent. Actor/table replacement drops local pending references and clipboard
 tokens. Durable accepted history stays on the server. Copy/duplicate waits for
 the server clipboard token before paste; fresh paste IDs never contain client
 metadata. A conflict or replay receipt requests fresh hydration. The controller
-does not own domain previews or replace legacy history. Browser controls are not
-yet connected to this owner. Regression owner:
+does not own domain previews or replace legacy history. The paint provider
+attaches this owner to the selection controller for its session lifecycle.
+Regression owner:
 `apps/web-ui/src/features/painting/controller/__tests__/CanvasCommandController.test.ts`.
 
 `PaintInteractionController.setCanvasCommandPort` connects selection intent to
@@ -117,8 +118,7 @@ retain their native shortcuts. Pending paint intent blocks a new selection
 command; pending canvas intent blocks new pointer authoring. Locked members are
 excluded from the editable command, and the server validates every included
 member atomically. The sprite selection adapter captures the authoritative
-transform projection rather than renderer preview coordinates. The provider
-does not yet attach this port. Regression owner:
+transform projection rather than renderer preview coordinates. Regression owner:
 `apps/web-ui/src/features/painting/controller/__tests__/PaintInteractionController.test.ts`.
 
 ## Transport batching
@@ -200,11 +200,10 @@ Non-interactive roles, invalid transforms and synchronous send failures do not
 leave untracked writes or delayed failure timers. The bridge remains a confirmation
 tracker, not an undo journal. Regression owner:
 `apps/web-ui/src/lib/wasm/__tests__/wasmBridge.test.ts`.
-Combined-selection sprite moves use this same confirmation owner, including
-action IDs, permissions, combat routing, in-flight limits, rejection and timeout.
-The adapter supplies its captured table and protocol; stale adapters cannot
-submit into a different session or table. Paint and sprite members still commit
-separately; sharing confirmations does not make a group atomic.
+Legacy sprite-selection movement still uses the sprite bridge confirmation
+owner. The shared paint provider attaches the canvas command owner instead;
+mixed editor movement uses its atomic server transaction. Combat tokens reject
+editor group mutation and must use the separate combat command path.
 
 Rust `ActionsClient` is an isolated local-domain utility, not the renderer's
 authoritative multiplayer scene. Its undo/redo reverses table and sprite CRUD,
@@ -231,9 +230,10 @@ unconfirmed previews as accepted local edits.
 
 ## Missing
 
-The durable canvas service is not wired into browser controls. Current
-group writes still use individual domain commands. Client-facing history and
-group clipboard/resize/rotation controls are missing. Legacy single-command
-history remains separate. Transport batches cannot supply atomicity.
+Legacy single-command history remains separate: standalone paint creation,
+non-uniform handle resizing, paint restyle and normal separate-mode sprite
+commands do not enter the durable canvas journal. Group resize and rotation
+currently use panel controls, not group pointer handles. Transport batches
+cannot supply atomicity.
 See [Measurement and painting](../features/MEASUREMENT_AND_PAINTING.md) for the
 currently supported selection operations and limits.

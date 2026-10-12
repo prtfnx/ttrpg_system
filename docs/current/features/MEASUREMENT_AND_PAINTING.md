@@ -114,6 +114,7 @@ for cutover and rollback procedures.
 
 The toolbar's `activeTool` is the only paint-mode source. `PaintControllerProvider`
 owns one scene controller and one interaction controller per connected session,
+plus one `CanvasCommandController` for shared editor receipts and history,
 beneath the protocol and WASM runtime providers. Subscriptions start in
 committed React effects and disconnect on cleanup, including Strict Mode
 effect replay. Object count, selection, pending state, and errors are
@@ -169,8 +170,12 @@ either drag direction. Dragging a selected member moves editable members of
 the retained selection; other users' objects remain inspectable but unchanged.
 Marquee and group previews are local and cleared on cancellation. A committed
 paint version change cancels an in-flight edit based on the old version.
-Group writes remain separate commands, with individual errors and existing
-pending-operation/resource limits; a mixed group is not an atomic transaction.
+Group movement and selected-object deletion use one atomic canvas transaction.
+One stale or invalid editable member rejects all included edits. Locked members
+are not mutated. The server publishes only after the sprite snapshot, paint
+state and actor-scoped journal commit together. Clipboard, history, permissions,
+budgets and retry behavior are defined in
+[Canvas commands and history](../reference/COMMAND_AND_HISTORY.md).
 Ending or cancelling a sprite preview restores the latest authoritative store
 position, not the gesture's starting position. Hidden-layer sprites can still
 restore, but removed sprites and inactive tables cannot. Replacing the sprite
@@ -190,10 +195,15 @@ group entity or grant permission to edit other users' objects.
 
 The adapter uses `WasmRuntimePort` for picking, selection and previews. Sprite
 world bounds convert store degrees to radians, matching the renderer. Shared
-selection owns Delete/Escape/select-all shortcuts; it suppresses legacy
-sprite-only arrow nudges, clipboard/duplicate and undo/redo shortcuts in shared
-paint/combined mode. Those group operations are not implemented. Move mixed
-groups by dragging; use separate sprite mode for its existing sprite shortcuts.
+selection owns Delete/Escape/select-all shortcuts and replaces legacy sprite-only
+shortcuts while Paint or combined Select owns input. Ctrl/Cmd+C/X/V/D copies,
+cuts, pastes or duplicates the editable selection. Arrow keys nudge by one world
+unit; Shift uses ten. Ctrl/Cmd+Z undoes an accepted canvas action; Shift+Z or Y
+redoes it. These are server journal operations, not renderer-local undo.
+The panel also exposes clipboard/history buttons and relative scale-percent
+and rotation-degree inputs. Group scale preserves proportions and rotation
+uses the editable selection's bounds center. Group pointer handles are not
+implemented. Single-paint handles keep their existing behavior.
 Form controls keep normal text-editing keyboard behavior.
 
 Losing an interactive role immediately disables Paint authoring and cancels its

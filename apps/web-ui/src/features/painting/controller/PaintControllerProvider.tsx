@@ -16,6 +16,7 @@ import {
 } from './PaintInteractionController';
 import { createSpriteSelectionPort } from './spriteSelectionPort';
 import { loadSelectionPreference, useSelectionPreferences } from './selectionPreferences';
+import { CanvasCommandController } from './CanvasCommandController';
 
 const EMPTY_STATE: PaintControllerState = Object.freeze({
   tableId: null,
@@ -76,6 +77,15 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
   const interaction = useMemo(() => (
     controller ? new PaintInteractionController(controller, runtime) : null
   ), [controller, runtime]);
+  const commands = useMemo(() => protocol && controller && interaction ? new CanvasCommandController(protocol, {
+    onError: message => toast.error(message),
+    onResync: tableId => {
+      if (useGameStore.getState().activeTableId !== tableId) return;
+      controller.requestSnapshot();
+      protocol.requestTableData(tableId);
+    },
+    onSelection: refs => interaction.replaceSelection(refs),
+  }) : null, [protocol, controller, interaction]);
   const [state, setState] = useState<PaintControllerState>(EMPTY_STATE);
   const [interactionState, setInteractionState] = useState<PaintInteractionState>(
     EMPTY_INTERACTION_STATE,
@@ -114,6 +124,21 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
   useEffect(() => {
     interaction?.setActor(canInteract(sessionRole) ? actorId : null, isDM(sessionRole));
   }, [actorId, interaction, sessionRole]);
+
+  useEffect(() => {
+    if (!commands || !interaction) return;
+    const disconnect = commands.connectEvents();
+    interaction.setCanvasCommandPort(commands);
+    return () => {
+      disconnect();
+      interaction.setCanvasCommandPort(null);
+      commands.dispose();
+    };
+  }, [commands, interaction]);
+
+  useEffect(() => {
+    commands?.selectScope(activeTableId, canInteract(sessionRole) ? actorId : null);
+  }, [commands, activeTableId, actorId, sessionRole]);
 
   useEffect(() => loadSelectionPreference(sessionCode, actorId), [sessionCode, actorId]);
 
@@ -155,9 +180,9 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
 
   useEffect(() => {
     if (!controller) return;
-    const timer = window.setInterval(() => controller.tick(), 250);
+    const timer = window.setInterval(() => { controller.tick(); commands?.tick(); }, 250);
     return () => window.clearInterval(timer);
-  }, [controller]);
+  }, [controller, commands]);
 
   useEffect(() => {
     if (controller && runtimeStatus.isCanvasAttached && !runtimeStatus.isContextLost) {

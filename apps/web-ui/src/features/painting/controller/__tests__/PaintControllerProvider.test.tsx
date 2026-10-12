@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => ({
   activeTool: 'paint',
   actorId: 42,
   sessionRole: 'owner',
-  protocol: { getSessionCode: vi.fn(() => null) },
+  protocol: { getSessionCode: vi.fn(() => null), sendCanvasCommand: vi.fn(() => true),
+    requestCanvasHistory: vi.fn(() => true), requestTableData: vi.fn() },
   runtime: {},
   runtimeStatus: { isCanvasAttached: false, isContextLost: false },
   controller: {
@@ -33,6 +34,8 @@ const mocks = vi.hoisted(() => ({
     setSelectionMode: vi.fn(),
     setSelectOnly: vi.fn(),
     setSpriteSelectionPort: vi.fn(),
+    setCanvasCommandPort: vi.fn(),
+    replaceSelection: vi.fn(),
     reconcileSelection: vi.fn(),
     setEnabled: vi.fn(),
     restoreRenderer: vi.fn(),
@@ -103,6 +106,8 @@ describe('PaintControllerProvider', () => {
     expect(mocks.controller.selectTable).toHaveBeenCalledWith('table-1');
     expect(mocks.interaction.setActor).toHaveBeenCalledWith(42, true);
     expect(mocks.interaction.connectScene).toHaveBeenCalledOnce();
+    expect(mocks.interaction.setCanvasCommandPort).toHaveBeenCalledWith(expect.objectContaining({ submit: expect.any(Function) }));
+    expect(mocks.protocol.requestCanvasHistory).toHaveBeenCalledWith('table-1');
     expect(mocks.interaction.setEnabled).toHaveBeenCalledWith(true);
 
     act(() => vi.advanceTimersByTime(500));
@@ -111,6 +116,7 @@ describe('PaintControllerProvider', () => {
     unmount();
     expect(mocks.controller.dispose).toHaveBeenCalledOnce();
     expect(mocks.interaction.dispose).toHaveBeenCalledOnce();
+    expect(mocks.interaction.setCanvasCommandPort).toHaveBeenLastCalledWith(null);
   });
 
   it('disables paint authoring immediately when the member becomes a spectator', () => {

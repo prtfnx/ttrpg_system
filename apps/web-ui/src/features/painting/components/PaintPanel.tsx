@@ -5,6 +5,7 @@ import styles from './PaintPanel.module.css';
 import { useGameStore } from '@/store';
 import { useOptionalProtocol } from '@app/providers';
 import { saveSelectionPreference, useSelectionPreferences } from '../controller/selectionPreferences';
+import { useState } from 'react';
 
 interface PaintPanelProps {
   isVisible?: boolean;
@@ -44,6 +45,8 @@ function hexToRgba(hex: string, alpha: number): PaintStyle['stroke_rgba'] {
 }
 
 export function PaintPanel({ isVisible = true, onToggle, onClose }: PaintPanelProps) {
+  const [scalePercent, setScalePercent] = useState(100);
+  const [rotationDegrees, setRotationDegrees] = useState(0);
   const paint = useOptionalPaintController();
   const interaction = paint?.interaction ?? null;
   const interactionState = paint?.interactionState ?? null;
@@ -63,6 +66,7 @@ export function PaintPanel({ isVisible = true, onToggle, onClose }: PaintPanelPr
   const strokeHex = rgbaToHex(style.stroke_rgba);
   const fillHex = rgbaToHex(style.fill_rgba ?? style.stroke_rgba);
   const available = interaction !== null && interactionState?.ready === true;
+  const hasSelection = (interactionState?.selectionCount ?? (interactionState?.selected ? 1 : 0)) > 0;
 
   const updateStyle = (next: PaintStyle) => interaction?.setStyle(next);
   const updateStroke = (hex: string) => updateStyle({
@@ -93,7 +97,7 @@ export function PaintPanel({ isVisible = true, onToggle, onClose }: PaintPanelPr
 
       {!available && (
         <p className={styles.notice} role="status">
-          Paint is waiting for the active table connection.
+          {interactionState?.commandPending ? 'Waiting for editor confirmation.' : 'Paint is waiting for the active table connection.'}
         </p>
       )}
       {scene?.lastError && <p className={styles.error} role="alert">{scene.lastError}</p>}
@@ -177,7 +181,36 @@ export function PaintPanel({ isVisible = true, onToggle, onClose }: PaintPanelPr
       <section className={styles.selection} aria-label="Paint selection">
         <h4>Selection</h4>
         {(interactionState?.selectionCount ?? 0) > 1 && <p>{interactionState?.selectionCount} objects selected</p>}
-        {(interactionState?.selectionCount ?? 0) > 1 && <p>Only editable objects are changed. Locked members stay selected.</p>}
+        {(interactionState?.selectionCount ?? 0) > 1 && <p>Only editable objects are changed. Locked members are not changed.</p>}
+        <fieldset className={styles.section} disabled={!available}>
+          <legend>Editor commands</legend>
+          <div className={styles.selectionActions}>
+            <button type="button" disabled={!interactionState?.canUndo} onClick={() => interaction?.historyCommand('undo')}>Undo editor action</button>
+            <button type="button" disabled={!interactionState?.canRedo} onClick={() => interaction?.historyCommand('redo')}>Redo editor action</button>
+            <button type="button" disabled={!hasSelection || !interactionState?.canEditSelected} onClick={() => interaction?.selectionCommand('copy')}>Copy selection</button>
+            <button type="button" disabled={!hasSelection || !interactionState?.canEditSelected} onClick={() => interaction?.selectionCommand('cut')}>Cut selection</button>
+            <button type="button" disabled={!interactionState?.canPaste} onClick={() => interaction?.pasteSelection()}>Paste selection</button>
+            <button type="button" disabled={!hasSelection || !interactionState?.canEditSelected} onClick={() => interaction?.selectionCommand('duplicate')}>Duplicate selection</button>
+            {hasSelection && !interactionState?.selected && <button type="button" onClick={() => interaction?.deleteSelected()}>Delete selection</button>}
+          </div>
+          <form onSubmit={event => {
+            event.preventDefault();
+            if (Number.isFinite(scalePercent) && scalePercent > 0 && Number.isFinite(rotationDegrees)) {
+              interaction?.transformSelection({ scale: scalePercent / 100, rotation: rotationDegrees * Math.PI / 180 });
+            }
+          }}>
+            <label className={styles.controlRow}>Selection scale (%)
+              <input type="number" min="0.1" max="100000" step="0.1" value={scalePercent}
+                disabled={!hasSelection || !interactionState?.canEditSelected} onChange={event => setScalePercent(Number(event.target.value))} />
+            </label>
+            <label className={styles.controlRow}>Selection rotation (degrees)
+              <input type="number" min="-180" max="180" step="1" value={rotationDegrees}
+                disabled={!hasSelection || !interactionState?.canEditSelected} onChange={event => setRotationDegrees(Number(event.target.value))} />
+            </label>
+            <button type="submit" disabled={!hasSelection || !interactionState?.canEditSelected}>Transform selection</button>
+          </form>
+          <p className={styles.notice}>Scale keeps proportions. Rotation uses the selection center. Ctrl/Cmd+C/X/V/D copies, cuts, pastes or duplicates. Arrows move 1 unit; Shift moves 10.</p>
+        </fieldset>
         {interactionState?.selected ? (
           <>
             <dl>

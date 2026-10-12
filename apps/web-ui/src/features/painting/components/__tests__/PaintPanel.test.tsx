@@ -8,6 +8,10 @@ const mocks = vi.hoisted(() => ({
     setStyle: vi.fn(),
     restyleSelected: vi.fn(() => true),
     deleteSelected: vi.fn(() => true),
+    historyCommand: vi.fn(() => true),
+    selectionCommand: vi.fn(() => true),
+    pasteSelection: vi.fn(() => true),
+    transformSelection: vi.fn(() => true),
   },
   value: null as null | Record<string, unknown>,
 }));
@@ -43,6 +47,8 @@ function connected(selected = false, canEditSelected = true) {
         version: 3,
       } : null,
       canEditSelected,
+      selectionCount: selected ? 1 : 0,
+      canUndo: true, canRedo: false, canPaste: true, commandPending: false,
     },
   };
 }
@@ -127,5 +133,36 @@ describe('PaintPanel', () => {
 
     expect(screen.getByText('Loading')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Draw' })).toBeDisabled();
+  });
+
+  it('exposes clipboard, durable history and shared-pivot transform controls', () => {
+    mocks.value = connected(true);
+    render(<PaintPanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'Copy selection' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cut selection' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate selection' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Paste selection' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Undo editor action' }));
+    expect(mocks.interaction.selectionCommand.mock.calls).toEqual([['copy'], ['cut'], ['duplicate']]);
+    expect(mocks.interaction.pasteSelection).toHaveBeenCalledOnce();
+    expect(mocks.interaction.historyCommand).toHaveBeenCalledWith('undo');
+    expect(screen.getByRole('button', { name: 'Redo editor action' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Selection scale (%)'), { target: { value: '200' } });
+    fireEvent.change(screen.getByLabelText('Selection rotation (degrees)'), { target: { value: '90' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Transform selection' }));
+    expect(mocks.interaction.transformSelection).toHaveBeenCalledWith({ scale: 2, rotation: Math.PI / 2 });
+  });
+
+  it('supports sprite-only selections and disables all commands during confirmation', () => {
+    const value = connected(false);
+    value.interactionState.selectionCount = 2;
+    mocks.value = value;
+    const { rerender } = render(<PaintPanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete selection' }));
+    expect(mocks.interaction.deleteSelected).toHaveBeenCalledOnce();
+    value.interactionState.commandPending = true; value.interactionState.ready = false;
+    rerender(<PaintPanel />);
+    expect(screen.getByText('Waiting for editor confirmation.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy selection' })).toBeDisabled();
   });
 });

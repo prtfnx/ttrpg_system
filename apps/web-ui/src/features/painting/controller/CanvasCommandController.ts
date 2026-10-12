@@ -67,6 +67,7 @@ export class CanvasCommandController {
   private clipboard: { id: string; members: readonly SelectionRef[]; copiedAt: number } | null = null;
   private history = { canUndo: false, canRedo: false };
   private lastError: string | null = null;
+  private historyDirty = false;
   private readonly listeners = new Set<(state: CanvasCommandState) => void>();
   private readonly now: () => number;
   private readonly operationId: () => string;
@@ -90,6 +91,7 @@ export class CanvasCommandController {
         this.history = { canUndo: data.can_undo === true, canRedo: data.can_redo === true };
         this.emit();
       }),
+      onProtocolEvent('paint-object-event', () => { this.historyDirty = true; }),
       onProtocolEvent('protocol-connected', () => {
         this.retry();
         this.refreshHistory();
@@ -105,6 +107,7 @@ export class CanvasCommandController {
     this.disconnect = null;
     this.pending = null;
     this.clipboard = null;
+    this.historyDirty = false;
     this.listeners.clear();
   }
 
@@ -116,6 +119,7 @@ export class CanvasCommandController {
     this.clipboard = null;
     this.history = { canUndo: false, canRedo: false };
     this.lastError = null;
+    this.historyDirty = false;
     this.refreshHistory();
     this.emit();
   }
@@ -173,6 +177,10 @@ export class CanvasCommandController {
   }
 
   tick(): void {
+    if (this.clipboard && this.now() - this.clipboard.copiedAt > RETRY_WINDOW_MS) {
+      this.clipboard = null;
+      this.emit();
+    }
     if (this.pending && this.now() - this.pending.command.issued_at > RETRY_WINDOW_MS) {
       const tableId = this.pending.command.table_id;
       this.pending = null;
@@ -180,6 +188,10 @@ export class CanvasCommandController {
       this.options.onResync(tableId);
     } else if (this.pending && this.now() - this.pending.sentAt >= ACK_TIMEOUT_MS) {
       this.retry();
+    }
+    if (this.historyDirty && !this.pending) {
+      this.historyDirty = false;
+      this.refreshHistory();
     }
   }
 

@@ -112,7 +112,10 @@ intent. Actor/table replacement drops local pending references and clipboard
 tokens. Durable accepted history stays on the server. Copy/duplicate waits for
 the server clipboard token before paste; fresh paste IDs never contain client
 metadata. A conflict or replay receipt requests fresh hydration. The controller
-does not own domain previews or replace legacy history. The paint provider
+coalesces paint-event history refreshes on the existing expiry tick, so accepted
+standalone authoring updates Undo availability without polling the full scene.
+Clipboard expiry also publishes state without requiring reconnect. It
+does not own domain previews or replace legacy sprite history. The paint provider
 attaches this owner to the selection controller for its session lifecycle.
 Regression owner:
 `apps/web-ui/src/features/painting/controller/__tests__/CanvasCommandController.test.ts`.

@@ -2108,6 +2108,19 @@ describe('WebClientProtocol', () => {
   });
 
   describe('paint outgoing methods', () => {
+    it('sends canvas commands and history directly without a transport batch', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      const tableId = '9e8ed60d-f18c-4f47-a5ce-fc04db50506a';
+      const command = { table_id: tableId, operation_id: crypto.randomUUID(), issued_at: Date.now(), mode: 'undo' };
+      expect(p.sendCanvasCommand(command)).toBe(true);
+      expect(p.requestCanvasHistory(tableId)).toBe(true);
+      expect(ws.send.mock.calls.map(([raw]) => JSON.parse(raw as string).type)).toEqual(['canvas_command', 'canvas_history_request']);
+      ws.readyState = WebSocket.CLOSED;
+      expect(p.sendCanvasCommand(command)).toBe(false);
+      expect(p.requestCanvasHistory(tableId)).toBe(false);
+      expect(ws.send).toHaveBeenCalledTimes(2);
+    });
     it('sends object commands with captured table and operation IDs', () => {
       const p = makeProtocol();
       const ws = makeOpenWs(p);

@@ -156,6 +156,25 @@ describe('CanvasCommandController', () => {
     expect(transport.sendCanvasCommand).not.toHaveBeenCalled();
   });
 
+  it('coalesces standalone paint history refreshes on the existing expiry tick', () => {
+    const { owner, transport } = harness();
+    for (let index = 0; index < 5; index++) window.dispatchEvent(new CustomEvent('paint-object-event'));
+    expect(transport.requestCanvasHistory).toHaveBeenCalledOnce();
+    owner.tick();
+    expect(transport.requestCanvasHistory).toHaveBeenCalledTimes(2);
+    owner.tick();
+    expect(transport.requestCanvasHistory).toHaveBeenCalledTimes(2);
+  });
+
+  it('publishes clipboard expiry to subscribers without a reconnect', () => {
+    const { owner, accept, advance } = harness();
+    owner.submit({ mode: 'copy', members }); accept({ clipboard_id: crypto.randomUUID() });
+    const listener = vi.fn(); owner.subscribe(listener);
+    advance(24 * 60 * 60 * 1000 + 1); owner.tick();
+    expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({ canPaste: false }));
+    expect(owner.paste()).toBe(false);
+  });
+
   it('disconnects event listeners and timers do not retry disposed work', () => {
     const { owner, transport, advance } = harness();
     owner.submit({ mode: 'delete', members }); owner.dispose();

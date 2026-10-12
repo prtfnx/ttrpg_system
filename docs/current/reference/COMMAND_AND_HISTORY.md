@@ -94,6 +94,10 @@ The canonical protocol schema defines `canvas_command`, `canvas_command_result`,
 unknown fields and mode-inconsistent fields. Both generated language registries
 share this contract. `packages/core-table/tests/test_canvas_protocol_schema.py`
 owns the payload boundary tests.
+The wire contract also defines `restyle`: paint-only versioned members and one
+complete paint style. It rejects sprite members, mixed mode fields, authority
+fields and malformed styles. Schema parity tests keep its style limits aligned
+with the canonical paint-object schema.
 
 `service/protocol/canvas.py` registers the command and history request handlers.
 The server derives actor/session identity from the authenticated connection,

@@ -1790,6 +1790,27 @@
         }
       ]
     },
+    "canvasPaintRgba": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "number", "minimum": 0, "maximum": 1},
+        {"type": "number", "minimum": 0, "maximum": 1},
+        {"type": "number", "minimum": 0, "maximum": 1},
+        {"type": "number", "minimum": 0, "maximum": 1}
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "canvasPaintStyle": {
+      "type": "object",
+      "required": ["stroke_rgba", "width", "fill_rgba"],
+      "properties": {
+        "stroke_rgba": {"$ref": "#/$defs/canvasPaintRgba"},
+        "width": {"type": "number", "minimum": 0.125, "maximum": 512},
+        "fill_rgba": {"oneOf": [{"$ref": "#/$defs/canvasPaintRgba"}, {"type": "null"}]}
+      },
+      "additionalProperties": false
+    },
     "canvasCommand": {
       "type": "object",
       "required": ["operation_id", "table_id", "issued_at", "mode"],
@@ -1797,9 +1818,10 @@
         "operation_id": {"$ref": "#/$defs/canvasUuid"},
         "table_id": {"$ref": "#/$defs/canvasUuid"},
         "issued_at": {"type": "number", "minimum": 0, "maximum": 9007199254740991},
-        "mode": {"enum": ["transform", "delete", "copy", "cut", "paste", "undo", "redo"]},
+        "mode": {"enum": ["transform", "restyle", "delete", "copy", "cut", "paste", "undo", "redo"]},
         "members": {"type": "array", "minItems": 1, "maxItems": 100, "items": {"$ref": "#/$defs/canvasMember"}},
         "transform": {"$ref": "#/$defs/canvasTransform"},
+        "style": {"$ref": "#/$defs/canvasPaintStyle"},
         "clipboard_id": {"$ref": "#/$defs/canvasUuid"},
         "ids": {
           "type": "array", "minItems": 1, "maxItems": 100,
@@ -1815,10 +1837,11 @@
         }
       },
       "oneOf": [
-        {"properties": {"mode": {"const": "transform"}}, "required": ["members", "transform"], "not": {"anyOf": [{"required": ["ids"]}, {"required": ["clipboard_id"]}]}},
-        {"properties": {"mode": {"enum": ["delete", "copy", "cut"]}}, "required": ["members"], "not": {"anyOf": [{"required": ["transform"]}, {"required": ["ids"]}, {"required": ["clipboard_id"]}]}},
-        {"properties": {"mode": {"const": "paste"}}, "required": ["clipboard_id", "ids", "transform"], "not": {"required": ["members"]}},
-        {"properties": {"mode": {"enum": ["undo", "redo"]}}, "not": {"anyOf": [{"required": ["members"]}, {"required": ["transform"]}, {"required": ["ids"]}, {"required": ["clipboard_id"]}]}}
+        {"properties": {"mode": {"const": "transform"}}, "required": ["members", "transform"], "not": {"anyOf": [{"required": ["ids"]}, {"required": ["clipboard_id"]}, {"required": ["style"]}]}},
+        {"properties": {"mode": {"const": "restyle"}, "members": {"items": {"$ref": "#/$defs/canvasMember/oneOf/0"}}}, "required": ["members", "style"], "not": {"anyOf": [{"required": ["transform"]}, {"required": ["ids"]}, {"required": ["clipboard_id"]}]}},
+        {"properties": {"mode": {"enum": ["delete", "copy", "cut"]}}, "required": ["members"], "not": {"anyOf": [{"required": ["transform"]}, {"required": ["ids"]}, {"required": ["clipboard_id"]}, {"required": ["style"]}]}},
+        {"properties": {"mode": {"const": "paste"}}, "required": ["clipboard_id", "ids", "transform"], "not": {"anyOf": [{"required": ["members"]}, {"required": ["style"]}]}},
+        {"properties": {"mode": {"enum": ["undo", "redo"]}}, "not": {"anyOf": [{"required": ["members"]}, {"required": ["transform"]}, {"required": ["ids"]}, {"required": ["clipboard_id"]}, {"required": ["style"]}]}}
       ],
       "additionalProperties": false
     },

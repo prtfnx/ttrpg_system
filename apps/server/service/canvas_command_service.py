@@ -130,7 +130,7 @@ class CanvasCommandService:
         entries = (
             self._entries(db, table_id, actor_id)
             .filter(
-                models.CanvasCommandJournal.kind.in_(["paint", "transform", "delete", "cut", "paste"]),
+                models.CanvasCommandJournal.kind.in_(["paint", "transform", "restyle", "delete", "cut", "paste"]),
                 models.CanvasCommandJournal.changes.isnot(None),
                 models.CanvasCommandJournal.created_at >= self.now() - RETENTION,
             )
@@ -168,13 +168,14 @@ class CanvasCommandService:
             "mode",
             "members",
             "transform",
+            "style",
             "clipboard_id",
             "ids",
         }:
             raise CanvasRejected("invalid_payload", "Unknown canvas command fields")
         operation_id, table_id = _uuid(command.get("operation_id")), _uuid(command.get("table_id"))
         mode = command.get("mode")
-        if mode not in {"transform", "delete", "copy", "cut", "paste", "undo", "redo"}:
+        if mode not in {"transform", "restyle", "delete", "copy", "cut", "paste", "undo", "redo"}:
             raise CanvasRejected("invalid_payload", "Unsupported canvas command")
         issued_at = _number(command.get("issued_at"), minimum=0, maximum=9_007_199_254_740_991)
         age = self.now().replace(tzinfo=UTC).timestamp() * 1000 - issued_at
@@ -182,6 +183,7 @@ class CanvasCommandService:
             raise CanvasRejected("retry_window_expired", "Canvas command expired; reload before issuing another edit")
         allowed = {"operation_id", "table_id", "issued_at", "mode"} | {
             "transform": {"members", "transform"},
+            "restyle": {"members", "style"},
             "delete": {"members"},
             "copy": {"members"},
             "cut": {"members"},
@@ -232,6 +234,8 @@ class CanvasCommandService:
                     if not isinstance(member, dict) or member.get("kind") not in {"paint", "sprite"}:
                         raise CanvasRejected("invalid_payload", "Invalid canvas selection reference")
                     kind, target = member["kind"], member.get("id")
+                    if mode == "restyle" and kind != "paint":
+                        raise CanvasRejected("invalid_payload", "Restyle supports paint objects only")
                     if not isinstance(target, str) or not target or len(target) > 128 or (kind, target) in seen:
                         raise CanvasRejected("invalid_payload", "Invalid or duplicate canvas selection reference")
                     seen.add((kind, target))
@@ -258,9 +262,12 @@ class CanvasCommandService:
                             _number(value)
                         if expected != actual:
                             raise CanvasRejected("conflict", "A selected sprite changed")
-                    after = copy.deepcopy(before) if mode in {"copy", "transform"} else None
+                    after = copy.deepcopy(before) if mode in {"copy", "transform", "restyle"} else None
                     if mode == "transform":
                         after = self._transformed(before, kind, command["transform"])
+                    elif mode == "restyle":
+                        after["style"] = copy.deepcopy(command["style"])
+                        validate_paint_object_input(editable_paint(after))
                     changes.append({"kind": kind, "id": target, "before": before, "after": after})
             if len(encoded(changes)) > MAX_ENTRY_BYTES:
                 raise CanvasRejected("limit_exceeded", "Selection exceeds the 1 MiB editor history budget")
@@ -314,7 +321,7 @@ class CanvasCommandService:
             }
             if mode in {"copy", "cut"}:
                 receipt["clipboard_id"] = operation_id
-            reversible = mode in {"transform", "delete", "cut", "paste"}
+            reversible = mode in {"transform", "restyle", "delete", "cut", "paste"}
             row = models.CanvasCommandJournal(
                 table_id=table_id,
                 actor_id=actor_id,

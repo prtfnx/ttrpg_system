@@ -38,15 +38,21 @@ inside one database transaction. The `canvas_command` handler holds the session
 mutation lock, serializes against table saves, provides an isolated live table
 snapshot, and publishes the returned table and events only after durable success.
 
-Supported modes are transform, delete, copy, cut, paste, undo and redo. A
+Supported modes are transform, restyle, delete, copy, cut, paste, undo and redo. A
 transform uses one translation, uniform scale and rotation around a shared world
 pivot. Paint angles use radians; persisted sprite angles use degrees. Sprite
-anchors round to integer coordinates. Line endpoints and polygon vertices remain
+anchors round to integer coordinates.
+Line endpoints and polygon vertices remain
 world-space geometry. Light moves are supported; group light resize and rotation
 reject. Movement checks validate the exact group endpoint rather than snapping
 each member independently. Combat tokens cannot use editor mutations. Both
 live combat IDs and persisted active encounters fence editor operations, so an
 unhydrated combat-engine cache after restart does not bypass combat authority.
+
+Restyle changes the selected paint objects' complete style in one transaction
+and one undo step. It leaves geometry, provenance and sprites unchanged. A stale
+or forbidden included paint object rejects the whole restyle; retries do not add
+another history entry.
 
 The service rechecks database membership and permissions for every command,
 including retries and inverse commands. Paint requires creator or DM authority.

@@ -435,3 +435,64 @@ def test_failed_paint_history_write_rolls_back_object_revision_and_retry_ledger(
         assert db.get(models.PaintState, TABLE).revision == 1
         assert db.query(models.PaintOperationResult).count() == 1
         assert db.query(models.CanvasCommandJournal).count() == 0
+
+
+def test_group_restyle_is_one_reversible_idempotent_paint_only_command(scene):
+    from service.canvas_command_service import editable_paint
+
+    second_id = str(uuid.uuid4())
+    with scene["factory"].begin() as db:
+        second = editable_paint(module._object_dict(db.get(models.PaintObject, PAINT)))
+        second["id"] = second_id
+        accepted = PaintObjectService(scene["factory"], writes_enabled=True).apply_in_transaction(
+            db, "create", session_id=scene["session"], actor_id=scene["actor"], table_id=TABLE,
+            operation_id=str(uuid.uuid4()), editable=second,
+        )
+        assert accepted.error is None
+    style = {"stroke_rgba": [0, 1, 0, 0.5], "width": 6, "fill_rgba": [0, 0, 1, 0.25]}
+    members = [{"kind": "paint", "id": PAINT, "version": 1},
+               {"kind": "paint", "id": second_id, "version": 1}]
+    command = scene["command"]("restyle", members=members, style=style)
+    result = scene["execute"](command)
+    assert len(result.events) == 2 and result.receipt["can_undo"]
+    assert scene["execute"](command).replayed
+    with scene["factory"]() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 1
+        for member in members:
+            assert db.get(models.PaintObject, member["id"]).style == style
+    scene["execute"](scene["command"]("undo"))
+    with scene["factory"]() as db:
+        assert all(db.get(models.PaintObject, member["id"]).style["width"] == 2 for member in members)
+    scene["execute"](scene["command"]("redo"))
+    with scene["factory"]() as db:
+        assert all(db.get(models.PaintObject, member["id"]).style == style for member in members)
+
+
+@pytest.mark.parametrize("invalid", ["stale", "removed", "style", "sprite", "forbidden"])
+def test_invalid_restyle_preserves_all_paint_and_history(scene, invalid):
+    members = scene["members"]()[:1]
+    style = {"stroke_rgba": [0, 1, 0, 1], "width": 6, "fill_rgba": None}
+    if invalid == "stale":
+        members[0]["version"] = 2
+    elif invalid == "removed":
+        # A valid first member must not be committed when the second is stale.
+        members.append({"kind": "paint", "id": str(uuid.uuid4()), "version": 1})
+    elif invalid == "style":
+        style["width"] = True
+    elif invalid == "sprite":
+        members.extend(scene["members"]()[1:])
+    else:
+        with scene["factory"].begin() as db:
+            player = models.User(username="restyle-stranger", hashed_password="x")
+            db.add(player)
+            db.flush()
+            actor = player.id
+            db.add(models.GamePlayer(session_id=scene["session"], user_id=actor, role="player"))
+    with pytest.raises(CanvasRejected):
+        scene["execute"](scene["command"]("restyle", members=members, style=style),
+                         actor_id=actor if invalid == "forbidden" else None)
+    with scene["factory"]() as db:
+        assert db.get(models.PaintObject, PAINT).style["width"] == 2
+        assert db.get(models.PaintObject, PAINT).version == 1
+        assert db.get(models.PaintState, TABLE).revision == 1
+        assert db.query(models.CanvasCommandJournal).count() == 0

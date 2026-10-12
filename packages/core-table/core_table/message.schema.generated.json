@@ -1838,7 +1838,7 @@
       },
       "oneOf": [
         {"properties": {"mode": {"const": "transform"}}, "required": ["members", "transform"], "not": {"anyOf": [{"required": ["ids"]}, {"required": ["clipboard_id"]}, {"required": ["style"]}]}},
-        {"properties": {"mode": {"const": "restyle"}, "members": {"items": {"$ref": "#/$defs/canvasMember/oneOf/0"}}}, "required": ["members", "style"], "not": {"anyOf": [{"required": ["transform"]}, {"required": ["ids"]}, {"required": ["clipboard_id"]}]}},
+        {"properties": {"mode": {"const": "restyle"}, "members": {"type": "array", "items": {"$ref": "#/$defs/canvasMember/oneOf/0"}}}, "required": ["members", "style"], "not": {"anyOf": [{"required": ["transform"]}, {"required": ["ids"]}, {"required": ["clipboard_id"]}]}},
         {"properties": {"mode": {"enum": ["delete", "copy", "cut"]}}, "required": ["members"], "not": {"anyOf": [{"required": ["transform"]}, {"required": ["ids"]}, {"required": ["clipboard_id"]}, {"required": ["style"]}]}},
         {"properties": {"mode": {"const": "paste"}}, "required": ["clipboard_id", "ids", "transform"], "not": {"anyOf": [{"required": ["members"]}, {"required": ["style"]}]}},
         {"properties": {"mode": {"enum": ["undo", "redo"]}}, "not": {"anyOf": [{"required": ["members"]}, {"required": ["transform"]}, {"required": ["ids"]}, {"required": ["clipboard_id"]}, {"required": ["style"]}]}}

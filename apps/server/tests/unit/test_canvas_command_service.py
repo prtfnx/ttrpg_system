@@ -42,13 +42,13 @@ def scene(test_db, test_db_engine, test_game_session, test_user):
         "transform": {"x": 50, "y": 60, "scale_x": 1, "scale_y": 1},
         "style": {"stroke_rgba": [1, 0, 0, 1], "width": 2, "fill_rgba": None},
     }
-    result = PaintObjectService(factory, writes_enabled=True).create(
-        session_id=test_game_session.id,
-        actor_id=test_user.id,
-        table_id=TABLE,
-        operation_id=str(uuid.uuid4()),
-        editable=paint,
-    )
+    # Seed an existing scene through the trusted composition API. Seeding is
+    # not a standalone user action in the journal under test.
+    with factory.begin() as db:
+        result = PaintObjectService(factory, writes_enabled=True).apply_in_transaction(
+            db, "create", session_id=test_game_session.id, actor_id=test_user.id,
+            table_id=TABLE, operation_id=str(uuid.uuid4()), editable=paint,
+        )
     assert result.error is None
     service = CanvasCommandService(factory, writes_enabled=True)
     current = {"table": table}
@@ -388,3 +388,50 @@ def test_journal_receipts_do_not_duplicate_large_scene_events(scene):
     scene["execute"]()
     with scene["factory"]() as db:
         assert set(db.query(models.CanvasCommandJournal).one().result_json) == {"receipt"}
+
+
+def test_standalone_paint_creation_resize_restyle_and_deletion_share_durable_history(scene):
+    service = PaintObjectService(scene["factory"], writes_enabled=True)
+    target = str(uuid.uuid4())
+    value = {"id": target, "kind": "rectangle", "geometry": {"kind": "rectangle", "width": 20, "height": 10},
+             "transform": {"x": 50, "y": 60, "scale_x": 1, "scale_y": 1},
+             "style": {"stroke_rgba": [1, 0, 0, 1], "width": 2, "fill_rgba": None}}
+    context = {"session_id": scene["session"], "actor_id": scene["actor"], "table_id": TABLE}
+    operation = str(uuid.uuid4())
+    assert service.create(**context, operation_id=operation, editable=value).error is None
+    assert service.create(**context, operation_id=operation, editable=value).broadcast is False
+    value["transform"].update(scale_x=2, scale_y=3, rotation=0.5)
+    value["style"]["width"] = 5
+    assert service.update(**context, operation_id=str(uuid.uuid4()), object_id=target, expected_version=1, editable=value).error is None
+    assert service.delete(**context, operation_id=str(uuid.uuid4()), object_id=target, expected_version=2).error is None
+    with scene["factory"]() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 3
+    for _ in range(3):
+        scene["execute"](scene["command"]("undo"))
+    with scene["factory"]() as db:
+        assert db.get(models.PaintObject, target) is None
+    for _ in range(3):
+        scene["execute"](scene["command"]("redo"))
+    with scene["factory"]() as db:
+        assert db.get(models.PaintObject, target) is None
+
+
+def test_failed_paint_history_write_rolls_back_object_revision_and_retry_ledger(scene, monkeypatch):
+    from service import paint_object_service
+
+    def reject(*_args, **_kwargs):
+        raise RuntimeError("journal unavailable")
+
+    monkeypatch.setattr(paint_object_service, "record_paint_command", reject)
+    service = PaintObjectService(scene["factory"], writes_enabled=True)
+    with scene["factory"]() as db:
+        from service.canvas_command_service import editable_paint
+        value = editable_paint(module._object_dict(db.get(models.PaintObject, PAINT)))
+    with pytest.raises(RuntimeError, match="journal unavailable"):
+        service.update(session_id=scene["session"], actor_id=scene["actor"], table_id=TABLE,
+                       operation_id=str(uuid.uuid4()), object_id=PAINT, expected_version=1, editable=value)
+    with scene["factory"]() as db:
+        assert db.get(models.PaintObject, PAINT).version == 1
+        assert db.get(models.PaintState, TABLE).revision == 1
+        assert db.query(models.PaintOperationResult).count() == 1
+        assert db.query(models.CanvasCommandJournal).count() == 0

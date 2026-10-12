@@ -22,6 +22,14 @@ trusted caller's active ORM transaction. It retains normal authorization,
 version, budget and retry checks. The caller must roll back on an error result
 and publish only after its outer commit succeeds. Standalone paint commands
 still own their own transaction.
+Standalone accepted paint create/update/delete also record their before/after
+delta in `canvas_command_journal` inside that same transaction. Drawing,
+non-uniform handle resizing, endpoint editing, rotation and restyle therefore
+share durable selection history. Borrowed transactions do not record extra
+child history entries; their caller records the composed command once.
+`service/canvas_journal.py` owns shared retention. A failed journal write rolls
+back the object, paint revision and retry ledger together. Identical standalone
+retries return before history recording and never add a second undo step.
 
 ## Durable canvas transaction service
 
@@ -230,9 +238,9 @@ unconfirmed previews as accepted local edits.
 
 ## Missing
 
-Legacy single-command history remains separate: standalone paint creation,
-non-uniform handle resizing, paint restyle and normal separate-mode sprite
-commands do not enter the durable canvas journal. Group resize and rotation
+Legacy single-command sprite history remains separate: normal separate-mode
+sprite commands and standalone text edits do not enter the durable canvas
+journal. Group resize and rotation
 currently use panel controls, not group pointer handles. Transport batches
 cannot supply atomicity.
 See [Measurement and painting](../features/MEASUREMENT_AND_PAINTING.md) for the

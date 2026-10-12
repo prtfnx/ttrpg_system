@@ -18,6 +18,7 @@ from core_table.paint import (
     validate_paint_payload_size,
 )
 from database import models
+from service.canvas_journal import record_paint_command
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 from utils.roles import can_interact, is_dm
@@ -377,6 +378,10 @@ class PaintObjectService:
                     "action": "create",
                     "object": accepted_dto,
                 }
+                if _db is None:
+                    record_paint_command(db, table_id=table_id, actor_id=actor_id,
+                        operation_id=operation_id, request_hash=request_hash,
+                        before=None, after=accepted_dto, now=now)
                 self._record_result(
                     db,
                     table_id=table_id,
@@ -460,6 +465,7 @@ class PaintObjectService:
                 # an aggregate of the other objects. This is safe under the
                 # same table/state locks as inserts and growing replacements.
                 previous_points = paint_point_count({"kind": current.kind, "geometry": current.geometry})
+                before_dto = _object_dict(current)
                 if paint_point_count(candidate) > previous_points:
                     self._require_budget(db, table_id, candidate, replacing_id=object_id)
                 current.kind = candidate["kind"]
@@ -479,6 +485,10 @@ class PaintObjectService:
                     "action": "update",
                     "object": accepted_dto,
                 }
+                if _db is None:
+                    record_paint_command(db, table_id=table_id, actor_id=actor_id,
+                        operation_id=operation_id, request_hash=request_hash,
+                        before=before_dto, after=accepted_dto, now=current.updated_at)
                 self._record_result(
                     db,
                     table_id=table_id,
@@ -549,6 +559,7 @@ class PaintObjectService:
                         current_version=current.version,
                     )
                 deleted_version = current.version
+                before_dto = _object_dict(current)
                 db.delete(current)
                 state.revision += 1
                 event = {
@@ -559,6 +570,10 @@ class PaintObjectService:
                     "deleted_id": object_id,
                     "deleted_version": deleted_version,
                 }
+                if _db is None:
+                    record_paint_command(db, table_id=table_id, actor_id=actor_id,
+                        operation_id=operation_id, request_hash=request_hash,
+                        before=before_dto, after=None, now=utc_now())
                 self._record_result(
                     db,
                     table_id=table_id,

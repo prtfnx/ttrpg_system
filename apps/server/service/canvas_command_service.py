@@ -20,6 +20,7 @@ from core_table.paint import PaintValidationError, validate_paint_object_input, 
 from core_table.session_rules import SessionRules
 from core_table.table import Entity, VirtualTable
 from database import crud, models
+from service.canvas_journal import MAX_HISTORY_BYTES, MAX_HISTORY_ENTRIES, RETENTION, trim_history
 from service.movement_validator import MovementValidator
 from service.paint_object_service import PaintObjectService, _object_dict, _Rejected
 from sqlalchemy.orm import Session
@@ -29,10 +30,7 @@ from utils.time import utc_now
 MAX_MEMBERS = 100
 MAX_COMMAND_BYTES = 60 * 1024
 MAX_ENTRY_BYTES = 1024 * 1024
-MAX_HISTORY_BYTES = 4 * 1024 * 1024
-MAX_HISTORY_ENTRIES = 100
 RETRY_WINDOW = timedelta(hours=24)
-RETENTION = timedelta(hours=48)
 
 
 class CanvasRejected(ValueError):
@@ -132,7 +130,7 @@ class CanvasCommandService:
         entries = (
             self._entries(db, table_id, actor_id)
             .filter(
-                models.CanvasCommandJournal.kind.in_(["transform", "delete", "cut", "paste"]),
+                models.CanvasCommandJournal.kind.in_(["paint", "transform", "delete", "cut", "paste"]),
                 models.CanvasCommandJournal.changes.isnot(None),
                 models.CanvasCommandJournal.created_at >= self.now() - RETENTION,
             )
@@ -587,17 +585,4 @@ class CanvasCommandService:
             raise CanvasRejected("limit_exceeded", "Sprite quota would be exceeded")
 
     def _trim(self, db, table_id, actor_id):
-        entries = (
-            self._entries(db, table_id, actor_id)
-            .filter(models.CanvasCommandJournal.changes.isnot(None))
-            .order_by(models.CanvasCommandJournal.id.desc())
-            .all()
-        )
-        size = 0
-        for index, entry in enumerate(entries):
-            size += entry.changes_bytes
-            if index >= MAX_HISTORY_ENTRIES or size > MAX_HISTORY_BYTES or entry.created_at < self.now() - RETENTION:
-                entry.changes = None
-                entry.changes_bytes = 0
-                entry.state = "expired"
-        db.flush()
+        trim_history(db, table_id, actor_id, self.now(), max_entries=MAX_HISTORY_ENTRIES, max_bytes=MAX_HISTORY_BYTES)

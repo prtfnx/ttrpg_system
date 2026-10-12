@@ -33,7 +33,7 @@ export function usePaintInputRouting({ mouseDown, mouseMove, mouseUp, keyDown }:
     routedKeyDown(event: KeyboardEvent) {
       if (ownsSelectionInput()
         && (['Delete', 'Backspace', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)
-          || (event.ctrlKey || event.metaKey) && ['a', 'c', 'v', 'd', 'z', 'y'].includes(event.key.toLowerCase()))) return;
+          || (event.ctrlKey || event.metaKey) && ['a', 'c', 'x', 'v', 'd', 'z', 'y'].includes(event.key.toLowerCase()))) return;
       keyDown(event);
     },
   }), [mouseDown, mouseMove, mouseUp, keyDown]);

@@ -18,6 +18,7 @@ describe('usePaintInputRouting', () => {
     result.current.routedMouseUp(new MouseEvent('mouseup', { button: 0 }));
     result.current.routedKeyDown(new KeyboardEvent('keydown', { key: 'Delete' }));
     result.current.routedKeyDown(new KeyboardEvent('keydown', { key: 'a', ctrlKey: true }));
+    result.current.routedKeyDown(new KeyboardEvent('keydown', { key: 'x', ctrlKey: true }));
     result.current.routedKeyDown(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
     expect(handlers.mouseDown).not.toHaveBeenCalled();
     expect(handlers.mouseUp).not.toHaveBeenCalled();

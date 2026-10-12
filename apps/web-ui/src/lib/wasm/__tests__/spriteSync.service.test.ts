@@ -325,6 +325,28 @@ describe('SpriteSyncService', () => {
     });
   });
 
+  it('replaces an existing renderer sprite before installing an authoritative editor upsert', () => {
+    service.init();
+    const payload = { sprite_id: 'shared', table_id: 'tbl1', operation: 'create',
+      sprite_data: { sprite_id: 'shared', table_id: 'tbl1', layer: 'tokens', texture_path: '',
+        position: [100, 120], width: 20, height: 10, scale_x: 2, scale_y: 2, rotation: 90 } };
+    window.dispatchEvent(new CustomEvent('sprite-updated', { detail: payload }));
+    expect(engine.remove_sprite).toHaveBeenCalledWith('shared');
+    expect(engine.remove_sprite.mock.invocationCallOrder[0]).toBeLessThan(engine.add_sprite_to_layer.mock.invocationCallOrder[0]);
+    expect(engine.add_sprite_to_layer).toHaveBeenCalledWith('tokens', expect.objectContaining({
+      id: 'shared', world_x: 100, world_y: 120, scale_x: 2, scale_y: 2, rotation: Math.PI / 2,
+    }));
+  });
+
+  it('retains polygon authority and transform state in the store for subsequent editor commands', () => {
+    service.addSpriteToWasm({ sprite_id: 'poly', table_id: 'tbl1', obstacle_type: 'polygon', layer: 'obstacles',
+      obstacle_data: { vertices: [[0, 0], [20, 0], [10, 10]] } as never,
+      position: [10, 20], width: 20, height: 10, scale_x: 2, scale_y: 3, rotation: 45,
+      controlled_by: [42], metadata: '{"saved":true}' });
+    expect(mockAddSprite).toHaveBeenCalledWith(expect.objectContaining({ id: 'poly', x: 10, y: 20,
+      width: 20, height: 10, scale: { x: 2, y: 3 }, rotation: 45, controlledBy: ['42'], metadata: '{"saved":true}' }));
+  });
+
   describe('optimistic timers', () => {
     beforeEach(() => { vi.useFakeTimers(); });
     afterEach(() => { vi.useRealTimers(); });

@@ -205,6 +205,16 @@ and rotation-degree inputs. Group scale preserves proportions and rotation
 uses the editable selection's bounds center. Group pointer handles are not
 implemented. Single-paint handles keep their existing behavior.
 Form controls keep normal text-editing keyboard behavior.
+Shared input routing also suppresses the legacy Ctrl/Cmd+X route, leaving cut
+with the same authoritative selection command owner as copy and paste.
+
+Canonical canvas sprite upserts replace the existing renderer sprite before
+installation. The renderer's add API appends; treating these updates as new
+instances would leave stale duplicates visible. Polygon hydration retains
+authoritative dimensions, scale, rotation and control IDs in the game store,
+so later selection commands compare against persisted state rather than
+default transforms. Regression owners: the sprite synchronization tests and
+`GameCanvas/__tests__/usePaintInputRouting.test.ts`.
 
 Losing an interactive role immediately disables Paint authoring and cancels its
 local gesture. Combined Select remains a read-only inspection path for a

@@ -392,7 +392,13 @@ export class SpriteSyncService {
     try {
       const spriteId = data.sprite_id || data.id;
       if (!spriteId) return;
-      if (data.operation === 'create' && data.sprite_data) { this.addSpriteToWasm(data.sprite_data); return; }
+      if (data.operation === 'create' && data.sprite_data) {
+        // Canonical editor upserts also replace existing sprites. Rust's add
+        // API appends; leaving the previous instance would render both states.
+        this.getEngine()?.remove_sprite(spriteId);
+        this.addSpriteToWasm(data.sprite_data);
+        return;
+      }
       if (data.operation === 'remove') {
         this.removeSceneEntity(spriteId);
         return;
@@ -629,7 +635,7 @@ export class SpriteSyncService {
       rotation: (spriteData.rotation ?? 0) * Math.PI / 180, layer,
       texture_id: '', tint_color: [1.0, 1.0, 1.0, 1.0],
       table_id: spriteData.table_id,
-      controlled_by: [],
+      controlled_by: controllerIds(spriteData.controlled_by),
       obstacle_type: 'polygon',
       polygon_vertices: normalizedVerts,
     };
@@ -637,14 +643,17 @@ export class SpriteSyncService {
     try { engine.add_sprite_to_layer(layer, wasmSprite); } catch (err) {
       logger.error('[SpriteSyncService] addPolygonToWasm failed:', err);
     }
-    wasmBridgeService.seedSpriteState(spriteId, { x, y, width: wasmSprite.width, height: wasmSprite.height, rotation: 0 });
+    wasmBridgeService.seedSpriteState(spriteId, { x, y, width: wasmSprite.width, height: wasmSprite.height, rotation: spriteData.rotation ?? 0 });
     try {
       useGameStore.getState().addSprite({
         id: spriteId,
         name: spriteData.name || 'Polygon Obstacle',
         tableId: spriteData.table_id,
         x, y, layer, texture: '',
-        scale: { x: 1, y: 1 }, rotation: 0, syncStatus: 'synced' as const,
+        width: wasmSprite.width, height: wasmSprite.height,
+        scale: { x: wasmSprite.scale_x, y: wasmSprite.scale_y }, rotation: spriteData.rotation ?? 0,
+        controlledBy: wasmSprite.controlled_by.map(String), metadata: spriteData.metadata,
+        syncStatus: 'synced' as const,
       });
     } catch { /* non-critical */ }
   }

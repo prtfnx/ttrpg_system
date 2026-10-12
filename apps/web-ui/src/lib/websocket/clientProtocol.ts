@@ -527,6 +527,12 @@ export class WebClientProtocol {
     });
 
     // Authoritative paint objects and ephemeral previews.
+    this.registerHandler(MessageType.CANVAS_COMMAND_RESULT, message => {
+      emitProtocolEvent('canvas-command-result', message.data);
+    });
+    this.registerHandler(MessageType.CANVAS_HISTORY_STATE, message => {
+      emitProtocolEvent('canvas-history-state', message.data);
+    });
     this.registerHandler(MessageType.PAINT_OBJECT_EVENT, (message) => {
       emitProtocolEvent('paint-object-event', parsePaintObjectEvent(message.data));
     });
@@ -1854,6 +1860,15 @@ export class WebClientProtocol {
       logger.error('Protocol: Failed to send paint message', error);
       return false;
     }
+  }
+
+  sendCanvasCommand(command: Record<string, unknown>): boolean {
+    return this.sendPaintMessage(MessageType.CANVAS_COMMAND, command);
+  }
+
+  requestCanvasHistory(tableId: string): boolean {
+    validateTableId(tableId);
+    return this.sendPaintMessage(MessageType.CANVAS_HISTORY_REQUEST, { table_id: tableId });
   }
 
   createPaintObject(tableId: string, operationId: string, object: PaintObjectInput): boolean {

@@ -93,6 +93,21 @@ not database details. History reads share the session lock and return only the
 current actor's availability, not scene snapshots or other users' history.
 Regression owner: `apps/server/tests/unit/test_canvas_protocol.py`.
 
+`CanvasCommandController.ts` owns browser command acknowledgements and clipboard
+tokens. Its transport sends directly only on an open socket; it does not put
+editor writes in the generic transport batch/queue. The controller registers an
+intent before sending, accepts only its matching operation/table receipt, and
+allows one pending editor command in the active actor/table scope. Missing
+acknowledgements retry the identical body after ten seconds or reconnect. The
+24-hour retry deadline reloads uncertain state instead of replaying an expired
+intent. Actor/table replacement drops local pending references and clipboard
+tokens. Durable accepted history stays on the server. Copy/duplicate waits for
+the server clipboard token before paste; fresh paste IDs never contain client
+metadata. A conflict or replay receipt requests fresh hydration. The controller
+does not own domain previews or replace legacy history. Browser controls are not
+yet connected to this owner. Regression owner:
+`apps/web-ui/src/features/painting/controller/__tests__/CanvasCommandController.test.ts`.
+
 ## Transport batching
 
 `batch_request` reduces WebSocket framing overhead. It is not a database

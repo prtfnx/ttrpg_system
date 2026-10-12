@@ -10,6 +10,8 @@ import type {
 type ProtocolRecord = Record<string, unknown> | undefined;
 
 export type ProtocolEventMap = {
+  'canvas-command-result': ProtocolRecord;
+  'canvas-history-state': ProtocolRecord;
   'active-table-response': ProtocolRecord;
   'asset-delete-response': ProtocolRecord;
   'asset-downloaded': ProtocolRecord;

@@ -20,6 +20,8 @@ import {
   type PaintTool,
 } from './paintGeometry';
 import { SelectionManager, intersectsSelection, selectionRectangle, type SelectionMode, type SelectionRef, type SelectionBounds } from './SelectionManager';
+import { IDENTITY_TRANSFORM, type CanvasCommandController, type CanvasCommandState, type CanvasMember,
+  type CanvasTransform, type SpriteExpectedTransform } from './CanvasCommandController';
 
 const LOCAL_DRAFT_KEY = 'local';
 const HIT_TOLERANCE_PX = 6;
@@ -59,6 +61,7 @@ export interface SelectionSprite {
   bounds: SelectionBounds;
   canEdit: boolean;
   canDelete?: boolean;
+  expected?: SpriteExpectedTransform;
 }
 
 export interface SpriteSelectionPort {
@@ -134,6 +137,10 @@ export interface PaintInteractionState {
   selectedIds?: readonly string[];
   selectedSpriteIds?: readonly string[];
   selectionCount?: number;
+  commandPending?: boolean;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  canPaste?: boolean;
 }
 
 function editableObject(object: PaintObject): PaintObjectInput {
@@ -175,6 +182,9 @@ export class PaintInteractionController {
   private selectionMode: SelectionMode = 'separate';
   private selectOnly = false;
   private sprites: SpriteSelectionPort | null = null;
+  private commands: CanvasCommandController | null = null;
+  private disconnectCommands: (() => void) | null = null;
+  private commandState: CanvasCommandState | null = null;
   private gesture: Gesture | null = null;
   private canvas: HTMLCanvasElement | null = null;
   private previousTouchAction = '';
@@ -231,6 +241,9 @@ export class PaintInteractionController {
     this.unbind();
     this.unsubscribeScene?.();
     this.unsubscribeScene = null;
+    this.disconnectCommands?.();
+    this.disconnectCommands = null;
+    this.commands = null;
     this.listeners.clear();
   }
 
@@ -246,7 +259,7 @@ export class PaintInteractionController {
       : null;
     return {
       enabled: this.enabled,
-      ready: this.enabled && this.sceneState.tableId !== null && !this.sceneState.hydrating,
+      ready: this.enabled && this.sceneState.tableId !== null && !this.sceneState.hydrating && !this.commandState?.pending,
       tool: this.selectOnly ? 'select' : this.tool,
       style: structuredClone(this.style),
       gestureActive: this.gesture !== null,
@@ -256,6 +269,10 @@ export class PaintInteractionController {
       selectedIds: this.paintIds(),
       selectedSpriteIds: this.spriteIds(),
       selectionCount: this.selection.items.length,
+      commandPending: this.commandState?.pending ?? false,
+      canUndo: this.commandState?.canUndo ?? false,
+      canRedo: this.commandState?.canRedo ?? false,
+      canPaste: this.commandState?.canPaste ?? false,
     };
   }
 
@@ -291,6 +308,70 @@ export class PaintInteractionController {
     this.selection.retain(ref => ref.kind !== 'sprite');
     this.syncSelection();
     this.emit();
+  }
+
+  setCanvasCommandPort(port: CanvasCommandController | null): void {
+    this.disconnectCommands?.();
+    this.cancelGesture();
+    this.commands = port;
+    this.commandState = port?.getState() ?? null;
+    this.disconnectCommands = port?.subscribe(state => { this.commandState = state; this.emit(); }) ?? null;
+    this.emit();
+  }
+
+  replaceSelection(refs: readonly SelectionRef[]): void {
+    this.cancelGesture();
+    this.selection.replace(refs);
+    this.syncSelection();
+    this.emit();
+  }
+
+  selectionCommand(mode: 'copy' | 'cut' | 'delete' | 'duplicate'): boolean {
+    this.cancelGesture();
+    const members = this.canvasMembers(this.selectedPaints(), this.selectedSprites(), mode === 'cut' || mode === 'delete');
+    return members !== null && !!this.commands?.submit({ mode: mode === 'duplicate' ? 'copy' : mode, members }, mode === 'duplicate');
+  }
+
+  pasteSelection(): boolean {
+    this.cancelGesture();
+    return !this.sceneState.hydrating && !!this.commands?.paste();
+  }
+
+  historyCommand(mode: 'undo' | 'redo'): boolean {
+    this.cancelGesture();
+    if (this.sceneState.hydrating || this.sceneState.pending.length) return false;
+    return !!this.commands?.submit({ mode });
+  }
+
+  transformSelection(values: Partial<Pick<CanvasTransform, 'dx' | 'dy' | 'scale' | 'rotation'>>): boolean {
+    this.cancelGesture();
+    const paints = this.selectedPaints().filter(item => this.canEdit(item));
+    const sprites = this.selectedSprites().filter(item => item.canEdit);
+    const members = this.canvasMembers(paints, sprites);
+    if (!members) return false;
+    const bounds = [...paints.map(paintWorldBounds), ...sprites.map(sprite => sprite.bounds)];
+    const x = (Math.min(...bounds.map(bound => bound[0])) + Math.max(...bounds.map(bound => bound[2]))) / 2;
+    const y = (Math.min(...bounds.map(bound => bound[1])) + Math.max(...bounds.map(bound => bound[3]))) / 2;
+    return !!this.commands?.submit({ mode: 'transform', members,
+      transform: { ...IDENTITY_TRANSFORM, pivot_x: x, pivot_y: y, ...values } });
+  }
+
+  private canvasMembers(paints: readonly PaintObject[], sprites: readonly SelectionSprite[], deleting = false): CanvasMember[] | null {
+    if (!this.commands || this.commands.getState().tableId !== this.sceneState.tableId || this.sceneState.hydrating || this.actorId === null) return null;
+    if (this.sceneState.pending.length) {
+      this.scene.reportLocalError('Wait for pending paint commands before editing the selection.');
+      return null;
+    }
+    const editableSprites = sprites.filter(sprite => deleting ? sprite.canDelete === true : sprite.canEdit);
+    if (editableSprites.some(sprite => !sprite.expected)) {
+      this.scene.reportLocalError('Sprite state is not ready; reload the table.');
+      return null;
+    }
+    const members: CanvasMember[] = [
+      ...paints.filter(object => this.canEdit(object)).map(object => ({ kind: 'paint' as const, id: object.id, version: object.version })),
+      ...editableSprites.map(sprite => ({ kind: 'sprite' as const, id: sprite.id, expected: sprite.expected! })),
+    ];
+    return members.length ? members : null;
   }
 
   cancelSelectionGesture(): void { this.cancelGesture(); }
@@ -348,6 +429,7 @@ export class PaintInteractionController {
 
   restyleSelected(style: PaintStyle): boolean {
     this.cancelGesture();
+    if (this.commandState?.pending) return false;
     const selected = this.selectedObject();
     if (
       !selected
@@ -369,6 +451,7 @@ export class PaintInteractionController {
     if (this.sceneState.hydrating) return false;
     const tableId = this.sceneState.tableId;
     if (!tableId) return false;
+    if (this.commands) return this.selectionCommand('delete');
     let changed = false;
     for (const selected of this.selectedPaints().filter(item => this.canEdit(item))) {
       changed = this.scene.submitDelete(selected.id, selected.version) !== null || changed;
@@ -416,6 +499,7 @@ export class PaintInteractionController {
   }
 
   readonly handlePointerDown = (event: PointerEvent): void => {
+    if (this.commandState?.pending) { event.preventDefault(); return; }
     if (
       !this.enabled
       || this.sceneState.hydrating
@@ -656,16 +740,22 @@ export class PaintInteractionController {
       } else if (gesture.kind === 'group' && gesture.changed) {
         const dx = gesture.current.x - gesture.start.x;
         const dy = gesture.current.y - gesture.start.y;
-        // Commands remain individually authorized. No durable group is created.
-        for (const original of gesture.paints) {
+        const members = this.commands ? this.canvasMembers(gesture.paints, gesture.sprites) : null;
+        if (this.commands) {
+          if (members) this.commands.submit({ mode: 'transform', members, transform: { ...IDENTITY_TRANSFORM, dx, dy } });
+        } else for (const original of gesture.paints) {
           const replacement = editableObject(original);
           replacement.transform.x += dx;
           replacement.transform.y += dy;
           this.scene.submitUpdate(original.id, original.version, replacement);
         }
-        for (const original of gesture.sprites) this.sprites?.move(gesture.tableId, original.id, original.x + dx, original.y + dy);
+        if (!this.commands) for (const original of gesture.sprites) this.sprites?.move(gesture.tableId, original.id, original.x + dx, original.y + dy);
       } else if (gesture.kind !== 'marquee' && gesture.kind !== 'group' && gesture.changed) {
-        this.scene.submitUpdate(
+        if (this.commands && gesture.kind === 'move') {
+          const members = this.canvasMembers([gesture.original], []);
+          if (members) this.commands.submit({ mode: 'transform', members, transform: { ...IDENTITY_TRANSFORM,
+            dx: gesture.current.x - gesture.start.x, dy: gesture.current.y - gesture.start.y } });
+        } else this.scene.submitUpdate(
           gesture.original.id,
           gesture.original.version,
           gesture.draft,
@@ -689,6 +779,24 @@ export class PaintInteractionController {
 
   readonly handleKeyDown = (event: KeyboardEvent): void => {
     if (!this.enabled || isEditableTarget(event.target)) return;
+    if (this.commands) {
+      const key = event.key.toLowerCase();
+      const modifier = event.ctrlKey || event.metaKey;
+      if (modifier && ['c', 'x', 'v', 'd', 'z', 'y'].includes(key)) {
+        event.preventDefault();
+        if (key === 'v') this.pasteSelection();
+        else if (key === 'z' || key === 'y') this.historyCommand(key === 'y' || event.shiftKey ? 'redo' : 'undo');
+        else this.selectionCommand(key === 'c' ? 'copy' : key === 'x' ? 'cut' : 'duplicate');
+        return;
+      }
+      if (!modifier && !event.altKey && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key) && this.selection.items.length) {
+        event.preventDefault();
+        const step = event.shiftKey ? 10 : 1;
+        this.transformSelection({ dx: event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0,
+          dy: event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0 });
+        return;
+      }
+    }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
       if (this.sceneState.hydrating || this.gesture) return;
       const sprites = this.selectionMode === 'combined' && this.sceneState.tableId

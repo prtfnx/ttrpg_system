@@ -108,6 +108,19 @@ does not own domain previews or replace legacy history. Browser controls are not
 yet connected to this owner. Regression owner:
 `apps/web-ui/src/features/painting/controller/__tests__/CanvasCommandController.test.ts`.
 
+`PaintInteractionController.setCanvasCommandPort` connects selection intent to
+this owner. With the port attached, mixed drags and selected-object deletion use
+one expected-state command instead of per-member writes. Selection clipboard,
+duplicate, shared-pivot uniform scale/rotation, one-unit arrow nudging (ten with
+Shift), and Ctrl/Cmd undo/redo route through the same owner. Text-entry targets
+retain their native shortcuts. Pending paint intent blocks a new selection
+command; pending canvas intent blocks new pointer authoring. Locked members are
+excluded from the editable command, and the server validates every included
+member atomically. The sprite selection adapter captures the authoritative
+transform projection rather than renderer preview coordinates. The provider
+does not yet attach this port. Regression owner:
+`apps/web-ui/src/features/painting/controller/__tests__/PaintInteractionController.test.ts`.
+
 ## Transport batching
 
 `batch_request` reduces WebSocket framing overhead. It is not a database

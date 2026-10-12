@@ -5,6 +5,7 @@ import {
 } from '../PaintInteractionController';
 import type { PaintControllerState } from '../PaintController';
 import type { PaintObject } from '../../model/paintObject';
+import { CanvasCommandController } from '../CanvasCommandController';
 
 const TABLE = '9e8ed60d-f18c-4f47-a5ce-fc04db50506a';
 const OBJECT_ID = 'dd830253-e2bf-4a92-9862-eabe85f79c99';
@@ -123,6 +124,77 @@ function harness(committed: PaintObject[] = []) {
 }
 
 describe('PaintInteractionController', () => {
+  function sharedSelection() {
+    const h = harness([object()]);
+    const transport = { sendCanvasCommand: vi.fn((_command: Record<string, unknown>) => true), requestCanvasHistory: vi.fn(() => true) };
+    const owner = new CanvasCommandController(transport, { onResync: vi.fn(), onSelection: refs => h.controller.replaceSelection(refs) });
+    owner.selectScope(TABLE, 7);
+    h.controller.setCanvasCommandPort(owner);
+    h.controller.setSpriteSelectionPort({ items: () => [{ id: 'sprite', x: 35, y: 5, bounds: [35, 5, 50, 15],
+      canEdit: true, canDelete: true,
+      expected: { x: 35, y: 5, width: 15, height: 10, scale_x: 1, scale_y: 1, rotation: 0 } }],
+    hitTest: () => null, select: vi.fn(), preview: vi.fn(), restore: vi.fn(), move: vi.fn(), remove: vi.fn() });
+    h.controller.setSelectionMode('combined'); h.controller.setSelectOnly(true);
+    h.controller.replaceSelection([{ kind: 'paint', id: OBJECT_ID }, { kind: 'sprite', id: 'sprite' }]);
+    return { ...h, owner, transport };
+  }
+
+  it('submits mixed group movement as one expected-state command, without per-member writes', () => {
+    const { controller, scene, transport } = sharedSelection();
+    controller.handlePointerDown(pointer(2, 20, 28));
+    controller.handlePointerUp(pointer(2, 25, 35));
+    expect(transport.sendCanvasCommand).toHaveBeenCalledOnce();
+    expect(transport.sendCanvasCommand).toHaveBeenCalledWith(expect.objectContaining({ mode: 'transform',
+      transform: expect.objectContaining({ dx: 5, dy: 7 }), members: [
+        { kind: 'paint', id: OBJECT_ID, version: 3 },
+        { kind: 'sprite', id: 'sprite', expected: { x: 35, y: 5, width: 15, height: 10, scale_x: 1, scale_y: 1, rotation: 0 } },
+      ] }));
+    expect(scene.submitUpdate).not.toHaveBeenCalled();
+    expect(controller.getState().commandPending).toBe(true);
+  });
+
+  it('deletes editable mixed members in one command and waits for the accepted selection', () => {
+    const { controller, transport, scene } = sharedSelection();
+    expect(controller.deleteSelected()).toBe(true);
+    expect(controller.getState().selectionCount).toBe(2);
+    expect(transport.sendCanvasCommand.mock.lastCall![0].mode).toBe('delete');
+    expect(scene.submitDelete).not.toHaveBeenCalled();
+  });
+
+  it('uses a shared selection pivot for uniform resize and rotation', () => {
+    const { controller, transport } = sharedSelection();
+    expect(controller.transformSelection({ scale: 2, rotation: Math.PI / 2 })).toBe(true);
+    expect(transport.sendCanvasCommand.mock.lastCall![0]).toMatchObject({
+      mode: 'transform', transform: { scale: 2, rotation: Math.PI / 2, pivot_x: 27, pivot_y: 11 },
+    });
+  });
+
+  it.each([['c', 'copy'], ['x', 'cut'], ['d', 'copy'], ['z', 'undo'], ['y', 'redo']])('routes Ctrl+%s to an authoritative %s command', (key, mode) => {
+    const { controller, transport } = sharedSelection();
+    const event = new KeyboardEvent('keydown', { key, ctrlKey: true, cancelable: true });
+    controller.handleKeyDown(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(transport.sendCanvasCommand.mock.lastCall![0].mode).toBe(mode);
+  });
+
+  it('nudges by one world unit, or ten with Shift, and prevents parallel authoring', () => {
+    const { controller, transport, scene } = sharedSelection();
+    controller.handleKeyDown(new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true }));
+    expect(transport.sendCanvasCommand.mock.lastCall![0]).toMatchObject({ transform: { dx: 10, dy: 0 } });
+    controller.setSelectOnly(false); controller.setTool('draw');
+    controller.handlePointerDown(pointer(3, 50, 50)); controller.handlePointerUp(pointer(3, 60, 60));
+    expect(scene.submitCreate).not.toHaveBeenCalled();
+    expect(transport.sendCanvasCommand).toHaveBeenCalledOnce();
+  });
+
+  it('refuses shared edits while paint intent is unconfirmed', () => {
+    const { controller, updateState, transport, scene } = sharedSelection();
+    updateState({ ...initialState([object()]), pending: [{ operationId: crypto.randomUUID(), createdAt: 1,
+      command: { kind: 'delete', tableId: TABLE, objectId: OBJECT_ID, expectedVersion: 3 } }] });
+    expect(controller.selectionCommand('copy')).toBe(false);
+    expect(transport.sendCanvasCommand).not.toHaveBeenCalled();
+    expect(scene.reportLocalError).toHaveBeenCalledWith(expect.stringContaining('pending paint'));
+  });
   it('selects all visible paint/sprites and adopts entity-list selections in combined mode', () => {
     const { controller } = harness([object()]);
     const sprites = { items: () => [{ id: 'sprite', x: 35, y: 5, bounds: [35, 5, 50, 15] as const, canEdit: true }],

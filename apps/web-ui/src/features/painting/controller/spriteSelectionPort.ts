@@ -27,6 +27,8 @@ export function createSpriteSelectionPort(runtime: WasmRuntimePort, protocol: We
       return store.sprites.filter(sprite => sprite.tableId === tableId && sprite.layer === store.activeLayer
         && store.layerVisibility[sprite.layer] !== false && sprite.isVisible !== false)
         .map(sprite => ({ id: sprite.id, x: sprite.x, y: sprite.y,
+          expected: { x: sprite.x, y: sprite.y, width: sprite.width ?? 50, height: sprite.height ?? 50,
+            scale_x: sprite.scale.x, scale_y: sprite.scale.y, rotation: sprite.rotation },
           bounds: spriteSelectionBounds(sprite),
           canEdit: canInteract(store.sessionRole) && store.canControlSprite(sprite.id),
           canDelete: isDM(store.sessionRole) }));

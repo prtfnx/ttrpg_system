@@ -509,7 +509,10 @@ class CanvasCommandService:
                     if after["id"] == target and after.get("_restoring"):
                         accepted = db.get(models.PaintObject, target)
                         accepted.created_by, accepted.z_order = after["created_by"], after["z_order"]
-                        accepted.created_at = datetime.fromisoformat(after["created_at"])
+                        # DateTime columns store naive UTC. Passing an aware
+                        # value lets PostgreSQL cast through its connection
+                        # timezone before stripping the offset.
+                        accepted.created_at = datetime.fromisoformat(after["created_at"]).astimezone(UTC).replace(tzinfo=None)
                         accepted.version = after["version"] + 1
                         event["object"] = _object_dict(accepted)
                         validate_paint_payload_size(event["object"])

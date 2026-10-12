@@ -5,7 +5,7 @@ Audience: contributors changing canvas mutations, selection, or undo/redo.
 Status: partial. Mixed-domain transactions, browser group commands and durable
 selection history exist. Legacy single-command history remains separate.
 
-Last source audit: 2026-10-07
+Last source audit: 2026-10-08
 
 ## Ownership and current flow
 
@@ -60,6 +60,8 @@ affected objects, so unrelated remote edits survive. A changed affected object
 blocks undo without advancing history. Paint comparisons ignore monotonically
 increasing version/update timestamps, but retain content and provenance checks.
 Restoring a deletion preserves creator, creation time, order and sprite controls.
+Restored paint creation timestamps normalize to naive UTC before database writes;
+the PostgreSQL connection timezone does not change provenance or block an earlier undo.
 New edits abandon that actor's redo branch; copying does not.
 
 Copy captures authoritative server content. Paste accepts a clipboard token,
@@ -80,7 +82,12 @@ events. Process restart preserves journal history; legacy command paths do not
 automatically enter this journal.
 
 Regression owners: `apps/server/tests/unit/test_canvas_command_service.py` and
-`test_paint_operation_cleanup.py`.
+`test_paint_operation_cleanup.py`. Real PostgreSQL concurrency, atomic rollback,
+and fresh-service history recovery are covered by
+`apps/server/tests/integration/test_canvas_history_postgresql.py`. These tests
+require `TEST_POSTGRESQL_DATABASE_URL` with a database name containing `test`;
+they migrate and remove only their own temporary schema. Run them from
+`apps/server` with `python -m pytest tests/integration/test_canvas_history_postgresql.py`.
 
 The canonical protocol schema defines `canvas_command`, `canvas_command_result`,
 `canvas_history_request` and `canvas_history_state`. Command payloads reject

@@ -9,6 +9,7 @@ EXPECTED_TABLES = {
     "asset_upload_intents",
     "assets",
     "audit_logs",
+    "canvas_command_journal",
     "character_drafts",
     "character_logs",
     "character_permissions",
@@ -79,3 +80,14 @@ def test_paint_objects_use_jsonb_on_postgresql_and_ordered_indexes():
         "ix_paint_objects_table_id_id",
         "ix_paint_objects_table_z_order_id",
     }
+
+
+def test_canvas_journal_uses_jsonb_and_scoped_operation_identity():
+    from sqlalchemy.dialects import postgresql
+
+    table = Base.metadata.tables["canvas_command_journal"]
+    assert str(table.c.changes.type.compile(dialect=postgresql.dialect())) == "JSONB"
+    assert str(table.c.result_json.type.compile(dialect=postgresql.dialect())) == "JSONB"
+    assert any(isinstance(constraint, UniqueConstraint) and
+               list(constraint.columns.keys()) == ["table_id", "actor_id", "operation_id"]
+               for constraint in table.constraints)

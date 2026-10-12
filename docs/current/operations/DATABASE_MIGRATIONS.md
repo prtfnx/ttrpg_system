@@ -15,7 +15,7 @@ Alembic is the only hosted schema authority:
 - revisions: `apps/server/database/alembic/versions/`;
 - deployed revision ledger: `alembic_version`;
 - baseline: `0001_postgresql_baseline`;
-- current head: `0011_selection_preferences`.
+- current head: `0012_canvas_command_journal`.
 
 Revision 0011 adds `game_players.selection_mode`, non-null with the default
 `separate`. Existing memberships keep separate selection. The authenticated
@@ -41,6 +41,8 @@ Revision `0012_canvas_command_journal` adds actor/table-scoped editor receipts
 and reversible object deltas. It does not convert or remove paint or sprite
 data. The new table has application-writer fencing on PostgreSQL. Downgrading
 to 0011 removes these receipts and undo history, not the accepted scene edits.
+The complete model inventory and JSONB/scoped-operation constraints are checked
+by `apps/server/tests/unit/test_model_metadata.py`.
 
 Run from `apps/server` with `DATABASE_MIGRATION_URL` set to the intended
 schema-owner connection. Alembic falls back to `DATABASE_URL` when the

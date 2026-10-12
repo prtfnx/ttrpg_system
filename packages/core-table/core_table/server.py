@@ -26,6 +26,10 @@ class TableManager:
         """Set database session for persistence operations"""
         self.db_session = db_session
 
+    def table_write_lock(self, table_id: str) -> asyncio.Lock:
+        """Serialize composed transactions with ordinary snapshot saves/deletes."""
+        return self._save_locks.setdefault(table_id, asyncio.Lock())
+
     def release_db_session(self) -> None:
         """Release a task-scoped session without closing caller-owned sessions."""
         remove = getattr(self.db_session, "remove", None)
@@ -163,7 +167,7 @@ class TableManager:
         from sqlalchemy.orm import sessionmaker
         from utils.blocking import run_blocking
 
-        async with self._save_locks.setdefault(table_id, asyncio.Lock()):
+        async with self.table_write_lock(table_id):
             table = draft if draft is not None else self.tables.get(table_id)
             if table is None or str(table.table_id) != table_id:
                 return False
@@ -196,7 +200,7 @@ class TableManager:
 
         if not self.db_session:
             return False
-        async with self._save_locks.setdefault(table_id, asyncio.Lock()):
+        async with self.table_write_lock(table_id):
             session_factory = sessionmaker(bind=self.db_session.get_bind())
             self.release_db_session()
 

@@ -2,8 +2,8 @@
 
 Audience: contributors changing canvas mutations, selection, or undo/redo.
 
-Status: partial. A trusted mixed-domain transaction service exists; browser
-commands and group controls do not yet use it.
+Status: partial. Mixed-domain transactions and authenticated history messages
+exist; browser group controls do not yet use them.
 
 Last source audit: 2026-10-07
 
@@ -26,10 +26,9 @@ still own their own transaction.
 ## Durable canvas transaction service
 
 `apps/server/service/canvas_command_service.py` composes paint and sprite edits
-inside one database transaction. This is a trusted service API, not currently
-a registered WebSocket command. Its caller must hold the session mutation lock,
-serialize against table saves, provide an isolated live table snapshot, and
-publish the returned table and events only after durable success.
+inside one database transaction. The `canvas_command` handler holds the session
+mutation lock, serializes against table saves, provides an isolated live table
+snapshot, and publishes the returned table and events only after durable success.
 
 Supported modes are transform, delete, copy, cut, paste, undo and redo. A
 transform uses one translation, uniform scale and rotation around a shared world
@@ -79,7 +78,20 @@ The canonical protocol schema defines `canvas_command`, `canvas_command_result`,
 `canvas_history_request` and `canvas_history_state`. Command payloads reject
 unknown fields and mode-inconsistent fields. Both generated language registries
 share this contract. `packages/core-table/tests/test_canvas_protocol_schema.py`
-owns the payload boundary tests. Defining a message does not register a handler.
+owns the payload boundary tests.
+
+`service/protocol/canvas.py` registers the command and history request handlers.
+The server derives actor/session identity from the authenticated connection,
+not the payload. `TableManager.table_write_lock` serializes snapshot writes,
+deletes and composed editor transactions. Cancellation waits for the worker's
+commit and live-table publication before releasing the session lock, even after
+repeated cancellation. Accepted paint events broadcast normally; sprite events
+use existing layer-filtered delivery. The sender receives canonical events
+before its command receipt. A post-commit transport failure preserves success
+and requests resynchronization. Unexpected storage errors return a safe message,
+not database details. History reads share the session lock and return only the
+current actor's availability, not scene snapshots or other users' history.
+Regression owner: `apps/server/tests/unit/test_canvas_protocol.py`.
 
 ## Transport batching
 
@@ -191,7 +203,7 @@ unconfirmed previews as accepted local edits.
 
 ## Missing
 
-The trusted durable canvas service is not wired into browser commands. Current
+The durable canvas service is not wired into browser controls. Current
 group writes still use individual domain commands. Client-facing history and
 group clipboard/resize/rotation controls are missing. Legacy single-command
 history remains separate. Transport batches cannot supply atomicity.

@@ -12,6 +12,7 @@ from ..legacy_paint import is_legacy_paint_message, legacy_paint_upgrade_data
 from .assets import _AssetsMixin
 from .characters import _CharactersMixin
 from .chat import _ChatMixin
+from .canvas import _CanvasMixin
 from .combat import _CombatMixin
 from .encounter import _EncounterMixin
 from .helpers import _HelpersMixin
@@ -27,6 +28,7 @@ logger = setup_logger(__name__)
 
 
 MUTATING_MESSAGE_TYPES = frozenset({
+    MessageType.CANVAS_COMMAND,
     MessageType.BATCH_REQUEST,
     MessageType.NEW_TABLE_REQUEST,
     MessageType.TABLE_UPDATE_REQUEST,
@@ -85,6 +87,7 @@ MUTATING_MESSAGE_TYPES = frozenset({
 })
 
 SESSION_STATE_READ_MESSAGE_TYPES = frozenset({
+    MessageType.CANVAS_HISTORY_REQUEST,
     MessageType.TABLE_REQUEST,
     MessageType.TABLE_LIST_REQUEST,
     MessageType.TABLE_ACTIVE_REQUEST,
@@ -104,6 +107,7 @@ SERIALIZED_MESSAGE_TYPES = MUTATING_MESSAGE_TYPES | SESSION_STATE_READ_MESSAGE_T
 
 
 class ServerProtocol(
+    _CanvasMixin,
     _SpritesMixin,
     _TablesMixin,
     _AssetsMixin,
@@ -248,6 +252,10 @@ class ServerProtocol(
         self.register_handler(MessageType.WALL_UPDATE,       self.handle_wall_update)
         self.register_handler(MessageType.WALL_REMOVE,       self.handle_wall_remove)
         self.register_handler(MessageType.DOOR_TOGGLE,       self.handle_door_toggle)
+
+        # Shared editor transactions and actor-scoped history
+        self.register_handler(MessageType.CANVAS_COMMAND, self.handle_canvas_command)
+        self.register_handler(MessageType.CANVAS_HISTORY_REQUEST, self.handle_canvas_history_request)
 
         # Paint objects
         self.register_handler(MessageType.PAINT_OBJECT_CREATE, self.handle_paint_object_create)

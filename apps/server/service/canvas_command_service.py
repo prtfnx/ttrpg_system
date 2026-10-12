@@ -270,7 +270,20 @@ class CanvasCommandService:
             rules_data = json.loads(session.session_rules_json or "{}")
             rules_data.setdefault("session_id", session.session_code)
             rules = SessionRules.from_dict(rules_data) if rules_data else SessionRules.defaults(session.session_code)
-            self._authorize(changes, role, actor_id, mode, combat_sprite_ids)
+            # Durable combat state also fences editor commands after restart,
+            # before the combat engine has hydrated its in-memory cache. Read
+            # it inside this transaction and fail closed on malformed storage.
+            combat_ids = set(combat_sprite_ids)
+            if mode != "copy":
+                encounters = db.query(models.CombatEncounter).filter(
+                    models.CombatEncounter.session_id == session_id,
+                    models.CombatEncounter.table_id == table_id,
+                    models.CombatEncounter.phase != "inactive",
+                    models.CombatEncounter.ended_at.is_(None),
+                ).all()
+                for encounter in encounters:
+                    combat_ids.update(str(member["entity_id"]) for member in json.loads(encounter.combatants_json or "[]"))
+            self._authorize(changes, role, actor_id, mode, combat_ids)
             if mode != "copy":
                 events = self._apply(db, table, changes, role, actor_id, session_id, operation_id, rules)
                 if any(change["kind"] == "sprite" for change in changes):

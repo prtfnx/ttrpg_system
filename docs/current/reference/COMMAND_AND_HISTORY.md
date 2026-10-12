@@ -37,7 +37,9 @@ pivot. Paint angles use radians; persisted sprite angles use degrees. Sprite
 anchors round to integer coordinates. Line endpoints and polygon vertices remain
 world-space geometry. Light moves are supported; group light resize and rotation
 reject. Movement checks validate the exact group endpoint rather than snapping
-each member independently. Combat tokens cannot use editor mutations.
+each member independently. Combat tokens cannot use editor mutations. Both
+live combat IDs and persisted active encounters fence editor operations, so an
+unhydrated combat-engine cache after restart does not bypass combat authority.
 
 The service rechecks database membership and permissions for every command,
 including retries and inverse commands. Paint requires creator or DM authority.

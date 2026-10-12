@@ -264,6 +264,15 @@ def test_combat_members_cannot_bypass_combat_command_authority(scene):
         scene["execute"](combat_sprite_ids=("sprite",))
 
 
+def test_persisted_combat_fences_editor_commands_before_engine_hydration(scene):
+    with scene["factory"].begin() as db:
+        db.add(models.CombatEncounter(encounter_id=str(uuid.uuid4()), session_id=scene["session"],
+            table_id=TABLE, phase="combat", combatants_json='[{"entity_id":"sprite"}]'))
+    with pytest.raises(CanvasRejected, match="Combat tokens"):
+        scene["execute"]()
+    assert scene["execute"](scene["command"]("copy")).receipt["clipboard_id"]
+
+
 def test_bounded_history_expires_old_deltas_without_deleting_retry_receipts(scene, monkeypatch):
     monkeypatch.setattr(module, "MAX_HISTORY_ENTRIES", 1)
     first = scene["command"]()

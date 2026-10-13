@@ -57,6 +57,11 @@ Supported modes are transform, restyle, delete, copy, cut, paste, undo and redo.
 transform uses one translation, uniform scale and rotation around a shared world
 pivot. Paint angles use radians; persisted sprite angles use degrees. Sprite
 anchors round to integer coordinates.
+`selectionTransforms.ts` mirrors this mapping for local previews. Corner resize
+keeps the opposite corner fixed and preserves proportions; rotation uses the
+bounds center and supports 15-degree snapping. Sprite previews use nearest-even
+integer anchors, matching the server. Geometry regressions live in
+`controller/__tests__/selectionTransforms.test.ts`.
 Line endpoints and polygon vertices remain
 world-space geometry. Light moves are supported; group light resize and rotation
 reject. Movement checks validate the exact group endpoint rather than snapping

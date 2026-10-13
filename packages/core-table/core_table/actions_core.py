@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .async_actions_protocol import LAYERS, ActionResult, AsyncActionsProtocol, Position
 from .table import VirtualTable
+from .sprite_commands import atomic_sprite_command
 
 if typing.TYPE_CHECKING:
     pass
@@ -384,6 +385,7 @@ class ActionsCore(AsyncActionsProtocol):
             return ActionResult(False, f"Failed to scale table: {str(e)}")
 
     # Sprite Actions
+    @atomic_sprite_command
     async def create_sprite(self, table_id: str, sprite_data: Dict[str, Any], session_id: Optional[int] = None) -> ActionResult:
         """Create a new sprite on a table"""
         try:
@@ -430,6 +432,7 @@ class ActionsCore(AsyncActionsProtocol):
 
         # Create sprite using the provided data
         return await self.create_sprite(table_id, data)
+    @atomic_sprite_command
     async def delete_sprite(self, table_id: str, sprite_id: str, session_id: Optional[int] = None) -> ActionResult:
         """Delete a sprite from a table"""
         try:
@@ -474,6 +477,7 @@ class ActionsCore(AsyncActionsProtocol):
             return ActionResult(False, f"Failed to delete sprite: {str(e)}")
 
 
+    @atomic_sprite_command
     async def move_sprite(self, table_id: str, sprite_id: str, old_position: Union[Position, dict], new_position: Union[Position, dict], session_id: Optional[Any] = None) -> ActionResult:
         """Move sprite to new position"""
         try:
@@ -527,6 +531,7 @@ class ActionsCore(AsyncActionsProtocol):
             logger.error(f"Failed to move sprite {sprite_id}: {str(e)}")
             return ActionResult(False, f"Failed to move sprite: {str(e)}")
 
+    @atomic_sprite_command
     async def scale_sprite(self, table_id: str, sprite_id: str, scale_x: float, scale_y: float, session_id: Optional[int] = None) -> ActionResult:
         """Scale sprite by given factors"""
         try:
@@ -558,6 +563,7 @@ class ActionsCore(AsyncActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to scale sprite: {str(e)}")
 
+    @atomic_sprite_command
     async def rotate_sprite(self, table_id: str, sprite_id: str, angle: float, session_id: Optional[int] = None) -> ActionResult:
         """Rotate sprite by given angle"""
         try:
@@ -592,6 +598,7 @@ class ActionsCore(AsyncActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to rotate sprite: {str(e)}")
 
+    @atomic_sprite_command
     async def update_sprite(self, table_id: str, sprite_id: str, session_id: Optional[int] = None, **kwargs) -> ActionResult:
         """Update sprite properties"""
         try:
@@ -676,6 +683,7 @@ class ActionsCore(AsyncActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to get layer visibility: {str(e)}")
 
+    @atomic_sprite_command
     async def move_sprite_to_layer(self, table_id: str, sprite_id: str, new_layer: str, session_id: Optional[int] = None) -> ActionResult:
         """Move sprite to different layer"""
         try:

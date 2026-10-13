@@ -5,7 +5,7 @@ Audience: contributors changing canvas mutations, selection, or undo/redo.
 Status: partial. Mixed-domain transactions, browser group commands and durable
 selection history exist. Legacy single-command history remains separate.
 
-Last source audit: 2026-10-08
+Last source audit: 2026-10-09
 
 ## Ownership and current flow
 
@@ -235,6 +235,15 @@ Legacy sprite-selection movement still uses the sprite bridge confirmation
 owner. The shared paint provider attaches the canvas command owner instead;
 mixed editor movement uses its atomic server transaction. Combat tokens reject
 editor group mutation and must use the separate combat command path.
+
+Persistent legacy sprite create/delete/move/scale/rotate/update and layer moves
+stage against an isolated table through `core_table/sprite_commands.py`. They
+save the draft before replacing live state or recording accepted audit entries.
+A failed save leaves live state unchanged and schedules no background retry.
+Cancellation waits for storage and publication, including repeated cancellation;
+a cancelled request may have committed. In-memory domain use retains the
+existing API. Regression owner:
+`apps/server/tests/unit/test_sprite_command_persistence.py`.
 
 Rust `ActionsClient` is an isolated local-domain utility, not the renderer's
 authoritative multiplayer scene. Its undo/redo reverses table and sprite CRUD,

@@ -632,6 +632,32 @@ impl RenderEngine {
     }
 
     #[wasm_bindgen]
+    pub fn selection_preview_transform(
+        &mut self,
+        sprite_id: &str,
+        x: f64,
+        y: f64,
+        sx: f64,
+        sy: f64,
+        degrees: f64,
+    ) -> bool {
+        let Some((sprite, layer)) = self.layer_manager.find_sprite(sprite_id) else {
+            return false;
+        };
+        if self.table_manager.get_active_table_id().as_deref() != Some(&sprite.table_id) {
+            return false;
+        }
+        let obstacle = layer == "obstacles";
+        let changed = self
+            .layer_manager
+            .preview_sprite_transform(sprite_id, x, y, sx, sy, degrees);
+        if changed && obstacle {
+            self.mark_occlusion_dirty();
+        }
+        changed
+    }
+
+    #[wasm_bindgen]
     pub fn paint_object_revision(&self) -> f64 {
         self.paint.object_revision() as f64
     }

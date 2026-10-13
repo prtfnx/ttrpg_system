@@ -185,6 +185,56 @@ impl LayerManager {
         false
     }
 
+    /// Apply one local editor preview, including world-space polygon/line points.
+    pub fn preview_sprite_transform(
+        &mut self,
+        id: &str,
+        x: f64,
+        y: f64,
+        sx: f64,
+        sy: f64,
+        degrees: f64,
+    ) -> bool {
+        if [x, y, sx, sy, degrees].iter().any(|v| !v.is_finite())
+            || x.abs() > 1_000_000.0
+            || y.abs() > 1_000_000.0
+            || !(0.001..=1000.0).contains(&sx)
+            || !(0.001..=1000.0).contains(&sy)
+        {
+            return false;
+        }
+        for layer in self.layers.values_mut() {
+            if let Some(sprite) = layer.sprites.iter_mut().find(|sprite| sprite.id == id) {
+                if sprite.scale_x <= 0.0 || sprite.scale_y <= 0.0 {
+                    return false;
+                }
+                let cx = sprite.world_x + sprite.width * sprite.scale_x / 2.0;
+                let cy = sprite.world_y + sprite.height * sprite.scale_y / 2.0;
+                let ncx = x + sprite.width * sx / 2.0;
+                let ncy = y + sprite.height * sy / 2.0;
+                let (old_sin, old_cos) = sprite.rotation.sin_cos();
+                let (sin, cos) = degrees.to_radians().sin_cos();
+                if let Some(vertices) = &mut sprite.polygon_vertices {
+                    for vertex in vertices {
+                        let dx = vertex[0] as f64 - cx;
+                        let dy = vertex[1] as f64 - cy;
+                        let lx = (old_cos * dx + old_sin * dy) * sx / sprite.scale_x;
+                        let ly = (-old_sin * dx + old_cos * dy) * sy / sprite.scale_y;
+                        vertex[0] = (ncx + cos * lx - sin * ly) as f32;
+                        vertex[1] = (ncy + sin * lx + cos * ly) as f32;
+                    }
+                }
+                sprite.world_x = x;
+                sprite.world_y = y;
+                sprite.scale_x = sx;
+                sprite.scale_y = sy;
+                sprite.rotation = degrees.to_radians();
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn resize_sprite(&mut self, sprite_id: &str, new_width: f64, new_height: f64) -> bool {
         for layer in self.layers.values_mut() {
             if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
@@ -446,5 +496,31 @@ mod tests {
         assert!((vertices[0][1] - 1.0).abs() < 0.001);
         assert!((vertices[1][0] - 10.0).abs() < 0.001);
         assert!((vertices[1][1] - 11.0).abs() < 0.001);
+    }
+
+    #[wasm_bindgen_test::wasm_bindgen_test]
+    fn editor_preview_transforms_and_restores_polygon_world_geometry() {
+        let mut lm = LayerManager::new();
+        let mut sprite = make_sprite("polygon", 10.0, 20.0, "obstacles");
+        sprite.obstacle_type = Some("polygon".into());
+        sprite.polygon_vertices = Some(vec![[10.0, 20.0], [60.0, 20.0], [35.0, 70.0]]);
+        lm.layers.get_mut("obstacles").unwrap().sprites.push(sprite);
+        assert!(lm.preview_sprite_transform("polygon", 100.0, 200.0, 2.0, 2.0, 90.0));
+        let (sprite, _) = lm.find_sprite("polygon").unwrap();
+        assert_eq!(sprite.polygon_vertices.as_ref().unwrap()[0], [200.0, 200.0]);
+        assert!(lm.preview_sprite_transform("polygon", 10.0, 20.0, 1.0, 1.0, 0.0));
+        let (sprite, _) = lm.find_sprite("polygon").unwrap();
+        for (actual, expected) in sprite.polygon_vertices.as_ref().unwrap().iter().zip([
+            [10.0, 20.0],
+            [60.0, 20.0],
+            [35.0, 70.0],
+        ]) {
+            assert!(
+                (actual[0] - expected[0]).abs() < 0.001 && (actual[1] - expected[1]).abs() < 0.001
+            );
+        }
+        assert!(!lm.preview_sprite_transform("polygon", 0.0, 0.0, 0.0, 1.0, 0.0));
+        assert!(!lm.preview_sprite_transform("polygon", f64::NAN, 0.0, 1.0, 1.0, 0.0));
+        assert_eq!(lm.find_sprite("polygon").unwrap().0.world_x, 10.0);
     }
 }

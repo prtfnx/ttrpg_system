@@ -98,6 +98,20 @@ require `TEST_POSTGRESQL_DATABASE_URL` with a database name containing `test`;
 they migrate and remove only their own temporary schema. Run them from
 `apps/server` with `python -m pytest tests/integration/test_canvas_history_postgresql.py`.
 
+`service/sprite_editor_commands.py` provides the trusted persistence adapter for
+staged legacy sprite commands. `SpriteEditorCommandService.persist` commits the
+table snapshot and affected-object deltas in one transaction, rechecks database
+membership, and uses the same retention and inverse service as canvas commands.
+It records receipt-only entries for stat changes, combat tokens and no-ops;
+these are not reversible editor actions. Request identity is actor/session/table
+scoped and derived from the original message ID and body before normalization.
+Identical retries return an acknowledgement requiring fresh hydration, not old
+sprite events. A changed body or expired retry rejects.
+Text history compares content and provenance while ignoring only the text
+revision. Every inverse advances that revision, so an open editor cannot submit
+an obsolete revision after undo or redo. Regression owner:
+`apps/server/tests/unit/test_sprite_editor_commands.py`.
+
 The canonical protocol schema defines `canvas_command`, `canvas_command_result`,
 `canvas_history_request` and `canvas_history_state`. Command payloads reject
 unknown fields and mode-inconsistent fields. Both generated language registries

@@ -23,6 +23,7 @@ from database import crud, models
 from service.canvas_journal import MAX_HISTORY_BYTES, MAX_HISTORY_ENTRIES, RETENTION, trim_history
 from service.movement_validator import MovementValidator
 from service.paint_object_service import PaintObjectService, _object_dict, _Rejected
+from service.text_sprite import encode_text_metadata, text_metadata
 from sqlalchemy.orm import Session
 from utils.roles import can_interact, get_sprite_limit, get_visible_layers, is_dm
 from utils.time import utc_now
@@ -131,7 +132,7 @@ class CanvasCommandService:
             self._entries(db, table_id, actor_id)
             .with_entities(models.CanvasCommandJournal.state)
             .filter(
-                models.CanvasCommandJournal.kind.in_(["paint", "transform", "restyle", "delete", "cut", "paste"]),
+                models.CanvasCommandJournal.kind.in_(["paint", "sprite", "transform", "restyle", "delete", "cut", "paste"]),
                 models.CanvasCommandJournal.changes.isnot(None),
                 models.CanvasCommandJournal.created_at >= self.now() - RETENTION,
             )
@@ -370,6 +371,11 @@ class CanvasCommandService:
             def content(value):
                 if value is not None and saved["kind"] == "paint":
                     return {key: item for key, item in value.items() if key not in {"version", "updated_at"}}
+                if value is not None and saved["kind"] == "sprite":
+                    metadata = text_metadata(value.get("metadata"))
+                    if metadata is not None:
+                        metadata.pop("text_revision", None)
+                        return {**value, "metadata": metadata}
                 return value
 
             if encoded(content(current)) != encoded(content(expected)):
@@ -377,6 +383,13 @@ class CanvasCommandService:
                     "history_conflict", "An affected object changed; history cannot overwrite another edit"
                 )
             after = copy.deepcopy(saved["before" if mode == "undo" else "after"])
+            if saved["kind"] == "sprite" and after is not None:
+                metadata = text_metadata(after.get("metadata"))
+                if metadata is not None:
+                    current_metadata = text_metadata(current.get("metadata")) if current is not None else None
+                    metadata["text_revision"] = max(metadata.get("text_revision", 0),
+                        (current_metadata or {}).get("text_revision", 0)) + 1
+                    after["metadata"] = encode_text_metadata(metadata)
             if current is None and after is not None:
                 after["_restoring"] = True
             changes.append({"kind": saved["kind"], "id": saved["id"], "before": current, "after": after})

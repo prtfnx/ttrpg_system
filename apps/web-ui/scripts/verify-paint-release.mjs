@@ -21,7 +21,7 @@ function installProbe() {
     liveBuffers: new Set(), sockets: [], lastInput: 0, pendingPreview: null, inputTracking: false,
     sent: new Map(), snapshotParts: new Map(), dropNextEvent: false, dropPreviews: false,
     reverseSnapshots: false, holdSnapshots: false, heldChunks: [], replaying: false,
-    revisionGaps: 0, requestCount: 0, peakQueuedBytes: 0 };
+    revisionGaps: 0, requestCount: 0, peakQueuedBytes: 0, sprites: {} };
   for (const method of ['instantiate', 'instantiateStreaming']) {
     const original = WebAssembly[method].bind(WebAssembly);
     WebAssembly[method] = async (...args) => {
@@ -108,6 +108,7 @@ function installProbe() {
     ws.addEventListener('message', event => {
       const message = JSON.parse(event.data);
       const data = message.data ?? {};
+      if (data.sprite_data?.sprite_id) probe.sprites[data.sprite_data.sprite_id] = data.sprite_data;
       if (!probe.replaying && probe.dropNextEvent && message.type === 'paint_object_event') {
         probe.dropNextEvent = false;
         event.stopImmediatePropagation();
@@ -268,6 +269,27 @@ async function rejection(page, operationId, code) {
   await page.waitForFunction(({ operationId, code }) => window.__paintRelease.messages.some(
     message => message.operationId === operationId && message.code === code), { operationId, code });
 }
+async function editorReady(page) {
+  await page.waitForFunction(() => window.__paintRelease.interaction.getState().ready
+    && !window.__paintRelease.interaction.getState().commandPending);
+}
+async function savedSprite(page, id) {
+  await page.evaluate(id => { delete window.__paintRelease.sprites[id]; }, id);
+  await send(page, 'sprite_request', { table_id: fixture.tableId, sprite_id: id });
+  await page.waitForFunction(id => !!window.__paintRelease.sprites[id], id);
+  return page.evaluate(id => window.__paintRelease.sprites[id], id);
+}
+async function selectRefs(page, refs) {
+  await editorReady(page);
+  await page.evaluate(refs => window.__paintRelease.interaction.replaceSelection(refs), refs);
+}
+async function enableCombinedSelection(page) {
+  const checkbox = page.getByLabel('Select sprites and paint together', { exact: true });
+  if (!await checkbox.isChecked()) await checkbox.click();
+  // This is a server-confirmed preference, not an optimistic native checkbox.
+  await page.waitForFunction(() => document.querySelector('[aria-label="Select sprites and paint together"]').checked);
+}
+function textDescriptor(sprite) { return JSON.parse(sprite.metadata).text_sprite; }
 function summarize(values) {
   assert(values.length, 'Metric has no samples');
   const sorted = [...values].sort((a, b) => a - b);
@@ -386,6 +408,66 @@ try {
   }
   await converge(player.page, dm.page, 7);
   report.stages.push('deliberately dropped event: revision-gap snapshot recovery');
+  console.log('Browser acceptance: editable text, atomic restyle and mixed transforms');
+  await enableCombinedSelection(player.page);
+  await player.page.getByRole('button', { name: 'Text sprite', exact: true }).click();
+  const textPoint = await coordinates(player.page, 600, 300);
+  await player.page.mouse.click(textPoint.x, textPoint.y);
+  await player.page.getByLabel('Text', { exact: true }).fill('Canvas history — Привіт مرحبا\nEditable Unicode');
+  await player.page.getByLabel('Text size', { exact: true }).fill('24');
+  await player.page.getByLabel('Text color', { exact: true }).fill('#8844cc');
+  await player.page.getByLabel('Language', { exact: true }).fill('uk');
+  await player.page.getByLabel('Typeface', { exact: true }).selectOption('monospace');
+  await player.page.getByRole('button', { name: 'Save text', exact: true }).click();
+  await player.page.waitForFunction(() => Object.values(window.__paintRelease.sprites)
+    .some(sprite => sprite.texture_path === '__TEXT__'));
+  const textId = await player.page.evaluate(() => Object.values(window.__paintRelease.sprites)
+    .find(sprite => sprite.texture_path === '__TEXT__').sprite_id);
+  const createdText = await savedSprite(dm.page, textId);
+  assert.equal(textDescriptor(createdText).language, 'uk');
+  await selectRefs(player.page, [{ kind: 'sprite', id: textId }]);
+  await player.page.getByRole('button', { name: 'Edit selected text', exact: true }).click();
+  await player.page.getByLabel('Text', { exact: true }).fill('Edited — Привіт مرحبا\nShared text');
+  await player.page.getByLabel('Text size', { exact: true }).fill('28');
+  await player.page.getByLabel('Text color', { exact: true }).fill('#22aa66');
+  await player.page.getByLabel('Language', { exact: true }).fill('ar');
+  await player.page.getByLabel('Text direction', { exact: true }).selectOption('rtl');
+  await player.page.getByLabel('Typeface', { exact: true }).selectOption('serif');
+  await player.page.getByRole('button', { name: 'Save text', exact: true }).click();
+  await player.page.getByRole('form', { name: 'Text sprite settings', exact: true }).waitFor({ state: 'hidden' });
+  const textBeforeGroup = await savedSprite(dm.page, textId);
+  assert.equal(textDescriptor(textBeforeGroup).text, 'Edited — Привіт مرحبا\nShared text');
+  assert.equal(textDescriptor(textBeforeGroup).direction, 'rtl');
+  assert.equal(textDescriptor(textBeforeGroup).color, '#22aa66');
+  assert.equal(textDescriptor(textBeforeGroup).font_family, 'serif');
+  assert.equal(textDescriptor(textBeforeGroup).font_size, 28);
+  assert.equal(textDescriptor(textBeforeGroup).language, 'ar');
+  await player.page.locator('[title="Paint System"]').click();
+  await player.page.getByRole('button', { name: 'Select/Edit', exact: true }).click();
+  const beforeRestyle = (await state(player.page)).committed.map(editable);
+  await selectRefs(player.page, [...beforeRestyle.map(object => ({ kind: 'paint', id: object.id })),
+    { kind: 'sprite', id: textId }]);
+  await player.page.getByLabel('Stroke color', { exact: true }).fill('#3366cc');
+  await player.page.getByRole('button', { name: 'Apply style', exact: true }).click();
+  await editorReady(player.page);
+  await converge(player.page, dm.page, 7);
+  assert.equal(await player.page.evaluate(() => window.__paintRelease.interaction.getState().selectionCount), 8);
+  const beforeGroup = (await state(player.page)).committed.map(editable);
+  assert(beforeGroup.every(object => isDeepStrictEqual(object.style.stroke_rgba, [0.2, 0.4, 0.8, 1])));
+  assert.deepEqual(textDescriptor(await savedSprite(dm.page, textId)), textDescriptor(textBeforeGroup));
+  const groupPaintId = beforeGroup.at(-1).id;
+  await selectRefs(player.page, [{ kind: 'paint', id: groupPaintId }, { kind: 'sprite', id: textId }]);
+  await player.page.getByLabel('Selection scale (%)', { exact: true }).fill('125');
+  await player.page.getByLabel('Selection rotation (degrees)', { exact: true }).fill('30');
+  await player.page.getByRole('button', { name: 'Transform selection', exact: true }).click();
+  await editorReady(player.page);
+  await converge(player.page, dm.page, 7);
+  const textAfterGroup = await savedSprite(dm.page, textId);
+  assert(Math.abs(textAfterGroup.rotation - 30) < 1e-9);
+  assert.equal(textAfterGroup.scale_x, 1.25);
+  assert.equal(textAfterGroup.scale_y, 1.25);
+  assert.deepEqual(textDescriptor(textAfterGroup), textDescriptor(textBeforeGroup));
+  report.stages.push('Unicode text create/edit/style/language live delivery; atomic paint restyle retains mixed selection; shared paint/text scale and rotation');
   const beforeRestart = (await state(player.page)).committed;
   const restartReady = once(process.stdin, 'data');
   console.log('PAINT_RELEASE_RESTART');
@@ -396,6 +478,47 @@ try {
   await Promise.all([player, dm].map(openPaint));
   await converge(player.page, dm.page, 7);
   report.stages.push('real server process restart, socket reconnect and browser reload preserve canonical state');
+  assert.equal(await player.page.getByLabel('Select sprites and paint together', { exact: true }).isChecked(), true);
+  assert.equal(await dm.page.getByLabel('Select sprites and paint together', { exact: true }).isChecked(), false);
+  assert.deepEqual(textDescriptor(await savedSprite(player.page, textId)), textDescriptor(textBeforeGroup));
+  await player.page.getByRole('button', { name: 'Undo editor action', exact: true }).click();
+  await editorReady(player.page);
+  await converge(player.page, dm.page, 7);
+  assert.deepEqual((await state(player.page)).committed.map(editable), beforeGroup);
+  assert.deepEqual((await savedSprite(dm.page, textId)).position, textBeforeGroup.position);
+  await player.page.getByRole('button', { name: 'Undo editor action', exact: true }).click();
+  await editorReady(player.page);
+  await converge(player.page, dm.page, 7);
+  assert.deepEqual((await state(player.page)).committed.map(editable), beforeRestyle);
+  for (let step = 0; step < 2; step += 1) {
+    await player.page.getByRole('button', { name: 'Redo editor action', exact: true }).click();
+    await editorReady(player.page);
+    await converge(player.page, dm.page, 7);
+  }
+  assert.deepEqual((await state(player.page)).committed.map(editable), beforeRestart.map(editable));
+  assert.deepEqual((await savedSprite(dm.page, textId)).position, textAfterGroup.position);
+  await enableCombinedSelection(dm.page);
+  await dm.page.getByRole('button', { name: 'Select/Edit', exact: true }).click();
+  await selectRefs(dm.page, [{ kind: 'paint', id: groupPaintId }, { kind: 'sprite', id: textId }]);
+  await dm.page.getByRole('button', { name: 'Copy selection', exact: true }).click();
+  await editorReady(dm.page);
+  await dm.page.getByRole('button', { name: 'Paste selection', exact: true }).click();
+  await editorReady(dm.page);
+  await converge(player.page, dm.page, 8);
+  const pastedIds = await dm.page.evaluate(() => window.__paintRelease.interaction.getState());
+  assert.notEqual(pastedIds.selectedIds[0], groupPaintId);
+  assert.notEqual(pastedIds.selectedSpriteIds[0], textId);
+  assert.deepEqual(textDescriptor(await savedSprite(player.page, pastedIds.selectedSpriteIds[0])), textDescriptor(textBeforeGroup));
+  await dm.page.getByRole('button', { name: 'Undo editor action', exact: true }).click();
+  await editorReady(dm.page);
+  await converge(player.page, dm.page, 7);
+  await player.page.waitForFunction(id => !window.__paintRelease.runtime.getRenderEngine().get_sprite_position(id),
+    pastedIds.selectedSpriteIds[0]);
+  await selectRefs(dm.page, [{ kind: 'sprite', id: textId }]);
+  await dm.page.getByRole('button', { name: 'Delete selection', exact: true }).click();
+  await editorReady(dm.page);
+  await player.page.waitForFunction(id => !window.__paintRelease.runtime.getRenderEngine().get_sprite_position(id), textId);
+  report.stages.push('restart-persistent mixed undo/redo; member-isolated selection preference; authoritative mixed clipboard paste/undo and text deletion');
   let remaining = (await state(player.page)).committed.length;
   for (const object of (await state(player.page)).committed) {
     await player.page.evaluate(object => window.__paintRelease.paint.submitDelete(object.id, object.version), object);

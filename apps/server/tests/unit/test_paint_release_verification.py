@@ -1,7 +1,9 @@
 """Safety contracts for the opt-in, real-server release runner."""
 
+import io
+
 import pytest
-from scripts.verify_paint_release import require_local_test_url
+from scripts.verify_paint_release import relay_browser_output, require_local_test_url
 
 
 @pytest.mark.parametrize("host", ["127.0.0.1", "localhost", "[::1]"])
@@ -28,3 +30,14 @@ def test_release_runner_accepts_only_explicit_loopback_test_database(host):
 def test_release_runner_rejects_unsafe_or_overridden_targets(url):
     with pytest.raises(ValueError):
         require_local_test_url(url)
+
+
+@pytest.mark.parametrize("encoding", ["utf-8", "cp1251", "ascii"])
+def test_browser_diagnostics_do_not_crash_legacy_console_encodings(encoding):
+    buffer = io.BytesIO()
+    output = io.TextIOWrapper(buffer, encoding=encoding, newline="\n")
+    message = "Text assertion: Привіт مرحبا\n"
+    relay_browser_output(message, output)
+    actual = buffer.getvalue().decode(encoding)
+    expected = message.encode(encoding, errors="backslashreplace").decode(encoding)
+    assert actual == expected

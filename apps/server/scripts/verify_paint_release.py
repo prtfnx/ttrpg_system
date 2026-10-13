@@ -385,6 +385,14 @@ def rehearse_cutover(url, directory: Path) -> dict:
     }
 
 
+def relay_browser_output(line: str, output=None):
+    """Keep Unicode assertion diagnostics usable on legacy Windows consoles."""
+    stream = output if output is not None else sys.stdout
+    encoding = stream.encoding or "utf-8"
+    printable = line.rstrip().encode(encoding, errors="backslashreplace").decode(encoding)
+    print(printable, file=stream, flush=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--postgres-url", required=True)
@@ -446,7 +454,7 @@ def main() -> int:
         watchdog.daemon = True
         watchdog.start()
         for line in node.stdout:
-            print(line.rstrip(), flush=True)
+            relay_browser_output(line)
             if line.strip() == "PAINT_RELEASE_RESTART":
                 stop_server(server)
                 server = start_server(browser_url, port, directory)

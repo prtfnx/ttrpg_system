@@ -204,6 +204,14 @@ context loss, and snapshot races. The busy fixture has 1,000 paths and 100,000
 points. Nine writers submit concurrent edit batches; every client must finish
 with identical ordered objects and revision.
 
+The same runner creates and edits a Unicode text sprite through the sidebar,
+including typeface, color, size, language and direction. It checks delivery to
+the other browser and persistence after a real server restart. Atomic paint
+restyle retains mixed selection. Shared paint/text resize and rotation, durable
+undo/redo across restart, mixed clipboard paste/undo and text deletion use the
+production editor controls and authenticated commands. Selection preferences
+remain isolated by session member after reload.
+
 The browser script fixes the following local acceptance budgets before sampling:
 
 | Measurement | Pass condition |
@@ -230,6 +238,8 @@ it keeps the schema and tests a write-disabled successor writer's reads. A real
 WebGL pixel check verifies one converted path. This is not a live backup restore
 or a full restart of an identified deployed old release.
 
+Browser diagnostics escape characters unsupported by the console encoding,
+so Unicode text failures do not interrupt cleanup on legacy Windows consoles.
 Failures return nonzero and retain diagnostics. Fixtures, test JWTs, backups,
 logs, and measured results remain in the printed private temporary directory;
 do not commit them. Passing the runner does not enable production writes.

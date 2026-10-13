@@ -2389,6 +2389,10 @@ export class WebClientProtocol {
 
   // Sprite data handlers
   private async handleSpriteResponse(message: Message): Promise<void> {
+    if (message.data?.resync_required === true && typeof message.data.table_id === 'string'
+      && this.targetsActiveTable(message.data)) {
+      this.requestTableData(message.data.table_id);
+    }
     // Confirm pending action - server echoes action_id back to the originating client
     // via sprite_response (broadcasts go to others without action_id)
     if (message.data?.action_id && message.data?.success) {

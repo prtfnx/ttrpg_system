@@ -108,6 +108,10 @@ these are not reversible editor actions. Request identity is actor/session/table
 scoped and derived from the original message ID and body before normalization.
 Identical retries return an acknowledgement requiring fresh hydration, not old
 sprite events. A changed body or expired retry rejects.
+The browser consumes legacy `sprite_response` retry receipts by requesting fresh
+data only for the active table. Accepted sprite responses and text-update success
+responses coalesce a shared-history refresh on the existing controller tick;
+they do not become local undo entries or trust stale acknowledgement availability.
 Text history compares content and provenance while ignoring only the text
 revision. Every inverse advances that revision, so an open editor cannot submit
 an obsolete revision after undo or redo. Regression owner:

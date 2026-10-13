@@ -176,6 +176,19 @@ describe('CanvasCommandController', () => {
     expect(transport.requestCanvasHistory).toHaveBeenCalledTimes(2);
   });
 
+  it.each(['sprite-response', 'protocol-success'] as const)('refreshes shared history after local %s acknowledgements only', type => {
+    const { owner, transport } = harness();
+    emitProtocolEvent(type, { table_id: OTHER, success: true, can_undo: true });
+    emitProtocolEvent(type, { table_id: TABLE, success: false, can_undo: true });
+    emitProtocolEvent(type, { table_id: TABLE, success: true });
+    owner.tick();
+    expect(transport.requestCanvasHistory).toHaveBeenCalledOnce();
+    for (let index = 0; index < 5; index++) emitProtocolEvent(type, { table_id: TABLE, success: true, can_undo: true });
+    owner.tick();
+    expect(transport.requestCanvasHistory).toHaveBeenCalledTimes(2);
+    expect(owner.getState().canUndo).toBe(false); // Availability comes from a fresh scoped history response.
+  });
+
   it('publishes clipboard expiry to subscribers without a reconnect', () => {
     const { owner, accept, advance } = harness();
     owner.submit({ mode: 'copy', members }); accept({ clipboard_id: crypto.randomUUID() });

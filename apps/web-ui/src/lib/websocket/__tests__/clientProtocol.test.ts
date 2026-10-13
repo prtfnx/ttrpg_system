@@ -1474,6 +1474,15 @@ describe('WebClientProtocol', () => {
       expect(fn).toHaveBeenCalledOnce();
     });
 
+    it('rehydrates the active table for accepted sprite retry receipts without replaying old sprite data', async () => {
+      const p = makeProtocol();
+      const request = vi.spyOn(p, 'requestTableData').mockImplementation(() => {});
+      await dispatch(p, 'sprite_response', { table_id: 'other', success: true, resync_required: true });
+      expect(request).not.toHaveBeenCalled();
+      await dispatch(p, 'sprite_response', { table_id: 'table-abc', success: true, resync_required: true });
+      expect(request).toHaveBeenCalledExactlyOnceWith('table-abc');
+    });
+
     it('SPRITE_RESPONSE with action_id+success dispatches sprite-action-confirmed', async () => {
       const p = makeProtocol();
       const fn = vi.fn();

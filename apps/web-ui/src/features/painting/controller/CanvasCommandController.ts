@@ -94,6 +94,11 @@ export class CanvasCommandController {
         this.emit();
       }),
       onProtocolEvent('paint-object-event', () => { this.historyDirty = true; }),
+      ...(['sprite-response', 'protocol-success'] as const).map(type => onProtocolEvent(type, data => {
+        if (data?.table_id === this.tableId && data.success === true && typeof data.can_undo === 'boolean') {
+          this.historyDirty = true;
+        }
+      })),
       onProtocolEvent('protocol-connected', () => {
         this.retry();
         this.refreshHistory();

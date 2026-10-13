@@ -1333,6 +1333,24 @@ export class RenderEngine {
     select_all_sprites() {
         wasm.renderengine_select_all_sprites(this.__wbg_ptr);
     }
+    selection_clear_frame() {
+        wasm.renderengine_selection_clear_frame(this.__wbg_ptr);
+    }
+    /**
+     * @param {number} x
+     * @param {number} y
+     * @param {number} tolerance
+     * @returns {string | undefined}
+     */
+    selection_hit_test_frame(x, y, tolerance) {
+        const ret = wasm.renderengine_selection_hit_test_frame(this.__wbg_ptr, x, y, tolerance);
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
+    }
     /**
      * Read-only picking for the shared editor selection controller.
      * @param {number} world_x
@@ -1347,6 +1365,34 @@ export class RenderEngine {
             wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
         }
         return v1;
+    }
+    /**
+     * @param {string} sprite_id
+     * @param {number} x
+     * @param {number} y
+     * @param {number} sx
+     * @param {number} sy
+     * @param {number} degrees
+     * @returns {boolean}
+     */
+    selection_preview_transform(sprite_id, x, y, sx, sy, degrees) {
+        const ptr0 = passStringToWasm0(sprite_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.renderengine_selection_preview_transform(this.__wbg_ptr, ptr0, len0, x, y, sx, sy, degrees);
+        return ret !== 0;
+    }
+    /**
+     * @param {string} table_id
+     * @param {Float32Array} coordinates
+     * @returns {boolean}
+     */
+    selection_set_frame(table_id, coordinates) {
+        const ptr0 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passArrayF32ToWasm0(coordinates, wasm.__wbindgen_malloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.renderengine_selection_set_frame(this.__wbg_ptr, ptr0, len0, ptr1, len1);
+        return ret !== 0;
     }
     /**
      * Replace editor selection without emitting move/create operations.
@@ -2738,7 +2784,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 91, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 59, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__hdc4384c541f1ca1c);
             return ret;
         },
@@ -3006,6 +3052,13 @@ function makeMutClosure(arg0, arg1, f) {
 function passArray8ToWasm0(arg, malloc) {
     const ptr = malloc(arg.length * 1, 1) >>> 0;
     getUint8ArrayMemory0().set(arg, ptr / 1);
+    WASM_VECTOR_LEN = arg.length;
+    return ptr;
+}
+
+function passArrayF32ToWasm0(arg, malloc) {
+    const ptr = malloc(arg.length * 4, 4) >>> 0;
+    getFloat32ArrayMemory0().set(arg, ptr / 4);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
 }

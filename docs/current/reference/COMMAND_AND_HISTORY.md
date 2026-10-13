@@ -20,6 +20,9 @@ It does not create paint objects or history. Pure geometry regressions live in
 on the active table, including polygon/line world-space points. It validates the
 transform before mutation and emits no durable operation. WASM regression owner:
 `rendering/layer_manager.rs::editor_preview_transforms_and_restores_polygon_world_geometry`.
+The checked-in generated WASM artifact includes these APIs. Chromium/WebGL
+frame drawing, zoom-stable picking and table fencing are covered by
+`apps/web-ui/src/lib/wasm/__tests__/paintRendering.wasm-test.ts`.
 `wasmBridge.ts` forwards completed sprite transforms with action IDs and tracks
 acknowledgements. Sprite protocol handlers authorize commands and invoke
 `core_table.actions_core.ActionsCore`; accepted table snapshots persist before

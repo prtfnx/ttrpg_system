@@ -263,10 +263,14 @@ export class RenderEngine {
      * Select all sprites in all layers
      */
     select_all_sprites(): void;
+    selection_clear_frame(): void;
+    selection_hit_test_frame(x: number, y: number, tolerance: number): string | undefined;
     /**
      * Read-only picking for the shared editor selection controller.
      */
     selection_hit_test_sprite(world_x: number, world_y: number): string | undefined;
+    selection_preview_transform(sprite_id: string, x: number, y: number, sx: number, sy: number, degrees: number): boolean;
+    selection_set_frame(table_id: string, coordinates: Float32Array): boolean;
     /**
      * Replace editor selection without emitting move/create operations.
      */
@@ -497,18 +501,23 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly __wbg_collisionsystem_free: (a: number, b: number) => void;
-    readonly collisionsystem_distance_ft: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
-    readonly collisionsystem_find_path: (a: number, b: number, c: number, d: number, e: number) => [number, number];
-    readonly collisionsystem_line_blocked: (a: number, b: number, c: number, d: number, e: number) => number;
-    readonly collisionsystem_movement_range: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
-    readonly collisionsystem_new: (a: number) => number;
-    readonly collisionsystem_rebuild_index: (a: number) => void;
-    readonly collisionsystem_set_obstacles: (a: number, b: number, c: number) => void;
-    readonly collisionsystem_set_walls: (a: number, b: number, c: number) => void;
-    readonly renderengine_capture_active_table_thumbnail: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
-    readonly renderengine_handle_table_data: (a: number, b: any) => [number, number];
-    readonly renderengine_render: (a: number) => [number, number];
+    readonly renderengine_cancel_current_operation: (a: number) => number;
+    readonly renderengine_clear_selection: (a: number) => void;
+    readonly renderengine_get_cursor_type: (a: number, b: number, c: number) => [number, number];
+    readonly renderengine_get_selected_sprites: (a: number) => [number, number];
+    readonly renderengine_get_selected_walls: (a: number) => [number, number];
+    readonly renderengine_handle_mouse_down_full: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly renderengine_handle_mouse_move: (a: number, b: number, c: number) => void;
+    readonly renderengine_handle_mouse_up: (a: number, b: number, c: number) => void;
+    readonly renderengine_handle_right_click: (a: number, b: number, c: number) => [number, number];
+    readonly renderengine_handle_wheel: (a: number, b: number, c: number, d: number) => void;
+    readonly renderengine_remove_selected_walls: (a: number) => [number, number];
+    readonly renderengine_select_all_sprites: (a: number) => void;
+    readonly renderengine_selection_hit_test_sprite: (a: number, b: number, c: number) => [number, number];
+    readonly renderengine_selection_set_sprites: (a: number, b: number, c: number) => number;
+    readonly renderengine_set_alt_pressed: (a: number, b: number) => void;
+    readonly renderengine_start_camera_pan: (a: number, b: number, c: number) => void;
+    readonly renderengine_translate_selected_walls: (a: number, b: number, c: number) => any;
     readonly __wbg_tablemanager_free: (a: number, b: number) => void;
     readonly core_build_fingerprint: () => [number, number];
     readonly init_game_renderer: (a: any) => [number, number, number];
@@ -561,6 +570,10 @@ export interface InitOutput {
     readonly renderengine_remove_wall: (a: number, b: number, c: number) => number;
     readonly renderengine_resize_canvas: (a: number, b: number, c: number) => void;
     readonly renderengine_screen_to_world: (a: number, b: number, c: number) => [number, number];
+    readonly renderengine_selection_clear_frame: (a: number) => void;
+    readonly renderengine_selection_hit_test_frame: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly renderengine_selection_preview_transform: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
+    readonly renderengine_selection_set_frame: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly renderengine_set_active_layer: (a: number, b: number, c: number) => void;
     readonly renderengine_set_ambient_light: (a: number, b: number) => void;
     readonly renderengine_set_background_color: (a: number, b: number, c: number) => void;
@@ -614,10 +627,14 @@ export interface InitOutput {
     readonly tablemanager_units_to_pixels: (a: number, b: number, c: number, d: number) => number;
     readonly tablemanager_zoom_table: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
     readonly version: () => [number, number];
+    readonly renderengine_capture_active_table_thumbnail: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
+    readonly renderengine_render: (a: number) => [number, number];
     readonly __wbg_actionsclient_free: (a: number, b: number) => void;
     readonly __wbg_tablesync_free: (a: number, b: number) => void;
     readonly actionsclient_can_redo: (a: number) => number;
     readonly actionsclient_can_undo: (a: number) => number;
+    readonly actionsclient_create_table: (a: number, b: number, c: number, d: number, e: number) => any;
+    readonly actionsclient_delete_table: (a: number, b: number, c: number) => any;
     readonly actionsclient_get_action_history: (a: number) => any;
     readonly actionsclient_get_all_tables: (a: number) => any;
     readonly actionsclient_get_sprite_info: (a: number, b: number, c: number) => any;
@@ -629,6 +646,21 @@ export interface InitOutput {
     readonly actionsclient_set_error_handler: (a: number, b: any) => void;
     readonly actionsclient_set_state_change_handler: (a: number, b: any) => void;
     readonly actionsclient_undo: (a: number) => any;
+    readonly actionsclient_update_table: (a: number, b: number, c: number, d: any) => any;
+    readonly renderengine_add_sprite_to_layer: (a: number, b: number, c: number, d: any) => [number, number, number, number];
+    readonly renderengine_copy_sprite: (a: number, b: number, c: number) => [number, number];
+    readonly renderengine_get_sprite_position: (a: number, b: number, c: number) => [number, number];
+    readonly renderengine_get_sprite_scale: (a: number, b: number, c: number) => [number, number];
+    readonly renderengine_load_text_texture: (a: number, b: number, c: number, d: any) => [number, number];
+    readonly renderengine_load_texture: (a: number, b: number, c: number, d: any) => [number, number];
+    readonly renderengine_move_sprite_to_layer: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly renderengine_paste_sprite: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number, number];
+    readonly renderengine_remove_sprite: (a: number, b: number, c: number) => number;
+    readonly renderengine_resize_sprite: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly renderengine_rotate_sprite: (a: number, b: number, c: number, d: number) => number;
+    readonly renderengine_unload_texture: (a: number, b: number, c: number) => number;
+    readonly renderengine_update_sprite_position: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly renderengine_update_sprite_scale: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly tablesync_get_sprites: (a: number) => any;
     readonly tablesync_get_sprites_by_layer: (a: number, b: number, c: number) => any;
     readonly tablesync_get_table_data: (a: number) => any;
@@ -640,10 +672,16 @@ export interface InitOutput {
     readonly tablesync_set_error_handler: (a: number, b: any) => void;
     readonly tablesync_set_sprite_update_handler: (a: number, b: any) => void;
     readonly tablesync_set_table_received_handler: (a: number, b: any) => void;
-    readonly actionsclient_create_table: (a: number, b: number, c: number, d: number, e: number) => any;
-    readonly actionsclient_delete_table: (a: number, b: number, c: number) => any;
-    readonly actionsclient_update_table: (a: number, b: number, c: number, d: any) => any;
-    readonly __wbg_planningmanager_free: (a: number, b: number) => void;
+    readonly calculate_asset_hash: (a: number, b: number) => [number, number];
+    readonly renderengine_handle_table_data: (a: number, b: any) => [number, number];
+    readonly __wbg_renderengine_free: (a: number, b: number) => void;
+    readonly renderengine_clear_runtime_event_handler: (a: number) => void;
+    readonly renderengine_clear_runtime_operation_handler: (a: number) => void;
+    readonly renderengine_get_render_diagnostics: (a: number) => [number, number, number];
+    readonly renderengine_new: (a: any) => [number, number, number];
+    readonly renderengine_set_runtime_event_handler: (a: number, b: any) => void;
+    readonly renderengine_set_runtime_operation_handler: (a: number, b: any) => void;
+    readonly renderengine_set_shape_style: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly actionsclient_batch_actions: (a: number, b: any) => any;
     readonly actionsclient_create_sprite: (a: number, b: number, c: number, d: number, e: number, f: any, g: number, h: number) => any;
     readonly actionsclient_delete_sprite: (a: number, b: number, c: number) => any;
@@ -651,6 +689,16 @@ export interface InitOutput {
     readonly actionsclient_move_sprite_to_layer: (a: number, b: number, c: number, d: number, e: number) => any;
     readonly actionsclient_set_layer_visibility: (a: number, b: number, c: number, d: number) => any;
     readonly actionsclient_update_sprite: (a: number, b: number, c: number, d: any) => any;
+    readonly __wbg_collisionsystem_free: (a: number, b: number) => void;
+    readonly collisionsystem_distance_ft: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
+    readonly collisionsystem_find_path: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly collisionsystem_line_blocked: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly collisionsystem_movement_range: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
+    readonly collisionsystem_new: (a: number) => number;
+    readonly collisionsystem_rebuild_index: (a: number) => void;
+    readonly collisionsystem_set_obstacles: (a: number, b: number, c: number) => void;
+    readonly collisionsystem_set_walls: (a: number, b: number, c: number) => void;
+    readonly __wbg_planningmanager_free: (a: number, b: number) => void;
     readonly planningmanager_clear_all: (a: number) => void;
     readonly planningmanager_clear_aoe: (a: number) => void;
     readonly planningmanager_clear_ghost: (a: number, b: number, c: number) => void;
@@ -669,46 +717,6 @@ export interface InitOutput {
     readonly planningmanager_set_walls: (a: number, b: number, c: number) => void;
     readonly planningmanager_start_ghost: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
     readonly planningmanager_tokens_in_aoe: (a: number, b: any) => any;
-    readonly __wbg_renderengine_free: (a: number, b: number) => void;
-    readonly renderengine_clear_runtime_event_handler: (a: number) => void;
-    readonly renderengine_clear_runtime_operation_handler: (a: number) => void;
-    readonly renderengine_get_render_diagnostics: (a: number) => [number, number, number];
-    readonly renderengine_new: (a: any) => [number, number, number];
-    readonly renderengine_set_runtime_event_handler: (a: number, b: any) => void;
-    readonly renderengine_set_runtime_operation_handler: (a: number, b: any) => void;
-    readonly renderengine_set_shape_style: (a: number, b: number, c: number, d: number, e: number) => void;
-    readonly calculate_asset_hash: (a: number, b: number) => [number, number];
-    readonly renderengine_add_sprite_to_layer: (a: number, b: number, c: number, d: any) => [number, number, number, number];
-    readonly renderengine_cancel_current_operation: (a: number) => number;
-    readonly renderengine_clear_selection: (a: number) => void;
-    readonly renderengine_copy_sprite: (a: number, b: number, c: number) => [number, number];
-    readonly renderengine_get_cursor_type: (a: number, b: number, c: number) => [number, number];
-    readonly renderengine_get_selected_sprites: (a: number) => [number, number];
-    readonly renderengine_get_selected_walls: (a: number) => [number, number];
-    readonly renderengine_get_sprite_position: (a: number, b: number, c: number) => [number, number];
-    readonly renderengine_get_sprite_scale: (a: number, b: number, c: number) => [number, number];
-    readonly renderengine_handle_mouse_down_full: (a: number, b: number, c: number, d: number, e: number) => [number, number];
-    readonly renderengine_handle_mouse_move: (a: number, b: number, c: number) => void;
-    readonly renderengine_handle_mouse_up: (a: number, b: number, c: number) => void;
-    readonly renderengine_handle_right_click: (a: number, b: number, c: number) => [number, number];
-    readonly renderengine_handle_wheel: (a: number, b: number, c: number, d: number) => void;
-    readonly renderengine_load_text_texture: (a: number, b: number, c: number, d: any) => [number, number];
-    readonly renderengine_load_texture: (a: number, b: number, c: number, d: any) => [number, number];
-    readonly renderengine_move_sprite_to_layer: (a: number, b: number, c: number, d: number, e: number) => number;
-    readonly renderengine_paste_sprite: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number, number];
-    readonly renderengine_remove_selected_walls: (a: number) => [number, number];
-    readonly renderengine_remove_sprite: (a: number, b: number, c: number) => number;
-    readonly renderengine_resize_sprite: (a: number, b: number, c: number, d: number, e: number) => number;
-    readonly renderengine_rotate_sprite: (a: number, b: number, c: number, d: number) => number;
-    readonly renderengine_select_all_sprites: (a: number) => void;
-    readonly renderengine_selection_hit_test_sprite: (a: number, b: number, c: number) => [number, number];
-    readonly renderengine_selection_set_sprites: (a: number, b: number, c: number) => number;
-    readonly renderengine_set_alt_pressed: (a: number, b: number) => void;
-    readonly renderengine_start_camera_pan: (a: number, b: number, c: number) => void;
-    readonly renderengine_translate_selected_walls: (a: number, b: number, c: number) => any;
-    readonly renderengine_unload_texture: (a: number, b: number, c: number) => number;
-    readonly renderengine_update_sprite_position: (a: number, b: number, c: number, d: number, e: number) => number;
-    readonly renderengine_update_sprite_scale: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly wasm_bindgen__convert__closures_____invoke__hdc4384c541f1ca1c: (a: number, b: number) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

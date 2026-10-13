@@ -59,6 +59,25 @@ function pixel(canvas: HTMLCanvasElement, x: number, y: number): number[] {
 }
 
 describe('paint triangle rendering (real browser)', () => {
+  it('renders and picks a transient shared frame without creating paint objects', () => {
+    const { canvas, engine } = renderer();
+    try {
+      expect(engine.paint_replace_object_snapshot(TABLE_ID, 0, '[]')).toBe(true);
+      expect(engine.selection_set_frame(TABLE_ID, new Float32Array([30, 40, 130, 40, 130, 120, 30, 120]))).toBe(true);
+      expect(engine.selection_hit_test_frame(80, 12, 6)).toBe('rotate');
+      expect(engine.selection_hit_test_frame(130, 120, 6)).toBe('se');
+      engine.render();
+      expect(pixel(canvas, 30, 40)[2]).toBeGreaterThan(230);
+      expect(pixel(canvas, 80, 12)[2]).toBeGreaterThan(230);
+      engine.set_camera(0, 0, 2);
+      expect(engine.selection_hit_test_frame(80, 26, 6)).toBe('rotate');
+      expect(engine.selection_set_frame('other-table', new Float32Array([0, 0, 10, 0, 10, 10, 0, 10]))).toBe(false);
+      expect(engine.paint_object_count()).toBe(0);
+      expect(engine.paint_object_revision()).toBe(0);
+      engine.selection_clear_frame();
+      expect(engine.selection_hit_test_frame(130, 120, 6)).toBeUndefined();
+    } finally { engine.free(); }
+  });
   it('renders and picks rotated paint with a retained group selection', () => {
     const { canvas, engine } = renderer();
     const rotated = object({ kind: 'rectangle', width: 60, height: 20 });

@@ -856,6 +856,9 @@ export class SpriteSyncService {
       const existing = useGameStore.getState().sprites.find(sprite => sprite.id === spriteId);
       const engine = this.getEngine();
       if (existing && engine) {
+        // Text metadata edits rebuild the derived sprite. The add API appends,
+        // so replace its renderer instance without dropping texture ownership.
+        engine.remove_sprite(spriteId);
         this.addRegularSpriteToWasm(engine, {
           sprite_id: spriteId, table_id: existing.tableId, x: existing.x, y: existing.y, name: existing.name,
           layer: existing.layer, width: data.width ?? u.width ?? existing.width,

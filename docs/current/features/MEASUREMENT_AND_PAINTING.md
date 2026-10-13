@@ -224,6 +224,10 @@ default transforms. Regression owners: the sprite synchronization tests and
 only the legacy `imageUrl` field is retired. Text and shape selection therefore
 uses saved dimensions rather than a 50×50 fallback. The real-store adapter
 regression lives in `controller/__tests__/spriteSelectionPort.test.ts`.
+Text metadata edits replace the existing renderer sprite before installing its
+new dimensions and derived texture. They retain texture-service ownership;
+repeated edits do not append stale text instances. Sprite synchronization tests
+cover replacement order and preservation of scale, dimensions and controls.
 
 Losing an interactive role immediately disables Paint authoring and cancels its
 local gesture. Combined Select remains a read-only inspection path for a

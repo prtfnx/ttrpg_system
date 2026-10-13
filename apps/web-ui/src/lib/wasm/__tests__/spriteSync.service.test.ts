@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameStore } from '@/store';
 import { SpriteSyncService } from '../spriteSync.service';
+import { TextSpriteTextureService } from '../textSpriteTexture.service';
+import { DEFAULT_TEXT } from '@features/canvas/components/TextSprite/textSpriteModel';
 
 const mockAddSprite = vi.hoisted(() => vi.fn());
 const mockSprites = vi.hoisted(() => [] as Array<Record<string, unknown>>);
@@ -75,6 +77,27 @@ describe('SpriteSyncService', () => {
   afterEach(() => {
     service.dispose();
     vi.clearAllMocks();
+  });
+
+  it('replaces text metadata edits without appending duplicate renderer instances', () => {
+    const texture = vi.spyOn(TextSpriteTextureService.prototype, 'update').mockReturnValue('derived-text');
+    try {
+      mockSprites.push({ id: 'text', tableId: 'tbl1', x: 10, y: 20, name: 'Text', layer: 'tokens',
+        width: 120, height: 40, scale: { x: 2, y: 3 }, rotation: 30, controlledBy: ['7'] });
+      service.init();
+      const metadata = JSON.stringify({ text_sprite: { ...DEFAULT_TEXT, text: 'Edited' }, text_revision: 2 });
+      window.dispatchEvent(new CustomEvent('sprite-updated', { detail: {
+        sprite_id: 'text', table_id: 'tbl1', operation: 'update', updates: { metadata, width: 320, height: 76 },
+      } }));
+      expect(engine.remove_sprite).toHaveBeenCalledExactlyOnceWith('text');
+      expect(engine.add_sprite_to_layer).toHaveBeenCalledExactlyOnceWith('tokens', expect.objectContaining({
+        id: 'text', width: 320, height: 76, scale_x: 2, scale_y: 3, texture_id: 'derived-text',
+      }));
+      expect(engine.remove_sprite.mock.invocationCallOrder[0]).toBeLessThan(engine.add_sprite_to_layer.mock.invocationCallOrder[0]);
+      expect(mockAddSprite).toHaveBeenCalledWith(expect.objectContaining({ width: 320, height: 76, metadata, controlledBy: ['7'] }));
+    } finally {
+      texture.mockRestore();
+    }
   });
 
   describe('init / dispose', () => {

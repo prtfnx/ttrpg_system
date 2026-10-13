@@ -38,6 +38,7 @@ const mocks = vi.hoisted(() => ({
     replaceSelection: vi.fn(),
     reconcileSelection: vi.fn(),
     setEnabled: vi.fn(),
+    setHistoryShortcutsEnabled: vi.fn(),
     restoreRenderer: vi.fn(),
     dispose: vi.fn(),
   },
@@ -125,6 +126,17 @@ describe('PaintControllerProvider', () => {
     mocks.sessionRole = 'spectator'; rerender(<PaintControllerProvider><Consumer /></PaintControllerProvider>);
     expect(mocks.interaction.setActor).toHaveBeenLastCalledWith(null, false);
     expect(mocks.interaction.setEnabled).toHaveBeenLastCalledWith(false);
+    expect(mocks.interaction.setHistoryShortcutsEnabled).toHaveBeenLastCalledWith(false);
+  });
+
+  it('enables durable undo for separate sprite selection without taking its pointer input', () => {
+    mocks.activeTool = 'select';
+    const { rerender } = render(<PaintControllerProvider><Consumer /></PaintControllerProvider>);
+    expect(mocks.interaction.setEnabled).toHaveBeenLastCalledWith(false);
+    expect(mocks.interaction.setHistoryShortcutsEnabled).toHaveBeenLastCalledWith(true);
+    mocks.runtimeStatus.isContextLost = true;
+    rerender(<PaintControllerProvider><Consumer /></PaintControllerProvider>);
+    expect(mocks.interaction.setHistoryShortcutsEnabled).toHaveBeenLastCalledWith(false);
   });
 
   it('restores confirmed objects after a canvas is attached', () => {

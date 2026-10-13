@@ -169,6 +169,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
 
 export class PaintInteractionController {
   private enabled = false;
+  private historyShortcutsEnabled = false;
   private tool: PaintTool = 'draw';
   private style: PaintStyle = {
     stroke_rgba: [1, 0, 0, 1],
@@ -415,6 +416,8 @@ export class PaintInteractionController {
     this.emit();
   }
 
+  setHistoryShortcutsEnabled(enabled: boolean): void { this.historyShortcutsEnabled = enabled; }
+
   setTool(tool: PaintTool): void {
     if (this.tool === tool) return;
     this.cancelGesture();
@@ -481,7 +484,7 @@ export class PaintInteractionController {
     canvas.addEventListener('pointerup', this.handlePointerUp);
     canvas.addEventListener('pointercancel', this.handlePointerCancel);
     canvas.addEventListener('lostpointercapture', this.handleLostPointerCapture);
-    document.addEventListener('keydown', this.handleKeyDown);
+    document.addEventListener('keydown', this.handleKeyDown, true);
     return () => this.unbind();
   }
 
@@ -498,7 +501,7 @@ export class PaintInteractionController {
     canvas.removeEventListener('pointerup', this.handlePointerUp);
     canvas.removeEventListener('pointercancel', this.handlePointerCancel);
     canvas.removeEventListener('lostpointercapture', this.handleLostPointerCapture);
-    document.removeEventListener('keydown', this.handleKeyDown);
+    document.removeEventListener('keydown', this.handleKeyDown, true);
     canvas.style.touchAction = this.previousTouchAction;
     this.canvas = null;
   }
@@ -783,10 +786,18 @@ export class PaintInteractionController {
   };
 
   readonly handleKeyDown = (event: KeyboardEvent): void => {
-    if (!this.enabled || isEditableTarget(event.target)) return;
+    if (isEditableTarget(event.target)) return;
+    const key = event.key.toLowerCase();
+    const modifier = event.ctrlKey || event.metaKey;
+    if (this.commands && (this.enabled || this.historyShortcutsEnabled) && this.actorId !== null
+      && modifier && !event.altKey && (key === 'z' || key === 'y')) {
+      event.preventDefault();
+      event.stopImmediatePropagation(); // One durable owner, before legacy document listeners.
+      this.historyCommand(key === 'y' || event.shiftKey ? 'redo' : 'undo');
+      return;
+    }
+    if (!this.enabled) return;
     if (this.commands) {
-      const key = event.key.toLowerCase();
-      const modifier = event.ctrlKey || event.metaKey;
       if (modifier && ['c', 'x', 'v', 'd', 'z', 'y'].includes(key)) {
         event.preventDefault();
         if (key === 'v') this.pasteSelection();

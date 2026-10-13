@@ -197,6 +197,30 @@ describe('PaintInteractionController', () => {
     expect(transport.sendCanvasCommand.mock.lastCall![0].mode).toBe(mode);
   });
 
+  it.each([['z', false, 'undo'], ['z', true, 'redo'], ['y', false, 'redo']])('shares history in separate mode for %s', (key, shiftKey, mode) => {
+    const { controller, transport } = sharedSelection();
+    controller.setEnabled(false);
+    controller.setHistoryShortcutsEnabled(true);
+    const event = new KeyboardEvent('keydown', { key: String(key), shiftKey: Boolean(shiftKey), ctrlKey: true, cancelable: true });
+    const stop = vi.spyOn(event, 'stopImmediatePropagation');
+    controller.handleKeyDown(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(stop).toHaveBeenCalledOnce();
+    expect(transport.sendCanvasCommand.mock.lastCall![0].mode).toBe(mode);
+    expect(controller.getState().enabled).toBe(false);
+  });
+
+  it('does not take text-field undo or shortcuts outside an enabled history scope', () => {
+    const { controller, transport } = sharedSelection();
+    controller.setEnabled(false);
+    controller.handleKeyDown(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true }));
+    controller.setHistoryShortcutsEnabled(true);
+    const event = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true });
+    Object.defineProperty(event, 'target', { value: document.createElement('textarea') });
+    controller.handleKeyDown(event);
+    expect(transport.sendCanvasCommand).not.toHaveBeenCalled();
+  });
+
   it('nudges by one world unit, or ten with Shift, and prevents parallel authoring', () => {
     const { controller, transport, scene } = sharedSelection();
     controller.handleKeyDown(new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true }));

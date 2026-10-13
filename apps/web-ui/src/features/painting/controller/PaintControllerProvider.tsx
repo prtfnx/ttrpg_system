@@ -172,6 +172,10 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
       (activeTool === 'paint' && canInteract(sessionRole) || combinedSelect)
         && runtimeStatus.isCanvasAttached && !runtimeStatus.isContextLost,
     );
+    interaction?.setHistoryShortcutsEnabled(
+      ['paint', 'select', 'move'].includes(activeTool) && canInteract(sessionRole)
+        && runtimeStatus.isCanvasAttached && !runtimeStatus.isContextLost,
+    );
   }, [activeTool, interaction, selectionMode, sessionRole, runtimeStatus.isCanvasAttached, runtimeStatus.isContextLost]);
 
   useEffect(() => {

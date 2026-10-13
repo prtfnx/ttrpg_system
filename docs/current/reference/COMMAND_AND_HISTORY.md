@@ -112,6 +112,11 @@ The browser consumes legacy `sprite_response` retry receipts by requesting fresh
 data only for the active table. Accepted sprite responses and text-update success
 responses coalesce a shared-history refresh on the existing controller tick;
 they do not become local undo entries or trust stale acknowledgement availability.
+Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z/Y use the same durable history in Paint and both
+selection modes. A capture-phase keyboard owner suppresses legacy undo routing
+without taking default sprite pointer input. Form controls retain native text
+undo; disconnected renderer scopes and non-interactive roles disable these
+shortcuts. `PaintInteractionController` and its provider own this boundary.
 Text history compares content and provenance while ignoring only the text
 revision. Every inverse advances that revision, so an open editor cannot submit
 an obsolete revision after undo or redo. Regression owner:

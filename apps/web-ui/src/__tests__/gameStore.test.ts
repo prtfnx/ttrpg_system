@@ -109,6 +109,14 @@ describe('gameStore — sprites', () => {
     expect(useGameStore.getState().sprites).toHaveLength(1);
   });
 
+  it('retains authoritative dimensions on sprite insertion and replacement', () => {
+    useGameStore.getState().addSprite({ ...makeSprite('text'), width: 320, height: 76 });
+    expect(useGameStore.getState().sprites[0]).toMatchObject({ width: 320, height: 76, scale: { x: 1, y: 1 } });
+    useGameStore.getState().addSprite({ ...makeSprite('text'), width: 480, height: 100, scale: { x: 2, y: 3 } });
+    expect(useGameStore.getState().sprites).toHaveLength(1);
+    expect(useGameStore.getState().sprites[0]).toMatchObject({ width: 480, height: 100, scale: { x: 2, y: 3 } });
+  });
+
   it('replaces entities only after a complete authoritative table hydration', () => {
     const tableId = '550e8400-e29b-41d4-a716-446655440000';
     useGameStore.setState({

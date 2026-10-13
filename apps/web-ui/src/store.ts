@@ -337,10 +337,9 @@ export const useGameStore = create<GameStore>()(
             y: migrated.height / 32
           };
         }
-        // Remove legacy fields if present
+        // Only imageUrl is retired. Width/height are authoritative dimensions
+        // used by text, shape bounds and expected-state editor commands.
         delete migrated.imageUrl;
-        delete migrated.width;
-        delete migrated.height;
         set((state) => {
           // Check if sprite already exists
           const existingSprite = state.sprites.find(s => s.id === migrated.id);

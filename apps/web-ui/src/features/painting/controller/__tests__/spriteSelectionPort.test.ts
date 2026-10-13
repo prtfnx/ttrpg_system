@@ -14,6 +14,12 @@ beforeEach(() => useGameStore.setState({ sprites: [sprite], selectedSprites: [],
   activeLayer: 'tokens', layerVisibility: {}, userId: 7, sessionRole: 'player' }));
 
 describe('runtime-owned sprite selection adapter', () => {
+  it('captures saved dimensions through the real store insertion path instead of legacy defaults', () => {
+    useGameStore.getState().addSprite({ ...sprite, width: 320, height: 76, rotation: 0 });
+    const port = createSpriteSelectionPort(createMockWasmRuntime(), {} as WebClientProtocol);
+    expect(port.items('table')[0]).toMatchObject({ bounds: [0, 0, 320, 76],
+      expected: { width: 320, height: 76, scale_x: 1, scale_y: 1 } });
+  });
   it('uses protocol degrees for rotated world bounds', () => {
     const bounds = spriteSelectionBounds(sprite);
     [5, -5, 15, 15].forEach((value, index) => expect(bounds[index]).toBeCloseTo(value));

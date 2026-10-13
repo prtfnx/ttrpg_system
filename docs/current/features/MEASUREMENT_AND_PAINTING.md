@@ -220,6 +220,10 @@ authoritative dimensions, scale, rotation and control IDs in the game store,
 so later selection commands compare against persisted state rather than
 default transforms. Regression owners: the sprite synchronization tests and
 `GameCanvas/__tests__/usePaintInputRouting.test.ts`.
+`store.addSprite` retains width and height for both insertion and replacement;
+only the legacy `imageUrl` field is retired. Text and shape selection therefore
+uses saved dimensions rather than a 50×50 fallback. The real-store adapter
+regression lives in `controller/__tests__/spriteSelectionPort.test.ts`.
 
 Losing an interactive role immediately disables Paint authoring and cancels its
 local gesture. Combined Select remains a read-only inspection path for a

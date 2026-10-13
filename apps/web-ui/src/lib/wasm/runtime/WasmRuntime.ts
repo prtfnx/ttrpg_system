@@ -576,6 +576,28 @@ export class WasmRuntime implements WasmRuntimePort {
     return updated;
   }
 
+  previewSelectionSpriteTransform(spriteId: string, transform: { x: number; y: number; scale_x: number; scale_y: number; rotation: number }): boolean {
+    const updated = this.renderEngine?.selection_preview_transform(spriteId, transform.x, transform.y,
+      transform.scale_x, transform.scale_y, transform.rotation) ?? false;
+    if (updated) this.invalidateFramedPreview();
+    return updated;
+  }
+
+  setSelectionFrame(tableId: string, coordinates: readonly number[]): boolean {
+    const updated = this.renderEngine?.selection_set_frame(tableId, new Float32Array(coordinates)) ?? false;
+    if (updated) this.invalidateFramedPreview();
+    return updated;
+  }
+
+  clearSelectionFrame(): void {
+    this.renderEngine?.selection_clear_frame();
+    this.invalidateFramedPreview();
+  }
+
+  hitTestSelectionFrame(x: number, y: number, tolerance: number): string | null {
+    return this.renderEngine?.selection_hit_test_frame(x, y, tolerance) ?? null;
+  }
+
   getSelectedPaintObjectId(): string | null {
     return this.renderEngine?.paint_selected_object_id() ?? null;
   }

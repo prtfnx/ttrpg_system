@@ -9,6 +9,10 @@ const mocks = vi.hoisted(() => {
     remove_sprite: vi.fn(),
     selection_hit_test_sprite: vi.fn(() => 'sprite-1'),
     selection_set_sprites: vi.fn(() => true),
+    selection_set_frame: vi.fn(() => true),
+    selection_clear_frame: vi.fn(),
+    selection_hit_test_frame: vi.fn(() => 'rotate'),
+    selection_preview_transform: vi.fn(() => true),
     update_sprite_position: vi.fn(() => true),
     free: vi.fn(),
     set_camera: vi.fn(),
@@ -131,6 +135,20 @@ describe('WasmRuntime', () => {
     expect(runtime.previewSelectionSprite('sprite-1', 30, 40)).toBe(true);
     expect(mocks.renderEngine.selection_set_sprites).toHaveBeenCalledWith(['sprite-1']);
     expect(mocks.renderEngine.update_sprite_position).toHaveBeenCalledWith('sprite-1', 30, 40);
+  });
+  it('owns shared frame picking and complete sprite previews through the renderer boundary', async () => {
+    await runtime.attachCanvas(canvas, { userId: 1, role: 'owner', activeLayer: 'map' });
+    const corners = [0, 0, 100, 0, 100, 50, 0, 50];
+    expect(runtime.setSelectionFrame('table-1', corners)).toBe(true);
+    expect(mocks.renderEngine.selection_set_frame).toHaveBeenCalledWith('table-1', new Float32Array(corners));
+    expect(runtime.hitTestSelectionFrame(50, -28, 6)).toBe('rotate');
+    expect(runtime.previewSelectionSpriteTransform('sprite-1', { x: 10, y: 20, scale_x: 2, scale_y: 3, rotation: 90 })).toBe(true);
+    expect(mocks.renderEngine.selection_preview_transform).toHaveBeenCalledWith('sprite-1', 10, 20, 2, 3, 90);
+    runtime.clearSelectionFrame();
+    expect(mocks.renderEngine.selection_clear_frame).toHaveBeenCalledOnce();
+    runtime.detachCanvas();
+    expect(runtime.setSelectionFrame('table-1', corners)).toBe(false);
+    expect(runtime.hitTestSelectionFrame(50, -28, 6)).toBeNull();
   });
   let runtime: WasmRuntime;
   let canvas: HTMLCanvasElement;

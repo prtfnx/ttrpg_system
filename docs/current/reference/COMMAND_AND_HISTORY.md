@@ -23,6 +23,9 @@ transform before mutation and emits no durable operation. WASM regression owner:
 The checked-in generated WASM artifact includes these APIs. Chromium/WebGL
 frame drawing, zoom-stable picking and table fencing are covered by
 `apps/web-ui/src/lib/wasm/__tests__/paintRendering.wasm-test.ts`.
+`WasmRuntimePort` exposes frame set/clear/picking and full sprite previews as
+typed local operations. Detached renderer calls fail safely and never send a
+network command. Runtime regressions live in `runtime/__tests__/WasmRuntime.test.ts`.
 `wasmBridge.ts` forwards completed sprite transforms with action IDs and tracks
 acknowledgements. Sprite protocol handlers authorize commands and invoke
 `core_table.actions_core.ActionsCore`; accepted table snapshots persist before

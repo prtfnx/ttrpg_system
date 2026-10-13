@@ -104,6 +104,10 @@ export interface RenderEngine {
   paint_select_objects(idsJson: string): boolean;
   selection_hit_test_sprite(worldX: number, worldY: number): string | undefined;
   selection_set_sprites(ids: string[]): boolean;
+  selection_set_frame(tableId: string, coordinates: Float32Array): boolean;
+  selection_clear_frame(): void;
+  selection_hit_test_frame(x: number, y: number, tolerance: number): string | undefined;
+  selection_preview_transform(spriteId: string, x: number, y: number, sx: number, sy: number, degrees: number): boolean;
   paint_clear_object_selection(): void;
   paint_selected_object_id(): string | undefined;
   paint_object_revision(): number;

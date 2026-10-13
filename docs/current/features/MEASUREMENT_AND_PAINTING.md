@@ -72,6 +72,8 @@ Owners, co-DMs, trusted players, and players can create objects. A creator or
 DM can update/delete an object; spectators have read access only. Server
 transactions derive authority from database membership and check that the
 table belongs to the authenticated session. UI gating never grants permission.
+Table lookup, session ownership and the actor's optional membership use one
+query. A missing membership is allowed only for the actual session owner.
 
 `PaintObjectService` serializes mutations through table-scoped locks and
 `paint_state`. Normal table creation and migration seed revision-zero state
@@ -79,6 +81,10 @@ rows. Each accepted command assigns one table revision; updates increment the
 object version without changing creator or `z_order`. Durable writes and their
 operation results commit together before network delivery. Writer fencing
 also applies to the object, state, and ledger tables.
+Standalone writes stage the object, revision, operation receipt and undo delta
+before one flush; seeding a missing paint-state row is a separate step. Borrowed
+transactions retain explicit flushes so later composed commands see staged edits.
+Regression owner: `apps/server/tests/unit/test_paint_object_service.py`.
 
 Table budgets use SQL counts and JSON array lengths rather than loading every
 path. Replacement checks exclude the old object. Non-point-growing updates

@@ -19,7 +19,7 @@ from core_table.paint import (
 )
 from database import models
 from service.canvas_journal import record_paint_command
-from sqlalchemy import case, func
+from sqlalchemy import and_, case, func
 from sqlalchemy.orm import Session
 from utils.roles import can_interact, is_dm
 from utils.time import utc_now
@@ -169,11 +169,15 @@ class PaintObjectService:
         actor_id: int,
     ) -> tuple[models.VirtualTable, str]:
         row = (
-            db.query(models.VirtualTable, models.GameSession.owner_id)
+            db.query(models.VirtualTable, models.GameSession.owner_id, models.GamePlayer.role)
             .join(
                 models.GameSession,
                 models.VirtualTable.session_id == models.GameSession.id,
             )
+            .outerjoin(models.GamePlayer, and_(
+                models.GamePlayer.session_id == models.GameSession.id,
+                models.GamePlayer.user_id == actor_id,
+            ))
             .filter(
                 models.VirtualTable.table_id == table_id,
                 models.VirtualTable.session_id == session_id,
@@ -183,20 +187,12 @@ class PaintObjectService:
         )
         if row is None:
             raise _Rejected("not_found", "Paint table was not found in this session")
-        table, owner_id = row
+        table, owner_id, role = row
         if owner_id == actor_id:
             return table, "owner"
-        membership = (
-            db.query(models.GamePlayer.role)
-            .filter(
-                models.GamePlayer.session_id == session_id,
-                models.GamePlayer.user_id == actor_id,
-            )
-            .one_or_none()
-        )
-        if membership is None or membership[0] is None:
+        if role is None:
             raise _Rejected("forbidden", "Actor is not a member of this session")
-        return table, membership[0]
+        return table, role
 
     @staticmethod
     def _lock_state(
@@ -368,7 +364,8 @@ class PaintObjectService:
                 db.add(accepted)
                 accepted_dto = _object_dict(accepted)
                 validate_paint_payload_size(accepted_dto)
-                db.flush()
+                if _db is not None:
+                    db.flush()
                 state.revision += 1
                 state.next_z_order += 1
                 event = {
@@ -378,10 +375,6 @@ class PaintObjectService:
                     "action": "create",
                     "object": accepted_dto,
                 }
-                if _db is None:
-                    record_paint_command(db, table_id=table_id, actor_id=actor_id,
-                        operation_id=operation_id, request_hash=request_hash,
-                        before=None, after=accepted_dto, now=now)
                 self._record_result(
                     db,
                     table_id=table_id,
@@ -390,6 +383,10 @@ class PaintObjectService:
                     request_hash=request_hash,
                     event=event,
                 )
+                if _db is None:
+                    record_paint_command(db, table_id=table_id, actor_id=actor_id,
+                        operation_id=operation_id, request_hash=request_hash,
+                        before=None, after=accepted_dto, now=now)
             return PaintCommandResult(event=event, broadcast=True)
         except (PaintValidationError, _Rejected) as exc:
             error = exc.error if isinstance(exc, _Rejected) else PaintCommandError(
@@ -477,7 +474,8 @@ class PaintObjectService:
                 accepted_dto = _object_dict(current)
                 validate_paint_payload_size(accepted_dto)
                 state.revision += 1
-                db.flush()
+                if _db is not None:
+                    db.flush()
                 event = {
                     "operation_id": operation_id,
                     "table_id": table_id,
@@ -485,10 +483,6 @@ class PaintObjectService:
                     "action": "update",
                     "object": accepted_dto,
                 }
-                if _db is None:
-                    record_paint_command(db, table_id=table_id, actor_id=actor_id,
-                        operation_id=operation_id, request_hash=request_hash,
-                        before=before_dto, after=accepted_dto, now=current.updated_at)
                 self._record_result(
                     db,
                     table_id=table_id,
@@ -497,6 +491,10 @@ class PaintObjectService:
                     request_hash=request_hash,
                     event=event,
                 )
+                if _db is None:
+                    record_paint_command(db, table_id=table_id, actor_id=actor_id,
+                        operation_id=operation_id, request_hash=request_hash,
+                        before=before_dto, after=accepted_dto, now=current.updated_at)
             return PaintCommandResult(event=event, broadcast=True)
         except (PaintValidationError, _Rejected) as exc:
             error = exc.error if isinstance(exc, _Rejected) else PaintCommandError(
@@ -570,10 +568,6 @@ class PaintObjectService:
                     "deleted_id": object_id,
                     "deleted_version": deleted_version,
                 }
-                if _db is None:
-                    record_paint_command(db, table_id=table_id, actor_id=actor_id,
-                        operation_id=operation_id, request_hash=request_hash,
-                        before=before_dto, after=None, now=utc_now())
                 self._record_result(
                     db,
                     table_id=table_id,
@@ -582,6 +576,10 @@ class PaintObjectService:
                     request_hash=request_hash,
                     event=event,
                 )
+                if _db is None:
+                    record_paint_command(db, table_id=table_id, actor_id=actor_id,
+                        operation_id=operation_id, request_hash=request_hash,
+                        before=before_dto, after=None, now=utc_now())
             return PaintCommandResult(event=event, broadcast=True)
         except _Rejected as exc:
             return PaintCommandResult(error=exc.error)

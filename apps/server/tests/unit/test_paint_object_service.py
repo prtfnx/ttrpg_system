@@ -8,7 +8,7 @@ from core_table.paint import PaintLimits, paint_limits, validate_paint_object_in
 from database import models
 from service import paint_object_service as service_module
 from service.paint_object_service import PaintCommandError, PaintObjectService, PaintSnapshot
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from utils.time import utc_now
@@ -104,6 +104,40 @@ def create(service, ids, *, actor="player", operation_id=None, value=None):
         operation_id=operation_id or str(uuid.uuid4()),
         editable=value or editable(),
     )
+
+
+@pytest.mark.parametrize("action", ["create", "update", "delete"])
+def test_standalone_paint_stages_object_revision_retry_and_history_in_one_flush(paint_service, action):
+    service, factory, ids = paint_service
+    assert create(service, ids).error is None
+    flushes = []
+    table_queries = []
+    engine = factory.kw["bind"]
+
+    def capture_flush(db, _context, _instances):
+        flushes.append({type(value) for value in (*db.new, *db.dirty, *db.deleted)})
+
+    def capture_query(_connection, _cursor, statement, _parameters, _context, _many):
+        if statement.lstrip().upper().startswith("SELECT") and "JOIN game_sessions" in statement:
+            table_queries.append(statement)
+
+    event.listen(factory, "before_flush", capture_flush)
+    event.listen(engine, "before_cursor_execute", capture_query)
+    try:
+        if action == "create":
+            result = create(service, ids, value=editable(str(uuid.uuid4())))
+        else:
+            context = dict(session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID,
+                           operation_id=str(uuid.uuid4()), object_id=OBJECT_ID, expected_version=1)
+            result = service.update(**context, editable=editable()) if action == "update" else service.delete(**context)
+    finally:
+        event.remove(factory, "before_flush", capture_flush)
+        event.remove(engine, "before_cursor_execute", capture_query)
+
+    assert result.error is None
+    assert flushes == [{models.PaintObject, models.PaintState, models.PaintOperationResult, models.CanvasCommandJournal}]
+    assert len(table_queries) == 1
+    assert "LEFT OUTER JOIN game_players" in table_queries[0]
 
 
 def test_composed_paint_commands_share_the_callers_commit_and_rollback(paint_service):

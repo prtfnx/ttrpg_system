@@ -33,8 +33,11 @@ def record_paint_command(db, *, table_id, actor_id, operation_id, request_hash, 
     """Join a standalone paint write's existing transaction, never commit it."""
     changes = [{"kind": "paint", "id": (before or after)["id"],
                 "before": copy.deepcopy(before), "after": copy.deepcopy(after)}]
-    db.query(models.CanvasCommandJournal).filter_by(table_id=table_id, actor_id=actor_id, state="undone").update(
-        {"state": "abandoned"}, synchronize_session=False)
+    # Abandonment only examines existing history. Do not flush pending paint
+    # and retry rows before their matching journal entry has been staged.
+    with db.no_autoflush:
+        db.query(models.CanvasCommandJournal).filter_by(table_id=table_id, actor_id=actor_id, state="undone").update(
+            {"state": "abandoned"}, synchronize_session=False)
     db.add(models.CanvasCommandJournal(table_id=table_id, actor_id=actor_id,
         operation_id=operation_id, request_hash=request_hash, kind="paint", state="applied",
         changes=changes, changes_bytes=len(json.dumps(changes, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")),

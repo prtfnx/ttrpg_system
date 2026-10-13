@@ -437,6 +437,11 @@ export class PaintInteractionController {
       || !this.sceneState.tableId
       || this.sceneState.hydrating
     ) return false;
+    if (this.commands) {
+      const members = this.canvasMembers(this.selectedPaints(), []);
+      return members !== null && this.commands.submit({ mode: 'restyle', style,
+        members: members.filter((member): member is Extract<CanvasMember, { kind: 'paint' }> => member.kind === 'paint') });
+    }
     let changed = false;
     for (const object of this.selectedPaints().filter(item => this.canEdit(item))) {
       const replacement = editableObject(object);

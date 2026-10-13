@@ -1,5 +1,6 @@
 import { onProtocolEvent } from '@lib/websocket/protocolEvents';
 import type { SelectionRef } from './SelectionManager';
+import type { PaintStyle } from '../model/paintObject';
 
 export interface CanvasTransform {
   dx: number;
@@ -30,6 +31,7 @@ export type CanvasMember =
 
 export type CanvasIntent =
   | { mode: 'transform'; members: readonly CanvasMember[]; transform: CanvasTransform }
+  | { mode: 'restyle'; members: readonly Extract<CanvasMember, { kind: 'paint' }>[]; style: PaintStyle }
   | { mode: 'delete' | 'copy' | 'cut'; members: readonly CanvasMember[] }
   | { mode: 'paste'; clipboard_id: string; ids: Array<SelectionRef & { source_id: string }>; transform: CanvasTransform }
   | { mode: 'undo' | 'redo' };
@@ -219,7 +221,7 @@ export class CanvasCommandController {
         members: pending.command.members.map(ref => ({ kind: ref.kind, id: ref.id })) };
     }
     if (data.resync_required === true) this.options.onResync(pending.command.table_id);
-    if (pending.command.mode !== 'copy' && Array.isArray(data.selection)) {
+    if (pending.command.mode !== 'copy' && pending.command.mode !== 'restyle' && Array.isArray(data.selection)) {
       this.options.onSelection(data.selection.filter((ref): ref is SelectionRef =>
         ref !== null && typeof ref === 'object' && (ref.kind === 'paint' || ref.kind === 'sprite') && typeof ref.id === 'string'));
     }

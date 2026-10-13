@@ -4,7 +4,7 @@ Audience: contributors changing measurement, paint tools, reconciliation, or ren
 
 Status: usable. Completed measurements and paint objects are server-authoritative.
 
-Last source audit: 2026-10-07
+Last source audit: 2026-10-08
 
 ## Ownership
 
@@ -183,6 +183,11 @@ adapter cancels through the old adapter before releasing it.
 Delete and paint restyle cancel an active gesture before submitting their
 commands. They discard drag previews and release pointer capture; a late
 pointer-up cannot submit the abandoned transform after the command.
+Restyling selected paint uses one atomic canvas command and one undo step,
+including a single selected painting. It changes only editable paint members,
+preserves retained sprite and locked-object selection, and waits for the server
+receipt. Pending paint or canvas commands block another restyle. A stale member
+rejects the whole command, leaving every included painting unchanged.
 
 Sprite movement uses control ownership; deletion remains DM-only even for
 player-controlled text. Changing layer visibility cancels local gestures.

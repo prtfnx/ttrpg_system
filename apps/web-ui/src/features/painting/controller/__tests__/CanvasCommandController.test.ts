@@ -27,6 +27,16 @@ function harness() {
 }
 
 describe('CanvasCommandController', () => {
+  it('captures immutable restyle intent and retains the broader selection on acknowledgement', () => {
+    const h = harness();
+    const style = { stroke_rgba: [0, 1, 0, 1] as [number, number, number, number], width: 6, fill_rgba: null };
+    expect(h.owner.submit({ mode: 'restyle', members, style })).toBe(true);
+    style.width = 10;
+    expect(h.command()).toMatchObject({ mode: 'restyle', style: { width: 6 } });
+    h.accept();
+    expect(h.options.onSelection).not.toHaveBeenCalled();
+    expect(h.owner.getState()).toMatchObject({ pending: false, canUndo: true });
+  });
   it('tracks one intent before send and accepts only its matching authoritative receipt', () => {
     const { owner, transport, accept } = harness();
     expect(owner.submit({ mode: 'transform', members, transform: IDENTITY_TRANSFORM })).toBe(true);

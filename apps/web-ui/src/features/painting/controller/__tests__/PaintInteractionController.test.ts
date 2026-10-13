@@ -169,6 +169,26 @@ describe('PaintInteractionController', () => {
     });
   });
 
+  it('restyles selected editable paint atomically without changing retained sprite or locked selection', () => {
+    const h = sharedSelection();
+    const second = { ...object(), id: crypto.randomUUID() };
+    const locked = { ...object(8), id: crypto.randomUUID() };
+    h.updateState(initialState([object(), second, locked]));
+    h.controller.replaceSelection([{ kind: 'paint', id: OBJECT_ID }, { kind: 'paint', id: second.id },
+      { kind: 'paint', id: locked.id }, { kind: 'sprite', id: 'sprite' }]);
+    const style = { stroke_rgba: [0, 1, 0, 1] as [number, number, number, number], width: 6, fill_rgba: null };
+    expect(h.controller.restyleSelected(style)).toBe(true);
+    const command = h.transport.sendCanvasCommand.mock.lastCall![0];
+    expect(command).toMatchObject({ mode: 'restyle', style, members: [
+      { kind: 'paint', id: OBJECT_ID, version: 3 }, { kind: 'paint', id: second.id, version: 3 },
+    ] });
+    expect(h.scene.submitUpdate).not.toHaveBeenCalled();
+    expect(h.controller.restyleSelected(style)).toBe(false);
+    h.owner.acceptResult({ operation_id: command.operation_id, table_id: TABLE, success: true,
+      selection: [{ kind: 'paint', id: OBJECT_ID }, { kind: 'paint', id: second.id }], can_undo: true });
+    expect(h.controller.getState()).toMatchObject({ selectionCount: 4, selectedSpriteIds: ['sprite'], canUndo: true });
+  });
+
   it.each([['c', 'copy'], ['x', 'cut'], ['d', 'copy'], ['z', 'undo'], ['y', 'redo']])('routes Ctrl+%s to an authoritative %s command', (key, mode) => {
     const { controller, transport } = sharedSelection();
     const event = new KeyboardEvent('keydown', { key, ctrlKey: true, cancelable: true });

@@ -4,15 +4,25 @@ import time
 from collections.abc import Awaitable, Callable
 from typing import Any, Dict
 
+from core_table.action_batches import _finish_before_cancellation
 from core_table.actions_core import ActionsCore
 from core_table.protocol import Message, MessageType
+from database.database import SessionLocal
+from service.canvas_command_service import CanvasRejected
+from service.sprite_editor_commands import (
+    SPRITE_COMMAND_TYPES,
+    SpriteCommandScope,
+    SpriteEditorCommandService,
+    sprite_command_scope,
+)
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 
 from ..legacy_paint import is_legacy_paint_message, legacy_paint_upgrade_data
 from .assets import _AssetsMixin
+from .canvas import _CanvasMixin
 from .characters import _CharactersMixin
 from .chat import _ChatMixin
-from .canvas import _CanvasMixin
 from .combat import _CombatMixin
 from .encounter import _EncounterMixin
 from .helpers import _HelpersMixin
@@ -157,6 +167,7 @@ class ServerProtocol(
         self.handlers: Dict[MessageType, Callable] = {}
         self.init_handlers()
         self.actions = ActionsCore(self.table_manager)
+        self.actions.persist_sprite_command = self._persist_sprite_editor_command
         # Ensure tables have id mapping
         if not self.table_manager.tables_id:
             self.table_manager.tables_id = {
@@ -320,8 +331,42 @@ class ServerProtocol(
         return False
 
     async def _invoke_handler(self, msg: Message, client_id: str):
+        if msg.type in SPRITE_COMMAND_TYPES and getattr(getattr(self, "table_manager", None), "db_session", None):
+            # Include post-commit broadcasts in cancellation shielding. The
+            # session lock must not release between storage and publication.
+            worker = asyncio.create_task(self._invoke_handler_body(msg, client_id))
+            return await _finish_before_cancellation(worker)
+        return await self._invoke_handler_body(msg, client_id)
+
+    async def _invoke_handler_body(self, msg: Message, client_id: str):
         """Run one handler and persist mutation-coupled table state in order."""
-        response = await self.handlers[msg.type](msg, client_id)
+        scope = None
+        try:
+            if msg.type in SPRITE_COMMAND_TYPES and getattr(getattr(self, "table_manager", None), "db_session", None):
+                scope = SpriteCommandScope.from_message(msg, self._get_session_id(msg), self._get_user_id(msg, client_id))
+            if scope is not None:
+                replay = await run_blocking(SpriteEditorCommandService(SessionLocal).replay, scope)
+                if replay is not None:
+                    if msg.data.get('action_id'):
+                        replay['action_id'] = msg.data['action_id']
+                    return Message(MessageType.SPRITE_RESPONSE, replay)
+            token = sprite_command_scope.set(scope)
+            try:
+                response = await self.handlers[msg.type](msg, client_id)
+            finally:
+                sprite_command_scope.reset(token)
+            if scope is not None and scope.receipt and response is not None:
+                response.data = {**(response.data or {}), **scope.receipt}
+        except CanvasRejected as exc:
+            return Message(MessageType.ERROR, {'error': str(exc), 'code': exc.code})
+        except Exception:
+            if scope is None or not scope.receipt:
+                raise
+            logger.exception("Sprite event publication failed after commit")
+            data = {**scope.receipt, 'resync_required': True}
+            if msg.data.get('action_id'):
+                data['action_id'] = msg.data['action_id']
+            return Message(MessageType.SPRITE_RESPONSE, data)
         if (msg.type in {MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE_REQUEST}
                 and response is not None
                 and response.type not in {MessageType.ERROR, MessageType.ACTION_REJECTED}):

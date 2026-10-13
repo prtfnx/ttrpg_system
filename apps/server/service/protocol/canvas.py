@@ -7,6 +7,7 @@ from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
 from service.canvas_command_service import CanvasCommandService, CanvasRejected
 from service.combat_engine import CombatEngine
+from service.sprite_editor_commands import SpriteEditorCommandService, sprite_command_scope
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 
@@ -16,6 +17,22 @@ logger = setup_logger(__name__)
 
 
 class _CanvasMixin(_ProtocolBase):
+    async def _persist_sprite_editor_command(self, staged, before_snapshot, result, session_id):
+        scope = sprite_command_scope.get()
+        if scope is None:
+            return await self.table_manager.save_table_async(str(staged.table_id), session_id, draft=staged)
+        if scope.session_id != session_id:
+            raise CanvasRejected("forbidden", "Sprite command session changed")
+        combat = CombatEngine.get_state(self._get_session_code())
+        combat_ids = tuple(str(member.entity_id) for member in combat.combatants) if (
+            combat is not None and combat.table_id == scope.table_id and combat.phase != CombatPhase.INACTIVE
+        ) else ()
+        async with self.table_manager.table_write_lock(scope.table_id):
+            receipt = await run_blocking(SpriteEditorCommandService(SessionLocal).persist,
+                scope=scope, before_snapshot=before_snapshot, staged=staged, combat_sprite_ids=combat_ids)
+        scope.receipt.update(receipt)
+        return True
+
     @staticmethod
     def _canvas_failure(data, code, error):
         response = {"success": False, "code": code, "error": error}

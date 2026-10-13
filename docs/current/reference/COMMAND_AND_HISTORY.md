@@ -3,7 +3,7 @@
 Audience: contributors changing canvas mutations, selection, or undo/redo.
 
 Status: partial. Mixed-domain transactions, browser group commands and durable
-selection history exist. Legacy single-command history remains separate.
+paint/sprite editor history exist. Group pointer handles remain separate work.
 
 Last source audit: 2026-10-09
 
@@ -87,8 +87,9 @@ The existing hourly paint retention job also removes journal rows older than
 60 seconds in the future. An identical operation ID/body returns the accepted
 receipt without another write. Reusing an ID with another body rejects. Retries
 request fresh hydration rather than replaying unversioned historical sprite
-events. Process restart preserves journal history; legacy command paths do not
-automatically enter this journal.
+events. Process restart preserves journal history. Normal sprite create/remove,
+move/scale/rotate and editor-only updates enter the same journal through the
+legacy protocol adapter, including separate selection mode and text saves.
 
 Regression owners: `apps/server/tests/unit/test_canvas_command_service.py` and
 `test_paint_operation_cleanup.py`. Real PostgreSQL concurrency, atomic rollback,
@@ -111,6 +112,13 @@ Text history compares content and provenance while ignoring only the text
 revision. Every inverse advances that revision, so an open editor cannot submit
 an obsolete revision after undo or redo. Regression owner:
 `apps/server/tests/unit/test_sprite_editor_commands.py`.
+The dispatcher captures trusted identity and the original request body before
+handler normalization. A task-local context carries it to the staged persistence
+port; it never stores client identity on the shared action owner. The session
+mutation lock covers commit, live publication and broadcast even under repeated
+cancellation. A post-commit transport failure returns durable success with
+`resync_required`, not a rejected save. Retry acknowledgements omit old sprite
+payloads. Regression owner: `apps/server/tests/unit/test_sprite_editor_protocol.py`.
 
 The canonical protocol schema defines `canvas_command`, `canvas_command_result`,
 `canvas_history_request` and `canvas_history_state`. Command payloads reject
@@ -284,9 +292,8 @@ unconfirmed previews as accepted local edits.
 
 ## Missing
 
-Legacy single-command sprite history remains separate: normal separate-mode
-sprite commands and standalone text edits do not enter the durable canvas
-journal. Group resize and rotation
+Stat/combat commands and trusted in-memory Python domain calls do not enter
+reversible editor history. Group resize and rotation
 currently use panel controls, not group pointer handles. Transport batches
 cannot supply atomicity.
 See [Measurement and painting](../features/MEASUREMENT_AND_PAINTING.md) for the

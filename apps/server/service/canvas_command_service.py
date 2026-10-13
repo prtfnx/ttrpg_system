@@ -129,6 +129,7 @@ class CanvasCommandService:
     def _history(self, db, table_id, actor_id):
         entries = (
             self._entries(db, table_id, actor_id)
+            .with_entities(models.CanvasCommandJournal.state)
             .filter(
                 models.CanvasCommandJournal.kind.in_(["paint", "transform", "restyle", "delete", "cut", "paste"]),
                 models.CanvasCommandJournal.changes.isnot(None),

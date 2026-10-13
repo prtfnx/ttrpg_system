@@ -79,6 +79,9 @@ character and asset references stay shared, as with table copying.
 Commands allow 1–100 objects, a 60 KiB request, a 1 MiB delta and bounded individual
 event frames. Retained deltas share a 100-entry/4 MiB budget per actor/table and
 expire after 48 hours. Expiring a delta preserves its small retry receipt.
+Availability reads select history states only. Retention reads IDs, byte counts
+and creation times, then expires matching entries in one update. Neither path
+loads stored scene deltas or receipt JSON just to compute availability or budgets.
 The existing hourly paint retention job also removes journal rows older than
 48 hours. Intent timestamps reject commands older than 24 hours or more than
 60 seconds in the future. An identical operation ID/body returns the accepted

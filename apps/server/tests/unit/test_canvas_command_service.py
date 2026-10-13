@@ -1,5 +1,6 @@
 import copy
 import math
+import re
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -388,6 +389,27 @@ def test_journal_receipts_do_not_duplicate_large_scene_events(scene):
     scene["execute"]()
     with scene["factory"]() as db:
         assert set(db.query(models.CanvasCommandJournal).one().result_json) == {"receipt"}
+
+
+def test_history_availability_and_retention_do_not_materialize_scene_deltas(scene):
+    scene["execute"]()
+    statements = []
+    engine = scene["factory"].kw["bind"]
+
+    def capture(_connection, _cursor, statement, _parameters, _context, _many):
+        if statement.lstrip().upper().startswith("SELECT") and "canvas_command_journal" in statement:
+            statements.append(re.split(r"\bFROM\b", statement, maxsplit=1, flags=re.IGNORECASE)[0])
+
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        state = scene["service"].history(session_id=scene["session"], actor_id=scene["actor"], table_id=TABLE)
+        assert state["can_undo"] and not state["can_redo"]
+        with scene["factory"].begin() as db:
+            scene["service"]._trim(db, TABLE, scene["actor"])
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+    assert len(statements) == 2
+    assert all(not re.search(r"\.(changes|result_json)(?:\s|,|$)", statement) for statement in statements)
 
 
 def test_standalone_paint_creation_resize_restyle_and_deletion_share_durable_history(scene):

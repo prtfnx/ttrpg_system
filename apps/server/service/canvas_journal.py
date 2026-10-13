@@ -11,15 +11,21 @@ RETENTION = timedelta(hours=48)
 
 
 def trim_history(db, table_id, actor_id, now, *, max_entries=MAX_HISTORY_ENTRIES, max_bytes=MAX_HISTORY_BYTES):
-    entries = db.query(models.CanvasCommandJournal).filter_by(table_id=table_id, actor_id=actor_id).filter(
+    entries = db.query(
+        models.CanvasCommandJournal.id,
+        models.CanvasCommandJournal.changes_bytes,
+        models.CanvasCommandJournal.created_at,
+    ).filter_by(table_id=table_id, actor_id=actor_id).filter(
         models.CanvasCommandJournal.changes.isnot(None)).order_by(models.CanvasCommandJournal.id.desc()).all()
     size = 0
+    expired = []
     for index, entry in enumerate(entries):
         size += entry.changes_bytes
         if index >= max_entries or size > max_bytes or entry.created_at < now - RETENTION:
-            entry.changes = None
-            entry.changes_bytes = 0
-            entry.state = "expired"
+            expired.append(entry.id)
+    if expired:
+        db.query(models.CanvasCommandJournal).filter(models.CanvasCommandJournal.id.in_(expired)).update(
+            {"changes": None, "changes_bytes": 0, "state": "expired"}, synchronize_session="fetch")
     db.flush()
 
 

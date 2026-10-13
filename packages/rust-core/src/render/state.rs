@@ -610,6 +610,28 @@ impl RenderEngine {
     }
 
     #[wasm_bindgen]
+    pub fn selection_set_frame(&mut self, table_id: &str, coordinates: Vec<f32>) -> bool {
+        let accepted = self.paint.set_selection_frame(table_id, &coordinates);
+        if accepted {
+            // Retain selected member outlines, but the shared frame owns handles.
+            self.input.selected_sprite_id = None;
+        }
+        accepted
+    }
+
+    #[wasm_bindgen]
+    pub fn selection_clear_frame(&mut self) {
+        self.paint.clear_selection_frame();
+    }
+
+    #[wasm_bindgen]
+    pub fn selection_hit_test_frame(&self, x: f32, y: f32, tolerance: f32) -> Option<String> {
+        let zoom = (self.camera.zoom as f32).max(f32::EPSILON);
+        self.paint
+            .hit_test_selection_frame(x, y, tolerance.max(0.0) / zoom, 28.0 / zoom)
+    }
+
+    #[wasm_bindgen]
     pub fn paint_object_revision(&self) -> f64 {
         self.paint.object_revision() as f64
     }

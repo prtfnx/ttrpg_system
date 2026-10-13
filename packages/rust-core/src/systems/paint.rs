@@ -5,6 +5,7 @@ use wasm_bindgen::JsValue;
 
 use super::paint_mesh::{tessellate, PaintMesh, PaintMeshCache};
 use super::paint_scene::{PaintObject, PaintObjectInput, PaintScene};
+use super::selection_frame::SelectionFrame;
 
 struct PaintDraft {
     object: PaintObject,
@@ -16,6 +17,7 @@ pub struct PaintObjectRenderer {
     object_meshes: PaintMeshCache,
     transient_drafts: BTreeMap<String, PaintDraft>,
     selected_object_ids: Vec<String>,
+    selection_frame: Option<SelectionFrame>,
 }
 
 impl Default for PaintObjectRenderer {
@@ -31,6 +33,7 @@ impl PaintObjectRenderer {
             object_meshes: PaintMeshCache::default(),
             transient_drafts: BTreeMap::new(),
             selected_object_ids: Vec::new(),
+            selection_frame: None,
         }
     }
 
@@ -40,6 +43,9 @@ impl PaintObjectRenderer {
         revision: u64,
         objects_json: &str,
     ) -> bool {
+        if self.object_scene.table_id() != Some(table_id) {
+            self.selection_frame = None;
+        }
         let Ok(objects) = serde_json::from_str::<Vec<PaintObject>>(objects_json) else {
             return false;
         };
@@ -142,6 +148,33 @@ impl PaintObjectRenderer {
         self.selected_object_ids.clear();
     }
 
+    pub fn set_selection_frame(&mut self, table_id: &str, coordinates: &[f32]) -> bool {
+        if self.object_scene.table_id() != Some(table_id) {
+            return false;
+        }
+        let Some(frame) = SelectionFrame::from_coordinates(coordinates) else {
+            return false;
+        };
+        self.selection_frame = Some(frame);
+        true
+    }
+
+    pub fn clear_selection_frame(&mut self) {
+        self.selection_frame = None;
+    }
+
+    pub fn hit_test_selection_frame(
+        &self,
+        x: f32,
+        y: f32,
+        tolerance: f32,
+        offset: f32,
+    ) -> Option<String> {
+        self.selection_frame
+            .as_ref()?
+            .hit_test(x, y, tolerance, offset)
+    }
+
     pub fn selected_object_id(&self) -> Option<String> {
         self.selected_object_ids.first().cloned()
     }
@@ -239,31 +272,51 @@ impl PaintObjectRenderer {
             }
             renderer.draw_triangles(&draft.mesh.stroke_vertices, draft.object.style.stroke_rgba)?;
         }
-        for object_id in &self.selected_object_ids {
-            let radius = 5.0 / camera_zoom.max(f32::EPSILON);
-            let mut handles = self.object_scene.handles(object_id);
-            if self.selected_object_ids.len() == 1 {
-                if let Some(object) = self.object_scene.get(object_id) {
-                    handles.push(object.rotation_handle(28.0 / camera_zoom.max(f32::EPSILON)));
+        let radius = 5.0 / camera_zoom.max(f32::EPSILON);
+        let mut selected_handles = Vec::new();
+        if let Some(frame) = &self.selection_frame {
+            let handles = frame.handles(28.0 / camera_zoom.max(f32::EPSILON));
+            let mut border = Vec::with_capacity(20);
+            for index in 0..4 {
+                let a = frame.corners[index];
+                let b = frame.corners[(index + 1) % 4];
+                border.extend_from_slice(&[a.0, a.1, b.0, b.1]);
+            }
+            border.extend_from_slice(&[
+                (frame.corners[0].0 + frame.corners[1].0) / 2.0,
+                (frame.corners[0].1 + frame.corners[1].1) / 2.0,
+                handles[4].x,
+                handles[4].y,
+            ]);
+            renderer.draw_lines(&border, [0.1, 0.8, 1.0, 0.95])?;
+            selected_handles.extend(handles);
+        } else {
+            for object_id in &self.selected_object_ids {
+                let mut handles = self.object_scene.handles(object_id);
+                if self.selected_object_ids.len() == 1 {
+                    if let Some(object) = self.object_scene.get(object_id) {
+                        handles.push(object.rotation_handle(28.0 / camera_zoom.max(f32::EPSILON)));
+                    }
                 }
+                selected_handles.extend(handles);
             }
-            for handle in handles {
-                let vertices = [
-                    handle.x - radius,
-                    handle.y - radius,
-                    handle.x + radius,
-                    handle.y - radius,
-                    handle.x - radius,
-                    handle.y + radius,
-                    handle.x + radius,
-                    handle.y - radius,
-                    handle.x + radius,
-                    handle.y + radius,
-                    handle.x - radius,
-                    handle.y + radius,
-                ];
-                renderer.draw_triangles(&vertices, [0.1, 0.8, 1.0, 0.95])?;
-            }
+        }
+        for handle in selected_handles {
+            let vertices = [
+                handle.x - radius,
+                handle.y - radius,
+                handle.x + radius,
+                handle.y - radius,
+                handle.x - radius,
+                handle.y + radius,
+                handle.x + radius,
+                handle.y - radius,
+                handle.x + radius,
+                handle.y + radius,
+                handle.x - radius,
+                handle.y + radius,
+            ];
+            renderer.draw_triangles(&vertices, [0.1, 0.8, 1.0, 0.95])?;
         }
         Ok(())
     }

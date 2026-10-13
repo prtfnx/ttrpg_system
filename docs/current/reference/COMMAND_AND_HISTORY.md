@@ -11,6 +11,11 @@ Last source audit: 2026-10-09
 
 React owns input and authoring intent. `WasmRuntime` owns renderer attachment
 and callbacks. Rust owns geometry, picking, and local previews, not durable writes.
+The renderer's `selection_set_frame`/`selection_hit_test_frame` boundary accepts
+four bounded world-space corners for a transient shared frame. Corner handles
+and its outward rotation handle use camera-scaled picking and visual sizes.
+It does not create paint objects or history. Pure geometry regressions live in
+`packages/rust-core/src/systems/selection_frame.rs`.
 `wasmBridge.ts` forwards completed sprite transforms with action IDs and tracks
 acknowledgements. Sprite protocol handlers authorize commands and invoke
 `core_table.actions_core.ActionsCore`; accepted table snapshots persist before

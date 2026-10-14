@@ -258,6 +258,10 @@ world-space geometry. Accepted shape transforms send a complete authoritative
 sprite upsert to the sender and visible peers; clients do not independently
 reapply the transform to those vertices. Database reloads preserve the result.
 The protocol regressions live in `apps/server/tests/unit/test_shape_sprites.py`.
+Legacy sprite persistence also checks the serialized canonical publication
+before saving the snapshot and journal. Its 60 KiB limit includes JSON escaping,
+so an accepted update cannot become an oversized WebSocket message after commit.
+`test_sprite_editor_commands.py` covers atomic rejection and Unicode expansion.
 
 Sprite hydration retains finite world vertices in the browser store as well
 as Rust. Legacy `{x, y}` polygon points normalize to coordinate pairs; malformed

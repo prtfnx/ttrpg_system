@@ -109,6 +109,21 @@ def test_commit_failure_rolls_back_sprite_and_journal_together(editor):
         assert ok and loaded.to_dict() == table.to_dict()
 
 
+@pytest.mark.parametrize("metadata", ["a" * 61_440, "😀" * 6000], ids=["ascii", "escaped-unicode"])
+def test_oversized_wire_publication_rejects_before_snapshot_and_history_writes(editor, metadata):
+    service, table, factory, scope, _, _ = editor
+    staged = copy.deepcopy(table)
+    staged.find_entity_by_sprite_id("text").metadata = metadata
+    # Unicode expansion in the actual message serializer also counts toward
+    # the wire budget, even when the UTF-8 domain payload is considerably smaller.
+    with pytest.raises(CanvasRejected, match="WebSocket frame budget"):
+        service.persist(scope=scope(metadata=metadata), before_snapshot=table.to_dict(), staged=staged)
+    with factory() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 0
+        loaded, ok = crud.load_table_from_db(db, str(table.table_id))
+        assert ok and loaded.to_dict() == table.to_dict()
+
+
 @pytest.mark.parametrize("combat", [False, True])
 def test_stats_and_combat_moves_have_retry_receipts_but_no_editor_undo(editor, combat):
     service, table, factory, scope, _, _ = editor

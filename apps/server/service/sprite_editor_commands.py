@@ -6,10 +6,17 @@ import uuid
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 
-from core_table.protocol import MessageType
+from core_table.protocol import Message, MessageType
 from core_table.table import VirtualTable
 from database import crud, models
-from service.canvas_command_service import MAX_ENTRY_BYTES, RETRY_WINDOW, CanvasCommandService, CanvasRejected, encoded
+from service.canvas_command_service import (
+    MAX_COMMAND_BYTES,
+    MAX_ENTRY_BYTES,
+    RETRY_WINDOW,
+    CanvasCommandService,
+    CanvasRejected,
+    encoded,
+)
 from service.paint_object_service import _Rejected
 from utils.roles import can_interact
 
@@ -90,6 +97,14 @@ class SpriteEditorCommandService(CanvasCommandService):
                     for target in sorted(old.keys() | new.keys()) if encoded(old.get(target)) != encoded(new.get(target))]
                 if len(changes) > 100 or len(encoded(changes)) > MAX_ENTRY_BYTES:
                     raise CanvasRejected("limit_exceeded", "Sprite command exceeds the editor history budget")
+                for change in changes:
+                    if change["after"] is None:
+                        continue
+                    publication = Message(MessageType.SPRITE_UPDATE, {"sprite_id": change["id"],
+                        "table_id": scope.table_id, "operation": "create",
+                        "sprite_data": {**change["after"], "table_id": scope.table_id}})
+                    if len(publication.to_json().encode("utf-8")) > MAX_COMMAND_BYTES:
+                        raise CanvasRejected("limit_exceeded", "Sprite publication exceeds the safe WebSocket frame budget")
                 combat_ids = set(combat_sprite_ids)
                 encounters = db.query(models.CombatEncounter).filter_by(session_id=scope.session_id,
                     table_id=scope.table_id, ended_at=None).filter(models.CombatEncounter.phase != "inactive").all()

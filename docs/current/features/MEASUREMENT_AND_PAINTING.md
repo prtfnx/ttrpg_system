@@ -238,6 +238,12 @@ cancellation, send failure, or a fifteen-second timeout. A timeout is uncertain
 and does not automatically resend. Text creation and editing use this boundary;
 cancelling the UI cannot retract a command already accepted by the server.
 
+Polygon creation accepts coordinate pairs or legacy
+object points, derives dimensions and anchor from their bounds, and requires
+three non-collinear points with identity transforms. Bounds must fit within
+10,000 world units per axis. The server ignores conflicting legacy position
+and size fields; invalid geometry never reaches persistence or broadcast.
+
 Legacy line and polygon moves, rotations, and resizes also update their stored
 world-space geometry. Accepted shape transforms send a complete authoritative
 sprite upsert to the sender and visible peers; clients do not independently

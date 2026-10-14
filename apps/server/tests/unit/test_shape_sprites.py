@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("shape", ["rectangle", "circle", "line"])
+@pytest.mark.parametrize("shape", ["rectangle", "circle", "line", "polygon"])
 async def test_shape_creation_reloads_from_database(shape, monkeypatch, test_db, test_db_engine, test_game_session, test_user):
     monkeypatch.setattr("service.canvas_persistence_service.SessionLocal", sessionmaker(bind=test_db_engine))
     manager = TableManager(test_db)
@@ -30,6 +30,8 @@ async def test_shape_creation_reloads_from_database(shape, monkeypatch, test_db,
         geometry = {"x": 50, "y": 40, "radius": 40}
     if shape == "line":
         geometry = {"x1": 10, "y1": 20, "x2": 90, "y2": 60}
+    if shape == "polygon":
+        geometry = {"vertices": [[10, 20], [90, 20], [50, 60]]}
     metadata = {"shape_color": "#123456", "shape_filled": True, "opacity": 0.5}
     result = await proto.handle_create_sprite(Message(MessageType.SPRITE_CREATE, {
         "table_id": str(table.table_id), "sprite_data": {"sprite_id": f"object-{shape}", "x": 10, "y": 20,
@@ -53,6 +55,51 @@ async def test_shape_creation_reloads_from_database(shape, monkeypatch, test_db,
         loaded, ok = crud.load_table_from_db(test_db, str(table.table_id))
         assert ok
         assert loaded.find_entity_by_sprite_id("object-line").obstacle_data == {"x1": 30, "y1": 50, "x2": 110, "y2": 90}
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+async def test_polygon_creation_derives_authoritative_bounds_and_normalizes_legacy_points(legacy, monkeypatch, test_db,
+        test_db_engine, test_game_session, test_user):
+    monkeypatch.setattr("service.canvas_persistence_service.SessionLocal", sessionmaker(bind=test_db_engine))
+    manager = TableManager(test_db)
+    table = manager.create_table("Polygon", 1000, 1000)
+    proto = _SpritesMixin()
+    proto.table_manager, proto.actions = manager, ActionsCore(manager)
+    monkeypatch.setattr(proto, "_get_session_id", lambda _msg: test_game_session.id)
+    monkeypatch.setattr(proto, "_get_client_role", lambda _client: "owner")
+    monkeypatch.setattr(proto, "_get_user_id", lambda _msg, _client: test_user.id)
+    proto.broadcast_filtered = AsyncMock()
+    fields = {"polygon_vertices": [{"x": 10, "y": 20}, {"x": 90, "y": 20}, {"x": 50, "y": 60}]}
+    if not legacy:
+        fields = {"obstacle_data": {"vertices": [[10, 20], [90, 20], [50, 60]]}}
+    result = await proto.handle_create_sprite(Message(MessageType.SPRITE_CREATE, {"table_id": str(table.table_id),
+        "sprite_data": {"sprite_id": "poly", "layer": "obstacles", "obstacle_type": "polygon", "label": "Wall",
+            "width": 1, "height": 1, "position": [999, 999], **fields}}), "client")
+    assert result.type == MessageType.SPRITE_RESPONSE
+    test_db.expire_all()
+    restored, ok = crud.load_table_from_db(test_db, str(table.table_id))
+    assert ok
+    entity = restored.find_entity_by_sprite_id("poly")
+    assert entity.position == (10, 20) and entity.width == 80 and entity.height == 40 and entity.name == "Wall"
+    assert entity.obstacle_data == {"vertices": [[10, 20], [90, 20], [50, 60]]}
+    assert result.data["sprite_data"]["obstacle_data"] == entity.obstacle_data
+    assert proto.broadcast_filtered.await_args.args[0].data["sprite_data"]["obstacle_data"] == entity.obstacle_data
+
+
+@pytest.mark.parametrize("vertices", [None, [], [[0, 0], [1, 1]], [[0, 0], [1, 1], [2, 2]],
+    [[True, 0], [10, 0], [0, 10]], [[float("nan"), 0], [10, 0], [0, 10]],
+    [[1_000_001, 0], [10, 0], [0, 10]], [[0, 0], [10_001, 0], [0, 10]], [[0, 0]] * 1001])
+async def test_polygon_creation_rejects_invalid_geometry_before_persistence(vertices, monkeypatch):
+    proto = _SpritesMixin()
+    proto.actions = AsyncMock()
+    monkeypatch.setattr(proto, "_get_session_id", lambda _msg: 1)
+    monkeypatch.setattr(proto, "_get_client_role", lambda _client: "owner")
+    proto.broadcast_filtered = AsyncMock()
+    result = await proto.handle_create_sprite(Message(MessageType.SPRITE_CREATE, {"table_id": "table",
+        "sprite_data": {"obstacle_type": "polygon", "layer": "obstacles", "polygon_vertices": vertices}}), "client")
+    assert result.type == MessageType.ERROR
+    proto.actions.create_sprite.assert_not_awaited()
+    proto.broadcast_filtered.assert_not_awaited()
 
 
 @pytest.mark.parametrize("shape", ["line", "polygon"])

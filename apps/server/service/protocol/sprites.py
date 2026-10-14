@@ -3,6 +3,7 @@ import math
 from typing import Any
 
 from core_table.protocol import Message, MessageType
+from core_table.shape_geometry import normalize_world_vertices
 from service.canvas_persistence_service import (
     count_controlled_sprites,
     load_entity_character_id,
@@ -156,6 +157,36 @@ class _SpritesMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'Insufficient permissions to create sprites'})
         if layer in _dm_layers and not is_dm(role):
             return Message(MessageType.ERROR, {'error': 'Only DMs can create sprites on this layer'})
+
+        if sprite_data.get('obstacle_type') == 'polygon':
+            try:
+                geometry = sprite_data.get('obstacle_data')
+                if geometry is not None and not isinstance(geometry, dict):
+                    raise ValueError('Polygon geometry must be an object')
+                vertices = normalize_world_vertices(geometry.get('vertices') if geometry is not None
+                    else sprite_data.get('polygon_vertices'), minimum=3)
+                xs, ys = [point[0] for point in vertices], [point[1] for point in vertices]
+                width, height = max(xs) - min(xs), max(ys) - min(ys)
+                if _sprite_dimension(width) is None or _sprite_dimension(height) is None:
+                    raise ValueError('Polygon bounds must be positive and at most 10000 per axis')
+                origin = vertices[0]
+                second = next((point for point in vertices if point != origin), origin)
+                if not any((second[0] - origin[0]) * (point[1] - origin[1])
+                    != (second[1] - origin[1]) * (point[0] - origin[0]) for point in vertices):
+                    raise ValueError('Polygon vertices must not all be collinear')
+                for field, expected in (('scale_x', 1), ('scale_y', 1), ('rotation', 0)):
+                    if field in sprite_data and _finite_number(sprite_data[field]) != expected:
+                        raise ValueError('New polygon geometry must use identity transforms')
+                name = sprite_data.get('name', sprite_data.get('label', 'Polygon Obstacle'))
+                if not isinstance(name, str) or len(name) > 100:
+                    raise ValueError('Polygon name must be text up to 100 characters')
+                sprite_data = {**sprite_data, 'obstacle_data': {'vertices': vertices}, 'name': name,
+                    'x': min(xs), 'y': min(ys), 'width': max(width, 1), 'height': max(height, 1)}
+                # Canonical geometry wins over stale duplicate legacy fields.
+                for field in ('polygon_vertices', 'position', 'coord_x', 'coord_y'):
+                    sprite_data.pop(field, None)
+            except ValueError as exc:
+                return Message(MessageType.ERROR, {'error': str(exc)})
 
         provided_id = sprite_data.get('sprite_id')
         try:

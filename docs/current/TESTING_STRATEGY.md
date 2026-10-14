@@ -211,6 +211,11 @@ restyle retains mixed selection. Shared paint/text resize and rotation, durable
 undo/redo across restart, mixed clipboard paste/undo and text deletion use the
 production editor controls and authenticated commands. Selection preferences
 remain isolated by session member after reload.
+Real pointer drags exercise the mixed selection's corner and snapped rotation
+handles. Each gesture must send one atomic command, converge on the other
+browser, and undo to the prior geometry. The runner also closes a polygon with
+canvas clicks, saves it through the DM dialog, and checks canonical dimensions,
+world vertices, peer delivery and reload persistence.
 The recorded-transport session workflow in
 `apps/server/tests/integration/test_trusted_session_workflow.py` binds sprite
 history preflight and persistence to the same disposable database as its other

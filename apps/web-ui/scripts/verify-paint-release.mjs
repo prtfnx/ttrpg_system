@@ -47,6 +47,14 @@ function installProbe() {
     if (probe.runtime === runtime) return;
     probe.runtime = runtime;
     const draft = runtime.setPaintDraft.bind(runtime);
+    const frame = runtime.setSelectionFrame.bind(runtime);
+    runtime.setSelectionFrame = (tableId, coordinates) => {
+      const accepted = frame(tableId, coordinates);
+      if (accepted) probe.selectionFrame = [...coordinates];
+      return accepted;
+    };
+    const clearFrame = runtime.clearSelectionFrame.bind(runtime);
+    runtime.clearSelectionFrame = () => { probe.selectionFrame = null; return clearFrame(); };
     runtime.setPaintDraft = (...args) => {
       const accepted = draft(...args);
       if (accepted && args[1] === 'local' && probe.inputTracking && probe.lastInput) {
@@ -97,6 +105,7 @@ function installProbe() {
     const send = ws.send.bind(ws);
     ws.send = raw => {
       const message = JSON.parse(raw);
+      if (message.type === 'canvas_command') probe.canvasCommandCount = (probe.canvasCommandCount ?? 0) + 1;
       if (probe.dropPreviews && ['paint_preview', 'paint_preview_cancel'].includes(message.type)) return;
       const id = message.data?.operation_id ?? message.message_id;
       probe.sent.set(id, performance.now());
@@ -497,6 +506,52 @@ try {
   }
   assert.deepEqual((await state(player.page)).committed.map(editable), beforeRestart.map(editable));
   assert.deepEqual((await savedSprite(dm.page, textId)).position, textAfterGroup.position);
+  console.log('Browser acceptance: mixed pointer resize and rotation handles');
+  await player.page.getByRole('button', { name: 'Select/Edit', exact: true }).click();
+  await selectRefs(player.page, [{ kind: 'paint', id: groupPaintId }, { kind: 'sprite', id: textId }]);
+  await player.page.evaluate(() => window.__paintRelease.runtime.getRenderEngine().set_camera(0, 0, 0.7 * devicePixelRatio));
+  await player.page.waitForFunction(() => window.__paintRelease.selectionFrame?.length === 8);
+  await player.page.evaluate(() => {
+    const p = window.__paintRelease, f = p.selectionFrame;
+    p.runtime.getRenderEngine().set_camera(f[0] - 100, f[1] - 100, 0.7 * devicePixelRatio);
+  });
+  const pointerBaseline = (await state(player.page)).committed.map(editable);
+  const pointerText = await savedSprite(dm.page, textId);
+  const frame = await player.page.evaluate(() => window.__paintRelease.selectionFrame);
+  const commandCount = await player.page.evaluate(() => window.__paintRelease.canvasCommandCount);
+  await drag(player.page, [frame[4], frame[5]],
+    [frame[0] + (frame[4] - frame[0]) * 1.15, frame[1] + (frame[5] - frame[1]) * 1.15]);
+  await editorReady(player.page); await converge(player.page, dm.page, 7);
+  assert.equal(await player.page.evaluate(() => window.__paintRelease.canvasCommandCount), commandCount + 1);
+  const pointerScaled = await savedSprite(dm.page, textId);
+  assert(pointerScaled.scale_x > pointerText.scale_x * 1.1 && pointerScaled.scale_x < pointerText.scale_x * 1.2);
+  await player.page.getByRole('button', { name: 'Undo editor action', exact: true }).click();
+  await editorReady(player.page); await converge(player.page, dm.page, 7);
+  assert.deepEqual((await state(player.page)).committed.map(editable), pointerBaseline);
+  assert.deepEqual((await savedSprite(dm.page, textId)).position, pointerText.position);
+  await selectRefs(player.page, [{ kind: 'paint', id: groupPaintId }, { kind: 'sprite', id: textId }]);
+  const rotation = await player.page.evaluate(() => {
+    const p = window.__paintRelease, f = p.selectionFrame;
+    const cx = (f[0] + f[4]) / 2, cy = (f[1] + f[5]) / 2;
+    const engine = p.runtime.getRenderEngine();
+    const zoom = engine.world_to_screen(1, 0)[0] - engine.world_to_screen(0, 0)[0];
+    const y = f[1] - 28 / zoom;
+    if (p.runtime.hitTestSelectionFrame(cx, y, 2) !== 'rotate') throw new Error('Rotation frame not pickable');
+    return { start: [cx, y], end: [cx + cy - y, cy], count: p.canvasCommandCount };
+  });
+  const rotationStart = await coordinates(player.page, ...rotation.start);
+  assert.equal(await player.page.evaluate(point => document.elementFromPoint(point.x, point.y)?.tagName,
+    rotationStart), 'CANVAS', 'Rotation handle must be inside the visible canvas');
+  await player.page.keyboard.down('Shift');
+  await drag(player.page, rotation.start, rotation.end);
+  await player.page.keyboard.up('Shift');
+  await editorReady(player.page); await converge(player.page, dm.page, 7);
+  assert.equal(await player.page.evaluate(() => window.__paintRelease.canvasCommandCount), rotation.count + 1);
+  assert(Math.abs((await savedSprite(dm.page, textId)).rotation - pointerText.rotation - 90) < 1e-6);
+  await player.page.getByRole('button', { name: 'Undo editor action', exact: true }).click();
+  await editorReady(player.page); await converge(player.page, dm.page, 7);
+  assert.deepEqual((await state(player.page)).committed.map(editable), pointerBaseline);
+  report.stages.push('real mixed pointer resize and snapped rotation: one atomic command per gesture, peer convergence and undo');
   await enableCombinedSelection(dm.page);
   await dm.page.getByRole('button', { name: 'Select/Edit', exact: true }).click();
   await selectRefs(dm.page, [{ kind: 'paint', id: groupPaintId }, { kind: 'sprite', id: textId }]);
@@ -519,6 +574,29 @@ try {
   await editorReady(dm.page);
   await player.page.waitForFunction(id => !window.__paintRelease.runtime.getRenderEngine().get_sprite_position(id), textId);
   report.stages.push('restart-persistent mixed undo/redo; member-isolated selection preference; authoritative mixed clipboard paste/undo and text deletion');
+  console.log('Browser acceptance: authoritative polygon toolbox creation');
+  await dm.page.getByRole('button', { name: 'Polygon Obstacle', exact: true }).click();
+  for (const point of [[700, 100], [850, 100], [800, 180], [700, 100]]) {
+    const position = await coordinates(dm.page, ...point);
+    await dm.page.mouse.click(position.x, position.y);
+  }
+  await dm.page.getByRole('dialog', { name: 'New Polygon Obstacle', exact: true }).waitFor();
+  const polygonDialog = dm.page.getByRole('dialog', { name: 'New Polygon Obstacle', exact: true });
+  await polygonDialog.getByLabel('Label (optional)', { exact: true }).fill('Persisted polygon');
+  await polygonDialog.getByRole('combobox').selectOption('map');
+  await dm.page.getByRole('button', { name: 'Create Obstacle', exact: true }).click();
+  await dm.page.getByRole('dialog', { name: 'New Polygon Obstacle', exact: true }).waitFor({ state: 'hidden' });
+  await player.page.waitForFunction(() => Object.values(window.__paintRelease.sprites)
+    .some(sprite => sprite.name === 'Persisted polygon'));
+  const polygonId = await player.page.evaluate(() => Object.values(window.__paintRelease.sprites)
+    .find(sprite => sprite.name === 'Persisted polygon').sprite_id);
+  const polygon = await savedSprite(player.page, polygonId);
+  assert.equal(polygon.obstacle_type, 'polygon'); assert.equal(polygon.layer, 'map');
+  assert(polygon.width > 145 && polygon.width < 155 && polygon.height > 75 && polygon.height < 85);
+  assert.equal(polygon.obstacle_data.vertices.length, 3);
+  await dm.page.reload(); await openPaint(dm);
+  assert.deepEqual((await savedSprite(dm.page, polygonId)).obstacle_data, polygon.obstacle_data);
+  report.stages.push('real polygon click flow: confirmed canonical dimensions and world geometry, peer delivery and reload persistence');
   let remaining = (await state(player.page)).committed.length;
   for (const object of (await state(player.page)).committed) {
     await player.page.evaluate(object => window.__paintRelease.paint.submitDelete(object.id, object.version), object);

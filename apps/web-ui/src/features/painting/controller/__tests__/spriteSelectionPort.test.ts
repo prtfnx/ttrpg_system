@@ -24,6 +24,13 @@ describe('runtime-owned sprite selection adapter', () => {
     const bounds = spriteSelectionBounds(sprite);
     [5, -5, 15, 15].forEach((value, index) => expect(bounds[index]).toBeCloseTo(value));
   });
+  it('uses authoritative world geometry for polygon/line bounds without rotating it a second time', () => {
+    const polygon = { ...sprite, scale: { x: 2, y: 3 }, worldVertices: [[90, -20], [150, 80], [70, 40]] as const };
+    expect(spriteSelectionBounds(polygon)).toEqual([70, -20, 150, 80]);
+    useGameStore.setState({ sprites: [polygon] });
+    const item = createSpriteSelectionPort(createMockWasmRuntime(), {} as WebClientProtocol).items('table')[0];
+    expect(item.geometryKey).toBe(JSON.stringify(polygon.worldVertices));
+  });
   it('distinguishes ownership from deletion and excludes hidden, inactive or spectator-editable sprites', () => {
     const runtime = createMockWasmRuntime(); const protocol = {} as WebClientProtocol;
     const port = createSpriteSelectionPort(runtime, protocol);

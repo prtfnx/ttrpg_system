@@ -242,6 +242,9 @@ Sprite hydration retains finite world vertices in the browser store as well
 as Rust. Legacy `{x, y}` polygon points normalize to coordinate pairs; malformed
 points do not become invented vertices at the origin. Line endpoints hydrate
 through the same representation.
+Selection uses their world-space bounds without applying scale or rotation a
+second time. A remote vertex change cancels an active gesture even when the
+sprite's anchor and transform fields have not changed.
 
 Canonical canvas sprite upserts replace the existing renderer sprite before
 installation. The renderer's add API appends; treating these updates as new

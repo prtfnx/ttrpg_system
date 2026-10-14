@@ -192,6 +192,16 @@ describe('PaintInteractionController', () => {
     expect(h.controller.getState().gestureActive).toBe(false);
     expect(h.transport.sendCanvasCommand).not.toHaveBeenCalled();
   });
+  it('cancels a group handle when authoritative world geometry changes without a transform change', () => {
+    const h = sharedSelection();
+    h.runtime.hitTestSelectionFrame.mockReturnValue('se');
+    h.controller.handlePointerDown(pointer(2, 60, 37));
+    const changed = h.sprites.items().map(sprite => ({ ...sprite, geometryKey: 'new-vertices' }));
+    vi.spyOn(h.sprites, 'items').mockReturnValue(changed);
+    h.controller.reconcileSelection();
+    expect(h.controller.getState().gestureActive).toBe(false);
+    expect(h.transport.sendCanvasCommand).not.toHaveBeenCalled();
+  });
 
   it('submits mixed group movement as one expected-state command, without per-member writes', () => {
     const { controller, scene, transport } = sharedSelection();

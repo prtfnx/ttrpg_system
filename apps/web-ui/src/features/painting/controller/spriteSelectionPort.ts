@@ -8,6 +8,10 @@ import type { SpriteSelectionPort } from './PaintInteractionController';
 import type { SelectionBounds } from './SelectionManager';
 
 export function spriteSelectionBounds(sprite: Sprite): SelectionBounds {
+  if (sprite.worldVertices?.length && sprite.worldVertices.every(point => point.every(Number.isFinite))) {
+    return [Math.min(...sprite.worldVertices.map(point => point[0])), Math.min(...sprite.worldVertices.map(point => point[1])),
+      Math.max(...sprite.worldVertices.map(point => point[0])), Math.max(...sprite.worldVertices.map(point => point[1]))];
+  }
   const width = (sprite.width ?? 50) * sprite.scale.x;
   const height = (sprite.height ?? 50) * sprite.scale.y;
   const angle = sprite.rotation * Math.PI / 180;
@@ -30,6 +34,7 @@ export function createSpriteSelectionPort(runtime: WasmRuntimePort, protocol: We
           expected: { x: sprite.x, y: sprite.y, width: sprite.width ?? 50, height: sprite.height ?? 50,
             scale_x: sprite.scale.x, scale_y: sprite.scale.y, rotation: sprite.rotation },
           bounds: spriteSelectionBounds(sprite),
+          geometryKey: sprite.worldVertices ? JSON.stringify(sprite.worldVertices) : undefined,
           canEdit: canInteract(store.sessionRole) && store.canControlSprite(sprite.id),
           canDelete: isDM(store.sessionRole) }));
     },

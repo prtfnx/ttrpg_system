@@ -67,6 +67,7 @@ export interface SelectionSprite {
   canEdit: boolean;
   canDelete?: boolean;
   expected?: SpriteExpectedTransform;
+  geometryKey?: string;
 }
 
 export interface SpriteSelectionPort {
@@ -407,7 +408,8 @@ export class PaintInteractionController {
     if (gesture?.kind === 'group' && gesture.sprites.some(original => {
       const current = visibleSprites.find(item => item.id === original.id);
       return !current || !current.canEdit || current.x !== original.x || current.y !== original.y
-        || JSON.stringify(current.expected) !== JSON.stringify(original.expected);
+        || JSON.stringify(current.expected) !== JSON.stringify(original.expected)
+        || current.geometryKey !== original.geometryKey;
     })) this.cancelGesture();
     this.syncSelection();
     this.emit();

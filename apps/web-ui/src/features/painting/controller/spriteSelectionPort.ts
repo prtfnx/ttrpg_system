@@ -43,11 +43,13 @@ export function createSpriteSelectionPort(runtime: WasmRuntimePort, protocol: We
         sprites: state.sprites.map(sprite => ({ ...sprite, isSelected: selected.has(sprite.id) })) }));
     },
     preview(id, x, y) { runtime.previewSelectionSprite(id, x, y); },
+    previewTransform(id, transform) { runtime.previewSelectionSpriteTransform(id, transform); },
     restore(tableId, id) {
       const store = useGameStore.getState();
       if (store.activeTableId !== tableId) return;
       const sprite = store.sprites.find(item => item.id === id && item.tableId === tableId);
-      if (sprite) runtime.previewSelectionSprite(id, sprite.x, sprite.y);
+      if (sprite) runtime.previewSelectionSpriteTransform(id, { x: sprite.x, y: sprite.y,
+        scale_x: sprite.scale.x, scale_y: sprite.scale.y, rotation: sprite.rotation });
     },
     move(tableId, id, x, y) { wasmBridgeService.commitSelectionMove(protocol, tableId, id, x, y); },
     remove(tableId, id) { protocol.removeSprite(id, tableId); },

@@ -4,7 +4,7 @@ Audience: contributors changing measurement, paint tools, reconciliation, or ren
 
 Status: usable. Completed measurements and paint objects are server-authoritative.
 
-Last source audit: 2026-10-08
+Last source audit: 2026-10-09
 
 ## Ownership
 
@@ -211,10 +211,23 @@ shortcuts while Paint or combined Select owns input. Ctrl/Cmd+C/X/V/D copies,
 cuts, pastes or duplicates the editable selection. Arrow keys nudge by one world
 unit; Shift uses ten. Ctrl/Cmd+Z undoes an accepted canvas action; Shift+Z or Y
 redoes it. These are server journal operations, not renderer-local undo.
+Undo/redo also works in default separate sprite-selection mode. Accepted normal
+sprite transforms, sprite create/remove and standalone text edits share the
+paint journal. Stat/combat changes are not reversible editor actions; current
+permissions still gate every inverse. Text undo/redo advances text revisions.
 The panel also exposes clipboard/history buttons and relative scale-percent
 and rotation-degree inputs. Group scale preserves proportions and rotation
-uses the editable selection's bounds center. Group pointer handles are not
-implemented. Single-paint handles keep their existing behavior.
+uses the editable selection's bounds center. A shared frame also provides four
+corner handles and an outward rotation handle. Corner dragging preserves the
+opposite corner and proportions; Shift snaps rotation to 15 degrees. The frame
+covers editable members only. Single-paint handles keep their existing behavior.
+One pointer gesture previews all members locally and submits one atomic command
+on release. Cancellation, capture loss, role/table changes and remote changes
+to any captured paint version or sprite transform discard the gesture and restore
+current authoritative state. No intermediate pointer sample writes to storage.
+The frame and previews go through `WasmRuntimePort`; group math lives in
+`controller/selectionTransforms.ts`. Controller, adapter and geometry regressions
+live in `features/painting/controller/__tests__/`.
 Form controls keep normal text-editing keyboard behavior.
 Shared input routing also suppresses the legacy Ctrl/Cmd+X route, leaving cut
 with the same authoritative selection command owner as copy and paste.

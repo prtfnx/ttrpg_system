@@ -86,6 +86,9 @@ function harness(committed: PaintObject[] = []) {
     hitTestPaintHandle: vi.fn((): string | null => null),
     selectPaintObject: vi.fn(() => true),
     clearPaintObjectSelection: vi.fn(),
+    setSelectionFrame: vi.fn(() => true),
+    clearSelectionFrame: vi.fn(),
+    hitTestSelectionFrame: vi.fn((): string | null => null),
   };
   const captured = new Set<number>();
   const canvas = document.createElement('canvas');
@@ -130,14 +133,65 @@ describe('PaintInteractionController', () => {
     const owner = new CanvasCommandController(transport, { onResync: vi.fn(), onSelection: refs => h.controller.replaceSelection(refs) });
     owner.selectScope(TABLE, 7);
     h.controller.setCanvasCommandPort(owner);
-    h.controller.setSpriteSelectionPort({ items: () => [{ id: 'sprite', x: 35, y: 5, bounds: [35, 5, 50, 15],
+    const sprites = { items: () => [{ id: 'sprite', x: 35, y: 5, bounds: [35, 5, 50, 15] as const,
       canEdit: true, canDelete: true,
       expected: { x: 35, y: 5, width: 15, height: 10, scale_x: 1, scale_y: 1, rotation: 0 } }],
-    hitTest: () => null, select: vi.fn(), preview: vi.fn(), restore: vi.fn(), move: vi.fn(), remove: vi.fn() });
+    hitTest: () => null, select: vi.fn(), preview: vi.fn(), previewTransform: vi.fn(), restore: vi.fn(), move: vi.fn(), remove: vi.fn() };
+    h.controller.setSpriteSelectionPort(sprites);
     h.controller.setSelectionMode('combined'); h.controller.setSelectOnly(true);
     h.controller.replaceSelection([{ kind: 'paint', id: OBJECT_ID }, { kind: 'sprite', id: 'sprite' }]);
-    return { ...h, owner, transport };
+    return { ...h, owner, transport, sprites };
   }
+
+  it('resizes a mixed group from a shared corner with one durable command and full local previews', () => {
+    const h = sharedSelection();
+    h.runtime.hitTestSelectionFrame.mockReturnValue('se');
+    h.controller.handlePointerDown(pointer(2, 60, 37)); // World corner (50,17), opposite (4,5).
+    h.controller.handlePointerMove(pointer(2, 106, 49)); // Scale two around the fixed opposite corner.
+    expect(h.sprites.previewTransform).toHaveBeenLastCalledWith('sprite', expect.objectContaining({ scale_x: 2, scale_y: 2 }));
+    expect(h.transport.sendCanvasCommand).not.toHaveBeenCalled();
+    h.controller.handlePointerUp(pointer(2, 106, 49));
+    expect(h.transport.sendCanvasCommand).toHaveBeenCalledOnce();
+    expect(h.transport.sendCanvasCommand.mock.lastCall![0]).toMatchObject({ mode: 'transform',
+      transform: { pivot_x: 4, pivot_y: 5, scale: 2, rotation: 0 }, members: [{ kind: 'paint' }, { kind: 'sprite' }] });
+    expect(h.scene.submitUpdate).not.toHaveBeenCalled();
+    expect(h.sprites.restore).toHaveBeenCalledWith(TABLE, 'sprite');
+    expect(h.runtime.clearPaintDraft).toHaveBeenCalledWith(`selection:${OBJECT_ID}`);
+  });
+
+  it('rotates a mixed group around its shared center with one command', () => {
+    const h = sharedSelection();
+    h.runtime.hitTestSelectionFrame.mockReturnValue('rotate');
+    h.controller.handlePointerDown(pointer(2, 37, -3)); // (27,-23), above center (27,11).
+    h.controller.handlePointerUp(pointer(2, 71, 31)); // (61,11), quarter turn.
+    expect(h.transport.sendCanvasCommand.mock.lastCall![0]).toMatchObject({ mode: 'transform',
+      transform: { pivot_x: 27, pivot_y: 11, scale: 1, rotation: Math.PI / 2 } });
+    expect(h.sprites.previewTransform).toHaveBeenLastCalledWith('sprite', expect.objectContaining({ rotation: 90 }));
+  });
+
+  it.each(['cancel', 'capture-loss'] as const)('restores mixed previews without writes after handle %s', reason => {
+    const h = sharedSelection();
+    h.runtime.hitTestSelectionFrame.mockReturnValue('se');
+    h.controller.handlePointerDown(pointer(2, 60, 37));
+    h.controller.handlePointerMove(pointer(2, 104, 49));
+    if (reason === 'cancel') h.controller.handlePointerCancel(pointer(2, 104, 49));
+    else h.controller.handleLostPointerCapture(pointer(2, 104, 49));
+    expect(h.transport.sendCanvasCommand).not.toHaveBeenCalled();
+    expect(h.controller.getState().gestureActive).toBe(false);
+    expect(h.sprites.restore).toHaveBeenCalledWith(TABLE, 'sprite');
+    expect(h.runtime.setSelectionFrame).toHaveBeenLastCalledWith(TABLE, [4, 5, 50, 5, 50, 17, 4, 17]);
+  });
+
+  it('cancels a group handle when authoritative sprite dimensions change without movement', () => {
+    const h = sharedSelection();
+    h.runtime.hitTestSelectionFrame.mockReturnValue('se');
+    h.controller.handlePointerDown(pointer(2, 60, 37));
+    const changed = h.sprites.items().map(sprite => ({ ...sprite, expected: { ...sprite.expected, width: 25 } }));
+    vi.spyOn(h.sprites, 'items').mockReturnValue(changed);
+    h.controller.reconcileSelection();
+    expect(h.controller.getState().gestureActive).toBe(false);
+    expect(h.transport.sendCanvasCommand).not.toHaveBeenCalled();
+  });
 
   it('submits mixed group movement as one expected-state command, without per-member writes', () => {
     const { controller, scene, transport } = sharedSelection();

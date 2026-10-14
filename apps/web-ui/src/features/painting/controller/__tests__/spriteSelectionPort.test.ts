@@ -52,7 +52,9 @@ describe('runtime-owned sprite selection adapter', () => {
     port.preview('sprite', 20, 30);
     useGameStore.setState({ sprites: [{ ...sprite, x: 80, y: 90 }], layerVisibility: { tokens: false } });
     port.restore('table', 'sprite');
-    expect(runtime.previewSelectionSprite).toHaveBeenLastCalledWith('sprite', 80, 90);
+    expect(runtime.previewSelectionSpriteTransform).toHaveBeenLastCalledWith('sprite', {
+      x: 80, y: 90, scale_x: sprite.scale.x, scale_y: sprite.scale.y, rotation: sprite.rotation,
+    });
   });
 
   it('never restores removed sprites or a different active table', () => {

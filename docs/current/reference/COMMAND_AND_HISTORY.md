@@ -2,8 +2,8 @@
 
 Audience: contributors changing canvas mutations, selection, or undo/redo.
 
-Status: partial. Mixed-domain transactions, browser group commands and durable
-paint/sprite editor history exist. Group pointer handles remain separate work.
+Status: usable. Mixed-domain transactions, shared transform handles and durable
+paint/sprite editor history use one authoritative canvas command service.
 
 Last source audit: 2026-10-09
 
@@ -319,11 +319,10 @@ pending confirmations, not undo steps. Paint's retry ledger is an idempotency
 record, not an undo journal. Multiplayer undo must not treat remote events or
 unconfirmed previews as accepted local edits.
 
-## Missing
+## Boundaries
 
 Stat/combat commands and trusted in-memory Python domain calls do not enter
-reversible editor history. Group resize and rotation
-currently use panel controls, not group pointer handles. Transport batches
-cannot supply atomicity.
+reversible editor history. Transport batches cannot supply atomicity. Groups
+remain local selection references, not persistent scene entities.
 See [Measurement and painting](../features/MEASUREMENT_AND_PAINTING.md) for the
 currently supported selection operations and limits.

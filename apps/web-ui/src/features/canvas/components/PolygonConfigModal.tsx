@@ -54,9 +54,16 @@ export const PolygonConfigModal: React.FC = () => {
     const handler = (e: Event) => {
       if (!tableId || !isDM(role) || draft || pending.current) return;
       const vertices = (e as CustomEvent<{ vertices?: Point[] }>).detail?.vertices;
-      if (!Array.isArray(vertices) || vertices.length < 3 || vertices.length > 1000
+      if (Array.isArray(vertices) && vertices.length > 1000) {
+        setError('Polygon exceeds the 1,000-vertex limit. No object was saved. Draw a simpler polygon.');
+        return;
+      }
+      if (!Array.isArray(vertices) || vertices.length < 3
         || vertices.some(v => !v || !Number.isFinite(v.x) || !Number.isFinite(v.y)
-          || Math.abs(v.x) > 1_000_000 || Math.abs(v.y) > 1_000_000)) return;
+          || Math.abs(v.x) > 1_000_000 || Math.abs(v.y) > 1_000_000)) {
+        setError('Polygon geometry is invalid. No object was saved. Draw a new polygon.');
+        return;
+      }
       setDraft({ id: crypto.randomUUID(), tableId, vertices: vertices.map(v => ({ ...v })), layer: DEFAULT_LAYER, label: '' });
       setError(null);
     };
@@ -114,7 +121,7 @@ export const PolygonConfigModal: React.FC = () => {
     }
   }, [draft, tableId, role, protocol, close]);
 
-  if (!draft) return null;
+  if (!draft) return error ? <div role="alert">{error} <button onClick={close}>Dismiss</button></div> : null;
 
   return (
     <div className={styles.overlay}>

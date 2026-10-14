@@ -246,6 +246,9 @@ Table, user, role, protocol or renderer changes cancel the dialog and in-progres
 Rust polygon input. Late confirmations cannot close a newer draft. The same
 cancellation applies on unmount; a cancelled save may still have committed.
 `PolygonConfigModal.test.tsx` covers these lifecycle and rejection paths.
+Invalid or over-1,000-vertex completions show a dismissible error and send
+nothing. The client never truncates a polygon or silently drops its limit error;
+dismissing the message or starting a valid polygon leaves the tool usable.
 
 Polygon creation accepts coordinate pairs or legacy
 object points, derives dimensions and anchor from their bounds, and requires

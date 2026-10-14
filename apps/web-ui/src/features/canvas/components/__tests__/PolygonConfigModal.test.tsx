@@ -118,5 +118,17 @@ describe('authoritative polygon creation', () => {
     render(<PolygonConfigModal />);
     dispatchPolygonCreated([{ x: 1, y: 1 }]); dispatchPolygonCreated([{ x: NaN, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 0 }]);
     expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('alert')).toHaveTextContent('Polygon geometry is invalid');
+    expect(h.protocol.sendMessage).not.toHaveBeenCalled();
+  });
+  it('reports an oversized draft instead of silently discarding or truncating it', () => {
+    render(<PolygonConfigModal />);
+    dispatchPolygonCreated(Array.from({ length: 1001 }, (_, x) => ({ x, y: x % 2 })));
+    expect(screen.getByRole('alert')).toHaveTextContent('1,000-vertex limit');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(h.protocol.sendMessage).not.toHaveBeenCalled(); expect(h.engine.add_sprite_to_layer).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+    dispatchPolygonCreated(); expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });

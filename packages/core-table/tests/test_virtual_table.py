@@ -23,6 +23,27 @@ def entity_id(entity: Entity) -> int:
 
 
 class TestVirtualTableInit:
+    def test_legacy_polygon_points_normalize_before_movement_and_reload(self):
+        table = make_table(500, 500)
+        original = {"vertices": [{"x": 10, "y": 20}, {"x": 50, "y": 20}, {"x": 30, "y": 60}], "label": "Wall"}
+        entity = add_entity(table, x=10, y=20, obstacle_type="polygon", obstacle_data=original)
+        assert entity.obstacle_data == {"vertices": [[10, 20], [50, 20], [30, 60]], "label": "Wall"}
+        assert isinstance(original["vertices"][0], dict)
+        table.move_entity(entity_id(entity), (30, 50))
+        restored = Entity.from_dict(entity.to_dict())
+        assert restored.obstacle_data == {"vertices": [[30, 50], [70, 50], [50, 90]], "label": "Wall"}
+
+    def test_invalid_historic_shape_data_is_not_erased_on_load(self):
+        geometry = {"vertices": [{"x": "invalid", "y": 2}]}
+        entity = Entity("Legacy", (0, 0), "obstacles", obstacle_type="polygon", obstacle_data=geometry)
+        assert Entity.from_dict(entity.to_dict()).obstacle_data == geometry
+
+    @pytest.mark.parametrize("value", [None, [[True, 1]], [[float("inf"), 1]], [[1_000_001, 1]], [[1, 2, 3]], [[1, "2"]]], ids=str)
+    def test_world_vertex_boundary_rejects_malformed_values(self, value):
+        from core_table.shape_geometry import normalize_world_vertices
+        with pytest.raises(ValueError):
+            normalize_world_vertices(value)
+
     def test_defaults(self):
         t = make_table()
         assert t.width == 20

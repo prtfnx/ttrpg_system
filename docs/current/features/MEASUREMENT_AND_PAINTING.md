@@ -248,6 +248,11 @@ Sprite hydration retains finite world vertices in the browser store as well
 as Rust. Legacy `{x, y}` polygon points normalize to coordinate pairs; malformed
 points do not become invented vertices at the origin. Line endpoints hydrate
 through the same representation.
+Core-table also normalizes valid historic object points when constructing or
+loading an entity, so movement and shared history operate on coordinate pairs.
+It preserves malformed historic geometry for inspection rather than deleting
+it during load. `core_table/shape_geometry.py` validates finite coordinates
+within ±1,000,000 and at most 1,000 vertices.
 Selection uses their world-space bounds without applying scale or rotation a
 second time. A remote vertex change cancels an active gesture even when the
 sprite's anchor and transform fields have not changed.

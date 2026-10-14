@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 from .entities import Wall
+from .shape_geometry import normalize_world_vertices
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +114,13 @@ class Entity:
         # Obstacle metadata (for client-side lighting/collision)
         self.obstacle_type = obstacle_type  # "rectangle", "circle", "polygon", "line", None
         self.obstacle_data = obstacle_data  # Shape-specific data dict
+        if obstacle_type in {"line", "polygon"} and isinstance(obstacle_data, dict) and "vertices" in obstacle_data:
+            try:
+                self.obstacle_data = {**obstacle_data, "vertices": normalize_world_vertices(obstacle_data["vertices"])}
+            except ValueError:
+                # Preserve malformed historic data for inspection; do not
+                # silently replace or erase its geometry during hydration.
+                pass
 
         # Character binding
         self.character_id = character_id

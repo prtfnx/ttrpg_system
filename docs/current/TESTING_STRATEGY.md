@@ -211,6 +211,11 @@ restyle retains mixed selection. Shared paint/text resize and rotation, durable
 undo/redo across restart, mixed clipboard paste/undo and text deletion use the
 production editor controls and authenticated commands. Selection preferences
 remain isolated by session member after reload.
+The recorded-transport session workflow in
+`apps/server/tests/integration/test_trusted_session_workflow.py` binds sprite
+history preflight and persistence to the same disposable database as its other
+worker services. It exercises production dispatch without using the configured
+application database.
 
 The browser script fixes the following local acceptance budgets before sampling:
 

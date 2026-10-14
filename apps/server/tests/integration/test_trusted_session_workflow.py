@@ -17,7 +17,7 @@ from service import canvas_persistence_service, game_session_protocol
 from service.choice_encounter_persistence_service import ChoiceEncounterPersistenceService
 from service.combat_engine import CombatEngine
 from service.combat_persistence_service import CombatPersistenceService
-from service.protocol import assets, combat, session
+from service.protocol import assets, base, canvas, combat, session
 from sqlalchemy.orm import sessionmaker
 
 
@@ -45,7 +45,7 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
     test_db, test_db_engine, game_session_with_players, test_user, player_user, monkeypatch,
 ):
     factory = sessionmaker(bind=test_db_engine, expire_on_commit=False)
-    for module in (database, canvas_persistence_service, combat, session):
+    for module in (database, canvas_persistence_service, base, canvas, combat, session):
         monkeypatch.setattr(module, "SessionLocal", factory)
     asset_provider = SimpleNamespace(request_session_assets=AsyncMock(return_value=[]))
     monkeypatch.setattr(game_session_protocol, "get_server_asset_manager", lambda: asset_provider)

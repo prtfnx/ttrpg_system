@@ -4,7 +4,7 @@ Audience: contributors changing measurement, paint tools, reconciliation, or ren
 
 Status: usable. Completed measurements and paint objects are server-authoritative.
 
-Last source audit: 2026-10-09
+Last source audit: 2026-10-12
 
 ## Ownership
 
@@ -237,6 +237,15 @@ sprite editor saves. It releases subscriptions on acknowledgement, rejection,
 cancellation, send failure, or a fifteen-second timeout. A timeout is uncertain
 and does not automatically resend. Text creation and editing use this boundary;
 cancelling the UI cannot retract a command already accepted by the server.
+
+The DM polygon dialog captures the table and sprite ID when geometry completes.
+It sends complete world vertices, dimensions, layer and name, then waits for
+confirmation without inserting a local sprite. Rejection retains the draft;
+an explicit retry keeps its sprite ID. Duplicate submissions are disabled.
+Table, user, role, protocol or renderer changes cancel the dialog and in-progress
+Rust polygon input. Late confirmations cannot close a newer draft. The same
+cancellation applies on unmount; a cancelled save may still have committed.
+`PolygonConfigModal.test.tsx` covers these lifecycle and rejection paths.
 
 Polygon creation accepts coordinate pairs or legacy
 object points, derives dimensions and anchor from their bounds, and requires

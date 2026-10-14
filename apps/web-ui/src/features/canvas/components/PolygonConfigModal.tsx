@@ -1,13 +1,17 @@
 import { useGameStore } from '@/store';
+import { isDM } from '@features/session/types/roles';
 import { useProtocol } from '@lib/api';
 import { useRenderEngine } from '@lib/wasm/runtime';
 import { createMessage, MessageType } from '@lib/websocket';
-import React, { useCallback, useEffect, useId, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { sendConfirmedSpriteCommand } from '../services/spriteCommands';
 import styles from './CanvasConfigModal.module.css';
 
 interface Point { x: number; y: number; }
 
 interface PolygonDraft {
+  id: string;
+  tableId: string;
   vertices: Point[];
   layer: string;
   label: string;
@@ -20,22 +24,45 @@ export const PolygonConfigModal: React.FC = () => {
   const { protocol } = useProtocol();
   const renderEngine = useRenderEngine();
   const tableId = useGameStore(s => s.activeTableId);
+  const actorId = useGameStore(s => s.userId);
+  const role = useGameStore(s => s.sessionRole);
 
   const [draft, setDraft] = useState<PolygonDraft | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pending = useRef<AbortController | null>(null);
+
+  const close = useCallback(() => {
+    renderEngine?.cancel_current_operation();
+    pending.current?.abort();
+    pending.current = null;
+    setDraft(null);
+    setSaving(false);
+    setError(null);
+  }, [renderEngine]);
+
+  useEffect(() => {
+    close();
+    return () => {
+      pending.current?.abort();
+      renderEngine?.cancel_current_operation();
+    };
+  }, [tableId, actorId, role, protocol, renderEngine, close]);
 
   // Listen for polygonCreated DOM event from Rust
   useEffect(() => {
     const handler = (e: Event) => {
-      const { vertices } = (e as CustomEvent<{ vertices: Point[] }>).detail;
-      setDraft({ vertices, layer: DEFAULT_LAYER, label: '' });
+      if (!tableId || !isDM(role) || draft || pending.current) return;
+      const vertices = (e as CustomEvent<{ vertices?: Point[] }>).detail?.vertices;
+      if (!Array.isArray(vertices) || vertices.length < 3 || vertices.length > 1000
+        || vertices.some(v => !v || !Number.isFinite(v.x) || !Number.isFinite(v.y)
+          || Math.abs(v.x) > 1_000_000 || Math.abs(v.y) > 1_000_000)) return;
+      setDraft({ id: crypto.randomUUID(), tableId, vertices: vertices.map(v => ({ ...v })), layer: DEFAULT_LAYER, label: '' });
+      setError(null);
     };
     window.addEventListener('polygonCreated', handler);
     return () => window.removeEventListener('polygonCreated', handler);
-  }, []);
-
-  const close = useCallback(() => {
-    setDraft(null);
-  }, []);
+  }, [tableId, role, draft]);
 
   useEffect(() => {
     if (!draft) return;
@@ -48,12 +75,10 @@ export const PolygonConfigModal: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [draft, close]);
 
-  const submit = useCallback(() => {
-    if (!draft || !tableId || !protocol) return;
+  const submit = useCallback(async () => {
+    if (!draft || draft.tableId !== tableId || !isDM(role) || !protocol || pending.current) return;
 
     const layer = draft.layer;
-    // Generate ID once — used for both WASM and server to keep them in sync
-    const spriteId = crypto.randomUUID();
 
     // Compute bounding box for width/height
     const xs = draft.vertices.map(v => v.x);
@@ -63,42 +88,31 @@ export const PolygonConfigModal: React.FC = () => {
     const width = Math.max(maxX - minX, 1);
     const height = Math.max(maxY - minY, 1);
 
-    // Add polygon sprite to WASM render engine with the pre-generated ID
-    if (renderEngine) {
-      const spriteJson = {
-        id: spriteId,
-        table_id: tableId,
-        world_x: minX,
-        world_y: minY,
-        width,
-        height,
-        scale_x: 1.0,
-        scale_y: 1.0,
-        rotation: 0.0,
-        layer,
-        texture_id: '',
-        tint_color: [1, 1, 1, 1],
-        obstacle_type: 'polygon',
-        polygon_vertices: draft.vertices.map(v => [v.x, v.y]),
-        controlled_by: [],
-      };
-      renderEngine.add_sprite_to_layer(layer, spriteJson);
-    }
-
-    // Send sprite_create to server with the same ID
     const spriteData = {
-      sprite_id: spriteId,
-      table_id: tableId,
+      sprite_id: draft.id,
+      table_id: draft.tableId,
       layer,
       obstacle_type: 'polygon',
-      polygon_vertices: draft.vertices,
-      coord_x: minX,
-      coord_y: minY,
-      label: draft.label,
+      obstacle_data: { vertices: draft.vertices.map(v => [v.x, v.y]) },
+      x: minX, y: minY, width, height,
+      name: draft.label.trim() || 'Polygon Obstacle',
+      texture_path: '',
     };
-    protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, { table_id: tableId, sprite_data: spriteData } as unknown as Record<string, unknown>));
-    setDraft(null);
-  }, [draft, renderEngine, tableId, protocol]);
+    const abort = new AbortController();
+    pending.current = abort;
+    setSaving(true);
+    setError(null);
+    try {
+      await sendConfirmedSpriteCommand(protocol, createMessage(MessageType.SPRITE_CREATE,
+        { table_id: draft.tableId, sprite_data: spriteData }, 2), abort.signal);
+      if (!abort.signal.aborted && pending.current === abort) close();
+    } catch (cause) {
+      if (abort.signal.aborted || pending.current !== abort) return;
+      pending.current = null;
+      setSaving(false);
+      setError(cause instanceof Error ? cause.message : 'Polygon could not be saved.');
+    }
+  }, [draft, tableId, role, protocol, close]);
 
   if (!draft) return null;
 
@@ -112,7 +126,7 @@ export const PolygonConfigModal: React.FC = () => {
 
         <label className={styles.row}>
           Layer
-          <select value={draft.layer} onChange={e => setDraft(prev => prev ? { ...prev, layer: e.target.value } : prev)}>
+          <select disabled={saving} value={draft.layer} onChange={e => setDraft(prev => prev ? { ...prev, layer: e.target.value } : prev)}>
             <option value="obstacles">Obstacles</option>
             <option value="map">Map</option>
           </select>
@@ -122,6 +136,8 @@ export const PolygonConfigModal: React.FC = () => {
           Label (optional)
           <input
             type="text"
+            disabled={saving}
+            maxLength={100}
             value={draft.label}
             onChange={e => setDraft(prev => prev ? { ...prev, label: e.target.value } : prev)}
             placeholder="e.g. Wall, Pillar"
@@ -129,9 +145,10 @@ export const PolygonConfigModal: React.FC = () => {
           />
         </label>
 
+        {error && <p role="alert">{error}</p>}
         <div className={styles.actions}>
           <button onClick={close} className={styles.btnSecondary}>Cancel</button>
-          <button onClick={submit} className={styles.btnPrimary}>Create Obstacle</button>
+          <button onClick={() => void submit()} disabled={saving || !protocol} className={styles.btnPrimary}>{saving ? 'Saving…' : 'Create Obstacle'}</button>
         </div>
       </div>
     </div>

@@ -86,6 +86,18 @@ type RenderEngineExt = RenderEngine & {
 
 const OPTIMISTIC_TIMEOUT = 10_000;
 
+function worldVertices(value: unknown): Array<[number, number]> | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const points: Array<[number, number]> = [];
+  for (const point of value) {
+    const pair = Array.isArray(point) ? point : point && typeof point === 'object'
+      && 'x' in point && 'y' in point ? [point.x, point.y] : [];
+    if (pair.length !== 2 || !pair.every(coordinate => typeof coordinate === 'number' && Number.isFinite(coordinate))) return undefined;
+    points.push([pair[0] as number, pair[1] as number]);
+  }
+  return points;
+}
+
 function parseRecord(value: unknown): Record<string, unknown> {
   try {
     const parsed: unknown = typeof value === 'string' ? JSON.parse(value) : value;
@@ -609,14 +621,8 @@ export class SpriteSyncService {
 
   private addPolygonToWasm(engine: RenderEngine, spriteData: TableScopedSpritePayload, vertices: Array<unknown>, layer: string): void {
     // Normalize vertices: server sends [[x,y]] arrays; client creation sends [{x,y}] objects
-    const normalizedVerts: Array<[number, number]> = (vertices as Array<unknown>).map(v => {
-      if (Array.isArray(v) && v.length >= 2) return [Number(v[0]), Number(v[1])] as [number, number];
-      if (v && typeof v === 'object' && 'x' in v && 'y' in v) {
-        const o = v as { x: number; y: number };
-        return [o.x, o.y] as [number, number];
-      }
-      return [0, 0] as [number, number];
-    });
+    const normalizedVerts = worldVertices(vertices);
+    if (!normalizedVerts?.length) return;
 
     const spriteId = spriteData.sprite_id || spriteData.id || `polygon_${Date.now()}`;
     let x = 0, y = 0;
@@ -653,6 +659,7 @@ export class SpriteSyncService {
         width: wasmSprite.width, height: wasmSprite.height,
         scale: { x: wasmSprite.scale_x, y: wasmSprite.scale_y }, rotation: spriteData.rotation ?? 0,
         controlledBy: wasmSprite.controlled_by.map(String), metadata: spriteData.metadata,
+        worldVertices: normalizedVerts,
         syncStatus: 'synced' as const,
       });
     } catch { /* non-critical */ }
@@ -706,7 +713,7 @@ export class SpriteSyncService {
       // controlled_by: normalize to number[] — server may send string IDs
       controlled_by: normalizedControllerIds,
       obstacle_type: spriteData.obstacle_type || null,
-      polygon_vertices: spriteData.polygon_vertices ?? (Array.isArray(line.vertices) ? line.vertices : null) ?? lineVertices,
+      polygon_vertices: worldVertices(spriteData.polygon_vertices ?? line.vertices ?? lineVertices) ?? null,
       shape_filled: shapeFilled,
     };
 
@@ -719,6 +726,7 @@ export class SpriteSyncService {
         tableId: wasmSprite.table_id, x, y, layer,
         texture: text ? '__TEXT__' : assetId || '', width: wasmSprite.width, height: wasmSprite.height,
         metadata: spriteData.metadata,
+        worldVertices: wasmSprite.polygon_vertices ?? undefined,
         scale: { x: wasmSprite.scale_x, y: wasmSprite.scale_y }, rotation: spriteData.rotation ?? 0,
         characterId: spriteData.character_id,
         controlledBy: normalizedControllerIds.map(String),

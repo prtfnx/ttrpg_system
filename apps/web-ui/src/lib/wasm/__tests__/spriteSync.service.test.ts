@@ -147,6 +147,7 @@ describe('SpriteSyncService', () => {
       service.addSpriteToWasm({ sprite_id: 'wire-line', table_id: 'tbl1', layer: 'obstacles', obstacle_type: 'line',
         obstacle_data: JSON.stringify({ x1: 10, y1: 60, x2: 90, y2: 20 }) });
       expect(engine.add_sprite_to_layer).toHaveBeenCalledWith('obstacles', expect.objectContaining({ polygon_vertices: [[10, 60], [90, 20]] }));
+      expect(mockAddSprite).toHaveBeenCalledWith(expect.objectContaining({ worldVertices: [[10, 60], [90, 20]] }));
     });
     it('converts protocol degrees for rendering but keeps store rotation in degrees', () => {
       service.addSpriteToWasm({ sprite_id: 'rotated', table_id: 'tbl1', layer: 'tokens', rotation: 90 });
@@ -367,7 +368,18 @@ describe('SpriteSyncService', () => {
       position: [10, 20], width: 20, height: 10, scale_x: 2, scale_y: 3, rotation: 45,
       controlled_by: [42], metadata: '{"saved":true}' });
     expect(mockAddSprite).toHaveBeenCalledWith(expect.objectContaining({ id: 'poly', x: 10, y: 20,
-      width: 20, height: 10, scale: { x: 2, y: 3 }, rotation: 45, controlledBy: ['42'], metadata: '{"saved":true}' }));
+      width: 20, height: 10, scale: { x: 2, y: 3 }, rotation: 45, controlledBy: ['42'], metadata: '{"saved":true}',
+      worldVertices: [[0, 0], [20, 0], [10, 10]] }));
+  });
+
+  it('normalizes legacy object vertices without synthesizing geometry for invalid points', () => {
+    service.addSpriteToWasm({ sprite_id: 'poly', table_id: 'tbl1', obstacle_type: 'polygon', layer: 'obstacles',
+      polygon_vertices: [{ x: 10, y: 20 }, { x: 30, y: 20 }, { x: 10, y: 40 }] });
+    expect(mockAddSprite).toHaveBeenCalledWith(expect.objectContaining({ worldVertices: [[10, 20], [30, 20], [10, 40]] }));
+    engine.add_sprite_to_layer.mockClear();
+    service.addSpriteToWasm({ sprite_id: 'invalid', table_id: 'tbl1', obstacle_type: 'polygon', layer: 'obstacles',
+      polygon_vertices: [{ x: NaN, y: 20 }] });
+    expect(engine.add_sprite_to_layer).not.toHaveBeenCalled();
   });
 
   describe('optimistic timers', () => {

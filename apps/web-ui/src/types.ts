@@ -27,6 +27,8 @@ export interface Sprite {
   height?: number;
   scale: { x: number; y: number };
   rotation: number;
+  /** Authoritative polygon/line points, already transformed into world coordinates. */
+  worldVertices?: ReadonlyArray<readonly [number, number]>;
   // Token stats (independent of character)
   hp?: number;
   maxHp?: number;

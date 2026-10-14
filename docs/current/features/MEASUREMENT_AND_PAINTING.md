@@ -238,6 +238,11 @@ sprite upsert to the sender and visible peers; clients do not independently
 reapply the transform to those vertices. Database reloads preserve the result.
 The protocol regressions live in `apps/server/tests/unit/test_shape_sprites.py`.
 
+Sprite hydration retains finite world vertices in the browser store as well
+as Rust. Legacy `{x, y}` polygon points normalize to coordinate pairs; malformed
+points do not become invented vertices at the origin. Line endpoints hydrate
+through the same representation.
+
 Canonical canvas sprite upserts replace the existing renderer sprite before
 installation. The renderer's add API appends; treating these updates as new
 instances would leave stale duplicates visible. Polygon hydration retains

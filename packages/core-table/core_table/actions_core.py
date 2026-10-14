@@ -7,8 +7,8 @@ import typing
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .async_actions_protocol import LAYERS, ActionResult, AsyncActionsProtocol, Position
+from .sprite_commands import atomic_sprite_command, transform_sprite_geometry
 from .table import VirtualTable
-from .sprite_commands import atomic_sprite_command
 
 if typing.TYPE_CHECKING:
     pass
@@ -26,6 +26,7 @@ class ActionsCore(AsyncActionsProtocol):
         self.undo_stack: List[Dict[str, Any]] = []
         self.redo_stack: List[Dict[str, Any]] = []
         self.max_history = 100
+        self.persist_sprite_command: Optional[typing.Callable[[VirtualTable, dict, ActionResult, int], typing.Awaitable[bool]]] = None
 
         # Persistence optimization: batch and debounce saves
         self._dirty_tables: Dict[str, int] = {}  # table_id -> session_id
@@ -544,8 +545,10 @@ class ActionsCore(AsyncActionsProtocol):
                 return ActionResult(False, f"Sprite {sprite_id} not found")
 
             old_scale = (entity.scale_x, entity.scale_y)
+            before_geometry = entity.to_dict()
             entity.scale_x = scale_x
             entity.scale_y = scale_y
+            transform_sprite_geometry(entity, before_geometry)
 
             # Persist the scaling to database
             await self._persist_table_state(table, "sprite scaling", session_id)
@@ -580,7 +583,9 @@ class ActionsCore(AsyncActionsProtocol):
                 entity.rotation = 0.0
 
             old_rotation = entity.rotation
+            before_geometry = entity.to_dict()
             entity.rotation = angle
+            transform_sprite_geometry(entity, before_geometry)
 
             # Persist the rotation to database
             await self._persist_table_state(table, "sprite rotation", session_id)
@@ -611,12 +616,16 @@ class ActionsCore(AsyncActionsProtocol):
                 return ActionResult(False, f"Sprite {sprite_id} not found")
 
             old_values = {}
+            before_geometry = entity.to_dict()
             for key, value in kwargs.items():
                 if hasattr(entity, key):
                     old_values[key] = getattr(entity, key)
                     setattr(entity, key, value)
                 else:
                     logger.warning(f"update_sprite: Entity does NOT have attribute '{key}' - skipping!")
+
+            if "obstacle_data" not in kwargs:
+                transform_sprite_geometry(entity, before_geometry)
 
             # Persist the update to database
             await self._persist_table_state(table, "sprite update", session_id)

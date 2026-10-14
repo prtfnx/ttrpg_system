@@ -74,6 +74,17 @@ class _SpritesMixin(_ProtocolBase):
 
     async def _broadcast_sprite_event(self, message: Message, client_id: str, *, layer: str | None = None) -> None:
         data = message.data or {}
+        table_id = data.get('table_id')
+        sprite_id = data.get('sprite_id') or data.get('id')
+        if message.type in {MessageType.SPRITE_MOVE, MessageType.SPRITE_SCALE, MessageType.SPRITE_ROTATE, MessageType.SPRITE_UPDATE}:
+            table = self.table_manager.get_table(table_id) if isinstance(table_id, str) else None
+            entity = table.find_entity_by_sprite_id(sprite_id) if table is not None else None
+            if entity is not None and entity.obstacle_type in {'line', 'polygon'}:
+                # World geometry is authoritative. Both sender and peers must
+                # replace their derived shape, not apply a second local mapper.
+                message = Message(MessageType.SPRITE_UPDATE, {'sprite_id': sprite_id, 'table_id': table_id,
+                    'operation': 'create', 'sprite_data': {**entity.to_dict(), 'table_id': table_id}})
+                await self.send_to_client(message, client_id)
         if layer is None:
             layer = self._sprite_layer(data.get('table_id'), data.get('sprite_id') or data.get('id'))
         if layer is not None:

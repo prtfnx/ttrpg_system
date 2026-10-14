@@ -53,3 +53,35 @@ async def test_shape_creation_reloads_from_database(shape, monkeypatch, test_db,
         loaded, ok = crud.load_table_from_db(test_db, str(table.table_id))
         assert ok
         assert loaded.find_entity_by_sprite_id("object-line").obstacle_data == {"x1": 30, "y1": 50, "x2": 110, "y2": 90}
+
+
+@pytest.mark.parametrize("shape", ["line", "polygon"])
+async def test_legacy_shape_rotation_and_resize_persist_world_geometry_and_publish_canonical_scene(
+        shape, monkeypatch, test_db, test_game_session):
+    manager = TableManager(test_db)
+    table = manager.create_table("Transforms", 1000, 1000)
+    geometry = {"vertices": [[10, 20], [90, 60]]} if shape == "polygon" else {"x1": 10, "y1": 20, "x2": 90, "y2": 60}
+    table.add_entity({"sprite_id": "shape", "x": 10, "y": 20, "width": 80, "height": 40,
+        "layer": "obstacles", "obstacle_type": shape, "obstacle_data": geometry})
+    assert crud.save_table_to_db(test_db, table, test_game_session.id)
+    proto = _SpritesMixin()
+    proto.table_manager, proto.actions = manager, ActionsCore(manager)
+    monkeypatch.setattr(proto, "_get_session_id", lambda _msg: test_game_session.id)
+    monkeypatch.setattr(proto, "_get_client_role", lambda _client: "owner")
+    proto.broadcast_filtered, proto.send_to_client = AsyncMock(), AsyncMock()
+    for kind, fields, expected in [(MessageType.SPRITE_ROTATE, {"rotation": 90}, [[70, 0], [30, 80]]),
+            (MessageType.SPRITE_SCALE, {"width": 160, "height": 80}, [[130, -20], [50, 140]])]:
+        handler = proto.handle_rotate_sprite if kind == MessageType.SPRITE_ROTATE else proto.handle_scale_sprite
+        result = await handler(Message(kind, {"table_id": str(table.table_id), "sprite_id": "shape", **fields}), "client")
+        assert result.type == MessageType.SPRITE_RESPONSE
+        test_db.expire_all()
+        loaded, ok = crud.load_table_from_db(test_db, str(table.table_id))
+        assert ok
+        saved = loaded.find_entity_by_sprite_id("shape").obstacle_data
+        points = saved["vertices"] if shape == "polygon" else [[saved["x1"], saved["y1"]], [saved["x2"], saved["y2"]]]
+        for actual, target in zip(points, expected, strict=True):
+            assert actual == pytest.approx(target)
+        canonical = proto.send_to_client.call_args.args[0]
+        assert canonical.type == MessageType.SPRITE_UPDATE and canonical.data["operation"] == "create"
+        assert canonical.data["sprite_data"]["obstacle_data"] == saved
+        assert proto.broadcast_filtered.call_args.args[0].data == canonical.data

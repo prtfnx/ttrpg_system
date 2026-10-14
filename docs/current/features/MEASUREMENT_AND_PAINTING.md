@@ -232,6 +232,12 @@ Form controls keep normal text-editing keyboard behavior.
 Shared input routing also suppresses the legacy Ctrl/Cmd+X route, leaving cut
 with the same authoritative selection command owner as copy and paste.
 
+Legacy line and polygon moves, rotations, and resizes also update their stored
+world-space geometry. Accepted shape transforms send a complete authoritative
+sprite upsert to the sender and visible peers; clients do not independently
+reapply the transform to those vertices. Database reloads preserve the result.
+The protocol regressions live in `apps/server/tests/unit/test_shape_sprites.py`.
+
 Canonical canvas sprite upserts replace the existing renderer sprite before
 installation. The renderer's add API appends; treating these updates as new
 instances would leave stale duplicates visible. Polygon hydration retains

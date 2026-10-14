@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MessageType, type Message, type WebClientProtocol } from '@lib/websocket';
 import { saveTextSprite, type TextSpriteCommand } from '../textSpriteCommands';
 import { DEFAULT_TEXT } from '../textSpriteModel';
+import { sendConfirmedSpriteCommand } from '../../../services/spriteCommands';
 
 vi.mock('../textSpriteModel', async importOriginal => ({ ...await importOriginal<object>(),
   rasterizeTextSprite: vi.fn(async () => ({ width: 120, height: 40 })) }));
@@ -25,6 +26,29 @@ const command: TextSpriteCommand = { id: 'text-1', tableId: 'captured-table', x:
   descriptor: { ...DEFAULT_TEXT, text: 'Hello' }, metadata: {}, revision: null };
 afterEach(() => vi.useRealTimers());
 describe('authoritative text sprite commands', () => {
+  it('does not send an already cancelled shared sprite command', async () => {
+    const h = textProtocolHarness(); const abort = new AbortController(); abort.abort();
+    await expect(sendConfirmedSpriteCommand(h.protocol, { message_id: 'cancelled' } as Message, abort.signal)).rejects.toThrow('cancelled');
+    expect(h.send).not.toHaveBeenCalled(); expect(h.count()).toBe(0);
+  });
+  it('rejects an unsuccessful correlated response and releases subscriptions', async () => {
+    const h = textProtocolHarness();
+    const pending = sendConfirmedSpriteCommand(h.protocol, { message_id: 'command' } as Message, new AbortController().signal);
+    const rejected = expect(pending).rejects.toThrow('Denied');
+    h.reply(MessageType.SPRITE_RESPONSE, 'command', { success: false, error: 'Denied' });
+    await rejected; expect(h.count()).toBe(0);
+  });
+  it('releases subscriptions when sending throws', async () => {
+    const h = textProtocolHarness(); h.send.mockImplementation(() => { throw new Error('Socket closed'); });
+    await expect(sendConfirmedSpriteCommand(h.protocol, { message_id: 'command' } as Message, new AbortController().signal)).rejects.toThrow('Socket closed');
+    expect(h.count()).toBe(0);
+  });
+  it('releases subscriptions when registration throws partway through', async () => {
+    const h = textProtocolHarness();
+    vi.mocked(h.protocol.registerHandler).mockImplementationOnce(() => { throw new Error('Session disposed'); });
+    await expect(sendConfirmedSpriteCommand(h.protocol, { message_id: 'command' } as Message, new AbortController().signal)).rejects.toThrow('Session disposed');
+    expect(h.send).not.toHaveBeenCalled(); expect(h.count()).toBe(0);
+  });
   it('captures table and geometry and waits for the matching server response', async () => {
     const h = textProtocolHarness();
     const done = vi.fn();

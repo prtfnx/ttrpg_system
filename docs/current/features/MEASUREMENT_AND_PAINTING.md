@@ -232,6 +232,12 @@ Form controls keep normal text-editing keyboard behavior.
 Shared input routing also suppresses the legacy Ctrl/Cmd+X route, leaving cut
 with the same authoritative selection command owner as copy and paste.
 
+`features/canvas/services/spriteCommands.ts` owns correlated confirmation for
+sprite editor saves. It releases subscriptions on acknowledgement, rejection,
+cancellation, send failure, or a fifteen-second timeout. A timeout is uncertain
+and does not automatically resend. Text creation and editing use this boundary;
+cancelling the UI cannot retract a command already accepted by the server.
+
 Legacy line and polygon moves, rotations, and resizes also update their stored
 world-space geometry. Accepted shape transforms send a complete authoritative
 sprite upsert to the sender and visible peers; clients do not independently

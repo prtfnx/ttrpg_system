@@ -1,4 +1,5 @@
-import { createMessage, MessageType, type Message, type WebClientProtocol } from '@lib/websocket';
+import { createMessage, MessageType, type WebClientProtocol } from '@lib/websocket';
+import { sendConfirmedSpriteCommand } from '../../services/spriteCommands';
 import { assertTextSprite, rasterizeTextSprite, TEXT_LIMITS, type TextSpriteDescriptor } from './textSpriteModel';
 
 export interface TextSpriteCommand {
@@ -30,26 +31,5 @@ export async function saveTextSprite(protocol: WebClientProtocol, command: TextS
       x: command.x, y: command.y, layer: command.layer, texture_path: '__TEXT__',
     } }, 2)
     : createMessage(MessageType.SPRITE_UPDATE, { ...fields, sprite_id: command.id, table_id: command.tableId, expected_text_revision: command.revision }, 2);
-  return new Promise<void>((resolve, reject) => {
-    const types = [MessageType.SPRITE_RESPONSE, MessageType.SUCCESS, MessageType.ERROR];
-    const cleanup = () => {
-      clearTimeout(timeout);
-      signal.removeEventListener('abort', abort);
-      types.forEach(type => protocol.unregisterHandler(type, receive));
-    };
-    const abort = () => { cleanup(); reject(new Error('Text edit cancelled.')); };
-    const receive = (reply: Message) => {
-      if (reply.correlation_id !== message.message_id) return;
-      cleanup();
-      if (reply.type === MessageType.ERROR) reject(new Error(String(reply.data?.error ?? 'Text save rejected.')));
-      else resolve();
-    };
-    const timeout = window.setTimeout(() => {
-      cleanup();
-      reject(new Error('Save confirmation timed out. Check the saved table before retrying.'));
-    }, 15_000);
-    signal.addEventListener('abort', abort, { once: true });
-    types.forEach(type => protocol.registerHandler(type, receive));
-    try { protocol.sendMessage(message); } catch (error) { cleanup(); reject(error); }
-  });
+  return sendConfirmedSpriteCommand(protocol, message, signal, 'Text edit cancelled.');
 }

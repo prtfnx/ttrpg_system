@@ -58,7 +58,7 @@ export const useContextMenu = ({ rustRenderManagerRef, editor }: UseContextMenuP
         case 'delete': {
           if (!spriteId) break;
           const state = editor.getState();
-          if (state.selectedSpriteIds?.includes(spriteId)) {
+          if (state.enabled && state.selectedSpriteIds?.includes(spriteId)) {
             editor.selectionCommand(action);
           } else {
             const selected = engine.get_selected_sprites();

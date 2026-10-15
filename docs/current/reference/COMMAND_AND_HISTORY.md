@@ -220,6 +220,10 @@ of silently editing a subset. Absolute edits and keyboard transforms send intent
 without optimistic scene writes. Detached renderers, hydration, and pending paint
 intent block these calls. Paste uses the active actor/table clipboard and the same
 guards; a scope change cannot reuse an old clipboard.
+Accepted command receipts publish their resulting sprite selection to the default
+renderer too, without enabling mixed pointer selection. Default context-menu
+commands read current renderer-selected IDs, not stale shared references from an
+earlier receipt. Paint-only gestures keep their separate sprite-input boundary.
 
 The sprite context menu routes copy, paste, delete, absolute resize/rotation and
 layer edits through that owner. Copy targets the whole active selection when the

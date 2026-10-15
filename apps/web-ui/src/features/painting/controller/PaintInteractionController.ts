@@ -334,6 +334,9 @@ export class PaintInteractionController {
   replaceSelection(refs: readonly SelectionRef[]): void {
     this.cancelGesture();
     this.selection.replace(refs);
+    // A receipt owns the resulting selection even when legacy pointer input
+    // remains active. Ordinary paint gestures must not take sprite input.
+    if (!this.enabled && this.selectionMode === 'separate') this.sprites?.select(this.spriteIds());
     this.syncSelection();
     this.emit();
   }

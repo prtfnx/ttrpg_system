@@ -10,7 +10,7 @@ function harness(withEditor = true) {
     resize_sprite: vi.fn(), rotate_sprite: vi.fn(), move_sprite_to_layer: vi.fn(),
   };
   const editor = {
-    getState: vi.fn(() => ({ selectedSpriteIds: [] as string[] })),
+    getState: vi.fn(() => ({ enabled: false, selectedSpriteIds: [] as string[] })),
     subscribe: vi.fn((listener: (state: { canPaste: boolean; commandPending: boolean }) => void) => {
       listener({ canPaste: false, commandPending: false });
       return vi.fn();
@@ -51,7 +51,7 @@ describe('authoritative sprite context menu', () => {
 
   it('includes paint members when the clicked sprite belongs to a mixed selection', () => {
     const h = harness();
-    h.editor.getState.mockReturnValue({ selectedSpriteIds: ['sprite'] });
+    h.editor.getState.mockReturnValue({ enabled: true, selectedSpriteIds: ['sprite'] });
     h.open();
     act(() => h.result.current.handleContextMenuAction('copy'));
     expect(h.editor.selectionCommand).toHaveBeenCalledWith('copy');
@@ -63,6 +63,14 @@ describe('authoritative sprite context menu', () => {
     h.open('other');
     act(() => h.result.current.handleContextMenuAction('copy'));
     expect(h.editor.spriteSelectionCommand).toHaveBeenCalledWith(['other'], 'copy');
+  });
+
+  it('uses current default renderer selection instead of stale shared references', () => {
+    const h = harness();
+    h.editor.getState.mockReturnValue({ enabled: false, selectedSpriteIds: ['sprite'] });
+    h.open(); act(() => h.result.current.handleContextMenuAction('copy'));
+    expect(h.editor.spriteSelectionCommand).toHaveBeenCalledWith(['sprite', 'second'], 'copy');
+    expect(h.editor.selectionCommand).not.toHaveBeenCalled();
   });
 
   it('shows paste only for a confirmed idle clipboard and routes it to the owner', () => {

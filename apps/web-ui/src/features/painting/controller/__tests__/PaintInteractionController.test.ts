@@ -183,6 +183,17 @@ describe('PaintInteractionController', () => {
     expect(h.sprites.move).not.toHaveBeenCalled();
   });
 
+  it('publishes accepted paste/delete selection to default sprite input without enabling mixed pointers', () => {
+    const h = sharedSelection();
+    h.controller.setSelectionMode('separate'); h.controller.setEnabled(false);
+    h.sprites.select.mockClear();
+    h.controller.replaceSelection([{ kind: 'sprite', id: 'pasted' }]);
+    expect(h.sprites.select).toHaveBeenLastCalledWith(['pasted']);
+    expect(h.controller.getState().enabled).toBe(false);
+    h.controller.replaceSelection([]);
+    expect(h.sprites.select).toHaveBeenLastCalledWith([]);
+  });
+
   it('never edits a partial explicit selection or detached renderer', () => {
     const h = sharedSelection();
     expect(h.controller.spriteSelectionCommand(['sprite', 'missing'], 'copy')).toBe(false);

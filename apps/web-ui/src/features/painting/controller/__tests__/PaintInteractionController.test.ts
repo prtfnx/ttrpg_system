@@ -159,6 +159,47 @@ describe('PaintInteractionController', () => {
     expect(h.runtime.clearPaintDraft).toHaveBeenCalledWith(`selection:${OBJECT_ID}`);
   });
 
+  it.each(['copy', 'cut', 'delete', 'duplicate'] as const)('routes explicit default-mode %s through the durable owner', mode => {
+    const h = sharedSelection();
+    h.controller.setEnabled(false);
+    expect(h.controller.spriteSelectionCommand(['sprite'], mode)).toBe(true);
+    expect(h.transport.sendCanvasCommand.mock.lastCall![0]).toMatchObject({ mode: mode === 'duplicate' ? 'copy' : mode,
+      members: [{ kind: 'sprite', id: 'sprite', expected: h.sprites.items()[0].expected }] });
+    expect(h.sprites.move).not.toHaveBeenCalled();
+    expect(h.sprites.remove).not.toHaveBeenCalled();
+  });
+
+  it('routes default-mode edits and transforms without optimistic renderer writes', () => {
+    const h = sharedSelection();
+    h.controller.setEnabled(false);
+    expect(h.controller.editSprites(['sprite'], { width: 64, height: 32, rotation: 90, layer: 'map' })).toBe(true);
+    const command = h.transport.sendCanvasCommand.mock.lastCall![0];
+    expect(command).toMatchObject({ mode: 'sprite_edit', edit: { width: 64, height: 32, rotation: 90, layer: 'map' } });
+    h.owner.acceptResult({ operation_id: command.operation_id, table_id: TABLE, success: true, selection: [], can_undo: true });
+    expect(h.controller.transformSprites(['sprite'], { scale: 1.1, dx: 1 })).toBe(true);
+    expect(h.transport.sendCanvasCommand.mock.lastCall![0]).toMatchObject({ mode: 'transform',
+      transform: { pivot_x: 42.5, pivot_y: 10, scale: 1.1, dx: 1 } });
+    expect(h.sprites.previewTransform).not.toHaveBeenCalled();
+    expect(h.sprites.move).not.toHaveBeenCalled();
+  });
+
+  it('never edits a partial explicit selection or detached renderer', () => {
+    const h = sharedSelection();
+    expect(h.controller.spriteSelectionCommand(['sprite', 'missing'], 'copy')).toBe(false);
+    vi.spyOn(h.sprites, 'items').mockReturnValue(h.sprites.items().map(sprite => ({ ...sprite, canEdit: false })));
+    expect(h.controller.editSprites(['sprite'], { rotation: 90 })).toBe(false);
+    h.runtime.getRenderEngine.mockReturnValue(null);
+    expect(h.controller.pasteSelection()).toBe(false);
+    expect(h.transport.sendCanvasCommand).not.toHaveBeenCalled();
+  });
+
+  it.each([{ width: 10 }, { width: 0, height: 10 }, { rotation: Infinity }, { layer: 'unknown' }])('rejects invalid absolute sprite edits %j', edit => {
+    const h = sharedSelection();
+    expect(h.controller.editSprites(['sprite'], edit)).toBe(false);
+    expect(h.transport.sendCanvasCommand).not.toHaveBeenCalled();
+    expect(h.scene.reportLocalError).toHaveBeenCalled();
+  });
+
   it('rotates a mixed group around its shared center with one command', () => {
     const h = sharedSelection();
     h.runtime.hitTestSelectionFrame.mockReturnValue('rotate');

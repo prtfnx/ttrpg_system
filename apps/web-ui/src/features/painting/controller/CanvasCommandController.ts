@@ -29,8 +29,16 @@ export type CanvasMember =
   | { kind: 'paint'; id: string; version: number }
   | { kind: 'sprite'; id: string; expected: SpriteExpectedTransform };
 
+export interface SpriteEdit {
+  width?: number;
+  height?: number;
+  rotation?: number;
+  layer?: string;
+}
+
 export type CanvasIntent =
   | { mode: 'transform'; members: readonly CanvasMember[]; transform: CanvasTransform }
+  | { mode: 'sprite_edit'; members: readonly Extract<CanvasMember, { kind: 'sprite' }>[]; edit: SpriteEdit }
   | { mode: 'restyle'; members: readonly Extract<CanvasMember, { kind: 'paint' }>[]; style: PaintStyle }
   | { mode: 'delete' | 'copy' | 'cut'; members: readonly CanvasMember[] }
   | { mode: 'paste'; clipboard_id: string; ids: Array<SelectionRef & { source_id: string }>; transform: CanvasTransform }

@@ -214,6 +214,12 @@ excluded from the editable command, and the server validates every included
 member atomically. The sprite selection adapter captures the authoritative
 transform projection rather than renderer preview coordinates. Regression owner:
 `apps/web-ui/src/features/painting/controller/__tests__/PaintInteractionController.test.ts`.
+Explicit sprite commands use that same projection even while default pointer
+selection is active. They reject missing or ineligible requested members instead
+of silently editing a subset. Absolute edits and keyboard transforms send intent
+without optimistic scene writes. Detached renderers, hydration, and pending paint
+intent block these calls. Paste uses the active actor/table clipboard and the same
+guards; a scope change cannot reuse an old clipboard.
 
 ## Transport batching
 

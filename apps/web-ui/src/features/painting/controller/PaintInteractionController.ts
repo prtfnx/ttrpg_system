@@ -21,7 +21,7 @@ import {
 } from './paintGeometry';
 import { SelectionManager, intersectsSelection, selectionRectangle, type SelectionMode, type SelectionRef, type SelectionBounds } from './SelectionManager';
 import { IDENTITY_TRANSFORM, type CanvasCommandController, type CanvasCommandState, type CanvasMember,
-  type CanvasTransform, type SpriteExpectedTransform } from './CanvasCommandController';
+  type CanvasTransform, type SpriteEdit, type SpriteExpectedTransform } from './CanvasCommandController';
 import { selectionBounds, selectionFrameCoordinates, selectionHandleTransform, transformSelectionPaint,
   transformSelectionSprite, type SelectionFrameHandle } from './selectionTransforms';
 
@@ -344,9 +344,56 @@ export class PaintInteractionController {
     return members !== null && !!this.commands?.submit({ mode: mode === 'duplicate' ? 'copy' : mode, members }, mode === 'duplicate');
   }
 
+  /** Default sprite input uses the same owner without changing pointer selection mode. */
+  spriteSelectionCommand(ids: readonly string[], mode: 'copy' | 'cut' | 'delete' | 'duplicate'): boolean {
+    this.cancelGesture();
+    const sprites = this.explicitSprites(ids, mode === 'cut' || mode === 'delete');
+    const members = sprites && this.canvasMembers([], sprites);
+    return !!members && !!this.commands?.submit({ mode: mode === 'duplicate' ? 'copy' : mode, members }, mode === 'duplicate');
+  }
+
+  editSprites(ids: readonly string[], edit: SpriteEdit): boolean {
+    this.cancelGesture();
+    const knownLayers = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war'];
+    if (!Object.keys(edit).length || Object.keys(edit).some(key => !['width', 'height', 'rotation', 'layer'].includes(key))
+      || (edit.width === undefined) !== (edit.height === undefined)
+      || [edit.width, edit.height].some(value => value !== undefined && (!Number.isFinite(value) || value < 0.001 || value > 10000))
+      || (edit.rotation !== undefined && (!Number.isFinite(edit.rotation) || Math.abs(edit.rotation) > 180))
+      || (edit.layer !== undefined && !knownLayers.includes(edit.layer))) {
+      this.scene.reportLocalError('Enter valid sprite dimensions, rotation, or layer.');
+      return false;
+    }
+    const sprites = this.explicitSprites(ids);
+    const members = sprites && this.canvasMembers([], sprites);
+    return !!members && !!this.commands?.submit({ mode: 'sprite_edit',
+      members: members as Extract<CanvasMember, { kind: 'sprite' }>[], edit });
+  }
+
+  transformSprites(ids: readonly string[], values: Partial<Pick<CanvasTransform, 'dx' | 'dy' | 'scale' | 'rotation'>>): boolean {
+    this.cancelGesture();
+    const sprites = this.explicitSprites(ids);
+    if (!sprites) return false;
+    return this.submitTransform([], sprites, values);
+  }
+
+  private explicitSprites(ids: readonly string[], deleting = false): readonly SelectionSprite[] | null {
+    const tableId = this.sceneState.tableId;
+    const visible = tableId ? this.sprites?.items(tableId) ?? [] : [];
+    const unique = [...new Set(ids)];
+    const sprites = unique.map(id => visible.find(item => item.id === id));
+    if (!unique.length) return null;
+    if (sprites.some(item => !item || !item.canEdit || (deleting && item.canDelete !== true))) {
+      this.scene.reportLocalError('The selection changed or contains sprites you cannot edit.');
+      return null;
+    }
+    return sprites as SelectionSprite[];
+  }
+
   pasteSelection(): boolean {
     this.cancelGesture();
-    return !this.sceneState.hydrating && !!this.commands?.paste();
+    if (!this.runtime.getRenderEngine() || this.actorId === null || this.sceneState.hydrating || this.sceneState.pending.length
+      || this.commands?.getState().tableId !== this.sceneState.tableId) return false;
+    return !!this.commands?.paste();
   }
 
   historyCommand(mode: 'undo' | 'redo'): boolean {
@@ -359,6 +406,15 @@ export class PaintInteractionController {
     this.cancelGesture();
     const paints = this.selectedPaints().filter(item => this.canEdit(item));
     const sprites = this.selectedSprites().filter(item => item.canEdit);
+    return this.submitTransform(paints, sprites, values);
+  }
+
+  private submitTransform(paints: readonly PaintObject[], sprites: readonly SelectionSprite[], values: Partial<Pick<CanvasTransform, 'dx' | 'dy' | 'scale' | 'rotation'>>): boolean {
+    if (Object.values(values).some(value => !Number.isFinite(value)) || (values.scale !== undefined && (values.scale < 0.001 || values.scale > 1000))
+      || (values.rotation !== undefined && Math.abs(values.rotation) > Math.PI)) {
+      this.scene.reportLocalError('Enter a valid selection transform.');
+      return false;
+    }
     const members = this.canvasMembers(paints, sprites);
     if (!members) return false;
     const bounds = [...paints.map(paintWorldBounds), ...sprites.map(sprite => sprite.bounds)];
@@ -369,7 +425,7 @@ export class PaintInteractionController {
   }
 
   private canvasMembers(paints: readonly PaintObject[], sprites: readonly SelectionSprite[], deleting = false): CanvasMember[] | null {
-    if (!this.commands || this.commands.getState().tableId !== this.sceneState.tableId || this.sceneState.hydrating || this.actorId === null) return null;
+    if (!this.commands || !this.runtime.getRenderEngine() || this.commands.getState().tableId !== this.sceneState.tableId || this.sceneState.hydrating || this.actorId === null) return null;
     if (this.sceneState.pending.length) {
       this.scene.reportLocalError('Wait for pending paint commands before editing the selection.');
       return null;

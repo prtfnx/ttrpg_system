@@ -110,14 +110,13 @@ clients receive one broadcast. Replaying the same operation ID/body returns
 its recorded result without another write or broadcast. Reusing an ID with a
 different body fails.
 
-The supported retry window defaults to 24 hours. Older recorded commands return
-`retry_window_expired`. Standalone intent is also checked before opening a
+The supported retry window defaults to 24 hours. Standalone intent is checked before opening a
 transaction, so receipt cleanup cannot make an old create resurrect deleted
 paint. Missing/non-finite timestamps reject; intent over 60 seconds in the
 future rejects. Original intent time participates in the request hash.
 Trusted composed transactions rely on their already-validated parent intent.
-Older recorded commands return
-`retry_window_expired`; the browser discards expired intent and resynchronizes
+Older recorded commands return `retry_window_expired`; the browser discards
+expired intent and resynchronizes
 before offering another edit. Ledger retention defaults to 48 hours and must
 exceed the retry window. An hourly bounded job removes expired ledger rows.
 See [Environment variables](../reference/ENVIRONMENT_VARIABLES.md) for settings.
@@ -243,6 +242,13 @@ The frame and previews go through `WasmRuntimePort`; group math lives in
 `controller/selectionTransforms.ts`. Controller, adapter and geometry regressions
 live in `features/painting/controller/__tests__/`.
 Form controls keep normal text-editing keyboard behavior.
+Default sprite selection also supports Ctrl/Cmd+C/X/V/D through the shared
+confirmed command owner. Copy includes the full sprite group. Plus/minus keys
+uniformly scale it around its center; arrows retain grid-cell nudging. Context-menu
+resize, rotation and layer edits persist and broadcast through the same history.
+Paste uses a ten-unit offset and retains source layers. Missing connections never
+fall back to local-only copies or edits. Single combat-token arrows retain combat
+movement; combat tokens cannot use editor group mutation. Wall commands are separate.
 Shared input routing also suppresses the legacy Ctrl/Cmd+X route, leaving cut
 with the same authoritative selection command owner as copy and paste.
 

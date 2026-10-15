@@ -64,6 +64,14 @@ export class InputManager {
         description: 'Paste copied sprite(s)',
         enabled: () => this.context.hasClipboard
       },
+      {
+        key: 'x', ctrl: true, action: 'cut_selected', description: 'Cut selected sprite(s)',
+        enabled: () => this.context.selectedSpriteIds.length > 0
+      },
+      {
+        key: 'd', ctrl: true, action: 'duplicate_selected', description: 'Duplicate selected sprite(s)',
+        enabled: () => this.context.selectedSpriteIds.length > 0
+      },
 
       // Sprite scaling
       {
@@ -172,11 +180,13 @@ export class InputManager {
 
   handleKeyDown(event: KeyboardEvent): boolean {
     if (!this.context.isCanvasFocused) return false;
+    if (event.defaultPrevented || (event.target instanceof HTMLElement && (
+      ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName) || event.target.isContentEditable))) return false;
 
     const shortcutKey = this.getShortcutKey({
-      key: event.key,
-      ctrl: event.ctrlKey,
-      shift: event.shiftKey,
+      key: event.key === '+' || event.key === '=' ? 'Equal' : event.key === '-' ? 'Minus' : event.key,
+      ctrl: event.ctrlKey || event.metaKey,
+      shift: event.key === '+' ? false : event.shiftKey,
       alt: event.altKey,
       action: '',
       description: ''

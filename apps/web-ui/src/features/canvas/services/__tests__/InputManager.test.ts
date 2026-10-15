@@ -119,6 +119,32 @@ describe('InputManager', () => {
       expect(handler).toHaveBeenCalledTimes(1);
     });
 
+    it.each([['c', 'copy_selected'], ['x', 'cut_selected'], ['d', 'duplicate_selected'], ['v', 'paste_sprites']])(
+      'supports Cmd+%s for default sprite editing', (key, action) => {
+        manager.updateContext({ isCanvasFocused: true, selectedSpriteIds: ['s1', 's2'], hasClipboard: true });
+        const handler = vi.fn(); manager.onAction(action, handler);
+        expect(manager.handleKeyDown(new KeyboardEvent('keydown', { key, metaKey: true, cancelable: true }))).toBe(true);
+        expect(handler).toHaveBeenCalledOnce();
+      });
+
+    it.each([['+', true, 'scale_up'], ['=', false, 'scale_up'], ['-', false, 'scale_down']] as const)(
+      'accepts actual browser key %s for scaling', (key, shiftKey, action) => {
+        manager.updateContext({ isCanvasFocused: true, selectedSpriteIds: ['s1'] });
+        const handler = vi.fn(); manager.onAction(action, handler);
+        manager.handleKeyDown(makeKey({ key, shiftKey }));
+        expect(handler).toHaveBeenCalledOnce();
+      });
+
+    it('leaves form controls and already-consumed shortcuts alone', () => {
+      manager.updateContext({ isCanvasFocused: true, selectedSpriteIds: ['s1'] });
+      const input = document.createElement('textarea');
+      const event = makeKey({ key: 'Delete' });
+      Object.defineProperty(event, 'target', { value: input });
+      expect(manager.handleKeyDown(event)).toBe(false);
+      const consumed = makeKey({ key: 'Delete' }); consumed.preventDefault();
+      expect(manager.handleKeyDown(consumed)).toBe(false);
+    });
+
     it('fires Ctrl+Z undo when canUndo is true', () => {
       manager.updateContext({ isCanvasFocused: true, canUndo: true });
       const handler = vi.fn();

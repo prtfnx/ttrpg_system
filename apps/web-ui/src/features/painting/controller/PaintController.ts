@@ -29,19 +29,21 @@ const MAX_PENDING_OPERATIONS = 128;
 const MAX_PENDING_OPERATION_BYTES = 4 * 1024 * 1024;
 
 export interface PaintTransport {
-  createPaintObject(tableId: string, operationId: string, object: PaintObjectInput): boolean;
+  createPaintObject(tableId: string, operationId: string, object: PaintObjectInput, issuedAt: number): boolean;
   updatePaintObject(
     tableId: string,
     operationId: string,
     objectId: string,
     expectedVersion: number,
     object: PaintObjectInput,
+    issuedAt: number,
   ): boolean;
   deletePaintObject(
     tableId: string,
     operationId: string,
     objectId: string,
     expectedVersion: number,
+    issuedAt: number,
   ): boolean;
   requestPaintSnapshot(tableId: string, requestId: string): boolean;
   sendPaintPreview(
@@ -612,7 +614,7 @@ export class PaintController {
     const { command, operationId } = pending;
     if (command.tableId !== this.tableId) return false;
     if (command.kind === 'create') {
-      return this.transport.createPaintObject(command.tableId, operationId, command.object);
+      return this.transport.createPaintObject(command.tableId, operationId, command.object, pending.createdAt);
     }
     if (command.kind === 'update') {
       return this.transport.updatePaintObject(
@@ -621,6 +623,7 @@ export class PaintController {
         command.objectId,
         command.expectedVersion,
         command.object,
+        pending.createdAt,
       );
     }
     return this.transport.deletePaintObject(
@@ -628,6 +631,7 @@ export class PaintController {
       operationId,
       command.objectId,
       command.expectedVersion,
+      pending.createdAt,
     );
   }
 

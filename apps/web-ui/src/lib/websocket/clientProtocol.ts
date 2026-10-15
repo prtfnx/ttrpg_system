@@ -1871,10 +1871,11 @@ export class WebClientProtocol {
     return this.sendPaintMessage(MessageType.CANVAS_HISTORY_REQUEST, { table_id: tableId });
   }
 
-  createPaintObject(tableId: string, operationId: string, object: PaintObjectInput): boolean {
+  createPaintObject(tableId: string, operationId: string, object: PaintObjectInput, issuedAt = Date.now()): boolean {
     validateTableId(tableId);
     assertPaintObjectInput(object);
     return this.sendPaintMessage(MessageType.PAINT_OBJECT_CREATE, {
+      issued_at: issuedAt,
       table_id: tableId,
       operation_id: operationId,
       object,
@@ -1887,10 +1888,12 @@ export class WebClientProtocol {
     objectId: string,
     expectedVersion: number,
     object: PaintObjectInput,
+    issuedAt = Date.now(),
   ): boolean {
     validateTableId(tableId);
     assertPaintObjectInput(object);
     return this.sendPaintMessage(MessageType.PAINT_OBJECT_UPDATE, {
+      issued_at: issuedAt,
       table_id: tableId,
       operation_id: operationId,
       id: objectId,
@@ -1904,9 +1907,11 @@ export class WebClientProtocol {
     operationId: string,
     objectId: string,
     expectedVersion: number,
+    issuedAt = Date.now(),
   ): boolean {
     validateTableId(tableId);
     return this.sendPaintMessage(MessageType.PAINT_OBJECT_DELETE, {
+      issued_at: issuedAt,
       table_id: tableId,
       operation_id: operationId,
       id: objectId,

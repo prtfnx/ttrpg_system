@@ -331,7 +331,7 @@ describe('PaintController', () => {
 
     controller.reconnect();
     expect(transport.createPaintObject).toHaveBeenCalledTimes(2);
-    expect(transport.createPaintObject).toHaveBeenLastCalledWith(TABLE, OPERATION, input());
+    expect(transport.createPaintObject).toHaveBeenLastCalledWith(TABLE, OPERATION, input(), 1000);
 
     advance(24 * 60 * 60 * 1_000 + 1);
     controller.reconnect();
@@ -436,7 +436,7 @@ describe('PaintController', () => {
     controller.selectTable(TABLE);
     expect(controller.getState().pending).toHaveLength(1);
     expect(transport.createPaintObject).toHaveBeenCalledTimes(2);
-    expect(transport.createPaintObject).toHaveBeenLastCalledWith(TABLE, OPERATION, input());
+    expect(transport.createPaintObject).toHaveBeenLastCalledWith(TABLE, OPERATION, input(), 1000);
   });
 
   it('resolves an inactive-table acknowledgement without mutating the active scene', () => {
@@ -540,15 +540,16 @@ describe('PaintController', () => {
   });
 
   it('retains an independent command body for exact retries', () => {
-    const { controller, transport } = harness();
+    const { controller, transport, advance } = harness();
     controller.selectTable(TABLE);
     controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
     const draft = input();
     controller.submitCreate(draft);
     draft.transform.x = 100;
     draft.style.width = 20;
+    advance(5000);
     controller.reconnect();
-    expect(transport.createPaintObject).toHaveBeenLastCalledWith(TABLE, OPERATION, input());
+    expect(transport.createPaintObject).toHaveBeenLastCalledWith(TABLE, OPERATION, input(), 1000);
   });
 
   it('drops stale previews, honors cancellation sequence, and expires entries', () => {

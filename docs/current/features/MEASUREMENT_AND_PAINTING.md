@@ -100,6 +100,9 @@ session row, so unrelated tables do not serialize through that join.
 ### Commands, retries, and rollout gate
 
 Create/update/delete commands carry explicit `table_id` and UUID `operation_id`.
+They also carry the original `issued_at` in epoch milliseconds. The controller
+captures this once when registering intent and retains it on every resend;
+transport retries must not refresh its age.
 Update/delete also require the exact `expected_version`; a stale version
 returns `version_conflict` with confirmed object state rather than overwriting
 it. The sender receives the accepted `paint_object_event`; other session

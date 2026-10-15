@@ -7,6 +7,13 @@ and the main browser message families. It does not document every payload field.
 
 Last source audit: 2026-10-01
 
+## Envelope identities
+
+Message, correlation and causation IDs are bounded to 128 characters by the
+shared envelope schema. This bounds response correlation overhead; clients
+must not attach arbitrary-size strings as identities. Generated Python and
+browser schemas share the same boundary.
+
 ## Text sprite save acknowledgements
 
 Text sprite command fields are checked against source on 2026-10-06. A

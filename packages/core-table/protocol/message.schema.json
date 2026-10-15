@@ -403,18 +403,21 @@
       ]
     },
     "message_id": {
+      "maxLength": 128,
       "type": [
         "string",
         "null"
       ]
     },
     "correlation_id": {
+      "maxLength": 128,
       "type": [
         "string",
         "null"
       ]
     },
     "causation_id": {
+      "maxLength": 128,
       "type": [
         "string",
         "null"

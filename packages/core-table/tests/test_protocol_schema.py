@@ -7,6 +7,12 @@ from core_table.protocol import Message, MessageType
 SCHEMA_PATH = Path(__file__).parents[1] / "protocol" / "message.schema.json"
 
 
+@pytest.mark.parametrize("field", ["message_id", "correlation_id", "causation_id"])
+def test_wire_identity_bounds_keep_response_envelope_reserve_bounded(field):
+    with pytest.raises(ValueError, match="Invalid protocol message"):
+        Message.from_json(json.dumps({"type": "ping", "data": {}, field: "x" * 129}))
+
+
 def test_message_type_schema_matches_python_enum():
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     type_schema = schema["properties"]["type"]

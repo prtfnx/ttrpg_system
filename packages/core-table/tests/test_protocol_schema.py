@@ -13,6 +13,16 @@ def test_wire_identity_bounds_keep_response_envelope_reserve_bounded(field):
         Message.from_json(json.dumps({"type": "ping", "data": {}, field: "x" * 129}))
 
 
+def test_wire_serializer_is_compact_unicode_json_without_nonfinite_numbers():
+    message = Message(MessageType.CUSTOM, {"text": "Привіт 😀", "points": [{"x": 1, "y": 2}]})
+    wire = message.to_json()
+    assert wire == json.dumps(message.to_dict(), ensure_ascii=False, allow_nan=False, separators=(",", ":"))
+    assert "Привіт 😀" in wire
+    assert Message.from_json(wire).data == message.data
+    with pytest.raises(ValueError):
+        Message(MessageType.CUSTOM, {"value": float("nan")}).to_json()
+
+
 def test_message_type_schema_matches_python_enum():
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     type_schema = schema["properties"]["type"]

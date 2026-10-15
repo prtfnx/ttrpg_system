@@ -67,6 +67,11 @@ can therefore return `invalid_payload` even if its editable fields fit.
 Rejection rolls back object state, revision/order, and operation ledger, and
 does not broadcast an unreadable object. This byte check does not repeat
 geometry validation.
+`Message.to_json` emits compact UTF-8 JSON, matching object and snapshot byte
+accounting instead of expanding dense point arrays with whitespace. Snapshot
+chunks reserve 1,024 bytes for the envelope; correlation identities are bounded
+by the shared schema. Dense-path regressions measure the actual correlated
+event and snapshot messages, not only their compact data documents.
 
 Owners, co-DMs, trusted players, and players can create objects. A creator or
 DM can update/delete an object; spectators have read access only. Server
@@ -264,7 +269,8 @@ The protocol regressions live in `apps/server/tests/unit/test_shape_sprites.py`.
 Legacy sprite persistence also checks the serialized canonical publication
 before saving the snapshot and journal. Its 60 KiB limit includes JSON escaping,
 so an accepted update cannot become an oversized WebSocket message after commit.
-`test_sprite_editor_commands.py` covers atomic rejection and Unicode expansion.
+`test_sprite_editor_commands.py` covers atomic rejection, UTF-8 byte sizes and
+JSON string escaping.
 
 Sprite hydration retains finite world vertices in the browser store as well
 as Rust. Legacy `{x, y}` polygon points normalize to coordinate pairs; malformed

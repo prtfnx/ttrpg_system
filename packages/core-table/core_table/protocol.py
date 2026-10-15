@@ -235,7 +235,8 @@ class Message:
         }
 
     def to_json(self) -> str:
-        return json.dumps(self.to_dict())
+        # Use the same compact UTF-8 representation as payload/frame budgets.
+        return json.dumps(self.to_dict(), ensure_ascii=False, allow_nan=False, separators=(',', ':'))
 
     @classmethod
     def from_json(cls, json_str: str) -> 'Message':

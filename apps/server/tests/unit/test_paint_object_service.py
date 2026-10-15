@@ -106,6 +106,25 @@ def create(service, ids, *, actor="player", operation_id=None, value=None):
     )
 
 
+def test_dense_accepted_paint_events_and_correlated_snapshot_frames_fit_actual_wire_budget(paint_service):
+    from core_table.protocol import Message, MessageType
+    from service.protocol.paint import _snapshot_chunks
+    service, _, ids = paint_service
+    candidate = editable()
+    candidate["geometry"]["points"] = [{"x": index, "y": 0, "pressure": 0.5} for index in range(1900)]
+    result = create(service, ids, value=candidate)
+    assert result.error is None
+    event = Message(MessageType.PAINT_OBJECT_EVENT, result.event, correlation_id="c" * 128, causation_id="d" * 128)
+    assert len(event.to_json().encode("utf-8")) <= 65536
+    assert Message.from_json(event.to_json()).data == result.event
+    snapshot = service.snapshot(session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID)
+    chunks = _snapshot_chunks(snapshot, max_bytes=65536 - 1024)
+    for chunk in chunks:
+        message = Message(MessageType.PAINT_SNAPSHOT_CHUNK, chunk, correlation_id="c" * 128, causation_id="d" * 128)
+        assert len(message.to_json().encode("utf-8")) <= 65536
+    assert sum(len(chunk["objects"][0]["geometry"]["points"]) for chunk in chunks) == 1900
+
+
 @pytest.mark.parametrize("action", ["create", "update", "delete"])
 def test_standalone_paint_stages_object_revision_retry_and_history_in_one_flush(paint_service, action):
     service, factory, ids = paint_service

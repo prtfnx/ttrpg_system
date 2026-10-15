@@ -222,6 +222,10 @@ handles. Each gesture must send one atomic command, converge on the other
 browser, and undo to the prior geometry. The runner also closes a polygon with
 canvas clicks, saves it through the DM dialog, and checks canonical dimensions,
 world vertices, peer delivery and reload persistence.
+Default-mode keyboard duplicate and full-group copy/paste/undo run through real
+browser keys. Context-menu prompts exercise persisted polygon dimensions,
+rotation and layer edits. Moving to the DM layer removes the public sprite without
+delivering its private upsert to the player; undo and reload check canonical state.
 The recorded-transport session workflow in
 `apps/server/tests/integration/test_trusted_session_workflow.py` binds sprite
 history preflight and persistence to the same disposable database as its other

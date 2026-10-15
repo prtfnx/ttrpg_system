@@ -600,6 +600,75 @@ try {
   await dm.page.reload(); await openPaint(dm);
   assert.deepEqual((await savedSprite(dm.page, polygonId)).obstacle_data, polygon.obstacle_data);
   report.stages.push('real polygon click flow: confirmed canonical dimensions and world geometry, peer delivery and reload persistence');
+  console.log('Browser acceptance: default-mode group clipboard and context-menu edits');
+  await dm.page.getByLabel('Select sprites and paint together', { exact: true }).click();
+  await dm.page.waitForFunction(() => !document.querySelector('[aria-label="Select sprites and paint together"]').checked);
+  await dm.page.getByLabel('Select / Move (drag token to move, drag empty = box select)', { exact: true }).click();
+  await dm.page.getByLabel('Switch to Map layer', { exact: true }).click();
+  const canvas = dm.page.getByTestId('game-canvas');
+  const idle = () => dm.page.waitForFunction(() => !window.__paintRelease.interaction.getState().commandPending);
+  const selectSprites = ids => dm.page.evaluate(ids => window.__paintRelease.interaction.replaceSelection(
+    ids.map(id => ({ kind: 'sprite', id }))), ids);
+  await selectSprites([polygonId]); await canvas.focus();
+  await dm.page.keyboard.press('Control+d');
+  await dm.page.waitForFunction(source => {
+    const value = window.__paintRelease.interaction.getState();
+    return !value.commandPending && value.selectedSpriteIds.length === 1 && value.selectedSpriteIds[0] !== source;
+  }, polygonId);
+  const duplicateId = await dm.page.evaluate(() => window.__paintRelease.interaction.getState().selectedSpriteIds[0]);
+  assert.deepEqual((await savedSprite(player.page, duplicateId)).obstacle_data.vertices,
+    polygon.obstacle_data.vertices.map(([x, y]) => [x + 10, y + 10]));
+  // Vacate the first offset anchor before pasting a group containing its source.
+  await dm.page.keyboard.press('ArrowRight'); await idle();
+  assert.notDeepEqual((await savedSprite(player.page, duplicateId)).position,
+    polygon.position.map(value => value + 10));
+  await selectSprites([polygonId, duplicateId]); await canvas.focus();
+  await dm.page.keyboard.press('Control+c');
+  await dm.page.waitForFunction(() => window.__paintRelease.interaction.getState().canPaste
+    && !window.__paintRelease.interaction.getState().commandPending);
+  await dm.page.keyboard.press('Control+v');
+  await dm.page.waitForFunction(sources => {
+    const value = window.__paintRelease.interaction.getState();
+    return !value.commandPending && value.selectedSpriteIds.length === 2 && value.selectedSpriteIds.every(id => !sources.includes(id));
+  }, [polygonId, duplicateId]);
+  const groupCopies = await dm.page.evaluate(() => window.__paintRelease.interaction.getState().selectedSpriteIds);
+  for (const id of groupCopies) assert.equal((await savedSprite(player.page, id)).layer, 'map');
+  await canvas.focus(); await dm.page.keyboard.press('Control+z'); await idle();
+  for (const id of groupCopies) await player.page.waitForFunction(id => !window.__paintRelease.runtime.getRenderEngine().get_sprite_position(id), id);
+  await dm.page.keyboard.press('Control+z'); await idle(); // Undo duplicate's grid nudge.
+  await dm.page.keyboard.press('Control+z'); await idle();
+  await player.page.waitForFunction(id => !window.__paintRelease.runtime.getRenderEngine().get_sprite_position(id), duplicateId);
+  const contextAt = async sprite => {
+    const point = await coordinates(dm.page, sprite.position[0] + sprite.width * sprite.scale_x / 2,
+      sprite.position[1] + sprite.height * sprite.scale_y / 2);
+    await dm.page.mouse.click(point.x, point.y, { button: 'right' });
+    await dm.page.getByRole('menu', { name: 'Sprite actions', exact: true }).waitFor();
+  };
+  await contextAt(polygon);
+  dm.page.once('dialog', dialog => dialog.accept('64,32'));
+  await dm.page.getByRole('menuitem', { name: 'Resize Sprite', exact: true }).click(); await idle();
+  const resized = await savedSprite(player.page, polygonId);
+  assert.equal(resized.width, 64); assert.equal(resized.height, 32);
+  assert.notDeepEqual(resized.obstacle_data, polygon.obstacle_data);
+  await contextAt(resized);
+  dm.page.once('dialog', dialog => dialog.accept('90'));
+  await dm.page.getByRole('menuitem', { name: 'Rotate Sprite', exact: true }).click(); await idle();
+  const rotated = await savedSprite(player.page, polygonId);
+  assert.equal(rotated.rotation, 90); assert.notDeepEqual(rotated.obstacle_data, resized.obstacle_data);
+  await contextAt(rotated);
+  await dm.page.getByRole('menuitem', { name: 'Move to Layer', exact: true }).click();
+  await dm.page.getByRole('menu', { name: 'Move sprite to layer', exact: true })
+    .getByRole('menuitem', { name: 'DM Layer', exact: true }).click(); await idle();
+  assert.equal((await savedSprite(dm.page, polygonId)).layer, 'dungeon_master');
+  await player.page.waitForFunction(id => !window.__paintRelease.runtime.getRenderEngine().get_sprite_position(id), polygonId);
+  assert.equal(await player.page.evaluate(id => window.__paintRelease.sprites[id].layer, polygonId), 'map');
+  await canvas.focus(); await dm.page.keyboard.press('Control+z'); await idle();
+  assert.equal((await savedSprite(player.page, polygonId)).layer, 'map');
+  await dm.page.reload(); await openPaint(dm);
+  const persistedContextEdit = await savedSprite(dm.page, polygonId);
+  assert.equal(persistedContextEdit.rotation, 90); assert.equal(persistedContextEdit.width, 64);
+  assert.deepEqual(persistedContextEdit.obstacle_data, rotated.obstacle_data);
+  report.stages.push('default-mode full-group clipboard/duplicate/undo; confirmed context resize/rotation/layer edits, private-layer filtering and reload persistence');
   let remaining = (await state(player.page)).committed.length;
   for (const object of (await state(player.page)).committed) {
     await player.page.evaluate(object => window.__paintRelease.paint.submitDelete(object.id, object.version), object);
@@ -897,6 +966,12 @@ try {
     await page.screenshot({ path: join(fixture.evidenceDir, `failure-${index}.png`) }).catch(() => {});
     await writeFile(join(fixture.evidenceDir, `failure-${index}.txt`), await page.locator('body').innerText().catch(() => ''));
     await writeFile(join(fixture.evidenceDir, `failure-${index}-state.json`), JSON.stringify(await state(page).catch(() => null), null, 2));
+    await writeFile(join(fixture.evidenceDir, `failure-${index}-editor.json`), JSON.stringify(await page.evaluate(() => ({
+      interaction: window.__paintRelease.interaction?.getState(),
+      selectedSprites: window.__paintRelease.runtime?.getRenderEngine()?.get_selected_sprites(),
+      commandCount: window.__paintRelease.canvasCommandCount,
+      recentMessages: window.__paintRelease.messages.slice(-25),
+    })).catch(() => null), null, 2));
   }
   throw error;
 } finally {

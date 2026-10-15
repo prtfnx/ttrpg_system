@@ -567,13 +567,13 @@ def test_postgresql_paint_writers_receive_gap_free_revisions(postgresql_engine, 
                     geometry={"kind": "freehand", "points": [{"x": 0, "y": 0, "pressure": 1},
                                                              {"x": 1, "y": 1, "pressure": 1}]})
         context = {"session_id": session_id, "actor_id": user_id, "table_id": table_id}
-        context["issued_at"] = issued_at
-        assert service.create(**context, operation_id=str(uuid.uuid4()), editable=path).error is None
+        write_context = {**context, "issued_at": issued_at}
+        assert service.create(**write_context, operation_id=str(uuid.uuid4()), editable=path).error is None
         extra = {**path, "id": str(uuid.uuid4())}
-        rejected = service.create(**context, operation_id=str(uuid.uuid4()), editable=extra)
+        rejected = service.create(**write_context, operation_id=str(uuid.uuid4()), editable=extra)
         assert rejected.error is not None and rejected.error.code == "limit_exceeded"
         path["geometry"]["points"].append({"x": 2, "y": 2, "pressure": 1})
-        rejected = service.update(**context, operation_id=str(uuid.uuid4()), object_id=path["id"],
+        rejected = service.update(**write_context, operation_id=str(uuid.uuid4()), object_id=path["id"],
                                   expected_version=1, editable=path)
         assert rejected.error is not None and rejected.error.code == "limit_exceeded"
         confirmed = service.snapshot(**context)

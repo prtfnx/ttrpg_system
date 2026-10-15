@@ -77,6 +77,21 @@ async def test_retry_does_not_publish_stale_table_or_rebroadcast_events(scene, p
 
 
 @pytest.mark.asyncio
+async def test_absolute_layer_edit_publishes_old_layer_removal_before_private_upsert(scene, protocol):
+    command = scene["command"]("sprite_edit", members=scene["members"]()[1:], edit={"layer": "dungeon_master"})
+    receipt = await dispatch(protocol, command)
+    assert receipt.data["success"] and receipt.data["can_undo"]
+    calls = protocol.session_manager.broadcast_filtered.await_args_list
+    assert [(call.args[0].type, call.args[1]) for call in calls] == [
+        (MessageType.SPRITE_REMOVE, "tokens"), (MessageType.SPRITE_UPDATE, "dungeon_master"),
+    ]
+    assert "sprite_data" not in calls[0].args[0].data
+    assert calls[1].args[0].data["sprite_data"]["layer"] == "dungeon_master"
+    with scene["factory"]() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 1
+
+
+@pytest.mark.asyncio
 async def test_unauthenticated_sender_cannot_supply_actor_context(scene, protocol):
     protocol.session_manager.client_info.clear()
     response = await dispatch(protocol, {**scene["command"](), "actor_id": scene["actor"]})

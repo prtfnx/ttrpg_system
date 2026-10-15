@@ -4,6 +4,8 @@
  */
 
 import type { RenderEngine, WallMoveUpdate } from '@lib/wasm/runtime';
+import type { PaintInteractionController } from '@features/painting/controller/PaintInteractionController';
+import { useCombatStore } from '@features/combat/stores/combatStore';
 import type { WebClientProtocol } from '@lib/websocket/clientProtocol';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 import { useGameStore } from '@/store';
@@ -32,7 +34,6 @@ interface ContextMenuState {
   x: number;
   y: number;
   spriteId?: string;
-  copiedSprite?: string;
   showLayerSubmenu?: boolean;
 }
 
@@ -45,6 +46,7 @@ export interface UseCanvasEventsEnhancedProps {
   showPerformanceMonitor?: boolean;
   togglePerformanceMonitor: () => void;
   protocol?: WebClientProtocol | null;
+  editor?: Pick<PaintInteractionController, 'getState' | 'subscribe' | 'spriteSelectionCommand' | 'pasteSelection' | 'transformSprites'> | null;
 }
 
 export const useCanvasEventsEnhanced = ({ 
@@ -54,177 +56,95 @@ export const useCanvasEventsEnhanced = ({
   setLightPlacementMode,
   setContextMenu,
   togglePerformanceMonitor,
-  protocol
+  protocol,
+  editor
 }: UseCanvasEventsEnhancedProps): CanvasEventsEnhanced => {
   const selectedSpriteIdsRef = useRef<string[]>([]);
-  const lastMousePosRef = useRef({ x: 0, y: 0 });
-  const clipboardRef = useRef<string | null>(null);
   // Tracks where right-mousedown started (for drag detection to suppress context menu)
   const rightDownPosRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Update input context when selection changes
   const updateInputContext = useCallback(() => {
     const engine = rustRenderManagerRef.current;
-    if (engine) {
-      const selectedSpriteIds = engine.get_selected_sprites();
-      const selectedWallIds = engine.get_selected_walls();
-      selectedSpriteIdsRef.current = selectedSpriteIds;
-      inputManager.updateContext({
-        selectedSpriteIds,
-        selectedWallIds,
-        canUndo: engine.can_undo(),
-        canRedo: engine.can_redo(),
-      });
-    }
-  }, [rustRenderManagerRef]);
+    const selectedSpriteIds = engine?.get_selected_sprites() ?? [];
+    selectedSpriteIdsRef.current = selectedSpriteIds;
+    const state = editor?.getState();
+    inputManager.updateContext({
+      selectedSpriteIds, selectedWallIds: engine?.get_selected_walls() ?? [],
+      canUndo: state?.canUndo === true, canRedo: state?.canRedo === true,
+      hasClipboard: state?.canPaste === true && !state.commandPending,
+    });
+  }, [rustRenderManagerRef, editor]);
 
-  // Register input action handlers
   useEffect(() => {
-    const engine = rustRenderManagerRef.current;
-    if (!engine) return;
-
-    const cellPx = useGameStore.getState().gridCellPx ?? 50;
-
-    const moveSelectedSprites = (deltaX: number, deltaY: number) => {
-      engine.get_selected_sprites().forEach((spriteId) => {
-        const currentPos = engine.get_sprite_position(spriteId);
-        if (currentPos) {
-          const newPos = [currentPos[0] + deltaX, currentPos[1] + deltaY];
-          engine.update_sprite_position(spriteId, newPos[0], newPos[1]);
-          protocol?.moveSprite(spriteId, newPos[0], newPos[1]);
-          window.dispatchEvent(new CustomEvent('sprite-moved', {
-            detail: { id: spriteId, x: newPos[0], y: newPos[1] }
-          }));
-        }
-      });
+    updateInputContext();
+    const unsubscribe = editor?.subscribe(() => updateInputContext());
+    return () => {
+      unsubscribe?.();
+      inputManager.updateContext({ hasClipboard: false, canUndo: false, canRedo: false,
+        selectedSpriteIds: [], selectedWallIds: [], isCanvasFocused: false });
     };
+  }, [editor, updateInputContext]);
 
+  // Resolve the current renderer per action, including initial attach and recreation.
+  useEffect(() => {
+    const selectedIds = () => rustRenderManagerRef.current?.get_selected_sprites() ?? [];
+    const moveSelectedSprites = (dx: number, dy: number) => {
+      const ids = selectedIds();
+      const state = useGameStore.getState();
+      const combat = useCombatStore.getState().combat;
+      if (ids.length === 1 && combat?.phase !== 'inactive' && combat?.table_id === state.activeTableId
+        && combat?.combatants.some(member => member.entity_id === ids[0])) {
+        const sprite = state.sprites.find(item => item.id === ids[0] && item.table_id === state.activeTableId);
+        if (sprite && rustRenderManagerRef.current) protocol?.moveSprite(sprite.id, sprite.x + dx, sprite.y + dy);
+      } else {
+        editor?.transformSprites(ids, { dx, dy });
+      }
+    };
     const syncWallUpdates = (updates: ArrayLike<WallMoveUpdate>) => {
-      Array.from(updates).forEach((update) => {
-        useGameStore.getState().updateWall(update.wallId, {
-          x1: update.x1,
-          y1: update.y1,
-          x2: update.x2,
-          y2: update.y2,
-        });
-        protocol?.updateWall(update.wallId, {
-          x1: update.x1,
-          y1: update.y1,
-          x2: update.x2,
-          y2: update.y2,
-        });
+      Array.from(updates).forEach(update => {
+        const position = { x1: update.x1, y1: update.y1, x2: update.x2, y2: update.y2 };
+        useGameStore.getState().updateWall(update.wallId, position);
+        protocol?.updateWall(update.wallId, position);
       });
     };
-
-    const moveSelectedObjects = (deltaX: number, deltaY: number) => {
-      moveSelectedSprites(deltaX, deltaY);
-      syncWallUpdates(engine.translate_selected_walls(deltaX, deltaY));
+    const moveSelectedObjects = (dx: number, dy: number) => {
+      moveSelectedSprites(dx, dy);
+      const engine = rustRenderManagerRef.current;
+      if (engine && protocol) syncWallUpdates(engine.translate_selected_walls(dx, dy));
     };
-
+    const cellPx = () => useGameStore.getState().gridCellPx ?? 50;
     const actionHandlers = {
       delete_selected: () => {
-        engine.get_selected_sprites().forEach((spriteId) => {
-          if (protocol) {
-            protocol.removeSprite(spriteId);
-          } else {
-            engine.remove_sprite(spriteId);
-          }
-        });
-        const removedWallIds = engine.remove_selected_walls();
-        removedWallIds.forEach((wallId) => {
-          useGameStore.getState().removeWall(wallId);
-          protocol?.removeWall(wallId);
-        });
-        updateInputContext();
-      },
-
-      copy_selected: () => {
-        const selectedSpriteIds = engine.get_selected_sprites();
-        if (selectedSpriteIds.length > 0) {
-          const spriteData = engine.copy_sprite(selectedSpriteIds[0]);
-          if (spriteData) {
-            clipboardRef.current = spriteData;
-            setContextMenu(prev => ({ ...prev, copiedSprite: spriteData }));
-            inputManager.updateContext({ hasClipboard: true });
-          }
+        editor?.spriteSelectionCommand(selectedIds(), 'delete');
+        const engine = rustRenderManagerRef.current;
+        if (engine && protocol) {
+          engine.remove_selected_walls().forEach(wallId => {
+            useGameStore.getState().removeWall(wallId);
+            protocol.removeWall(wallId);
+          });
         }
-      },
-
-      paste_sprites: () => {
-        const copiedData = clipboardRef.current;
-        if (!copiedData) return;
-        const { x, y } = lastMousePosRef.current;
-        const worldPos = engine.screen_to_world(x, y);
-        engine.paste_sprite('tokens', copiedData, worldPos[0], worldPos[1]);
         updateInputContext();
       },
-
-      scale_up: () => {
-        engine.get_selected_sprites().forEach((spriteId) => {
-          const currentScale = engine.get_sprite_scale(spriteId);
-          if (currentScale) {
-            const newScale = [currentScale[0] * 1.1, currentScale[1] * 1.1];
-            engine.update_sprite_scale(spriteId, newScale[0], newScale[1]);
-            protocol?.updateSprite(spriteId, { scale_x: newScale[0], scale_y: newScale[1] });
-          }
-        });
-      },
-
-      scale_down: () => {
-        engine.get_selected_sprites().forEach((spriteId) => {
-          const currentScale = engine.get_sprite_scale(spriteId);
-          if (currentScale) {
-            const newScale = [currentScale[0] * 0.9, currentScale[1] * 0.9];
-            engine.update_sprite_scale(spriteId, newScale[0], newScale[1]);
-            protocol?.updateSprite(spriteId, { scale_x: newScale[0], scale_y: newScale[1] });
-          }
-        });
-      },
-
-      move_up: () => {
-        moveSelectedObjects(0, -cellPx);
-      },
-
-      move_down: () => {
-        moveSelectedObjects(0, cellPx);
-      },
-
-      move_left: () => {
-        moveSelectedObjects(-cellPx, 0);
-      },
-
-      move_right: () => {
-        moveSelectedObjects(cellPx, 0);
-      },
-
-      select_all: () => {
-        engine.select_all_sprites();
-        updateInputContext();
-      },
-
-      clear_selection: () => {
-        engine.clear_selection();
-        updateInputContext();
-      },
-
-      toggle_performance: () => {
-        togglePerformanceMonitor();
-      },
+      copy_selected: () => { editor?.spriteSelectionCommand(selectedIds(), 'copy'); },
+      cut_selected: () => { editor?.spriteSelectionCommand(selectedIds(), 'cut'); },
+      duplicate_selected: () => { editor?.spriteSelectionCommand(selectedIds(), 'duplicate'); },
+      paste_sprites: () => { if (rustRenderManagerRef.current) editor?.pasteSelection(); },
+      scale_up: () => { editor?.transformSprites(selectedIds(), { scale: 1.1 }); },
+      scale_down: () => { editor?.transformSprites(selectedIds(), { scale: 0.9 }); },
+      move_up: () => moveSelectedObjects(0, -cellPx()),
+      move_down: () => moveSelectedObjects(0, cellPx()),
+      move_left: () => moveSelectedObjects(-cellPx(), 0),
+      move_right: () => moveSelectedObjects(cellPx(), 0),
+      select_all: () => { rustRenderManagerRef.current?.select_all_sprites(); updateInputContext(); },
+      clear_selection: () => { rustRenderManagerRef.current?.clear_selection(); updateInputContext(); },
+      toggle_performance: togglePerformanceMonitor,
     };
-
-    // Register all action handlers
-    Object.entries(actionHandlers).forEach(([action, handler]) => {
-      inputManager.onAction(action, handler);
-    });
-
+    Object.entries(actionHandlers).forEach(([action, handler]) => inputManager.onAction(action, handler));
     updateInputContext();
-
     return () => {
-      Object.entries(actionHandlers).forEach(([action, handler]) => {
-        inputManager.offAction(action, handler);
-      });
+      Object.entries(actionHandlers).forEach(([action, handler]) => inputManager.offAction(action, handler));
     };
-  }, [rustRenderManagerRef, protocol, setContextMenu, togglePerformanceMonitor, updateInputContext]);
+  }, [rustRenderManagerRef, editor, protocol, togglePerformanceMonitor, updateInputContext]);
 
   // Mouse handlers
   const handleMouseDown = useCallback(
@@ -232,8 +152,6 @@ export const useCanvasEventsEnhanced = ({
       const canvas = canvasRef.current;
       const renderManager = rustRenderManagerRef.current;
       if (!canvas) return;
-
-      lastMousePosRef.current = { x: e.offsetX, y: e.offsetY };
 
       if (lightPlacementMode?.active && renderManager) {
         const { x, y } = getRelativeCoords(e, canvas);
@@ -283,8 +201,6 @@ export const useCanvasEventsEnhanced = ({
       const canvas = canvasRef.current;
       const renderManager = rustRenderManagerRef.current;
       if (!canvas || !renderManager) return;
-
-      lastMousePosRef.current = { x: e.offsetX, y: e.offsetY };
 
       const { x, y } = getRelativeCoords(e, canvas);
       renderManager.handle_mouse_move(x, y);

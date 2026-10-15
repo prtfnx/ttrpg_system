@@ -111,11 +111,72 @@ describe('useCanvasEventsEnhanced', () => {
     expect(inputManager.offAction).toHaveBeenCalled();
   });
 
-  it('does not register handlers when engine is null', () => {
+  it('registers safe handlers before the renderer attaches', () => {
     const props = defaultProps();
     props.rustRenderManagerRef = { current: null as unknown as RenderEngine };
     renderHook(() => useCanvasEventsEnhanced(props));
-    expect(inputManager.onAction).not.toHaveBeenCalled();
+    expect(inputManager.onAction).toHaveBeenCalled();
+  });
+});
+
+describe('confirmed default sprite commands', () => {
+  function setup() {
+    const props = defaultProps();
+    props.engine.get_selected_sprites.mockReturnValue(['first', 'second']);
+    const editor = {
+      getState: vi.fn(() => ({ canPaste: false, commandPending: false, canUndo: false, canRedo: false })),
+      subscribe: vi.fn(() => vi.fn()), spriteSelectionCommand: vi.fn(() => true),
+      pasteSelection: vi.fn(() => true), transformSprites: vi.fn(() => true),
+    };
+    const rendered = renderHook(() => useCanvasEventsEnhanced({ ...props,
+      editor: editor as unknown as NonNullable<Parameters<typeof useCanvasEventsEnhanced>[0]['editor']> }));
+    const action = (name: string) => {
+      const handler = vi.mocked(inputManager.onAction).mock.calls.find(([key]) => key === name)?.[1];
+      expect(handler).toBeDefined();
+      act(() => handler!(new KeyboardEvent('keydown')));
+    };
+    return { props, editor, action, unmount: rendered.unmount };
+  }
+
+  it.each([['copy_selected', 'copy'], ['cut_selected', 'cut'], ['duplicate_selected', 'duplicate'], ['delete_selected', 'delete']])(
+    'routes all selected sprites for %s', (actionName, mode) => {
+      const h = setup();
+      h.action(actionName);
+      expect(h.editor.spriteSelectionCommand).toHaveBeenCalledWith(['first', 'second'], mode);
+      expect(h.props.engine.copy_sprite).not.toHaveBeenCalled();
+      expect(h.props.engine.remove_sprite).not.toHaveBeenCalled();
+    });
+
+  it('pastes and scales through the owner without optimistic mutation', () => {
+    const h = setup();
+    h.action('paste_sprites'); h.action('scale_up'); h.action('scale_down');
+    expect(h.editor.pasteSelection).toHaveBeenCalledOnce();
+    expect(h.editor.transformSprites).toHaveBeenNthCalledWith(1, ['first', 'second'], { scale: 1.1 });
+    expect(h.editor.transformSprites).toHaveBeenNthCalledWith(2, ['first', 'second'], { scale: 0.9 });
+    expect(h.props.engine.paste_sprite).not.toHaveBeenCalled();
+    expect(h.props.engine.update_sprite_scale).not.toHaveBeenCalled();
+  });
+
+  it('nudges the group without renderer writes or synthetic acceptance events', () => {
+    const h = setup();
+    const moved = vi.fn(); window.addEventListener('sprite-moved', moved);
+    h.action('move_right');
+    expect(h.editor.transformSprites).toHaveBeenCalledWith(['first', 'second'], { dx: 50, dy: 0 });
+    expect(h.props.engine.update_sprite_position).not.toHaveBeenCalled();
+    expect(moved).not.toHaveBeenCalled(); window.removeEventListener('sprite-moved', moved);
+  });
+
+  it('resolves a replacement renderer and clears clipboard context on unmount', () => {
+    const h = setup();
+    const replacement = makeEngine({ get_selected_sprites: vi.fn(() => ['replacement']) });
+    h.props.rustRenderManagerRef.current = replacement as unknown as RenderEngine;
+    h.action('copy_selected');
+    expect(h.editor.spriteSelectionCommand).toHaveBeenCalledWith(['replacement'], 'copy');
+    h.props.rustRenderManagerRef.current = null as unknown as RenderEngine;
+    h.action('paste_sprites');
+    expect(h.editor.pasteSelection).not.toHaveBeenCalled();
+    h.unmount();
+    expect(inputManager.updateContext).toHaveBeenLastCalledWith(expect.objectContaining({ hasClipboard: false, isCanvasFocused: false }));
   });
 });
 

@@ -230,6 +230,16 @@ error; canceled prompts do not edit. No local-only fallback or orphan layer-chan
 DOM event persists a context-menu edit. Regressions live in
 `GameCanvas/__tests__/useContextMenu.test.ts`.
 
+Default-mode sprite keyboard copy/cut/duplicate captures every selected sprite,
+not only the first. Paste, uniform scaling and grid-step nudging use the same
+confirmed owner and never write renderer state first. A single combat-token nudge
+keeps the existing combat movement route and reads its start from authoritative
+store state. Mixed combat/editor mutation still rejects as one editor command.
+Keyboard handlers resolve the current renderer per action, so initial attachment
+and renderer replacement do not retain a freed engine. Wall commands remain
+separate wall operations, not members of sprite/paint history. Regression owner:
+`GameCanvas/__tests__/useCanvasEventsEnhanced.test.ts`.
+
 ## Transport batching
 
 `batch_request` reduces WebSocket framing overhead. It is not a database

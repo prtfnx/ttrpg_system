@@ -173,6 +173,7 @@ export const GameCanvas: React.FC = () => {
       showPerformanceMonitor,
       togglePerformanceMonitor,
       protocol,
+      editor: paintInteraction,
     });
 
   useEffect(() => {

@@ -146,10 +146,11 @@ export const GameCanvas: React.FC = () => {
     removeCombatant(combatant.combatant_id);
   };
 
-  const { contextMenu, setContextMenu, handleContextMenuAction, handleMoveToLayer } = useContextMenu({
+  const { contextMenu, setContextMenu, canPaste, handleContextMenuAction, handleMoveToLayer } = useContextMenu({
     canvasRef: canvasRef as React.RefObject<HTMLCanvasElement>,
     rustRenderManagerRef,
     protocol,
+    editor: paintInteraction,
   });
 
   // Light placement logic
@@ -886,7 +887,7 @@ export const GameCanvas: React.FC = () => {
                 >
                   Copy Sprite
                 </button>
-                {contextMenu.copiedSprite && (
+                {canPaste && (
                   <button
                     type="button"
                     role="menuitem"
@@ -986,7 +987,7 @@ export const GameCanvas: React.FC = () => {
               </>
             ) : (
               // Show paste option when clicking on empty space if there's a copied sprite
-              contextMenu.copiedSprite && (
+              canPaste && (
                 <button
                   type="button"
                   role="menuitem"

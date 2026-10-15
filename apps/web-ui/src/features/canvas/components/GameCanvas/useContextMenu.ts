@@ -1,10 +1,9 @@
 /**
  * Context menu and light placement state management
  */
-import { useGameStore } from '@/store';
 import type { WebClientProtocol } from '@lib/websocket';
 import type { RenderEngine } from '@lib/wasm/runtime';
-import { logger } from '@shared/utils/logger';
+import type { PaintInteractionController } from '@features/painting/controller/PaintInteractionController';
 import { useCallback, useEffect, useState, type RefObject } from 'react';
 
 interface ContextMenuState {
@@ -12,7 +11,6 @@ interface ContextMenuState {
   x: number;
   y: number;
   spriteId?: string;
-  copiedSprite?: string;
   showLayerSubmenu?: boolean;
 }
 
@@ -36,156 +34,76 @@ interface UseContextMenuProps {
   canvasRef: RefObject<HTMLCanvasElement>;
   rustRenderManagerRef: RefObject<RenderEngine | null>;
   protocol: WebClientProtocol | null;
+  editor?: Pick<PaintInteractionController, 'getState' | 'subscribe' | 'selectionCommand' | 'spriteSelectionCommand' | 'pasteSelection' | 'editSprites'> | null;
 }
 
-export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: UseContextMenuProps) => {
- const [contextMenu, setContextMenu] = useState<ContextMenuState>({
-    visible: false,
-    x: 0,
-    y: 0,
-    showLayerSubmenu: false,
-  });
+const CLOSED_MENU: ContextMenuState = { visible: false, x: 0, y: 0, showLayerSubmenu: false };
 
-  const handleContextMenuAction = useCallback(
-    (action: string) => {
-      if (!rustRenderManagerRef.current) return;
-
-      const { spriteId, x, y } = contextMenu;
-
-      switch (action) {
-        case 'delete':
-          if (spriteId && protocol) {
-            logger.debug('Sending sprite delete request to server', { spriteId });
-            try {
-              protocol.removeSprite(spriteId);
-              logger.debug('Sprite delete request sent to server', { spriteId });
-            } catch (error) {
-              logger.error('Failed to send sprite delete request', error);
-            }
-          } else if (spriteId) {
-            logger.warn('Protocol not available, deleting sprite locally only', { spriteId });
-            rustRenderManagerRef.current.remove_sprite(spriteId);
-          }
-          break;
-        case 'copy':
-          if (spriteId) {
-            const spriteData = rustRenderManagerRef.current.copy_sprite(spriteId);
-            if (spriteData) {
-              setContextMenu((prev) => ({ ...prev, copiedSprite: spriteData }));
-            }
-          }
-          break;
-        case 'paste':
-          if (contextMenu.copiedSprite) {
-            const canvas = canvasRef.current;
-            if (canvas) {
-              const rect = canvas.getBoundingClientRect();
-              const canvasX = (x - rect.left) * (canvas.width / rect.width);
-              const canvasY = (y - rect.top) * (canvas.height / rect.height);
-              const worldCoords = rustRenderManagerRef.current.screen_to_world(canvasX, canvasY);
-              rustRenderManagerRef.current.paste_sprite(
-                'tokens',
-                contextMenu.copiedSprite,
- worldCoords[0],
- worldCoords[1]
-              );
-            }
-          }
-          break;
-        case 'resize':
-          if (spriteId) {
-            const newSize = prompt('Enter new size (width,height):', '64,64');
-            if (newSize) {
- const [width, height] = newSize.split(',').map((n) => parseFloat(n.trim()));
-              if (!isNaN(width) && !isNaN(height)) {
-                rustRenderManagerRef.current.resize_sprite(spriteId, width, height);
-              }
-            }
-          }
-          break;
-        case 'rotate':
-          if (spriteId) {
-            const angle = prompt('Enter rotation angle (degrees):', '0');
-            if (angle) {
-              const degrees = parseFloat(angle);
-              if (!isNaN(degrees)) {
-                rustRenderManagerRef.current.rotate_sprite(spriteId, degrees);
-              }
-            }
-          }
-          break;
-      }
-
-      // Don't close menu if showing layer submenu
-      if (action !== 'show_layer_submenu') {
-        setContextMenu((prev) => ({
-          visible: false,
-          x: 0,
-          y: 0,
-          showLayerSubmenu: false,
-          copiedSprite: prev.copiedSprite, // Preserve copied sprite
-        }));
-      }
-    },
- [contextMenu, protocol, canvasRef, rustRenderManagerRef]
-  );
-
-  const handleMoveToLayer = useCallback(
-    (layerId: string) => {
-      if (!rustRenderManagerRef.current || !contextMenu.spriteId) return;
-
-      const { updateSprite } = useGameStore.getState();
-
-      try {
-        const renderEngine = rustRenderManagerRef.current as RenderEngine;
-        const moved = renderEngine.move_sprite_to_layer(contextMenu.spriteId, layerId);
-        if (moved) {
-          updateSprite(contextMenu.spriteId, { layer: layerId });
-          window.dispatchEvent(
-            new CustomEvent('spriteLayerChanged', {
-              detail: { spriteId: contextMenu.spriteId, layer: layerId },
-            })
-          );
-        } else {
-          logger.warn('move_sprite_to_layer returned false', { spriteId: contextMenu.spriteId, layerId });
-        }
-      } catch (error) {
-        logger.error('Failed to move sprite to layer', error);
-      }
-
-      setContextMenu((prev) => ({
-        visible: false,
-        x: 0,
-        y: 0,
-        showLayerSubmenu: false,
-        copiedSprite: prev.copiedSprite,
-      }));
-    },
- [contextMenu.spriteId, rustRenderManagerRef]
-  );
-
-  // Close context menu on click outside
+/** Renderer input identifies a target; the shared owner confirms every durable edit. */
+export const useContextMenu = ({ rustRenderManagerRef, editor }: UseContextMenuProps) => {
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>(CLOSED_MENU);
+  const [canPaste, setCanPaste] = useState(false);
   useEffect(() => {
-    const handleClick = () =>
-      setContextMenu((prev) => ({
-        visible: false,
-        x: 0,
-        y: 0,
-        showLayerSubmenu: false,
-        copiedSprite: prev.copiedSprite,
-      }));
-    if (contextMenu.visible) {
-      document.addEventListener('click', handleClick);
-      return () => document.removeEventListener('click', handleClick);
-    }
- }, [contextMenu.visible]);
+    setContextMenu(CLOSED_MENU);
+    setCanPaste(false);
+    return editor?.subscribe(state => setCanPaste(state.canPaste === true && !state.commandPending));
+  }, [editor]);
 
-  return {
-    contextMenu,
-    setContextMenu,
-    handleContextMenuAction,
-    handleMoveToLayer,
-  };
+  const handleContextMenuAction = useCallback((action: string) => {
+    const engine = rustRenderManagerRef.current;
+    const { spriteId } = contextMenu;
+    if (editor && engine) {
+      switch (action) {
+        case 'copy':
+        case 'delete': {
+          if (!spriteId) break;
+          const state = editor.getState();
+          if (state.selectedSpriteIds?.includes(spriteId)) {
+            editor.selectionCommand(action);
+          } else {
+            const selected = engine.get_selected_sprites();
+            editor.spriteSelectionCommand(selected.includes(spriteId) ? selected : [spriteId], action);
+          }
+          break;
+        }
+        case 'paste':
+          editor.pasteSelection();
+          break;
+        case 'resize': {
+          if (!spriteId) break;
+          const size = prompt('Enter new size (width,height):', '64,64');
+          if (size === null) break;
+          const parts = size.split(',');
+          const [width, height] = parts.map(value => Number(value.trim()));
+          editor.editSprites([spriteId], { width: parts.length === 2 ? width : NaN, height });
+          break;
+        }
+        case 'rotate': {
+          if (!spriteId) break;
+          const angle = prompt('Enter rotation angle (degrees):', '0');
+          if (angle === null || !angle.trim()) break;
+          const degrees = Number(angle.trim());
+          editor.editSprites([spriteId], { rotation: ((degrees + 180) % 360 + 360) % 360 - 180 });
+          break;
+        }
+      }
+    }
+    if (action !== 'show_layer_submenu') setContextMenu(CLOSED_MENU);
+  }, [contextMenu, editor, rustRenderManagerRef]);
+
+  const handleMoveToLayer = useCallback((layer: string) => {
+    if (contextMenu.spriteId && rustRenderManagerRef.current) editor?.editSprites([contextMenu.spriteId], { layer });
+    setContextMenu(CLOSED_MENU);
+  }, [contextMenu.spriteId, editor, rustRenderManagerRef]);
+
+  useEffect(() => {
+    if (!contextMenu.visible) return;
+    const close = () => setContextMenu(CLOSED_MENU);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [contextMenu.visible]);
+
+  return { contextMenu, setContextMenu, canPaste, handleContextMenuAction, handleMoveToLayer };
 };
 
 export const useLightPlacement = (canvasRef: RefObject<HTMLCanvasElement>) => {

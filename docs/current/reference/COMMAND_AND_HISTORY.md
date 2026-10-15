@@ -221,6 +221,15 @@ without optimistic scene writes. Detached renderers, hydration, and pending pain
 intent block these calls. Paste uses the active actor/table clipboard and the same
 guards; a scope change cannot reuse an old clipboard.
 
+The sprite context menu routes copy, paste, delete, absolute resize/rotation and
+layer edits through that owner. Copy targets the whole active selection when the
+clicked sprite belongs to it; otherwise it targets only that sprite. Paste keeps
+the clipboard's source layers and uses the shared ten-unit offset. Availability
+appears only after the server confirms copy. Invalid numeric input reports an
+error; canceled prompts do not edit. No local-only fallback or orphan layer-change
+DOM event persists a context-menu edit. Regressions live in
+`GameCanvas/__tests__/useContextMenu.test.ts`.
+
 ## Transport batching
 
 `batch_request` reduces WebSocket framing overhead. It is not a database

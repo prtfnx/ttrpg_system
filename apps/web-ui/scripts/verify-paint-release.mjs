@@ -269,6 +269,9 @@ function bounds(object) {
   return { x1: Math.min(...xs), y1: Math.min(...ys), x2: Math.max(...xs), y2: Math.max(...ys) };
 }
 async function send(page, type, data) {
+  if (['paint_object_create', 'paint_object_update', 'paint_object_delete'].includes(type) && data.issued_at === undefined) {
+    data = { ...data, issued_at: Date.now() };
+  }
   await page.evaluate(({ type, data }) => {
     const socket = window.__paintRelease.sockets.find(ws => ws.readyState === WebSocket.OPEN);
     socket.send(JSON.stringify({ type, data, message_id: crypto.randomUUID() }));

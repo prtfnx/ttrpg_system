@@ -338,6 +338,7 @@ def rehearse_cutover(url, directory: Path) -> dict:
     try:
         service = PaintObjectService(sessionmaker(bind=engine), writes_enabled=True)
         result = service.create(
+            issued_at=time.time() * 1000,
             session_id=session_id,
             actor_id=actor_id,
             table_id=table_ids[0],

@@ -477,6 +477,7 @@ def test_postgresql_paint_writers_receive_gap_free_revisions(postgresql_engine, 
 
     factory = sessionmaker(bind=postgresql_engine)
     barrier = threading.Barrier(2)
+    issued_at = time.time() * 1000
     results = []
     failures: list[BaseException] = []
     result_lock = threading.Lock()
@@ -486,6 +487,7 @@ def test_postgresql_paint_writers_receive_gap_free_revisions(postgresql_engine, 
             object_id = object_id or str(uuid.uuid4())
             barrier.wait(timeout=5)
             result = PaintObjectService(factory).create(
+                issued_at=issued_at,
                 session_id=session_id,
                 actor_id=user_id,
                 table_id=table_id,
@@ -565,6 +567,7 @@ def test_postgresql_paint_writers_receive_gap_free_revisions(postgresql_engine, 
                     geometry={"kind": "freehand", "points": [{"x": 0, "y": 0, "pressure": 1},
                                                              {"x": 1, "y": 1, "pressure": 1}]})
         context = {"session_id": session_id, "actor_id": user_id, "table_id": table_id}
+        context["issued_at"] = issued_at
         assert service.create(**context, operation_id=str(uuid.uuid4()), editable=path).error is None
         extra = {**path, "id": str(uuid.uuid4())}
         rejected = service.create(**context, operation_id=str(uuid.uuid4()), editable=extra)

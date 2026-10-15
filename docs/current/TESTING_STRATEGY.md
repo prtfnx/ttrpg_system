@@ -211,6 +211,10 @@ restyle retains mixed selection. Shared paint/text resize and rotation, durable
 undo/redo across restart, mixed clipboard paste/undo and text deletion use the
 production editor controls and authenticated commands. Selection preferences
 remain isolated by session member after reload.
+Synthetic paint requests carry an original `issued_at` timestamp;
+concurrent identical retries reuse that same timestamp and payload. Tests must
+not refresh an existing intent merely to bypass its retry-age check.
+
 Real pointer drags exercise the mixed selection's corner and snapped rotation
 handles. Each gesture must send one atomic command, converge on the other
 browser, and undo to the prior geometry. The runner also closes a polygon with

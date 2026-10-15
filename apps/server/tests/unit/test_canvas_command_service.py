@@ -420,6 +420,7 @@ def test_standalone_paint_creation_resize_restyle_and_deletion_share_durable_his
              "style": {"stroke_rgba": [1, 0, 0, 1], "width": 2, "fill_rgba": None}}
     context = {"session_id": scene["session"], "actor_id": scene["actor"], "table_id": TABLE}
     operation = str(uuid.uuid4())
+    context["issued_at"] = datetime.now(UTC).timestamp() * 1000
     assert service.create(**context, operation_id=operation, editable=value).error is None
     assert service.create(**context, operation_id=operation, editable=value).broadcast is False
     value["transform"].update(scale_x=2, scale_y=3, rotation=0.5)
@@ -450,7 +451,7 @@ def test_failed_paint_history_write_rolls_back_object_revision_and_retry_ledger(
         from service.canvas_command_service import editable_paint
         value = editable_paint(module._object_dict(db.get(models.PaintObject, PAINT)))
     with pytest.raises(RuntimeError, match="journal unavailable"):
-        service.update(session_id=scene["session"], actor_id=scene["actor"], table_id=TABLE,
+        service.update(issued_at=datetime.now(UTC).timestamp() * 1000, session_id=scene["session"], actor_id=scene["actor"], table_id=TABLE,
                        operation_id=str(uuid.uuid4()), object_id=PAINT, expected_version=1, editable=value)
     with scene["factory"]() as db:
         assert db.get(models.PaintObject, PAINT).version == 1

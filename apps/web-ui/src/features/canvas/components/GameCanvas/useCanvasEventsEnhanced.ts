@@ -94,7 +94,7 @@ export const useCanvasEventsEnhanced = ({
       const combat = useCombatStore.getState().combat;
       if (ids.length === 1 && combat?.phase !== 'inactive' && combat?.table_id === state.activeTableId
         && combat?.combatants.some(member => member.entity_id === ids[0])) {
-        const sprite = state.sprites.find(item => item.id === ids[0] && item.table_id === state.activeTableId);
+        const sprite = state.sprites.find(item => item.id === ids[0] && item.tableId === state.activeTableId);
         if (sprite && rustRenderManagerRef.current) protocol?.moveSprite(sprite.id, sprite.x + dx, sprite.y + dy);
       } else {
         editor?.transformSprites(ids, { dx, dy });

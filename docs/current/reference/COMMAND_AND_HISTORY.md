@@ -235,6 +235,8 @@ not only the first. Paste, uniform scaling and grid-step nudging use the same
 confirmed owner and never write renderer state first. A single combat-token nudge
 keeps the existing combat movement route and reads its start from authoritative
 store state. Mixed combat/editor mutation still rejects as one editor command.
+Combat nudges read the store's `tableId` identity and never read renderer preview
+coordinates as their starting position.
 Keyboard handlers resolve the current renderer per action, so initial attachment
 and renderer replacement do not retain a freed engine. Wall commands remain
 separate wall operations, not members of sprite/paint history. Regression owner:

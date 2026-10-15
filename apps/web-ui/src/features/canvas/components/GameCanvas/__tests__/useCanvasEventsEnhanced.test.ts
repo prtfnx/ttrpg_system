@@ -2,6 +2,8 @@ import type { RenderEngine } from '@lib/wasm/runtime';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCanvasEventsEnhanced } from '../useCanvasEventsEnhanced';
+import { useGameStore } from '@/store';
+import { useCombatStore } from '@features/combat/stores/combatStore';
 
 // Mock InputManager singleton so we don't need real key bindings
 vi.mock('@features/canvas/services/InputManager', () => ({
@@ -164,6 +166,26 @@ describe('confirmed default sprite commands', () => {
     expect(h.editor.transformSprites).toHaveBeenCalledWith(['first', 'second'], { dx: 50, dy: 0 });
     expect(h.props.engine.update_sprite_position).not.toHaveBeenCalled();
     expect(moved).not.toHaveBeenCalled(); window.removeEventListener('sprite-moved', moved);
+  });
+
+  it('keeps a single combat token on the combat movement route using authoritative coordinates', () => {
+    const gameBefore = useGameStore.getState(), combatBefore = useCombatStore.getState();
+    const props = defaultProps();
+    const protocol = { moveSprite: vi.fn() } as unknown as NonNullable<Parameters<typeof useCanvasEventsEnhanced>[0]['protocol']>;
+    try {
+      useGameStore.setState({ activeTableId: 'table', sprites: [{ id: 'token', tableId: 'table', x: 30, y: 40,
+        name: 'Token', layer: 'tokens', texture: 'default.png', scale: { x: 1, y: 1 }, rotation: 0 }] });
+      useCombatStore.setState({ combat: { phase: 'active', table_id: 'table', combatants: [{ entity_id: 'token' }] } as never });
+      props.engine.get_selected_sprites.mockReturnValue(['token']);
+      renderHook(() => useCanvasEventsEnhanced({ ...props, protocol }));
+      const handler = vi.mocked(inputManager.onAction).mock.calls.find(([key]) => key === 'move_right')![1];
+      act(() => handler(new KeyboardEvent('keydown')));
+      expect(protocol.moveSprite).toHaveBeenCalledWith('token', 80, 40);
+      expect(props.engine.update_sprite_position).not.toHaveBeenCalled();
+      expect(props.engine.get_sprite_position).not.toHaveBeenCalled();
+    } finally {
+      useGameStore.setState(gameBefore); useCombatStore.setState(combatBefore);
+    }
   });
 
   it('resolves a replacement renderer and clears clipboard context on unmount', () => {

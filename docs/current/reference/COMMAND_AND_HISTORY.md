@@ -5,7 +5,7 @@ Audience: contributors changing canvas mutations, selection, or undo/redo.
 Status: usable. Mixed-domain transactions, shared transform handles and durable
 paint/sprite editor history use one authoritative canvas command service.
 
-Last source audit: 2026-10-09
+Last source audit: 2026-10-12
 
 ## Ownership and current flow
 
@@ -53,7 +53,7 @@ inside one database transaction. The `canvas_command` handler holds the session
 mutation lock, serializes against table saves, provides an isolated live table
 snapshot, and publishes the returned table and events only after durable success.
 
-Supported modes are transform, restyle, delete, copy, cut, paste, undo and redo. A
+Supported modes are transform, sprite_edit, restyle, delete, copy, cut, paste, undo and redo. A
 transform uses one translation, uniform scale and rotation around a shared world
 pivot. Paint angles use radians; persisted sprite angles use degrees. Sprite
 anchors round to integer coordinates.
@@ -154,6 +154,10 @@ The canonical protocol schema defines `canvas_command`, `canvas_command_result`,
 unknown fields and mode-inconsistent fields. Both generated language registries
 share this contract. `packages/core-table/tests/test_canvas_protocol_schema.py`
 owns the payload boundary tests.
+`sprite_edit` accepts sprite-only expected-state members and a bounded edit:
+paired width/height, absolute rotation in degrees, or a known layer. Empty,
+unknown, authority-bearing and mode-inconsistent fields reject at the schema
+boundary. Dimensions range from 0.001 to 10,000; rotation ranges from -180 to 180.
 The wire contract also defines `restyle`: paint-only versioned members and one
 complete paint style. It rejects sprite members, mixed mode fields, authority
 fields and malformed styles. Schema parity tests keep its style limits aligned

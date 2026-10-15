@@ -9,11 +9,15 @@ BASE = {"operation_id": UUID, "table_id": UUID, "issued_at": 1791378000000}
 TRANSFORM = {"dx": 0, "dy": 0, "scale": 1, "rotation": 0, "pivot_x": 0, "pivot_y": 0}
 MEMBERS = [{"kind": "paint", "id": UUID, "version": 1}]
 STYLE = {"stroke_rgba": [0, 0.5, 1, 1], "width": 4, "fill_rgba": None}
+SPRITES = [{"kind": "sprite", "id": "sprite", "expected": {
+    "x": 0, "y": 0, "width": 20, "height": 10, "scale_x": 1, "scale_y": 1, "rotation": 0,
+}}]
 
 
 @pytest.mark.parametrize("mode,extras", [
     ("transform", {"members": MEMBERS, "transform": TRANSFORM}),
     ("restyle", {"members": MEMBERS, "style": STYLE}),
+    ("sprite_edit", {"members": SPRITES, "edit": {"width": 64, "height": 32, "rotation": 90, "layer": "map"}}),
     ("copy", {"members": MEMBERS}), ("cut", {"members": MEMBERS}),
     ("delete", {"members": MEMBERS}), ("undo", {}), ("redo", {}),
     ("paste", {"clipboard_id": UUID, "transform": TRANSFORM,
@@ -68,3 +72,20 @@ def test_canvas_restyle_contract_matches_canonical_paint_style():
     style = json.loads(json.dumps(messages["$defs"]["canvasPaintStyle"]).replace("canvasPaintRgba", "rgba"))
     assert style == paint["$defs"]["style"]
     assert messages["$defs"]["canvasPaintRgba"] == paint["$defs"]["rgba"]
+
+
+@pytest.mark.parametrize("edit", [{}, {"width": 10}, {"height": 10}, {"width": 0, "height": 10},
+    {"rotation": True}, {"rotation": 181}, {"layer": "unknown"}, {"controlled_by": [42]}])
+def test_sprite_edit_rejects_invalid_fields(edit):
+    with pytest.raises(ValueError, match="Invalid protocol message"):
+        Message.from_json(json.dumps({"type": "canvas_command", "data": {
+            **BASE, "mode": "sprite_edit", "members": SPRITES, "edit": edit,
+        }}))
+
+
+@pytest.mark.parametrize("mode,members", [("sprite_edit", MEMBERS), ("copy", SPRITES), ("undo", SPRITES)])
+def test_sprite_edit_rejects_paint_members_and_mixed_modes(mode, members):
+    with pytest.raises(ValueError, match="Invalid protocol message"):
+        Message.from_json(json.dumps({"type": "canvas_command", "data": {
+            **BASE, "mode": mode, "members": members, "edit": {"rotation": 90},
+        }}))

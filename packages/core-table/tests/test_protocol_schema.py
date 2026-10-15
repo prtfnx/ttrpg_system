@@ -23,6 +23,15 @@ def test_wire_serializer_is_compact_unicode_json_without_nonfinite_numbers():
         Message(MessageType.CUSTOM, {"value": float("nan")}).to_json()
 
 
+@pytest.mark.parametrize("issued", [None, True, -1, 9007199254740992])
+def test_paint_creation_requires_a_bounded_original_intent_timestamp(issued):
+    data = {"operation_id": "6ce2fdea-0947-4410-a0ae-a3d4cd508dc2", "table_id": "d1e1f34c-3e92-4b78-b71a-7f02c6e1d359", "object": {}}
+    if issued is not None:
+        data["issued_at"] = issued
+    with pytest.raises(ValueError, match="Invalid protocol message"):
+        Message.from_json(json.dumps({"type": "paint_object_create", "data": data}))
+
+
 def test_message_type_schema_matches_python_enum():
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     type_schema = schema["properties"]["type"]
@@ -266,6 +275,7 @@ PAINT_OBJECT_ID = "dd830253-e2bf-4a92-9862-eabe85f79c99"
         {
             "type": "paint_object_create",
             "data": {
+                "issued_at": 0,
                 "operation_id": PAINT_OPERATION_ID,
                 "table_id": PAINT_TABLE_ID,
                 "object": {},
@@ -274,6 +284,7 @@ PAINT_OBJECT_ID = "dd830253-e2bf-4a92-9862-eabe85f79c99"
         {
             "type": "paint_object_update",
             "data": {
+                "issued_at": 0,
                 "operation_id": PAINT_OPERATION_ID,
                 "table_id": PAINT_TABLE_ID,
                 "id": PAINT_OBJECT_ID,
@@ -284,6 +295,7 @@ PAINT_OBJECT_ID = "dd830253-e2bf-4a92-9862-eabe85f79c99"
         {
             "type": "paint_object_delete",
             "data": {
+                "issued_at": 0,
                 "operation_id": PAINT_OPERATION_ID,
                 "table_id": PAINT_TABLE_ID,
                 "id": PAINT_OBJECT_ID,

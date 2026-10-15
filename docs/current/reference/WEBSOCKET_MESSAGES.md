@@ -9,6 +9,12 @@ Last source audit: 2026-10-01
 
 ## Envelope identities
 
+Standalone `paint_object_create`, `paint_object_update` and
+`paint_object_delete` require `issued_at`, the original intent time in epoch
+milliseconds. Retries retain it together with the exact operation ID/body.
+The server rejects expired intent even when its earlier receipt was removed;
+clients without this field must upgrade before writing paint.
+
 Message, correlation and causation IDs are bounded to 128 characters by the
 shared envelope schema. This bounds response correlation overhead; clients
 must not attach arbitrary-size strings as identities. Generated Python and

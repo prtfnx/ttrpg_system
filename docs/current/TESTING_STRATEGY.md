@@ -214,6 +214,8 @@ remain isolated by session member after reload.
 Synthetic paint requests carry an original `issued_at` timestamp;
 concurrent identical retries reuse that same timestamp and payload. Tests must
 not refresh an existing intent merely to bypass its retry-age check.
+Future/expired-intent unit tests inject a fixed service clock; their outcome must
+not depend on how long the full suite takes before reaching the test.
 
 Real pointer drags exercise the mixed selection's corner and snapped rotation
 handles. Each gesture must send one atomic command, converge on the other

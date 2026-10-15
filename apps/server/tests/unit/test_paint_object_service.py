@@ -1,7 +1,7 @@
 import copy
 import json
 import uuid
-from datetime import UTC, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from core_table.paint import PaintLimits, paint_limits, validate_paint_object_input
@@ -356,7 +356,8 @@ def test_expired_create_cannot_resurrect_deleted_paint_after_real_retention_clea
 def test_invalid_or_future_intent_does_not_open_a_transaction(issued_at):
     def unavailable():
         pytest.fail("Invalid intent must fail before opening a transaction")
-    result = PaintObjectService(unavailable, writes_enabled=True).create(
+    fixed_now = datetime.fromtimestamp(ISSUED_AT / 1000, UTC)
+    result = PaintObjectService(unavailable, writes_enabled=True, now=lambda: fixed_now).create(
         issued_at=issued_at, session_id=1, actor_id=1, table_id=TABLE_ID,
         operation_id=str(uuid.uuid4()), editable=editable())
     assert result.error.code in {"invalid_payload", "retry_window_expired"}

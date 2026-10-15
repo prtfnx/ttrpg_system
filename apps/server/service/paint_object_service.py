@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -223,6 +224,19 @@ class PaintObjectService:
         if paint_object.created_by != actor_id and not is_dm(role):
             raise _Rejected("forbidden", "Only the creator or a DM may edit this paint object")
 
+    def _require_intent_age(self, issued_at, db):
+        if issued_at is None and db is not None:
+            return  # Trusted composed commands already checked parent intent.
+        if (isinstance(issued_at, bool) or not isinstance(issued_at, (int, float))
+                or not 0 <= issued_at <= 9_007_199_254_740_991 or not math.isfinite(issued_at)):
+            raise _Rejected("invalid_payload", "The original paint issued_at timestamp is required")
+        current = self._now()
+        if current.tzinfo is None:
+            current = current.replace(tzinfo=UTC)
+        age = current.timestamp() * 1000 - issued_at
+        if age > self._retry_window.total_seconds() * 1000 or age < -60_000:
+            raise _Rejected("retry_window_expired", "Paint intent expired; reload before issuing another edit")
+
     def _replay(
         self,
         db: Session,
@@ -318,13 +332,15 @@ class PaintObjectService:
         table_id: str,
         operation_id: str,
         editable: Mapping[str, Any],
+        issued_at: float | None = None,
         _db: Session | None = None,
     ) -> PaintCommandResult:
         try:
             self._require_writes()
+            self._require_intent_age(issued_at, _db)
             candidate = _canonical_payload(editable)
             validate_paint_object_input(candidate)
-            request_hash = _request_hash("create", candidate)
+            request_hash = _request_hash("create", {"issued_at": issued_at, "object": candidate})
             with self._transaction(_db) as db:
                 _, role = self._lock_table_and_role(
                     db,
@@ -404,15 +420,18 @@ class PaintObjectService:
         object_id: str,
         expected_version: int,
         editable: Mapping[str, Any],
+        issued_at: float | None = None,
         _db: Session | None = None,
     ) -> PaintCommandResult:
         try:
             self._require_writes()
+            self._require_intent_age(issued_at, _db)
             candidate = _canonical_payload(editable)
             validate_paint_object_input(candidate)
             if candidate["id"] != object_id:
                 raise _Rejected("invalid_payload", "Paint object id does not match update target")
             request = {
+                "issued_at": issued_at,
                 "id": object_id,
                 "expected_version": expected_version,
                 "object": candidate,
@@ -511,11 +530,13 @@ class PaintObjectService:
         operation_id: str,
         object_id: str,
         expected_version: int,
+        issued_at: float | None = None,
         _db: Session | None = None,
     ) -> PaintCommandResult:
         try:
             self._require_writes()
-            request = {"id": object_id, "expected_version": expected_version}
+            self._require_intent_age(issued_at, _db)
+            request = {"id": object_id, "expected_version": expected_version, "issued_at": issued_at}
             request_hash = _request_hash("delete", request)
             with self._transaction(_db) as db:
                 _, role = self._lock_table_and_role(

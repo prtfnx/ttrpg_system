@@ -111,6 +111,12 @@ its recorded result without another write or broadcast. Reusing an ID with a
 different body fails.
 
 The supported retry window defaults to 24 hours. Older recorded commands return
+`retry_window_expired`. Standalone intent is also checked before opening a
+transaction, so receipt cleanup cannot make an old create resurrect deleted
+paint. Missing/non-finite timestamps reject; intent over 60 seconds in the
+future rejects. Original intent time participates in the request hash.
+Trusted composed transactions rely on their already-validated parent intent.
+Older recorded commands return
 `retry_window_expired`; the browser discards expired intent and resynchronizes
 before offering another edit. Ledger retention defaults to 48 hours and must
 exceed the retry window. An hourly bounded job removes expired ledger rows.

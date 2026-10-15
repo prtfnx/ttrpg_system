@@ -2,6 +2,7 @@
 
 import json
 import threading
+import time
 import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -123,6 +124,7 @@ def object_create_message(*, operation_id: str | None = None) -> Message:
         MessageType.PAINT_OBJECT_CREATE,
         {
             "operation_id": operation_id or str(uuid.uuid4()),
+            "issued_at": time.time() * 1000,
             "table_id": TABLE_ID,
             "object": editable_object(),
         },
@@ -178,6 +180,7 @@ async def test_object_update_returns_authoritative_version_conflict(paint_db):
         Message(
             MessageType.PAINT_OBJECT_UPDATE,
             {
+                "issued_at": time.time() * 1000,
                 "operation_id": str(uuid.uuid4()),
                 "table_id": TABLE_ID,
                 "id": OBJECT_ID,
@@ -191,6 +194,7 @@ async def test_object_update_returns_authoritative_version_conflict(paint_db):
         Message(
             MessageType.PAINT_OBJECT_UPDATE,
             {
+                "issued_at": time.time() * 1000,
                 "operation_id": str(uuid.uuid4()),
                 "table_id": TABLE_ID,
                 "id": OBJECT_ID,
@@ -278,6 +282,7 @@ async def test_object_database_operations_run_off_event_loop(paint_db, monkeypat
         Message(
             MessageType.PAINT_OBJECT_DELETE,
             {
+                "issued_at": time.time() * 1000,
                 "operation_id": str(uuid.uuid4()),
                 "table_id": TABLE_ID,
                 "id": OBJECT_ID,

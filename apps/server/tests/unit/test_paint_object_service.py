@@ -1,7 +1,7 @@
 import copy
 import json
 import uuid
-from datetime import timedelta
+from datetime import UTC, timedelta
 
 import pytest
 from core_table.paint import PaintLimits, paint_limits, validate_paint_object_input
@@ -12,6 +12,8 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from utils.time import utc_now
+
+ISSUED_AT = utc_now().replace(tzinfo=UTC).timestamp() * 1000
 
 TABLE_ID = "9e8ed60d-f18c-4f47-a5ce-fc04db50506a"
 OTHER_TABLE_ID = "d57d06dc-85d1-42a7-a928-2d1fa10848f9"
@@ -96,8 +98,9 @@ def paint_service():
     engine.dispose()
 
 
-def create(service, ids, *, actor="player", operation_id=None, value=None):
+def create(service, ids, *, actor="player", operation_id=None, value=None, issued_at=ISSUED_AT):
     return service.create(
+        issued_at=issued_at,
         session_id=ids["session"],
         actor_id=ids[actor],
         table_id=TABLE_ID,
@@ -148,7 +151,7 @@ def test_standalone_paint_stages_object_revision_retry_and_history_in_one_flush(
         else:
             context = dict(session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID,
                            operation_id=str(uuid.uuid4()), object_id=OBJECT_ID, expected_version=1)
-            result = service.update(**context, editable=editable()) if action == "update" else service.delete(**context)
+            result = service.update(issued_at=ISSUED_AT,**context, editable=editable()) if action == "update" else service.delete(issued_at=ISSUED_AT,**context)
     finally:
         event.remove(factory, "before_flush", capture_flush)
         event.remove(engine, "before_cursor_execute", capture_query)
@@ -204,7 +207,7 @@ def test_server_metadata_cannot_make_an_accepted_object_exceed_wire_limit(paint_
     if action == "create":
         result = create(service, ids, value=candidate)
     else:
-        result = service.update(
+        result = service.update(issued_at=ISSUED_AT,
             session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID,
             operation_id=str(uuid.uuid4()), object_id=OBJECT_ID, expected_version=1,
             editable=candidate,
@@ -245,8 +248,8 @@ def test_disabled_paint_gate_rejects_commands_before_opening_database():
     context = {"session_id": 1, "actor_id": 1, "table_id": TABLE_ID, "operation_id": str(uuid.uuid4())}
     results = [
         service.create(**context, editable=editable()),
-        service.update(**context, object_id=OBJECT_ID, expected_version=1, editable=editable()),
-        service.delete(**context, object_id=OBJECT_ID, expected_version=1),
+        service.update(issued_at=ISSUED_AT,**context, object_id=OBJECT_ID, expected_version=1, editable=editable()),
+        service.delete(issued_at=ISSUED_AT,**context, object_id=OBJECT_ID, expected_version=1),
     ]
     for result in results:
         assert result.error is not None
@@ -330,13 +333,42 @@ def test_retry_window_must_be_positive(paint_service):
         PaintObjectService(factory, retry_window_seconds=0)
 
 
+def test_expired_create_cannot_resurrect_deleted_paint_after_real_retention_cleanup(paint_service):
+    from service.paint_operation_cleanup import cleanup_expired_paint_operations
+    service, factory, ids = paint_service
+    op = str(uuid.uuid4())
+    assert create(service, ids, operation_id=op).error is None
+    assert service.delete(issued_at=ISSUED_AT, session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID,
+        operation_id=str(uuid.uuid4()), object_id=OBJECT_ID, expected_version=1).error is None
+    def later():
+        return utc_now() + timedelta(days=3)
+    assert cleanup_expired_paint_operations(session_factory=factory, now=later) == 2
+    expired = create(PaintObjectService(factory, writes_enabled=True, now=later), ids, operation_id=op)
+    assert expired.error.code == "retry_window_expired" and expired.event is None
+    with factory() as db:
+        assert db.get(models.PaintObject, OBJECT_ID) is None
+        assert db.get(models.PaintState, TABLE_ID).revision == 2
+        assert db.query(models.PaintOperationResult).count() == 0
+        assert db.query(models.CanvasCommandJournal).count() == 0
+
+
+@pytest.mark.parametrize("issued_at", [None, True, float("nan"), -1, ISSUED_AT + 120_000])
+def test_invalid_or_future_intent_does_not_open_a_transaction(issued_at):
+    def unavailable():
+        pytest.fail("Invalid intent must fail before opening a transaction")
+    result = PaintObjectService(unavailable, writes_enabled=True).create(
+        issued_at=issued_at, session_id=1, actor_id=1, table_id=TABLE_ID,
+        operation_id=str(uuid.uuid4()), editable=editable())
+    assert result.error.code in {"invalid_payload", "retry_window_expired"}
+
+
 def test_update_requires_current_version_and_preserves_server_fields(paint_service):
     service, _, ids = paint_service
     accepted = create(service, ids)
     replacement = editable()
     replacement["transform"]["x"] = 50
 
-    updated = service.update(
+    updated = service.update(issued_at=ISSUED_AT,
         session_id=ids["session"],
         actor_id=ids["player"],
         table_id=TABLE_ID,
@@ -345,7 +377,7 @@ def test_update_requires_current_version_and_preserves_server_fields(paint_servi
         expected_version=1,
         editable=replacement,
     )
-    conflict = service.update(
+    conflict = service.update(issued_at=ISSUED_AT,
         session_id=ids["session"],
         actor_id=ids["player"],
         table_id=TABLE_ID,
@@ -367,7 +399,7 @@ def test_update_requires_current_version_and_preserves_server_fields(paint_servi
 def test_creator_and_dm_permissions_apply_to_update_and_delete(paint_service):
     service, factory, ids = paint_service
     create(service, ids)
-    denied = service.delete(
+    denied = service.delete(issued_at=ISSUED_AT,
         session_id=ids["session"],
         actor_id=ids["other"],
         table_id=TABLE_ID,
@@ -375,7 +407,7 @@ def test_creator_and_dm_permissions_apply_to_update_and_delete(paint_service):
         object_id=OBJECT_ID,
         expected_version=1,
     )
-    deleted = service.delete(
+    deleted = service.delete(issued_at=ISSUED_AT,
         session_id=ids["session"],
         actor_id=ids["owner"],
         table_id=TABLE_ID,
@@ -397,7 +429,7 @@ def test_delete_retry_returns_tombstone_without_rebroadcast(paint_service):
     create(service, ids)
     operation_id = str(uuid.uuid4())
 
-    first = service.delete(
+    first = service.delete(issued_at=ISSUED_AT,
         session_id=ids["session"],
         actor_id=ids["player"],
         table_id=TABLE_ID,
@@ -405,7 +437,7 @@ def test_delete_retry_returns_tombstone_without_rebroadcast(paint_service):
         object_id=OBJECT_ID,
         expected_version=1,
     )
-    replay = service.delete(
+    replay = service.delete(issued_at=ISSUED_AT,
         session_id=ids["session"],
         actor_id=ids["player"],
         table_id=TABLE_ID,
@@ -425,6 +457,7 @@ def test_spectator_and_foreign_table_writes_fail_closed(paint_service):
 
     spectator = create(service, ids, actor="spectator")
     foreign = service.create(
+        issued_at=ISSUED_AT,
         session_id=ids["session"],
         actor_id=ids["player"],
         table_id=OTHER_TABLE_ID,
@@ -524,11 +557,11 @@ def test_budget_counts_kinds_and_replacements_without_loading_scene(paint_servic
     assert create(service, ids, value=circle).error is None  # No path points.
     assert create(service, ids, value=editable(str(uuid.uuid4()))).error.code == "limit_exceeded"
     replacement = editable()
-    result = service.update(session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID,
+    result = service.update(issued_at=ISSUED_AT,session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID,
                             operation_id=str(uuid.uuid4()), object_id=OBJECT_ID, expected_version=1, editable=replacement)
     assert result.error is None  # Exclude the old object from both counts.
     replacement["geometry"]["points"].append({"x": 1, "y": 1, "pressure": 0.5})
-    result = service.update(session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID,
+    result = service.update(issued_at=ISSUED_AT,session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID,
                             operation_id=str(uuid.uuid4()), object_id=OBJECT_ID, expected_version=2, editable=replacement)
     assert result.error.code == "limit_exceeded"
     assert result.event is None
@@ -542,7 +575,7 @@ def test_non_growing_update_does_not_scan_other_paths(paint_service, monkeypatch
     monkeypatch.setattr(service, "_require_budget", lambda *args, **kwargs: pytest.fail("Non-growing edit must not scan table"))
     for version, replacement in enumerate([original, editable()], start=1):
         replacement["transform"]["x"] += 10
-        result = service.update(session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID,
+        result = service.update(issued_at=ISSUED_AT,session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID,
                                 operation_id=str(uuid.uuid4()), object_id=OBJECT_ID,
                                 expected_version=version, editable=replacement)
         assert result.error is None

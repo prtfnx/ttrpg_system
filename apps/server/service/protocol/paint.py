@@ -205,6 +205,7 @@ class _PaintMixin(_ProtocolBase):
         session_id, actor_id = context
         result = await run_blocking(
             _create_paint_object,
+            issued_at=data.get("issued_at"),
             session_id=session_id,
             actor_id=actor_id,
             table_id=table_id,
@@ -257,6 +258,7 @@ class _PaintMixin(_ProtocolBase):
         session_id, actor_id = context
         result = await run_blocking(
             _update_paint_object,
+            issued_at=data.get("issued_at"),
             session_id=session_id,
             actor_id=actor_id,
             table_id=table_id,
@@ -301,6 +303,7 @@ class _PaintMixin(_ProtocolBase):
         session_id, actor_id = context
         result = await run_blocking(
             _delete_paint_object,
+            issued_at=data.get("issued_at"),
             session_id=session_id,
             actor_id=actor_id,
             table_id=table_id,

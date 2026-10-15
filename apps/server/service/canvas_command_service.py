@@ -18,7 +18,8 @@ from typing import Any, Callable
 
 from core_table.paint import PaintValidationError, validate_paint_object_input, validate_paint_payload_size
 from core_table.session_rules import SessionRules
-from core_table.table import Entity, VirtualTable
+from core_table.sprite_commands import transform_sprite_geometry
+from core_table.table import LAYER_NAMES, Entity, VirtualTable
 from database import crud, models
 from service.canvas_journal import MAX_HISTORY_BYTES, MAX_HISTORY_ENTRIES, RETENTION, trim_history
 from service.movement_validator import MovementValidator
@@ -83,6 +84,22 @@ def _uuid(value: Any) -> str:
     return value
 
 
+def _sprite_edit(edit: Any) -> dict:
+    if not isinstance(edit, dict) or not edit or set(edit) - {"width", "height", "rotation", "layer"}:
+        raise CanvasRejected("invalid_payload", "A bounded sprite edit is required")
+    if ("width" in edit) != ("height" in edit):
+        raise CanvasRejected("invalid_payload", "Sprite width and height must be edited together")
+    result = dict(edit)
+    for key in ("width", "height"):
+        if key in edit:
+            result[key] = _number(edit[key], minimum=0.001, maximum=10000)
+    if "rotation" in edit:
+        result["rotation"] = _number(edit["rotation"], minimum=-180, maximum=180)
+    if "layer" in edit and (not isinstance(edit["layer"], str) or edit["layer"] not in LAYER_NAMES):
+        raise CanvasRejected("invalid_payload", "Unknown sprite layer")
+    return result
+
+
 def _mapping(transform: dict):
     if not isinstance(transform, dict) or set(transform) != {"dx", "dy", "scale", "rotation", "pivot_x", "pivot_y"}:
         raise CanvasRejected("invalid_payload", "A complete group transform is required")
@@ -132,7 +149,7 @@ class CanvasCommandService:
             self._entries(db, table_id, actor_id)
             .with_entities(models.CanvasCommandJournal.state)
             .filter(
-                models.CanvasCommandJournal.kind.in_(["paint", "sprite", "transform", "restyle", "delete", "cut", "paste"]),
+                models.CanvasCommandJournal.kind.in_(["paint", "sprite", "transform", "sprite_edit", "restyle", "delete", "cut", "paste"]),
                 models.CanvasCommandJournal.changes.isnot(None),
                 models.CanvasCommandJournal.created_at >= self.now() - RETENTION,
             )
@@ -171,13 +188,14 @@ class CanvasCommandService:
             "members",
             "transform",
             "style",
+            "edit",
             "clipboard_id",
             "ids",
         }:
             raise CanvasRejected("invalid_payload", "Unknown canvas command fields")
         operation_id, table_id = _uuid(command.get("operation_id")), _uuid(command.get("table_id"))
         mode = command.get("mode")
-        if mode not in {"transform", "restyle", "delete", "copy", "cut", "paste", "undo", "redo"}:
+        if mode not in {"transform", "sprite_edit", "restyle", "delete", "copy", "cut", "paste", "undo", "redo"}:
             raise CanvasRejected("invalid_payload", "Unsupported canvas command")
         issued_at = _number(command.get("issued_at"), minimum=0, maximum=9_007_199_254_740_991)
         age = self.now().replace(tzinfo=UTC).timestamp() * 1000 - issued_at
@@ -186,6 +204,7 @@ class CanvasCommandService:
         allowed = {"operation_id", "table_id", "issued_at", "mode"} | {
             "transform": {"members", "transform"},
             "restyle": {"members", "style"},
+            "sprite_edit": {"members", "edit"},
             "delete": {"members"},
             "copy": {"members"},
             "cut": {"members"},
@@ -195,6 +214,7 @@ class CanvasCommandService:
         }[mode]
         if set(command) != allowed:
             raise CanvasRejected("invalid_payload", "Incomplete or inconsistent canvas command")
+        edit = _sprite_edit(command["edit"]) if mode == "sprite_edit" else None
         request_hash = hashlib.sha256(encoded(command)).hexdigest()
         with self.factory() as db, db.begin():
             db_table, role = self.paint._lock_table_and_role(
@@ -238,6 +258,8 @@ class CanvasCommandService:
                     kind, target = member["kind"], member.get("id")
                     if mode == "restyle" and kind != "paint":
                         raise CanvasRejected("invalid_payload", "Restyle supports paint objects only")
+                    if mode == "sprite_edit" and kind != "sprite":
+                        raise CanvasRejected("invalid_payload", "Sprite edits support sprites only")
                     if not isinstance(target, str) or not target or len(target) > 128 or (kind, target) in seen:
                         raise CanvasRejected("invalid_payload", "Invalid or duplicate canvas selection reference")
                     seen.add((kind, target))
@@ -267,6 +289,17 @@ class CanvasCommandService:
                     after = copy.deepcopy(before) if mode in {"copy", "transform", "restyle"} else None
                     if mode == "transform":
                         after = self._transformed(before, kind, command["transform"])
+                    elif mode == "sprite_edit":
+                        if before.get("texture_path") == "__LIGHT__" and set(edit) - {"layer"}:
+                            raise CanvasRejected("unsupported", "Use light settings to resize or rotate lights")
+                        candidate = Entity.from_dict(before)
+                        for key, value in edit.items():
+                            setattr(candidate, key, value)
+                        try:
+                            transform_sprite_geometry(candidate, before)
+                        except (ValueError, TypeError) as exc:
+                            raise CanvasRejected("invalid_payload", "Invalid sprite shape geometry") from exc
+                        after = candidate.to_dict()
                     elif mode == "restyle":
                         after["style"] = copy.deepcopy(command["style"])
                         validate_paint_object_input(editable_paint(after))
@@ -323,7 +356,7 @@ class CanvasCommandService:
             }
             if mode in {"copy", "cut"}:
                 receipt["clipboard_id"] = operation_id
-            reversible = mode in {"transform", "restyle", "delete", "cut", "paste"}
+            reversible = mode in {"transform", "sprite_edit", "restyle", "delete", "cut", "paste"}
             row = models.CanvasCommandJournal(
                 table_id=table_id,
                 actor_id=actor_id,
@@ -482,7 +515,7 @@ class CanvasCommandService:
                 ):
                     raise CanvasRejected("forbidden", "Only the paint creator or a DM may edit or copy this object")
             else:
-                if source["layer"] not in get_visible_layers(role):
+                if any(value["layer"] not in get_visible_layers(role) for value in (before, after) if value is not None):
                     raise CanvasRejected("forbidden", "Sprite layer is not visible to this actor")
                 if (
                     (before is not None or source.get("_restoring"))
@@ -570,6 +603,15 @@ class CanvasCommandService:
                         if not movement.valid:
                             raise CanvasRejected("movement_rejected", movement.reason)
                     table.restore_entity(candidate)
+                    if before is not None and before["layer"] != candidate.layer:
+                        # Old-layer viewers must remove the object without
+                        # receiving its newly private payload. Undo uses this
+                        # same filtered removal/upsert pair in reverse.
+                        events.append({
+                            "type": "sprite_remove",
+                            "data": {"sprite_id": target, "table_id": str(table.table_id)},
+                            "layer": before["layer"],
+                        })
                     events.append(
                         {
                             "type": "sprite_update",

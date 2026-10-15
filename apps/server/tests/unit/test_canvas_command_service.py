@@ -145,6 +145,82 @@ def test_identical_retry_returns_receipt_and_requests_fresh_state_without_old_ev
         scene["execute"]({**command, "transform": {**IDENTITY, "dx": 100}})
 
 
+def sprite_edit_command(scene, edit):
+    return scene["command"]("sprite_edit", members=scene["members"]()[1:], edit=edit)
+
+
+def test_absolute_sprite_edits_persist_geometry_and_share_durable_history(scene):
+    sprite = scene["table"]["table"].find_entity_by_sprite_id("sprite")
+    sprite.obstacle_type = "polygon"
+    sprite.obstacle_data = {"vertices": [[10, 20], [30, 20], [30, 30]]}
+    original = copy.deepcopy(sprite.to_dict())
+    result = scene["execute"](sprite_edit_command(scene, {"width": 40, "height": 20, "rotation": 90}))
+    accepted = result.table.find_entity_by_sprite_id("sprite")
+    assert (accepted.width, accepted.height, accepted.rotation) == (40, 20, 90)
+    for actual, expected in zip(accepted.obstacle_data["vertices"], [[40, 10], [40, 50], [20, 50]], strict=True):
+        assert actual == pytest.approx(expected)
+    assert result.receipt["can_undo"]
+    with scene["factory"]() as db:
+        loaded, ok = crud.load_table_from_db(db, TABLE)
+        assert ok
+        assert loaded.find_entity_by_sprite_id("sprite").obstacle_data == accepted.obstacle_data
+    undone = scene["execute"](scene["command"]("undo"))
+    assert undone.table.find_entity_by_sprite_id("sprite").to_dict() == original
+    redone = scene["execute"](scene["command"]("redo"))
+    assert redone.table.find_entity_by_sprite_id("sprite").to_dict() == accepted.to_dict()
+
+
+def test_layer_edit_reindexes_and_publishes_filtered_remove_before_upsert(scene):
+    result = scene["execute"](sprite_edit_command(scene, {"layer": "dungeon_master"}))
+    assert [(value["type"], value["layer"]) for value in result.events] == [
+        ("sprite_remove", "tokens"), ("sprite_update", "dungeon_master"),
+    ]
+    assert "sprite_data" not in result.events[0]["data"]
+    sprite = result.table.find_entity_by_sprite_id("sprite")
+    assert not result.table.entity_index["tokens"].get((10, 20))
+    assert result.table.entity_index["dungeon_master"][(10, 20)] == [sprite.entity_id]
+    undo = scene["execute"](scene["command"]("undo"))
+    assert [(value["type"], value["layer"]) for value in undo.events] == [
+        ("sprite_remove", "dungeon_master"), ("sprite_update", "tokens"),
+    ]
+    assert not undo.table.entity_index["dungeon_master"].get((10, 20))
+
+
+def test_layer_edit_rechecks_destination_permissions(scene):
+    with scene["factory"].begin() as db:
+        player = models.User(username="layer-player", hashed_password="x")
+        db.add(player)
+        db.flush()
+        actor = player.id
+        db.add(models.GamePlayer(session_id=scene["session"], user_id=actor, role="player"))
+    scene["table"]["table"].find_entity_by_sprite_id("sprite").controlled_by = [actor]
+    with pytest.raises(CanvasRejected, match="not visible"):
+        scene["execute"](sprite_edit_command(scene, {"layer": "dungeon_master"}), actor_id=actor)
+
+
+@pytest.mark.parametrize("edit", [{}, {"width": 10}, {"height": 10}, {"width": -1, "height": 10},
+    {"rotation": True}, {"rotation": 181}, {"layer": "unknown"}, {"controlled_by": [42]}])
+def test_invalid_sprite_edits_leave_storage_and_history_unchanged(scene, edit):
+    before = scene["table"]["table"].to_dict()
+    with pytest.raises(CanvasRejected):
+        scene["execute"](sprite_edit_command(scene, edit))
+    assert scene["table"]["table"].to_dict() == before
+    with scene["factory"]() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 0
+
+
+def test_sprite_edit_fences_stale_state_combat_and_occupied_layers(scene):
+    command = sprite_edit_command(scene, {"rotation": 90})
+    command["members"][0]["expected"]["width"] = 999
+    with pytest.raises(CanvasRejected, match="sprite changed"):
+        scene["execute"](command)
+    with pytest.raises(CanvasRejected, match="Combat tokens"):
+        scene["execute"](sprite_edit_command(scene, {"rotation": 90}), combat_sprite_ids=("sprite",))
+    scene["table"]["table"].add_entity({"sprite_id": "occupied", "layer": "map", "x": 10, "y": 20})
+    with pytest.raises(CanvasRejected, match="occupied"):
+        scene["execute"](sprite_edit_command(scene, {"layer": "map"}))
+
+
 def test_late_member_failure_rolls_back_paint_revision_ledger_and_sprite_snapshot(scene):
     table = scene["table"]["table"]
     table.add_entity({"sprite_id": "occupied", "x": 20, "y": 40})

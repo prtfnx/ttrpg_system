@@ -74,6 +74,14 @@ and one undo step. It leaves geometry, provenance and sprites unchanged. A stale
 or forbidden included paint object rejects the whole restyle; retries do not add
 another history entry.
 
+Absolute sprite edits preserve line/polygon world-space geometry and enter one
+durable undo step. Layer moves rebuild the table's position index and require
+visibility of both source and destination layers. Publication removes the sprite
+from old-layer viewers before sending the canonical upsert to new-layer viewers;
+the old audience does not receive the new private payload. Undo/redo uses the same
+filtered pair. Occupied destination anchors reject without changing the scene.
+Light dimensions/rotation remain owned by light settings, not sprite edits.
+
 The service rechecks database membership and permissions for every command,
 including retries and inverse commands. Paint requires creator or DM authority.
 Sprites require a visible layer and control or DM authority. Sprite deletion,

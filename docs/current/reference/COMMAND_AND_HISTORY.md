@@ -16,6 +16,9 @@ four bounded world-space corners for a transient shared frame. Corner handles
 and its outward rotation handle use camera-scaled picking and visual sizes.
 It does not create paint objects or history. Pure geometry regressions live in
 `packages/rust-core/src/systems/selection_frame.rs`.
+The selection-frame module builds for WASM and native tests. Native production
+builds omit this renderer-only module; strict Clippy checks still compile its
+pure geometry tests without unused-code exemptions.
 `selection_preview_transform` updates sprite position, scale and rotation together
 on the active table, including polygon/line world-space points. It validates the
 transform before mutation and emits no durable operation. WASM regression owner:

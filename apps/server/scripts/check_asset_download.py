@@ -19,6 +19,7 @@ References:
 import argparse
 import json
 import logging
+from typing import Any
 from urllib.parse import urlsplit
 from xml.etree import ElementTree
 
@@ -84,7 +85,7 @@ def _error_code(code: str, status: int) -> str:
 def check_download(manager: R2AssetManager, key: str, origin: str, client: httpx.Client) -> dict:
     """Probe object access and CORS, returning only bounded, credential-safe fields."""
     bucket = manager.settings.r2_bucket_name
-    checks = {}
+    checks: dict[str, dict[str, Any]] = {}
     try:
         manager.s3_client.head_object(Bucket=bucket, Key=key)
         checks["sdk_read"] = {"ok": True}
@@ -127,7 +128,7 @@ def check_download(manager: R2AssetManager, key: str, origin: str, client: httpx
         # Transport exceptions contain bearer URLs; never include their text.
         checks["browser_get"] = {"ok": False, "code": "storage_unreachable"}
 
-    result = {"ok": all(check["ok"] for check in checks.values()), "checks": checks}
+    result: dict[str, Any] = {"ok": all(check["ok"] for check in checks.values()), "checks": checks}
     result["hints"] = sorted({_HINTS[check["code"]] for check in checks.values()
                               if not check["ok"] and check["code"] in _HINTS})
     return result

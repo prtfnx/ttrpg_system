@@ -408,6 +408,8 @@ Focused battle-flow suites:
 ## Rules
 
 - Mock the boundary being used, not hidden globals.
+- Test doubles retain the production callable's keyword defaults and nullable
+  return contract, including negative-path identity tests.
 - Keep tests close to the owner of the behavior.
 - Prefer small focused tests over broad integration tests for normal changes.
 - Add broader tests when changing a shared contract.

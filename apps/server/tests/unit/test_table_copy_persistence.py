@@ -108,7 +108,8 @@ async def test_cancelled_create_waits_for_draft_save_before_installing_live_stat
     actions = ActionsCore(manager)
     entered, release = asyncio.Event(), asyncio.Event()
 
-    async def save_draft(table_id, session_id, *, draft):
+    async def save_draft(table_id, session_id, *, draft=None):
+        assert draft is not None
         assert str(draft.table_id) == table_id
         assert session_id == test_game_session.id
         assert not manager.tables_id and not actions.action_history

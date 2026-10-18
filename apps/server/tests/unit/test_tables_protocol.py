@@ -28,7 +28,7 @@ class _ProtoStub(_TablesMixin):
     def _get_client_role(self, client_id):
         return self._role
 
-    def _get_session_id(self, msg):
+    def _get_session_id(self, msg: Message) -> int | None:
         return 1
 
     def _get_session_code(self, msg=None):
@@ -640,7 +640,7 @@ class TestTableSettingsUpdate:
 
     async def test_missing_session_identity_never_attempts_save(self):
         proto = self._proto()
-        proto._get_session_id = lambda _msg: None
+        proto._get_session_id = lambda msg: None
         with patch("service.protocol.tables.persist_table_settings") as save:
             response = await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_CHANGED, {
                 "table_id": "t1", "dynamic_lighting_enabled": True,

@@ -4,7 +4,7 @@ Audience: contributors changing measurement, paint tools, reconciliation, or ren
 
 Status: usable. Completed measurements and paint objects are server-authoritative.
 
-Last source audit: 2026-10-12
+Last source audit: 2026-10-13
 
 ## Ownership
 
@@ -69,9 +69,14 @@ does not broadcast an unreadable object. This byte check does not repeat
 geometry validation.
 `Message.to_json` emits compact UTF-8 JSON, matching object and snapshot byte
 accounting instead of expanding dense point arrays with whitespace. Snapshot
-chunks reserve 1,024 bytes for the envelope; correlation identities are bounded
-by the shared schema. Dense-path regressions measure the actual correlated
-event and snapshot messages, not only their compact data documents.
+chunks account for the complete envelope, including UTF-8 and escaped request
+identities, instead of relying on a fixed reserve. Linear packing measures each
+object once and retains a fixed timestamp while building the final messages.
+Every final frame is checked against `WS_MAX_MESSAGE_BYTES` before any chunk is
+sent. An object or envelope that cannot fit returns `limit_exceeded` without a
+partial snapshot. Dense-path and escaped-identity regressions measure actual
+wire frames in `apps/server/tests/unit/test_paint_protocol.py` and
+`apps/server/tests/unit/test_paint_object_service.py`.
 
 Owners, co-DMs, trusted players, and players can create objects. A creator or
 DM can update/delete an object; spectators have read access only. Server

@@ -22,7 +22,6 @@ from utils.roles import can_interact
 from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
-SNAPSHOT_FRAME_RESERVE_BYTES = 1024
 PAINT_PREVIEW_MAX_BYTES = 16 * 1024
 PAINT_PREVIEW_AUTH_TTL_SECONDS = 5.0
 PAINT_PREVIEW_TTL_MS = 2_000
@@ -88,10 +87,13 @@ def _snapshot_chunks(
     snapshot: PaintSnapshot,
     *,
     max_bytes: int,
-) -> list[dict]:
+    correlation_id: str | None = None,
+    causation_id: str | None = None,
+) -> list[Message]:
+    """Pack against the full UTF-8 envelope, including escaped request identities."""
     snapshot_id = str(uuid.uuid4())
 
-    def payload(objects, index=0, count=999999, complete=False):
+    def payload(objects, index, count, complete):
         return {
             "snapshot_id": snapshot_id,
             "table_id": snapshot.table_id,
@@ -102,28 +104,49 @@ def _snapshot_chunks(
             "objects": objects,
         }
 
+    template = Message(
+        MessageType.PAINT_SNAPSHOT_CHUNK,
+        {},
+        correlation_id=correlation_id,
+        causation_id=causation_id,
+    )
+    # Every nonempty chunk contains at least one object. Use the largest possible
+    # index/count and the longer boolean spelling for a conservative header.
+    upper_count = max(len(snapshot.objects), 1)
+    template.data = payload([], upper_count, upper_count, False)
+    header_bytes = len(template.to_json().encode("utf-8"))
+    if header_bytes > max_bytes:
+        raise ValueError("Paint snapshot metadata exceeded the frame budget")
     groups: list[list[dict]] = []
     current: list[dict] = []
+    current_bytes = header_bytes
     for paint_object in snapshot.objects:
-        trial = [*current, paint_object]
-        size = len(json.dumps(payload(trial), separators=(",", ":")).encode("utf-8"))
-        if size <= max_bytes:
-            current = trial
-            continue
-        if not current:
+        object_bytes = len(
+            json.dumps(paint_object, ensure_ascii=False, allow_nan=False, separators=(",", ":")).encode("utf-8")
+        )
+        if header_bytes + object_bytes > max_bytes:
             raise ValueError("A paint object is too large for a snapshot frame")
-        groups.append(current)
-        current = [paint_object]
-        if len(json.dumps(payload(current), separators=(",", ":")).encode("utf-8")) > max_bytes:
-            raise ValueError("A paint object is too large for a snapshot frame")
+        if current_bytes + object_bytes + bool(current) > max_bytes:
+            groups.append(current)
+            current = []
+            current_bytes = header_bytes
+        current_bytes += object_bytes + bool(current)
+        current.append(paint_object)
     if current or not groups:
         groups.append(current)
 
     count = len(groups)
     chunks = [
-        payload(group, index=index, count=count, complete=index == count - 1) for index, group in enumerate(groups)
+        Message(
+            MessageType.PAINT_SNAPSHOT_CHUNK,
+            payload(group, index=index, count=count, complete=index == count - 1),
+            timestamp=template.timestamp,
+            correlation_id=correlation_id,
+            causation_id=causation_id,
+        )
+        for index, group in enumerate(groups)
     ]
-    if any(len(json.dumps(chunk, separators=(",", ":")).encode("utf-8")) > max_bytes for chunk in chunks):
+    if any(len(chunk.to_json().encode("utf-8")) > max_bytes for chunk in chunks):
         raise ValueError("Paint snapshot metadata exceeded the frame budget")
     return chunks
 
@@ -340,17 +363,18 @@ class _PaintMixin(_ProtocolBase):
         )
         if isinstance(snapshot, PaintCommandError):
             return self._paint_error(snapshot)
-        max_bytes = Settings().WS_MAX_MESSAGE_BYTES - SNAPSHOT_FRAME_RESERVE_BYTES
         try:
-            chunks = _snapshot_chunks(snapshot, max_bytes=max_bytes)
+            chunks = _snapshot_chunks(
+                snapshot,
+                max_bytes=Settings().WS_MAX_MESSAGE_BYTES,
+                correlation_id=msg.correlation_id or msg.message_id,
+                causation_id=msg.message_id,
+            )
         except ValueError as exc:
             return self._paint_error(PaintCommandError("limit_exceeded", str(exc)))
         for chunk in chunks[:-1]:
-            response = Message(MessageType.PAINT_SNAPSHOT_CHUNK, chunk)
-            response.correlation_id = msg.correlation_id or msg.message_id
-            response.causation_id = msg.message_id
-            await self.send_to_client(response, client_id)
-        return Message(MessageType.PAINT_SNAPSHOT_CHUNK, chunks[-1])
+            await self.send_to_client(chunk, client_id)
+        return chunks[-1]
 
     async def _paint_preview_allowed(
         self,

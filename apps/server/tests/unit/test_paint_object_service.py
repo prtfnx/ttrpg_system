@@ -121,11 +121,11 @@ def test_dense_accepted_paint_events_and_correlated_snapshot_frames_fit_actual_w
     assert len(event.to_json().encode("utf-8")) <= 65536
     assert Message.from_json(event.to_json()).data == result.event
     snapshot = service.snapshot(session_id=ids["session"], actor_id=ids["player"], table_id=TABLE_ID)
-    chunks = _snapshot_chunks(snapshot, max_bytes=65536 - 1024)
-    for chunk in chunks:
-        message = Message(MessageType.PAINT_SNAPSHOT_CHUNK, chunk, correlation_id="c" * 128, causation_id="d" * 128)
+    chunks = _snapshot_chunks(snapshot, max_bytes=65536, correlation_id="c" * 128, causation_id="d" * 128)
+    for message in chunks:
         assert len(message.to_json().encode("utf-8")) <= 65536
-    assert sum(len(chunk["objects"][0]["geometry"]["points"]) for chunk in chunks) == 1900
+        assert Message.from_json(message.to_json()).data == message.data
+    assert sum(len(chunk.data["objects"][0]["geometry"]["points"]) for chunk in chunks) == 1900
 
 
 @pytest.mark.parametrize("action", ["create", "update", "delete"])

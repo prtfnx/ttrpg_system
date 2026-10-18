@@ -1,6 +1,5 @@
 # pyright: reportAttributeAccessIssue=false, reportIncompatibleMethodOverride=false
 
-import json
 import threading
 import time
 import uuid
@@ -240,13 +239,81 @@ def test_snapshot_chunks_stay_within_frame_budget():
         {"id": str(uuid.uuid4()), "payload": "x" * 220},
         {"id": str(uuid.uuid4()), "payload": "y" * 220},
     ]
-    chunks = _snapshot_chunks(PaintSnapshot(TABLE_ID, 2, objects), max_bytes=520)
+    chunks = _snapshot_chunks(PaintSnapshot(TABLE_ID, 2, objects), max_bytes=850)
 
     assert len(chunks) == 2
-    assert [chunk["chunk_index"] for chunk in chunks] == [0, 1]
-    assert all(chunk["chunk_count"] == 2 for chunk in chunks)
-    assert [chunk["complete"] for chunk in chunks] == [False, True]
-    assert all(len(json.dumps(chunk, separators=(",", ":")).encode("utf-8")) <= 520 for chunk in chunks)
+    assert [chunk.data["chunk_index"] for chunk in chunks] == [0, 1]
+    assert all(chunk.data["chunk_count"] == 2 for chunk in chunks)
+    assert [chunk.data["complete"] for chunk in chunks] == [False, True]
+    assert all(len(chunk.to_json().encode("utf-8")) <= 850 for chunk in chunks)
+
+
+def snapshot_objects(count: int) -> list[dict]:
+    return [
+        {
+            **editable_object(str(uuid.uuid4())),
+            "table_id": TABLE_ID,
+            "created_by": 1,
+            "version": 1,
+            "z_order": index + 1,
+            "created_at": "2026-10-13T00:00:00Z",
+            "updated_at": "2026-10-13T00:00:00Z",
+        }
+        for index in range(count)
+    ]
+
+
+@pytest.mark.parametrize("identity", ["\u0001" * 128, "😀" * 128, '\\"' * 64])
+def test_snapshot_sizes_complete_wire_frames_with_escaped_and_unicode_identities(identity):
+    objects = snapshot_objects(500)
+    # Validate the input envelope too: these unusual identities are legal.
+    request = Message(MessageType.PAINT_SNAPSHOT_REQUEST, {"table_id": TABLE_ID},
+                      message_id=identity, correlation_id=identity)
+    Message.from_json(request.to_json())
+    chunks = _snapshot_chunks(PaintSnapshot(TABLE_ID, 500, objects), max_bytes=65536,
+                              correlation_id=identity, causation_id=identity)
+    assert len(chunks) > 1
+    assert [item for chunk in chunks for item in chunk.data["objects"]] == objects
+    for index, chunk in enumerate(chunks):
+        assert len(chunk.to_json().encode("utf-8")) <= 65536
+        decoded = Message.from_json(chunk.to_json())
+        assert decoded.correlation_id == decoded.causation_id == identity
+        assert decoded.data == chunk.data
+        assert chunk.data["chunk_index"] == index
+        assert chunk.data["chunk_count"] == len(chunks)
+        assert chunk.data["complete"] == (index == len(chunks) - 1)
+
+
+def test_snapshot_empty_frame_and_oversized_objects_obey_full_envelope_budget():
+    identity = "\u0001" * 128
+    empty = _snapshot_chunks(PaintSnapshot(TABLE_ID, 0, []), max_bytes=2048,
+                             correlation_id=identity, causation_id=identity)
+    assert len(empty) == 1
+    assert empty[0].data["objects"] == []
+    assert empty[0].data["complete"] is True
+    Message.from_json(empty[0].to_json())
+    with pytest.raises(ValueError, match="metadata"):
+        _snapshot_chunks(PaintSnapshot(TABLE_ID, 0, []), max_bytes=100,
+                         correlation_id=identity, causation_id=identity)
+    with pytest.raises(ValueError, match="object is too large"):
+        _snapshot_chunks(PaintSnapshot(TABLE_ID, 1, snapshot_objects(1)), max_bytes=500)
+
+
+@pytest.mark.asyncio
+async def test_snapshot_handler_bounds_and_correlates_every_sent_frame(monkeypatch):
+    objects = snapshot_objects(500)
+    monkeypatch.setattr(paint_module, "_paint_snapshot", lambda **kwargs: PaintSnapshot(TABLE_ID, 500, objects))
+    harness = PaintHarness(1, 1, "player")
+    identity = "\u0001" * 128
+    request = Message(MessageType.PAINT_SNAPSHOT_REQUEST, {"table_id": TABLE_ID},
+                      message_id=identity, correlation_id=identity)
+    final = await harness.handle_paint_snapshot_request(request, "player")
+    chunks = [call.args[0] for call in harness.send_to_client.await_args_list] + [final]
+    assert len(chunks) > 1
+    assert [item for chunk in chunks for item in chunk.data["objects"]] == objects
+    assert all(len(chunk.to_json().encode("utf-8")) <= 65536 for chunk in chunks)
+    assert all(chunk.correlation_id == chunk.causation_id == identity for chunk in chunks)
+    assert all(call.args[1] == "player" for call in harness.send_to_client.await_args_list)
 
 
 @pytest.mark.asyncio

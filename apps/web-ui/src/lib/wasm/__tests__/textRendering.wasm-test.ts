@@ -37,6 +37,7 @@ describe('Unicode text sprites (real browser and WebGL)', () => {
     const ink = result.canvas.getContext('2d')!.getImageData(0, 0, result.canvas.width, result.canvas.height).data;
     expect(ink.some((value, index) => index % 4 === 3 && value > 0)).toBe(true);
   });
+  // Two independent WebGL clients need time for shader compilation and pixel readback on CI.
   it('reconstructs saved text independently on two clients and applies accepted edits to both', async () => {
     useGameStore.setState({ activeTableId: TABLE, sessionRole: 'owner', userId: 1, sprites: [], selectedSprites: [] });
     const first = client(); const second = client();
@@ -59,5 +60,5 @@ describe('Unicode text sprites (real browser and WebGL)', () => {
       expect(coloredPixels(first.canvas, 1)).toBeGreaterThan(100); expect(coloredPixels(second.canvas, 1)).toBeGreaterThan(100);
       expect(useGameStore.getState().sprites.find(sprite => sprite.id === saved.sprite_id)?.metadata).toBe(updates.metadata);
     } finally { first.dispose(); second.dispose(); }
-  });
+  }, 30_000);
 });

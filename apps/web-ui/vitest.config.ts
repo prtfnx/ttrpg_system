@@ -62,6 +62,8 @@ export default defineConfig({
           include: ['src/**/*.wasm-test.ts'],
           browser: {
             enabled: true,
+            // WebGL suites share Chromium's GPU process, including CI software rendering.
+            fileParallelism: false,
             provider: playwright(),
             headless: true,
             instances: [{ browser: 'chromium' }],

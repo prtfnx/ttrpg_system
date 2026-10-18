@@ -5,6 +5,26 @@ import pytest
 from core_table.protocol import Message, MessageType
 
 SCHEMA_PATH = Path(__file__).parents[1] / "protocol" / "message.schema.json"
+SPRITE_MUTATIONS = {"sprite_create", "sprite_remove", "sprite_move", "sprite_scale", "sprite_rotate", "sprite_update"}
+
+
+@pytest.mark.parametrize("kind", sorted(SPRITE_MUTATIONS))
+@pytest.mark.parametrize("field,value", [("timestamp", "missing"), ("timestamp", None), ("timestamp", True), ("timestamp", -1),
+    ("message_id", "missing"), ("message_id", None), ("message_id", "")])
+def test_sprite_mutations_require_original_time_and_nonempty_identity(kind, field, value):
+    message = {"type": kind, "message_id": "original", "timestamp": 1, "data": {"table_id": "table", "sprite_id": "sprite"}}
+    message["data"].update({
+        "sprite_create": {"sprite_data": {"sprite_id": "sprite", "x": 1, "y": 1}},
+        "sprite_move": {"from": {"x": 0, "y": 0}, "to": {"x": 1, "y": 1}},
+        "sprite_scale": {"width": 10, "height": 10}, "sprite_rotate": {"rotation": 0},
+    }.get(kind, {}))
+    Message.from_dict(message)  # Keep invalid-payload errors from masking this boundary.
+    if value == "missing":
+        del message[field]
+    else:
+        message[field] = value
+    with pytest.raises(ValueError, match=field):
+        Message.from_dict(message)
 
 
 @pytest.mark.parametrize("field", ["message_id", "correlation_id", "causation_id"])

@@ -9,6 +9,12 @@ Last source audit: 2026-10-01
 
 ## Envelope identities
 
+Sprite create/remove/move/scale/rotate/update require a nonempty `message_id`
+and the original envelope `timestamp` in epoch seconds. Resends preserve both.
+Missing/null timestamps and identities reject instead of creating fresh retry
+intent at decode time. This is separate from paint/canvas `issued_at`, which uses
+epoch milliseconds. Old clients without these sprite envelope fields must upgrade.
+
 Standalone `paint_object_create`, `paint_object_update` and
 `paint_object_delete` require `issued_at`, the original intent time in epoch
 milliseconds. Retries retain it together with the exact operation ID/body.

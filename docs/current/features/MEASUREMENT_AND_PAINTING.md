@@ -115,6 +115,17 @@ clients receive one broadcast. Replaying the same operation ID/body returns
 its recorded result without another write or broadcast. Reusing an ID with a
 different body fails.
 
+The controller's existing tick retries an unacknowledged active-table command
+after 10 seconds, even if the socket stays open. Each retry preserves the
+operation ID, body, expected version and original intent time. At most 16
+commands retry per 10-second interval; oldest send attempts go first. A local
+send failure retains intent without a busy retry loop. Reconnect and returning
+to a table also resend retained, unexpired commands. Inactive-table commands
+are not periodically sent. A fresh snapshot does not prove an operation was
+accepted: pending intent remains until its event or rejection arrives. An old
+replay event releases intent without overwriting newer snapshot state.
+Regression owner: `apps/web-ui/src/features/painting/controller/__tests__/PaintController.test.ts`.
+
 The supported retry window defaults to 24 hours. Standalone intent is checked before opening a
 transaction, so receipt cleanup cannot make an old create resurrect deleted
 paint. Missing/non-finite timestamps reject; intent over 60 seconds in the

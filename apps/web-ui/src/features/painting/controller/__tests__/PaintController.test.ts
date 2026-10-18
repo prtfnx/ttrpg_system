@@ -83,6 +83,121 @@ function chunk(index: number, count: number, objects: PaintObject[], revision = 
 }
 
 describe('PaintController', () => {
+  it.each(['create', 'update', 'delete'] as const)('retries a lost %s acknowledgement with unchanged intent', kind => {
+    const { controller, transport, advance } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, kind === 'create' ? [] : [object()], 0));
+    if (kind === 'create') controller.submitCreate(input());
+    else if (kind === 'update') controller.submitUpdate(object().id, 1, input());
+    else controller.submitDelete(object().id, 1);
+    const send = vi.mocked(kind === 'create' ? transport.createPaintObject
+      : kind === 'update' ? transport.updatePaintObject : transport.deletePaintObject);
+    const original = structuredClone(send.mock.calls[0]);
+    advance(9_999);
+    controller.tick();
+    expect(send).toHaveBeenCalledTimes(1);
+    advance(1);
+    controller.tick();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1]).toEqual(original);
+    advance(10_000);
+    controller.tick();
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(send.mock.calls[2]).toEqual(original);
+    expect(controller.getState().pending).toHaveLength(1);
+  });
+
+  it('keeps snapshot-confirmed intent until its replay ACK without applying the event twice', () => {
+    const { controller, transport, runtime, advance } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    controller.submitCreate(input());
+    controller.requestSnapshot();
+    controller.acceptSnapshotChunk(chunk(0, 1, [object()], 1));
+    expect(controller.getState().pending).toHaveLength(1);
+    expect(controller.submitDelete(object().id, 1)).toBeNull();
+    vi.mocked(transport.createPaintObject).mockImplementation(() => {
+      controller.acceptEvent({ operation_id: OPERATION, table_id: TABLE, revision: 1,
+        action: 'create', object: object() });
+      return true;
+    });
+    advance(10_000);
+    controller.tick();
+    expect(controller.getState()).toMatchObject({ pending: [], revision: 1, committed: [object()] });
+    expect(runtime.upsertPaintObject).not.toHaveBeenCalled();
+    expect(controller.submitDelete(object().id, 1)).toBe(OPERATION);
+    expect(transport.deletePaintObject).toHaveBeenCalledOnce();
+  });
+
+  it.each(['throw', 'false'] as const)('retains intent after a local send returns %s and recovers on tick', failure => {
+    const { controller, transport, advance } = harness();
+    vi.mocked(transport.createPaintObject).mockImplementationOnce(() => {
+      if (failure === 'throw') throw new Error('Socket closed during send');
+      return false;
+    });
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    expect(controller.submitCreate(input())).toBe(OPERATION);
+    expect(controller.getState().pending).toHaveLength(1);
+    controller.tick();
+    expect(transport.createPaintObject).toHaveBeenCalledOnce();
+    advance(10_000);
+    controller.tick();
+    expect(transport.createPaintObject).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(transport.createPaintObject).mock.calls[1])
+      .toEqual(vi.mocked(transport.createPaintObject).mock.calls[0]);
+  });
+
+  it('bounds acknowledgement retry bursts and gives oldest unsent retries priority', () => {
+    const { controller, transport, advance } = harness(1_000, () => crypto.randomUUID());
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    for (let index = 0; index < 32; index += 1) controller.submitCreate(input(crypto.randomUUID()));
+    const original = structuredClone(vi.mocked(transport.createPaintObject).mock.calls);
+    advance(10_000);
+    controller.tick();
+    expect(vi.mocked(transport.createPaintObject).mock.calls.slice(32)).toEqual(original.slice(0, 16));
+    for (let tick = 0; tick < 39; tick += 1) {
+      advance(250);
+      controller.tick();
+    }
+    expect(transport.createPaintObject).toHaveBeenCalledTimes(48);
+    advance(250);
+    controller.tick();
+    expect(vi.mocked(transport.createPaintObject).mock.calls.slice(48)).toEqual(original.slice(16));
+    advance(10_000);
+    controller.tick();
+    expect(vi.mocked(transport.createPaintObject).mock.calls.slice(64)).toEqual(original.slice(0, 16));
+  });
+
+  it('does not retry inactive or expired intent while waiting for acknowledgements', () => {
+    const { controller, transport, advance } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    controller.submitCreate(input());
+    controller.selectTable(OTHER_TABLE);
+    controller.acceptSnapshotChunk({ ...chunk(0, 1, [], 0), table_id: OTHER_TABLE });
+    advance(10_000);
+    controller.tick();
+    expect(transport.createPaintObject).toHaveBeenCalledOnce();
+    advance(24 * 60 * 60 * 1_000);
+    controller.tick();
+    controller.selectTable(TABLE);
+    expect(transport.createPaintObject).toHaveBeenCalledOnce();
+    expect(controller.getState().pending).toEqual([]);
+  });
+
+  it('does not resend active intent after its deadline', () => {
+    const { controller, transport, advance } = harness();
+    controller.selectTable(TABLE);
+    controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
+    controller.submitCreate(input());
+    advance(24 * 60 * 60 * 1_000 + 1);
+    controller.tick();
+    expect(transport.createPaintObject).toHaveBeenCalledOnce();
+    expect(controller.getState()).toMatchObject({ pending: [], hydrating: true });
+  });
+
   it('keeps only one unconfirmed mutation per paint object across update/delete intents', () => {
     const { controller, transport, errors } = harness(1_000, () => crypto.randomUUID());
     controller.selectTable(TABLE);

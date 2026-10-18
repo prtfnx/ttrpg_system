@@ -17,6 +17,8 @@ import type {
 } from '../model/paintProtocol';
 
 const DEFAULT_RETRY_WINDOW_MS = 24 * 60 * 60 * 1_000;
+const ACK_TIMEOUT_MS = 10_000;
+const MAX_ACK_RETRIES_PER_INTERVAL = 16;
 const SNAPSHOT_TIMEOUT_MS = 10_000;
 const SNAPSHOT_BYTE_LIMIT = 32 * 1024 * 1024;
 const PREVIEW_INTERVAL_MS = 50;
@@ -83,6 +85,11 @@ interface PendingPaintOperation {
   command: PaintCommand;
 }
 
+interface RetainedPaintOperation extends PendingPaintOperation {
+  bytes: number;
+  sentAt: number;
+}
+
 interface SnapshotAssembly {
   generation: number;
   tableId: string;
@@ -121,7 +128,8 @@ export class PaintController {
   private snapshotRequestedAt: number | null = null;
   private activeSnapshotRequestId: string | null = null;
   private committed = new Map<string, PaintObject>();
-  private pending = new Map<string, PendingPaintOperation & { bytes: number }>();
+  private pending = new Map<string, RetainedPaintOperation>();
+  private lastAckRetryAt = Number.NEGATIVE_INFINITY;
   private queuedEvents = new Map<number, { event: PaintObjectEvent; bytes: number }>();
   private queuedEventBytes = 0;
   private snapshots = new Map<string, SnapshotAssembly>();
@@ -558,6 +566,20 @@ export class PaintController {
       this.requestSnapshot();
       return;
     }
+    if (now - this.lastAckRetryAt >= ACK_TIMEOUT_MS) {
+      const due = [...this.pending.values()]
+        .filter(pending => pending.command.tableId === this.tableId && now - pending.sentAt >= ACK_TIMEOUT_MS)
+        .sort((left, right) => left.sentAt - right.sentAt)
+        .slice(0, MAX_ACK_RETRIES_PER_INTERVAL);
+      if (due.length > 0) {
+        // Oldest attempt first prevents a full backlog starving later intents.
+        // Set the interval before sending: transports can synchronously ACK.
+        this.lastAckRetryAt = now;
+        for (const pending of due) {
+          if (this.pending.get(pending.operationId) === pending) this.sendPending(pending);
+        }
+      }
+    }
     if (
       this.hydrating
       && this.snapshotRequestedAt !== null
@@ -596,7 +618,7 @@ export class PaintController {
       this.reportLocalError('Too many pending paint changes. Wait for confirmation or reconnect before drawing more.');
       return null;
     }
-    const pending = { ...candidate, bytes, command: structuredClone(command) };
+    const pending = { ...candidate, bytes, sentAt: Number.NEGATIVE_INFINITY, command: structuredClone(command) };
     this.pending.set(operationId, pending);
     if (command.kind !== 'delete') {
       this.runtime.setPaintDraft?.(
@@ -610,29 +632,36 @@ export class PaintController {
     return operationId;
   }
 
-  private sendPending(pending: PendingPaintOperation): boolean {
+  private sendPending(pending: RetainedPaintOperation): boolean {
     const { command, operationId } = pending;
     if (command.tableId !== this.tableId) return false;
-    if (command.kind === 'create') {
-      return this.transport.createPaintObject(command.tableId, operationId, command.object, pending.createdAt);
-    }
-    if (command.kind === 'update') {
-      return this.transport.updatePaintObject(
+    pending.sentAt = this.now();
+    try {
+      if (command.kind === 'create') {
+        return this.transport.createPaintObject(command.tableId, operationId, command.object, pending.createdAt);
+      }
+      if (command.kind === 'update') {
+        return this.transport.updatePaintObject(
+          command.tableId,
+          operationId,
+          command.objectId,
+          command.expectedVersion,
+          command.object,
+          pending.createdAt,
+        );
+      }
+      return this.transport.deletePaintObject(
         command.tableId,
         operationId,
         command.objectId,
         command.expectedVersion,
-        command.object,
         pending.createdAt,
       );
+    } catch {
+      // A failed local send is not a server rejection. Retain the original
+      // intent and retry at the bounded cadence instead of dropping it.
+      return false;
     }
-    return this.transport.deletePaintObject(
-      command.tableId,
-      operationId,
-      command.objectId,
-      command.expectedVersion,
-      pending.createdAt,
-    );
   }
 
   private applyEvent(event: PaintObjectEvent): boolean {

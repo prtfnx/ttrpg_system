@@ -64,7 +64,7 @@ def editable_paint(value: dict) -> dict:
     return copy.deepcopy({key: value[key] for key in ("id", "kind", "geometry", "transform", "style")})
 
 
-def _number(value: Any, *, minimum=-1_000_000, maximum=1_000_000) -> float:
+def _number(value: Any, *, minimum: float = -1_000_000, maximum: float = 1_000_000) -> float:
     if (
         isinstance(value, bool)
         or not isinstance(value, (int, float))
@@ -214,7 +214,7 @@ class CanvasCommandService:
         }[mode]
         if set(command) != allowed:
             raise CanvasRejected("invalid_payload", "Incomplete or inconsistent canvas command")
-        edit = _sprite_edit(command["edit"]) if mode == "sprite_edit" else None
+        edit = _sprite_edit(command["edit"]) if mode == "sprite_edit" else {}
         request_hash = hashlib.sha256(encoded(command)).hexdigest()
         with self.factory() as db, db.begin():
             db_table, role = self.paint._lock_table_and_role(
@@ -301,12 +301,15 @@ class CanvasCommandService:
                             raise CanvasRejected("invalid_payload", "Invalid sprite shape geometry") from exc
                         after = candidate.to_dict()
                     elif mode == "restyle":
+                        assert after is not None  # Restyle captured a complete before-state above.
                         after["style"] = copy.deepcopy(command["style"])
                         validate_paint_object_input(editable_paint(after))
                     changes.append({"kind": kind, "id": target, "before": before, "after": after})
             if len(encoded(changes)) > MAX_ENTRY_BYTES:
                 raise CanvasRejected("limit_exceeded", "Selection exceeds the 1 MiB editor history budget")
             session = db.get(models.GameSession, session_id)
+            if session is None:
+                raise CanvasRejected("not_found", "Session no longer exists")
             rules_data = json.loads(session.session_rules_json or "{}")
             rules_data.setdefault("session_id", session.session_code)
             rules = SessionRules.from_dict(rules_data) if rules_data else SessionRules.defaults(session.session_code)

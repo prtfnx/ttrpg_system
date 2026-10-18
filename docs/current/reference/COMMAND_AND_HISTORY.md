@@ -74,9 +74,12 @@ and one undo step. It leaves geometry, provenance and sprites unchanged. A stale
 or forbidden included paint object rejects the whole restyle; retries do not add
 another history entry.
 
-Absolute sprite edits preserve line/polygon world-space geometry and enter one
+Absolute sprite edits validate and normalize bounded numeric fields before opening
+a transaction. They preserve line/polygon world-space geometry and enter one
 durable undo step. Layer moves rebuild the table's position index and require
-visibility of both source and destination layers. Publication removes the sprite
+visibility of both source and destination layers. A missing session read rejects
+before scene mutation or history advancement.
+Publication removes the sprite
 from old-layer viewers before sending the canonical upsert to new-layer viewers;
 the old audience does not receive the new private payload. Undo/redo uses the same
 filtered pair. Occupied destination anchors reject without changing the scene.

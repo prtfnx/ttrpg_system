@@ -156,7 +156,9 @@ class PaintObjectService:
         error, and must not publish any events until its outer commit succeeds.
         Normal membership, ownership, version, budget and retry checks still run.
         """
-        methods = {"create": self.create, "update": self.update, "delete": self.delete}
+        methods: dict[str, Callable[..., PaintCommandResult]] = {
+            "create": self.create, "update": self.update, "delete": self.delete,
+        }
         if action not in methods:
             raise ValueError("Unsupported composed paint action")
         return methods[action](_db=db, **kwargs)

@@ -162,8 +162,9 @@ def test_absolute_sprite_edits_persist_geometry_and_share_durable_history(scene)
     assert result.receipt["can_undo"]
     with scene["factory"]() as db:
         loaded, ok = crud.load_table_from_db(db, TABLE)
-        assert ok
-        assert loaded.find_entity_by_sprite_id("sprite").obstacle_data == accepted.obstacle_data
+        assert ok and loaded is not None
+        persisted = loaded.find_entity_by_sprite_id("sprite")
+        assert persisted is not None and persisted.obstacle_data == accepted.obstacle_data
     undone = scene["execute"](scene["command"]("undo"))
     assert undone.table.find_entity_by_sprite_id("sprite").to_dict() == original
     redone = scene["execute"](scene["command"]("redo"))
@@ -204,6 +205,19 @@ def test_invalid_sprite_edits_leave_storage_and_history_unchanged(scene, edit):
     before = scene["table"]["table"].to_dict()
     with pytest.raises(CanvasRejected):
         scene["execute"](sprite_edit_command(scene, edit))
+    assert scene["table"]["table"].to_dict() == before
+    with scene["factory"]() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 0
+
+
+def test_missing_session_read_rejects_without_advancing_scene_or_history(scene, monkeypatch):
+    original_get = Session.get
+    def get(db, entity, ident, **kwargs):
+        return None if entity is models.GameSession else original_get(db, entity, ident, **kwargs)
+    monkeypatch.setattr(Session, "get", get)
+    before = scene["table"]["table"].to_dict()
+    with pytest.raises(CanvasRejected, match="Session no longer exists"):
+        scene["execute"](sprite_edit_command(scene, {"rotation": 90}))
     assert scene["table"]["table"].to_dict() == before
     with scene["factory"]() as db:
         assert db.query(models.CanvasCommandJournal).count() == 0

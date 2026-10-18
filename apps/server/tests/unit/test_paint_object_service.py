@@ -344,7 +344,7 @@ def test_expired_create_cannot_resurrect_deleted_paint_after_real_retention_clea
         return utc_now() + timedelta(days=3)
     assert cleanup_expired_paint_operations(session_factory=factory, now=later) == 2
     expired = create(PaintObjectService(factory, writes_enabled=True, now=later), ids, operation_id=op)
-    assert expired.error.code == "retry_window_expired" and expired.event is None
+    assert expired.error is not None and expired.error.code == "retry_window_expired" and expired.event is None
     with factory() as db:
         assert db.get(models.PaintObject, OBJECT_ID) is None
         assert db.get(models.PaintState, TABLE_ID).revision == 2
@@ -360,7 +360,7 @@ def test_invalid_or_future_intent_does_not_open_a_transaction(issued_at):
     result = PaintObjectService(unavailable, writes_enabled=True, now=lambda: fixed_now).create(
         issued_at=issued_at, session_id=1, actor_id=1, table_id=TABLE_ID,
         operation_id=str(uuid.uuid4()), editable=editable())
-    assert result.error.code in {"invalid_payload", "retry_window_expired"}
+    assert result.error is not None and result.error.code in {"invalid_payload", "retry_window_expired"}
 
 
 def test_update_requires_current_version_and_preserves_server_fields(paint_service):

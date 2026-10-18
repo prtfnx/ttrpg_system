@@ -417,6 +417,12 @@ class ServerProtocol(
                     if response and hasattr(response, 'to_json'):
                         response.correlation_id = individual_msg.correlation_id or individual_msg.message_id
                         response.causation_id = individual_msg.message_id
+                        if response.type == MessageType.PAINT_SNAPSHOT_CHUNK:
+                            # The paint handler already streams earlier chunks.
+                            # Nesting its final chunk (or several snapshots) in
+                            # a batch would invalidate the complete frame budget.
+                            await self.send_to_client(response, client_id)
+                            continue
                         responses.append(response)
                 else:
                     logger.warning(f"No handler for batch message type: {individual_msg.type}")

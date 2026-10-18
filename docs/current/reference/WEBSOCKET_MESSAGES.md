@@ -235,6 +235,15 @@ The envelope schema allows at most 50 batch entries; the transport parser's
 preliminary bound is looser. The frame budget is the sum of the two configured
 limits and bounds malformed traffic too.
 
+Paint snapshot chunks always stream as standalone, correlated messages, even
+for a `paint_snapshot_request` inside a transport batch. No snapshot entry is
+embedded in `batch_response`: combining final chunks would exceed their
+per-frame byte budget. `processed_count` includes snapshot requests;
+`response_count` counts only embedded responses, not streamed chunks. The
+correlated final chunk confirms snapshot completion. Ordinary response entries
+retain their existing behavior. Regression owner:
+`apps/server/tests/unit/test_batch_message.py`.
+
 Excess previews are dropped while durable commands in a mixed batch are
 preserved. Exhausted command/frame budgets close with retryable code 1013.
 Normal sustained 20 Hz dragging fits the preview budget. Do not interpret 1013

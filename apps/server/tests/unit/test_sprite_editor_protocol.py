@@ -2,6 +2,7 @@
 import asyncio
 import copy
 import json
+import time
 from unittest.mock import AsyncMock
 
 import pytest
@@ -94,6 +95,18 @@ async def test_history_storage_failure_rejects_without_live_mutation_or_broadcas
     with factory() as db:
         assert not db.query(models.Entity).count() and not db.query(models.CanvasCommandJournal).count()
     assert sprite_command_scope.get() is None
+
+
+async def test_expired_sprite_intent_rejects_before_staging_or_publication(protocol):
+    proto, table, factory = protocol
+    message = create(table)
+    message.timestamp = time.time() - 3 * 86400
+    response = await send(proto, message)
+    assert response.type == MessageType.ERROR and response.data["code"] == "retry_window_expired"
+    assert table.find_entity_by_sprite_id("text") is None
+    proto.broadcast_filtered.assert_not_awaited()
+    with factory() as db:
+        assert not db.query(models.Entity).count() and not db.query(models.CanvasCommandJournal).count()
 
 
 async def test_repeated_cancellation_holds_session_lock_through_post_commit_broadcast(protocol):

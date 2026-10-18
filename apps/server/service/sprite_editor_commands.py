@@ -2,9 +2,11 @@
 import copy
 import hashlib
 import json
+import math
 import uuid
 from contextvars import ContextVar
 from dataclasses import dataclass, field
+from datetime import UTC
 
 from core_table.protocol import Message, MessageType
 from core_table.table import VirtualTable
@@ -34,6 +36,7 @@ class SpriteCommandScope:
     operation_id: str
     request_hash: str
     editor: bool
+    issued_at_seconds: float
     receipt: dict = field(default_factory=dict, compare=False)
 
     @classmethod
@@ -44,10 +47,12 @@ class SpriteCommandScope:
         if session_id is None or actor_id is None or not isinstance(table_id, str) or not table_id:
             return None  # Normal handler validation still owns malformed requests.
         table_id = table_id.strip()
+        if not isinstance(msg.message_id, str) or not msg.message_id or len(msg.message_id) > 128:
+            raise CanvasRejected("invalid_payload", "The original sprite message_id is required")
         identity = encoded([session_id, actor_id, table_id, msg.type.value, msg.message_id]).decode("utf-8")
         return cls(session_id, actor_id, table_id, str(uuid.uuid5(uuid.NAMESPACE_URL, identity)),
-            hashlib.sha256(encoded({"type": msg.type.value, "data": msg.data})).hexdigest(),
-            msg.type != MessageType.SPRITE_UPDATE or set(msg.data) <= EDITOR_UPDATE_FIELDS)
+            hashlib.sha256(encoded({"type": msg.type.value, "data": msg.data, "timestamp": msg.timestamp})).hexdigest(),
+            msg.type != MessageType.SPRITE_UPDATE or set(msg.data) <= EDITOR_UPDATE_FIELDS, msg.timestamp)
 
 
 sprite_command_scope: ContextVar[SpriteCommandScope | None] = ContextVar("sprite_command_scope", default=None)
@@ -55,6 +60,18 @@ sprite_command_scope: ContextVar[SpriteCommandScope | None] = ContextVar("sprite
 
 class SpriteEditorCommandService(CanvasCommandService):
     """Persist a validated staged domain result and its undo delta in one commit."""
+
+    def _require_intent_age(self, scope):
+        issued_at = scope.issued_at_seconds
+        if (isinstance(issued_at, bool) or not isinstance(issued_at, (int, float))
+                or not math.isfinite(issued_at) or not 0 <= issued_at <= 9_007_199_254_740.991):
+            raise CanvasRejected("invalid_payload", "The original sprite timestamp is required")
+        current = self.now()
+        if current.tzinfo is None:
+            current = current.replace(tzinfo=UTC)
+        age = current.timestamp() - issued_at
+        if age > RETRY_WINDOW.total_seconds() or age < -60:
+            raise CanvasRejected("retry_window_expired", "Sprite intent expired; reload before editing")
 
     def _role(self, db, scope):
         _, role = self.paint._lock_table_and_role(db, table_id=scope.table_id,
@@ -64,6 +81,7 @@ class SpriteEditorCommandService(CanvasCommandService):
         return role
 
     def replay(self, scope):
+        self._require_intent_age(scope)
         try:
             with self.factory() as db, db.begin():
                 self._role(db, scope)
@@ -82,6 +100,7 @@ class SpriteEditorCommandService(CanvasCommandService):
             raise CanvasRejected(exc.error.code, exc.error.message) from exc
 
     def persist(self, *, scope, before_snapshot, staged, combat_sprite_ids=()):
+        self._require_intent_age(scope)
         try:
             with self.factory() as db, db.begin():
                 role = self._role(db, scope)

@@ -2,13 +2,15 @@
 import copy
 import json
 import uuid
-from datetime import UTC, datetime
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from core_table.protocol import Message, MessageType
 from core_table.table import VirtualTable
 from database import crud, models
 from service.canvas_command_service import CanvasCommandService, CanvasRejected
+from service.paint_operation_cleanup import cleanup_expired_paint_operations
 from service.sprite_editor_commands import SpriteCommandScope, SpriteEditorCommandService
 from sqlalchemy import event
 from sqlalchemy.orm import Session, sessionmaker
@@ -73,7 +75,7 @@ def test_retry_returns_fresh_history_not_old_sprite_data_and_checks_identity(edi
     replay = SpriteEditorCommandService(factory, writes_enabled=True).replay(context)
     assert replay["resync_required"] and replay["can_redo"] and "sprite_data" not in replay
     changed = SpriteCommandScope(context.session_id, context.actor_id, context.table_id,
-        context.operation_id, "different", True)
+        context.operation_id, "different", True, context.issued_at_seconds)
     with pytest.raises(CanvasRejected, match="reused"):
         service.replay(changed)
 
@@ -145,6 +147,63 @@ def test_noop_has_receipt_without_history_or_redo_abandonment(editor):
     receipt = service.persist(scope=scope(MessageType.SPRITE_ROTATE, rotation=0),
         before_snapshot=table.to_dict(), staged=copy.deepcopy(table))
     assert receipt["can_redo"] and not receipt["can_undo"]
+
+
+def test_expired_original_create_cannot_resurrect_deleted_sprite_after_real_cleanup(editor):
+    service, table, factory, scope, _, _ = editor
+    created = copy.deepcopy(table)
+    created.add_entity({"sprite_id": "retry-target", "x": 200, "y": 200, "width": 20, "height": 20})
+    create_scope = scope(MessageType.SPRITE_CREATE, sprite_id="retry-target", sprite_data={"sprite_id": "retry-target"})
+    service.persist(scope=create_scope, before_snapshot=table.to_dict(), staged=created)
+    removed = copy.deepcopy(created)
+    removed.remove_entity(removed.find_entity_by_sprite_id("retry-target").entity_id)
+    service.persist(scope=scope(MessageType.SPRITE_REMOVE, sprite_id="retry-target"),
+        before_snapshot=created.to_dict(), staged=removed)
+    later = datetime.fromtimestamp(create_scope.issued_at_seconds, UTC).replace(tzinfo=None) + timedelta(days=3)
+    cleanup_expired_paint_operations(session_factory=factory, now=lambda: later)
+    restarted = SpriteEditorCommandService(factory, writes_enabled=True, now=lambda: later)
+    with pytest.raises(CanvasRejected, match="intent expired"):
+        restarted.replay(create_scope)
+    with pytest.raises(CanvasRejected, match="intent expired"):
+        restarted.persist(scope=create_scope, before_snapshot=removed.to_dict(), staged=created)
+    with factory() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 0
+        loaded, ok = crud.load_table_from_db(db, str(table.table_id))
+        assert ok and loaded.find_entity_by_sprite_id("retry-target") is None
+
+
+@pytest.mark.parametrize("issued_at", [None, True, float("nan"), float("inf"), -1, 9_007_199_254_741])
+def test_invalid_sprite_intent_fails_before_opening_database(editor, issued_at):
+    _, table, _, scope, _, _ = editor
+    def unavailable():
+        pytest.fail("Invalid intent must not open a transaction")
+    service = SpriteEditorCommandService(unavailable, writes_enabled=True)
+    context = replace(scope(), issued_at_seconds=issued_at)
+    with pytest.raises(CanvasRejected, match="original sprite timestamp"):
+        service.replay(context)
+    with pytest.raises(CanvasRejected, match="original sprite timestamp"):
+        service.persist(scope=context, before_snapshot=table.to_dict(), staged=copy.deepcopy(table))
+
+
+def test_sprite_timestamp_cannot_be_refreshed_under_an_existing_message_identity(editor):
+    service, _, _, _, edit, _ = editor
+    context, _ = edit("Accepted", 2)
+    message = Message(MessageType.SPRITE_UPDATE, {"table_id": context.table_id, "sprite_id": "text"}, timestamp=context.issued_at_seconds)
+    first = SpriteCommandScope.from_message(message, context.session_id, context.actor_id)
+    message.timestamp += 1
+    refreshed = SpriteCommandScope.from_message(message, context.session_id, context.actor_id)
+    assert first.operation_id == refreshed.operation_id and first.request_hash != refreshed.request_hash
+    with pytest.raises(CanvasRejected, match="reused"):
+        service.replay(replace(context, request_hash=refreshed.request_hash, issued_at_seconds=refreshed.issued_at_seconds))
+
+
+def test_future_sprite_intent_rejects_with_a_fixed_clock(editor):
+    _, _, factory, scope, _, _ = editor
+    context = scope()
+    current = datetime.fromtimestamp(context.issued_at_seconds, UTC).replace(tzinfo=None)
+    service = SpriteEditorCommandService(factory, writes_enabled=True, now=lambda: current)
+    with pytest.raises(CanvasRejected, match="intent expired"):
+        service.replay(replace(context, issued_at_seconds=context.issued_at_seconds + 61))
 
 
 def test_revoked_membership_is_checked_for_record_and_replay(editor, test_db):

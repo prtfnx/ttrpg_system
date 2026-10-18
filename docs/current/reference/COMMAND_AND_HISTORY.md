@@ -142,6 +142,12 @@ these are not reversible editor actions. Request identity is actor/session/table
 scoped and derived from the original message ID and body before normalization.
 Identical retries return an acknowledgement requiring fresh hydration, not old
 sprite events. A changed body or expired retry rejects.
+Sprite intent age comes from the original envelope timestamp in epoch seconds.
+Preflight and persistence reject intent older than 24 hours or more than 60
+seconds in the future before opening a transaction, even after receipt cleanup.
+The timestamp participates in the request hash; changing it under an existing
+message ID is not a retry. The wire schema requires timestamp and identity, so
+decoding an omitted value cannot manufacture fresh intent.
 The browser consumes legacy `sprite_response` retry receipts by requesting fresh
 data only for the active table. Accepted sprite responses and text-update success
 responses coalesce a shared-history refresh on the existing controller tick;

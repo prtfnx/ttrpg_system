@@ -105,6 +105,9 @@ function installProbe() {
     const send = ws.send.bind(ws);
     ws.send = raw => {
       const message = JSON.parse(raw);
+      if (message.type === 'paint_object_create' && probe.trackObjectId === message.data.object.id) {
+        (probe.trackedAttempts ??= []).push(structuredClone(message.data));
+      }
       if (message.type === 'canvas_command') probe.canvasCommandCount = (probe.canvasCommandCount ?? 0) + 1;
       if (probe.dropPreviews && ['paint_preview', 'paint_preview_cancel'].includes(message.type)) return;
       const id = message.data?.operation_id ?? message.message_id;
@@ -272,9 +275,12 @@ async function send(page, type, data) {
   if (['paint_object_create', 'paint_object_update', 'paint_object_delete'].includes(type) && data.issued_at === undefined) {
     data = { ...data, issued_at: Date.now() };
   }
-  await page.evaluate(({ type, data }) => {
+  return page.evaluate(({ type, data }) => {
     const socket = window.__paintRelease.sockets.find(ws => ws.readyState === WebSocket.OPEN);
-    socket.send(JSON.stringify({ type, data, message_id: crypto.randomUUID() }));
+    const raw = JSON.stringify({ type, data, timestamp: Date.now() / 1000, message_id: crypto.randomUUID() });
+    const sentAt = Date.now();
+    socket.send(raw);
+    return sentAt;
   }, { type, data });
 }
 async function rejection(page, operationId, code) {
@@ -420,6 +426,38 @@ try {
   }
   await converge(player.page, dm.page, 7);
   report.stages.push('deliberately dropped event: revision-gap snapshot recovery');
+  const lostAckObject = { ...editable((await state(player.page)).committed.at(-1)), id: crypto.randomUUID() };
+  const beforeLostAck = (await state(player.page)).revision;
+  const lostAckOperation = await player.page.evaluate(object => {
+    const p = window.__paintRelease;
+    p.dropNextEvent = true;
+    p.trackObjectId = object.id;
+    p.trackedAttempts = [];
+    p.ackSocket = p.sockets.find(ws => ws.readyState === WebSocket.OPEN);
+    const operation = p.paint.submitCreate(object);
+    return operation;
+  }, lostAckObject);
+  assert(lostAckOperation, 'Lost-ACK fixture must register controller-owned intent');
+  await dm.page.waitForFunction(id => window.__paintRelease.paint.getState().committed.some(o => o.id === id), lostAckObject.id);
+  assert.equal((await state(player.page)).pending.length, 1);
+  await player.page.evaluate(() => window.__paintRelease.paint.requestSnapshot());
+  await ready(player.page);
+  assert((await state(player.page)).committed.some(o => o.id === lostAckObject.id));
+  assert.equal((await state(player.page)).pending.length, 1, 'A snapshot must not fabricate an acknowledgement');
+  await converge(player.page, dm.page, 8);
+  assert.equal((await state(player.page)).revision, beforeLostAck + 1, 'Retry must not create another revision');
+  assert(await player.page.evaluate(() => window.__paintRelease.ackSocket.readyState === WebSocket.OPEN),
+    'Acknowledgement recovery must not depend on a new connection');
+  const attempts = await player.page.evaluate(() => window.__paintRelease.trackedAttempts);
+  assert.equal(attempts.length, 2, 'The unchanged open connection must resend lost-ACK intent once');
+  assert.deepEqual(attempts[1], attempts[0], 'Retries retain original issued_at and body');
+  await player.page.evaluate(id => {
+    const object = window.__paintRelease.paint.getState().committed.find(o => o.id === id);
+    window.__paintRelease.paint.submitDelete(id, object.version);
+    window.__paintRelease.trackObjectId = null;
+  }, lostAckObject.id);
+  await converge(player.page, dm.page, 7);
+  report.stages.push('lost writer acknowledgement on open socket: snapshot plus exact retry, no duplicate revision');
   console.log('Browser acceptance: editable text, atomic restyle and mixed transforms');
   await enableCombinedSelection(player.page);
   await player.page.getByRole('button', { name: 'Text sprite', exact: true }).click();
@@ -803,6 +841,58 @@ try {
     assert(snapshot.ms <= report.thresholds.snapshotMaxMs);
     assert(snapshot.bytes <= 32 * 1024 * 1024);
   }
+  for (const batched of [false, true]) {
+    const escapedSnapshot = await others[0].page.evaluate(({ tableId, batched }) => new Promise((resolve, reject) => {
+      const socket = window.__paintRelease.socket;
+      const identity = '\u0001'.repeat(128);
+      const batchId = crypto.randomUUID();
+      const chunks = new Map();
+      let acknowledgement = null;
+      let finalChunk = null;
+      let maxFrameBytes = 0;
+      const timeout = setTimeout(() => { socket.removeEventListener('message', receive); reject(new Error('Escaped-identity snapshot timed out')); }, 15000);
+      function receive(event) {
+        const message = JSON.parse(event.data);
+        if (batched && message.type === 'batch_response' && message.causation_id === batchId) {
+          maxFrameBytes = Math.max(maxFrameBytes, new TextEncoder().encode(event.data).byteLength);
+          acknowledgement = message.data;
+        } else {
+          if (message.type !== 'paint_snapshot_chunk' || message.causation_id !== identity) return;
+          if (message.correlation_id !== identity) {
+            clearTimeout(timeout); socket.removeEventListener('message', receive);
+            reject(new Error('Snapshot lost original correlation identity')); return;
+          }
+          maxFrameBytes = Math.max(maxFrameBytes, new TextEncoder().encode(event.data).byteLength);
+          chunks.set(message.data.chunk_index, message.data);
+          if (message.data.complete) finalChunk = message.data;
+        }
+        if (!finalChunk || chunks.size !== finalChunk.chunk_count || (batched && !acknowledgement)) return;
+        clearTimeout(timeout); socket.removeEventListener('message', receive);
+        const ordered = [...chunks.entries()].sort(([a], [b]) => a - b).map(([, chunk]) => chunk);
+        resolve({ maxFrameBytes, chunks: ordered.length, revision: finalChunk.revision,
+          snapshotId: finalChunk.snapshot_id, acknowledgement,
+          complete: ordered.map(chunk => chunk.complete), objects: ordered.flatMap(chunk => chunk.objects) });
+      }
+      socket.addEventListener('message', receive);
+      const request = { type: 'paint_snapshot_request', data: { table_id: tableId },
+        timestamp: Date.now() / 1000, message_id: identity, correlation_id: identity };
+      socket.send(JSON.stringify(batched ? { type: 'batch_request', data: { messages: [request] },
+        timestamp: Date.now() / 1000, message_id: batchId } : request));
+    }), { tableId: fixture.busyTableId, batched });
+    assert(escapedSnapshot.chunks > 1);
+    assert(escapedSnapshot.maxFrameBytes <= 65536, 'Escaped identities must fit in every actual wire frame');
+    assert.equal(escapedSnapshot.revision, (await state(player.page)).revision);
+    assert.deepEqual(escapedSnapshot.objects, busy);
+    assert.deepEqual(escapedSnapshot.complete, Array.from({ length: escapedSnapshot.chunks }, (_, i) => i === escapedSnapshot.chunks - 1));
+    if (batched) {
+      const summary = escapedSnapshot.acknowledgement;
+      assert.equal(summary.processed_count, 1);
+      assert.equal(summary.response_count, 0);
+      assert.equal(summary.failed_count, 0);
+      assert.deepEqual(summary.messages, []);
+    }
+  }
+  report.stages.push('direct and batched escaped-identity requests: complete 1,000-object snapshot within every 64 KiB frame');
   for (const value of others) {
     await value.page.evaluate(tableId => {
       const p = window.__paintRelease;
@@ -860,6 +950,8 @@ try {
     await player.page.keyboard.press('Escape'); await player.page.mouse.up();
   }
   const eventLatencies = [];
+  const batchDispatchEventLatencies = [];
+  const dispatchDelays = [];
   const acceptedOperations = [];
   const writers = [dm, player, ...others.filter(value => value.index !== 2)];
   for (let round = 0; round < 12; round += 1) {
@@ -872,14 +964,17 @@ try {
       return { value, operationId: crypto.randomUUID(), object, replacement };
     });
     const startedAt = Date.now();
-    await Promise.all(operations.map(({ value, operationId, object, replacement }) => send(value.page,
+    const sentAt = await Promise.all(operations.map(({ value, operationId, object, replacement }) => send(value.page,
       'paint_object_update', { operation_id: operationId, table_id: fixture.busyTableId, id: object.id,
         expected_version: object.version, object: replacement })));
-    for (const operation of operations) {
+    for (const [index, operation] of operations.entries()) {
       await player.page.waitForFunction(id => window.__paintRelease.messages.some(message => message.operationId === id), operation.operationId);
       const received = await player.page.evaluate(id => window.__paintRelease.messages.find(message => message.operationId === id), operation.operationId);
       assert.equal(received.type, 'paint_object_event', `Load command rejected: ${received.code}`);
-      eventLatencies.push(received.receivedAt - startedAt);
+      assert(Number.isFinite(sentAt[index]) && received.receivedAt >= sentAt[index], 'Event timing needs a real socket-write timestamp');
+      eventLatencies.push(received.receivedAt - sentAt[index]);
+      batchDispatchEventLatencies.push(received.receivedAt - startedAt);
+      dispatchDelays.push(sentAt[index] - startedAt);
       acceptedOperations.push(operation.operationId);
     }
     await converge(player.page, dm.page, 1000);
@@ -914,6 +1009,7 @@ try {
   report.load = { connectedClients: 10, interactiveWriters: 9, acceptedCommands: acceptedOperations.length,
     objects: 1000, points: 100000, snapshots, previewMs: summarize(metrics.previews),
     frameCpuMs: summarize(metrics.frames), committedEventMs: summarize(eventLatencies),
+    batchDispatchEventMs: summarize(batchDispatchEventLatencies), dispatchDelayMs: summarize(dispatchDelays),
     commandRoundTripMs: summarize(commandSamples), buffersBefore: baseline.buffers, buffersAfter: metrics.buffers,
     heapBefore: heapBefore.usedSize, heapAfter: heapAfter.usedSize, memorySamples,
     revisionGaps: metrics.revisionGaps, resyncs: metrics.resyncs,

@@ -169,7 +169,8 @@ def test_expired_original_create_cannot_resurrect_deleted_sprite_after_real_clea
     with factory() as db:
         assert db.query(models.CanvasCommandJournal).count() == 0
         loaded, ok = crud.load_table_from_db(db, str(table.table_id))
-        assert ok and loaded.find_entity_by_sprite_id("retry-target") is None
+        assert ok and loaded is not None
+        assert loaded.find_entity_by_sprite_id("retry-target") is None
 
 
 @pytest.mark.parametrize("issued_at", [None, True, float("nan"), float("inf"), -1, 9_007_199_254_741])
@@ -190,8 +191,10 @@ def test_sprite_timestamp_cannot_be_refreshed_under_an_existing_message_identity
     context, _ = edit("Accepted", 2)
     message = Message(MessageType.SPRITE_UPDATE, {"table_id": context.table_id, "sprite_id": "text"}, timestamp=context.issued_at_seconds)
     first = SpriteCommandScope.from_message(message, context.session_id, context.actor_id)
-    message.timestamp += 1
+    assert first is not None and message.timestamp is not None
+    message.timestamp = message.timestamp + 1
     refreshed = SpriteCommandScope.from_message(message, context.session_id, context.actor_id)
+    assert refreshed is not None
     assert first.operation_id == refreshed.operation_id and first.request_hash != refreshed.request_hash
     with pytest.raises(CanvasRejected, match="reused"):
         service.replay(replace(context, request_hash=refreshed.request_hash, issued_at_seconds=refreshed.issued_at_seconds))

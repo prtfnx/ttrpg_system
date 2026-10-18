@@ -214,6 +214,17 @@ remain isolated by session member after reload.
 Synthetic paint requests carry an original `issued_at` timestamp;
 concurrent identical retries reuse that same timestamp and payload. Tests must
 not refresh an existing intent merely to bypass its retry-age check.
+Synthetic sprite mutations also include the original envelope timestamp in
+epoch seconds and a stable message ID. Missing either field is invalid, not a
+legacy fixture exemption. Sprite service tests replay after actual journal
+cleanup and reject expired intent before database access or staging.
+Controller tests use injected clocks to cover bounded open-socket acknowledgement
+retries. The built-UI runner drops a writer's acknowledgement, installs a fresh
+snapshot, then requires an unchanged retry to release pending intent without
+another revision. Direct and batched busy snapshot requests use schema-valid
+escaped correlation identities and check every complete UTF-8 frame against
+64 KiB, including the batch response envelope. Streamed chunks do not count as
+embedded batch responses; mixed batches still return ordinary response entries.
 Future/expired-intent unit tests inject a fixed service clock; their outcome must
 not depend on how long the full suite takes before reaching the test.
 
@@ -250,6 +261,12 @@ Memory is sampled after garbage collection every four batches. Each accepted
 edit must rebuild only the changed object's mesh. Frame/preview timing ends at
 CPU render submission, not GPU completion or display scan-out. Loopback
 thresholds are not arbitrary-network guarantees or a multi-hour soak test.
+Event latency starts immediately before the browser writes its command to the
+socket and ends when the observing browser receives the canonical event. It
+includes network, server queueing and persistence, but not Playwright dispatch
+before the socket write. The runner also reports the orchestration-inclusive
+`batchDispatchEventMs` and separate `dispatchDelayMs` as diagnostics. The event
+budget remains 250 ms; dispatch overhead is not silently discarded from reports.
 
 The synthetic cutover fixture backs up legacy strokes, explicitly quarantines
 invalid rows, exports templates, and verifies idempotent conversion. Before a

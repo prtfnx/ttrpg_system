@@ -686,7 +686,8 @@ describe('WebClientProtocol', () => {
       data: Record<string, unknown>,
       envelope: Record<string, unknown> = {},
     ) {
-      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5, ...envelope });
+      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5,
+        timestamp: Date.now() / 1000, message_id: crypto.randomUUID(), ...envelope });
       await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
     }
 
@@ -1345,9 +1346,31 @@ describe('WebClientProtocol', () => {
       data: Record<string, unknown>,
       envelope: Record<string, unknown> = {},
     ) {
-      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5, ...envelope });
+      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5,
+        timestamp: Date.now() / 1000, message_id: crypto.randomUUID(), ...envelope });
       await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
     }
+
+    it.each([
+      ['sprite_create', 'sprite-created'], ['sprite_remove', 'sprite-removed'],
+      ['sprite_update', 'sprite-updated'], ['sprite_move', 'sprite-moved'],
+      ['sprite_scale', 'sprite-scaled'], ['sprite_rotate', 'sprite-rotated'],
+    ])('rejects %s without original intent identity before event dispatch', async (type, eventName) => {
+      const p = makeProtocol();
+      const handler = vi.fn();
+      window.addEventListener(eventName, handler);
+      try {
+        await dispatch(p, type, { sprite_id: 's1' }, { timestamp: undefined });
+        await dispatch(p, type, { sprite_id: 's1' }, { message_id: undefined });
+        await dispatch(p, type, { sprite_id: 's1' }, { timestamp: null });
+        await dispatch(p, type, { sprite_id: 's1' }, { message_id: '' });
+        expect(handler).not.toHaveBeenCalled();
+        await dispatch(p, type, { sprite_id: 's1' });
+        expect(handler).toHaveBeenCalledOnce();
+      } finally {
+        window.removeEventListener(eventName, handler);
+      }
+    });
 
     it.each(['player_status_response', 'player_status_changed'])(
       '%s dispatches player-status-changed',

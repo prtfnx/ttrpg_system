@@ -425,10 +425,11 @@ class _SpritesMixin(_ProtocolBase):
         )
 
         if result.success:
+            accepted = result.data or {}
             response_data = {
                 'sprite_id': sprite_id,
                 'operation': 'move',
-                'to': to_pos,
+                'to': {'x': accepted.get('x'), 'y': accepted.get('y')},
                 'success': True
             }
             # Include action_id for confirmation if provided
@@ -438,8 +439,8 @@ class _SpritesMixin(_ProtocolBase):
             # Broadcast sprite move to all other clients in the session
             move_message = Message(MessageType.SPRITE_MOVE, {
                 'sprite_id': sprite_id,
-                'x': to_pos.get('x') if isinstance(to_pos, dict) else to_pos[0],
-                'y': to_pos.get('y') if isinstance(to_pos, dict) else to_pos[1],
+                'x': accepted.get('x'),
+                'y': accepted.get('y'),
                 'table_id': table_id
             })
             await self._broadcast_sprite_event(move_message, client_id)

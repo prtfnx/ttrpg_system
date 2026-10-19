@@ -12,6 +12,7 @@ from database import crud, models
 from service.protocol.base import ServerProtocol
 from service.sprite_editor_commands import sprite_command_scope
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import event
 
 
 @pytest.fixture
@@ -142,3 +143,78 @@ async def test_broadcast_failure_is_durable_success_requiring_resync(protocol):
     assert table.find_entity_by_sprite_id("text") is not None
     with factory() as db:
         assert db.query(models.CanvasCommandJournal).count() == 1
+
+
+def rotation(table, angle, sprite_id="text"):
+    return Message(MessageType.SPRITE_ROTATE, {"table_id": str(table.table_id),
+        "sprite_id": sprite_id, "rotation": angle, "action_id": f"rotate-{angle}"})
+
+
+async def test_sprite_burst_commits_once_without_exposing_provisional_state(protocol, test_db_engine, monkeypatch):
+    proto, table, factory = protocol
+    await send(proto, create(table))
+    proto.send_to_client.reset_mock()
+    proto.broadcast_filtered.reset_mock()
+    original = __import__("service.sprite_editor_commands", fromlist=["SpriteEditorCommandService"]).SpriteEditorCommandService.persist_many
+    commits = []
+
+    def persist(service, commands):
+        assert table.find_entity_by_sprite_id("text").rotation == 0
+        assert not proto.broadcast_filtered.await_count
+        assert len(commands) == 2
+        return original(service, commands)
+
+    monkeypatch.setattr("service.sprite_editor_commands.SpriteEditorCommandService.persist_many", persist)
+    event.listen(test_db_engine, "commit", lambda _connection: commits.append(True))
+    response = await send(proto, Message(MessageType.BATCH_REQUEST, {"messages": [
+        rotation(table, 30).to_dict(), rotation(table, 60).to_dict()]}))
+    assert response.type == MessageType.BATCH_RESPONSE and response.data["failed_count"] == 0
+    assert len(commits) == 2  # One read preflight and one write transaction, not two per action.
+    assert table.find_entity_by_sprite_id("text").rotation == 60
+    assert proto.broadcast_filtered.await_count == 2
+    with factory() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 3
+        assert db.query(models.Entity).one().rotation == 60
+
+
+async def test_denied_member_does_not_discard_other_buffered_changes(protocol):
+    proto, table, _ = protocol
+    await send(proto, create(table))
+    response = await send(proto, Message(MessageType.BATCH_REQUEST, {"messages": [
+        rotation(table, 30).to_dict(), rotation(table, 40, "missing").to_dict(), rotation(table, 60).to_dict()]}))
+    outcomes = response.data["messages"]
+    assert [item["type"] for item in outcomes] == ["sprite_response", "error", "sprite_response"]
+    assert outcomes[1]["data"]["action_id"] == "rotate-40"
+    assert table.find_entity_by_sprite_id("text").rotation == 60
+
+
+async def test_failed_buffered_commit_leaves_live_and_stored_table_unchanged(protocol, monkeypatch):
+    proto, table, factory = protocol
+    await send(proto, create(table))
+    proto.broadcast_filtered.reset_mock()
+
+    def fail(*_args, **_kwargs):
+        raise RuntimeError("storage unavailable")
+
+    monkeypatch.setattr("service.sprite_editor_commands.SpriteEditorCommandService.persist_many", fail)
+    response = await send(proto, Message(MessageType.BATCH_REQUEST, {"messages": [
+        rotation(table, 30).to_dict(), rotation(table, 60).to_dict()]}))
+    assert response.data["failed_count"] == 2
+    assert all(item["data"]["resync_required"] for item in response.data["messages"])
+    assert table.find_entity_by_sprite_id("text").rotation == 0
+    proto.broadcast_filtered.assert_not_awaited()
+    with factory() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 1
+        assert db.query(models.Entity).one().rotation == 0
+
+
+async def test_same_identity_in_burst_has_one_history_entry(protocol):
+    proto, table, factory = protocol
+    await send(proto, create(table))
+    message = rotation(table, 30)
+    response = await send(proto, Message(MessageType.BATCH_REQUEST, {"messages": [
+        message.to_dict(), message.to_dict()]}))
+    assert response.data["failed_count"] == 0
+    assert response.data["messages"][1]["data"]["resync_required"]
+    with factory() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 2

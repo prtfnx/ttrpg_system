@@ -15,6 +15,7 @@ from service.sprite_editor_commands import (
     SpriteEditorCommandService,
     sprite_command_scope,
 )
+from service.sprite_command_batch import apply_sprite_batch, can_buffer
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 
@@ -323,15 +324,14 @@ class ServerProtocol(
             else:
                 response = await self._invoke_handler(msg, client_id)
             if response:
-                response.correlation_id = msg.correlation_id or msg.message_id
-                response.causation_id = msg.message_id
+                self._correlate_response(msg, response)
                 await self.send_to_client(response, client_id)
             return True
         logger.warning(f"No handler registered for message type: {msg.type}")
         return False
 
     async def _invoke_handler(self, msg: Message, client_id: str):
-        if msg.type in SPRITE_COMMAND_TYPES and getattr(getattr(self, "table_manager", None), "db_session", None):
+        if msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST} and getattr(getattr(self, "table_manager", None), "db_session", None):
             # Include post-commit broadcasts in cancellation shielding. The
             # session lock must not release between storage and publication.
             worker = asyncio.create_task(self._invoke_handler_body(msg, client_id))
@@ -345,7 +345,11 @@ class ServerProtocol(
             if msg.type in SPRITE_COMMAND_TYPES and getattr(getattr(self, "table_manager", None), "db_session", None):
                 scope = SpriteCommandScope.from_message(msg, self._get_session_id(msg), self._get_user_id(msg, client_id))
             if scope is not None:
-                replay = await run_blocking(SpriteEditorCommandService(SessionLocal).replay, scope)
+                prepared = getattr(self, "_sprite_batch_replays", None)
+                replay = prepared.get((scope.operation_id, scope.request_hash)) if prepared is not None else await run_blocking(
+                    SpriteEditorCommandService(SessionLocal).replay, scope)
+                if isinstance(replay, CanvasRejected):
+                    raise replay
                 if replay is not None:
                     if msg.data.get('action_id'):
                         replay['action_id'] = msg.data['action_id']
@@ -367,7 +371,7 @@ class ServerProtocol(
             if msg.data.get('action_id'):
                 data['action_id'] = msg.data['action_id']
             return Message(MessageType.SPRITE_RESPONSE, data)
-        if (msg.type in {MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE_REQUEST}
+        if (scope is None and msg.type in {MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE_REQUEST}
                 and response is not None
                 and response.type not in {MessageType.ERROR, MessageType.ACTION_REJECTED}):
             auto_save = getattr(getattr(self, "session_manager", None), "auto_save", None)
@@ -376,6 +380,18 @@ class ServerProtocol(
                 if inspect.isawaitable(auto_save_result):
                     await auto_save_result
         return response
+
+    @staticmethod
+    def _correlate_response(request, response):
+        response.correlation_id = request.correlation_id or request.message_id
+        response.causation_id = request.message_id
+        # Every outcome, including validation and permission failures, releases
+        # its exact optimistic owner. Never depend on an optional handler echo.
+        if request.type in MUTATING_MESSAGE_TYPES:
+            for key in ("action_id", "operation_id", "table_id", "sprite_id"):
+                value = (request.data or {}).get(key)
+                if isinstance(value, str) and len(value) <= 128:
+                    response.data.setdefault(key, value)
 
     async def wait_for_mutations(self) -> None:
         """Wait until every earlier mutation for this session has completed."""
@@ -402,7 +418,10 @@ class ServerProtocol(
         sequence_id = msg.data.get('seq', 0)
         logger.debug(f"Batch of {len(messages_data)} messages from {client_id}")
         responses = []
-        for msg_data in messages_data:
+        index = 0
+        while index < len(messages_data):
+            msg_data = messages_data[index]
+            index += 1
             try:
                 if is_legacy_paint_message(msg_data):
                     response = Message(MessageType.ERROR, legacy_paint_upgrade_data())
@@ -411,12 +430,30 @@ class ServerProtocol(
                     responses.append(response)
                     continue
                 individual_msg = Message.from_dict(msg_data)
+                if (can_buffer(individual_msg)
+                        and getattr(getattr(self, "table_manager", None), "db_session", None)):
+                    run = [individual_msg]
+                    while index < len(messages_data):
+                        try:
+                            following = Message.from_dict(messages_data[index])
+                        except ValueError:
+                            break
+                        if not can_buffer(following):
+                            break
+                        run.append(following)
+                        index += 1
+                    if len(run) > 1:
+                        outcomes = await apply_sprite_batch(self, run, client_id, SessionLocal)
+                        for request, outcome in zip(run, outcomes, strict=True):
+                            if outcome:
+                                self._correlate_response(request, outcome)
+                                responses.append(outcome)
+                        continue
                 handler = self.handlers.get(individual_msg.type)
                 if handler:
                     response = await self._invoke_handler(individual_msg, client_id)
                     if response and hasattr(response, 'to_json'):
-                        response.correlation_id = individual_msg.correlation_id or individual_msg.message_id
-                        response.causation_id = individual_msg.message_id
+                        self._correlate_response(individual_msg, response)
                         if response.type == MessageType.PAINT_SNAPSHOT_CHUNK:
                             # The paint handler already streams earlier chunks.
                             # Nesting its final chunk (or several snapshots) in

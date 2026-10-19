@@ -129,7 +129,7 @@ class TestClientLifecycle:
         )
 
         await svc.send_to_client(Message(MessageType.PING, {}), "c1")
-
+        await svc.drain_outbound()
         assert "c1" not in svc.clients
 
 
@@ -237,6 +237,7 @@ class TestBroadcast:
     async def test_broadcast_reaches_all_except_sender(self):
         svc, ws1, ws2 = await self._setup_two_clients()
         await svc.broadcast_to_session(Message(MessageType.PING, {}), exclude_client="c1")
+        await svc.drain_outbound()
         ws1.send_text.assert_not_awaited()
         ws2.send_text.assert_awaited_once()
 
@@ -246,12 +247,14 @@ class TestBroadcast:
         await svc.broadcast_filtered(
             Message(MessageType.PING, {}), "dungeon_master", exclude_client=None
         )
+        await svc.drain_outbound()
         ws1.send_text.assert_awaited_once()  # owner can see DM layer
         ws2.send_text.assert_not_awaited()  # player cannot
 
     async def test_send_to_client_delivers_message(self):
         svc, ws1, _ = await self._setup_two_clients()
         await svc.send_to_client(Message(MessageType.PING, {}), "c1")
+        await svc.drain_outbound()
         ws1.send_text.assert_awaited_once()
 
     async def test_send_to_unknown_client_logs_warning(self):
@@ -285,9 +288,12 @@ async def test_broadcast_survives_membership_changes_during_send(filtered):
     else:
         await svc.broadcast_to_session(message)
 
+    await svc.drain_outbound()
+
     sockets["first"].send_text.assert_awaited_once()
     sockets["last"].send_text.assert_awaited_once()
-    sockets["leaving"].send_text.assert_not_awaited()
+    # Recipients are captured at enqueue; departure may race an already sent frame.
+    assert sockets["leaving"].send_text.await_count <= 1
     sockets["joining"].send_text.assert_not_awaited()
 
 
@@ -454,6 +460,7 @@ class TestKickBanPlayer:
         svc, ws = await self._setup_with_player()
 
         result = await svc.ban_player("5", "Troll", "cheating", "permanent", "dm1")
+        await svc.drain_outbound()
         assert result is True
         # ban notification broadcast
         svc.clients["dm1"].send_text.assert_awaited()
@@ -532,6 +539,7 @@ class TestBroadcastCleanup:
         ws_bad.send_text = AsyncMock(side_effect=Exception("connection lost"))
 
         await svc.broadcast_to_session(Message(MessageType.PING, {}))
+        await svc.drain_outbound()
         assert "c2" not in svc.clients
 
 

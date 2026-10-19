@@ -22,6 +22,7 @@ from utils.time import utc_now
 
 from .asset_manager import get_server_asset_manager
 from .server_protocol import ServerProtocol
+from .websocket_outbox import WebSocketOutbox
 
 logger = setup_logger(__name__)
 settings = Settings()
@@ -51,6 +52,7 @@ class GameSessionProtocolService:
         self.clients: Dict[str, WebSocket] = {}  # client_id -> websocket
         self.client_info: Dict[str, dict] = {}   # client_id -> user info
         self.websocket_to_client: Dict[WebSocket, str] = {}  # websocket -> client_id
+        self._outboxes: dict[WebSocket, WebSocketOutbox] = {}
 
         if not db_session or not game_session_db_id:
             raise ValueError("A durable database session is required")
@@ -210,6 +212,9 @@ class GameSessionProtocolService:
 
     async def remove_client(self, websocket: WebSocket):
         """Remove a client from this game session"""
+        outbox = getattr(self, "_outboxes", {}).pop(websocket, None)
+        if outbox is not None:
+            outbox.close()
         if websocket not in self.websocket_to_client:
             return
 
@@ -298,7 +303,7 @@ class GameSessionProtocolService:
                 continue
             if client_id != exclude_client:
                 try:
-                    await self._send_message(websocket, message)
+                    self._enqueue_message(websocket, message)
                     broadcast_count += 1
                 except Exception:
                     logger.exception(
@@ -331,7 +336,7 @@ class GameSessionProtocolService:
             if not _is_dm(role) and layer not in get_visible_layers(role):
                 continue
             try:
-                await self._send_message(ws, message)
+                self._enqueue_message(ws, message)
             except Exception as e:
                 logger.error(f"BROADCAST: Failed to send to {cid}: {e}")
                 disconnected.append(ws)
@@ -346,7 +351,7 @@ class GameSessionProtocolService:
         if client_id in self.clients:
             websocket = self.clients[client_id]
             try:
-                await self._send_message(websocket, message)
+                self._enqueue_message(websocket, message)
                 if message.type == MessageType.PONG:
                     logger.info(f"PONG: Successfully sent to client {client_id}")
             except Exception as e:
@@ -363,6 +368,32 @@ class GameSessionProtocolService:
 
 
     # Utility Methods
+
+    def _enqueue_message(self, websocket: WebSocket, message: Message):
+        if not hasattr(self, "_outboxes"):
+            self._outboxes = {}
+        outbox = self._outboxes.get(websocket)
+        if outbox is None:
+            async def send(payload):
+                await asyncio.wait_for(websocket.send_text(payload), timeout=settings.WS_SEND_TIMEOUT_SECONDS)
+
+            async def failed():
+                logger.warning("Slow or disconnected WebSocket requires fresh synchronization")
+                await self.remove_client(websocket)
+                try:
+                    await asyncio.wait_for(websocket.close(code=1013, reason="Resynchronize session"), timeout=1)
+                except Exception:
+                    logger.debug("WebSocket already closed")
+
+            outbox = self._outboxes[websocket] = WebSocketOutbox(send, failed)
+        disposable = message.type in {MessageType.SPRITE_DRAG_PREVIEW, MessageType.SPRITE_RESIZE_PREVIEW,
+            MessageType.SPRITE_ROTATE_PREVIEW, MessageType.PAINT_PREVIEW, MessageType.PAINT_PREVIEW_CANCEL}
+        outbox.enqueue(message.to_json(), disposable=disposable)
+
+    async def drain_outbound(self):
+        """Lifecycle/test boundary; mutation handlers must only enqueue."""
+        for outbox in list(getattr(self, "_outboxes", {}).values()):
+            await outbox.drain()
 
     async def _send_message(self, websocket: WebSocket, message: Message):
         """Send one message without allowing a slow peer to stall fan-out."""
@@ -410,6 +441,9 @@ class GameSessionProtocolService:
     def cleanup(self):
         """Cleanup resources when session is closed"""
         logger.info(f"Cleaning up GameSessionProtocolService for session {self.session_code}")
+        for outbox in getattr(self, "_outboxes", {}).values():
+            outbox.close()
+        getattr(self, "_outboxes", {}).clear()
         self.clients.clear()
         self.client_info.clear()
         self.websocket_to_client.clear()

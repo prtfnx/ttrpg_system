@@ -330,8 +330,8 @@ class CanvasCommandService:
             if mode != "copy":
                 events = self._apply(db, table, changes, role, actor_id, session_id, operation_id, rules)
                 if any(change["kind"] == "sprite" for change in changes):
-                    if crud._stage_table_snapshot(db, table, session_id) is None:
-                        raise CanvasRejected("persistence_failed", "Canvas table could not be staged")
+                    from service.sprite_delta_persistence import stage_sprite_delta
+                    stage_sprite_delta(db, table, changes, session_id)
                 if not is_dm(role):
                     self._require_sprite_quota(db, table, session_id, actor_id, role)
                 for change in changes:

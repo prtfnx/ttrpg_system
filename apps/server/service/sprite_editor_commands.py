@@ -20,6 +20,7 @@ from service.canvas_command_service import (
     encoded,
 )
 from service.paint_object_service import _Rejected
+from service.sprite_delta_persistence import stage_sprite_delta
 from utils.roles import can_interact
 
 SPRITE_COMMAND_TYPES = frozenset({MessageType.SPRITE_CREATE, MessageType.SPRITE_REMOVE,
@@ -132,8 +133,7 @@ class SpriteEditorCommandService(CanvasCommandService):
                 reversible = scope.editor and bool(changes) and not any(change["id"] in combat_ids for change in changes)
                 if reversible:
                     self._authorize(changes, role, scope.actor_id, "sprite", ())
-                if crud._stage_table_snapshot(db, staged, scope.session_id) is None:
-                    raise CanvasRejected("persistence_failed", "Sprite table could not be staged")
+                stage_sprite_delta(db, staged, changes, scope.session_id)
                 if reversible:
                     self._entries(db, scope.table_id, scope.actor_id).filter_by(state="undone").update(
                         {"state": "abandoned"}, synchronize_session=False)

@@ -223,3 +223,34 @@ def test_revoked_membership_is_checked_for_record_and_replay(editor, test_db):
         service.replay(context)
     with pytest.raises(CanvasRejected, match="member"):
         service.persist(scope=context, before_snapshot=table.to_dict(), staged=copy.deepcopy(table))
+
+
+@pytest.mark.parametrize("unrelated_count", [0, 100])
+def test_sprite_edit_only_updates_affected_rows(editor, unrelated_count):
+    service, table, factory, scope, _, _ = editor
+    with factory() as db:
+        session_id = db.query(models.VirtualTable).filter_by(table_id=str(table.table_id)).one().session_id
+        for index in range(unrelated_count):
+            table.add_entity({"sprite_id": f"untouched-{index}", "x": index + 200, "y": 300})
+        crud.save_table_to_db(db, table, session_id)
+        timestamps = {row.sprite_id: row.updated_at for row in db.query(models.Entity).all()}
+    statements = []
+    engine = factory.kw["bind"]
+
+    def capture(_conn, _cursor, sql, _parameters, _context, _many):
+        statements.append(sql)
+
+    staged = copy.deepcopy(table)
+    staged.find_entity_by_sprite_id("text").rotation = 45
+    event.listen(engine, "before_cursor_execute", capture)
+    try:
+        service.persist(scope=scope(MessageType.SPRITE_ROTATE, rotation=45),
+            before_snapshot=table.to_dict(), staged=staged)
+    finally:
+        event.remove(engine, "before_cursor_execute", capture)
+    assert len(statements) < 30  # Independent of unrelated table population.
+    with factory() as db:
+        assert all(row.updated_at == timestamps[row.sprite_id]
+            for row in db.query(models.Entity).all() if row.sprite_id != "text")
+        loaded, ok = crud.load_table_from_db(db, str(table.table_id))
+        assert ok and loaded.to_dict() == staged.to_dict()

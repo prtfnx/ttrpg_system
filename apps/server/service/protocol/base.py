@@ -9,13 +9,13 @@ from core_table.actions_core import ActionsCore
 from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
 from service.canvas_command_service import CanvasRejected
+from service.sprite_command_batch import apply_sprite_batch, can_buffer
 from service.sprite_editor_commands import (
     SPRITE_COMMAND_TYPES,
     SpriteCommandScope,
     SpriteEditorCommandService,
     sprite_command_scope,
 )
-from service.sprite_command_batch import apply_sprite_batch, can_buffer
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 
@@ -155,11 +155,13 @@ class ServerProtocol(
         table_manager,
         session_manager=None,
         transport_send: Callable[[Message, str], Awaitable[None]] | None = None,
+        snapshot_send: Callable[[list[Message], str], Awaitable[None]] | None = None,
     ):
         logger.info("Initializing ServerProtocol")
         self.table_manager = table_manager
         self.session_manager = session_manager
         self._transport_send = transport_send
+        self._snapshot_send = snapshot_send
         self._mutation_lock = asyncio.Lock()
         self._paint_preview_authorizations: dict[
             tuple[int, int, str], tuple[float, bool]
@@ -331,7 +333,9 @@ class ServerProtocol(
         return False
 
     async def _invoke_handler(self, msg: Message, client_id: str):
-        if msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST} and getattr(getattr(self, "table_manager", None), "db_session", None):
+        if msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
+                MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE} and getattr(
+                    getattr(self, "table_manager", None), "db_session", None):
             # Include post-commit broadcasts in cancellation shielding. The
             # session lock must not release between storage and publication.
             worker = asyncio.create_task(self._invoke_handler_body(msg, client_id))
@@ -418,6 +422,17 @@ class ServerProtocol(
         sequence_id = msg.data.get('seq', 0)
         logger.debug(f"Batch of {len(messages_data)} messages from {client_id}")
         responses = []
+        streamed = set()
+
+        async def record_response(request, response):
+            self._correlate_response(request, response)
+            responses.append(response)
+            if request.type in MUTATING_MESSAGE_TYPES or response.type in {MessageType.TABLE_RESPONSE, MessageType.TABLE_DATA}:
+                # Receipts and full snapshots must not wait for unrelated
+                # members or be duplicated inside an oversized summary frame.
+                await self.send_to_client(response, client_id)
+                streamed.add(response.message_id)
+
         index = 0
         while index < len(messages_data):
             msg_data = messages_data[index]
@@ -446,21 +461,20 @@ class ServerProtocol(
                         outcomes = await apply_sprite_batch(self, run, client_id, SessionLocal)
                         for request, outcome in zip(run, outcomes, strict=True):
                             if outcome:
-                                self._correlate_response(request, outcome)
-                                responses.append(outcome)
+                                await record_response(request, outcome)
                         continue
                 handler = self.handlers.get(individual_msg.type)
                 if handler:
                     response = await self._invoke_handler(individual_msg, client_id)
                     if response and hasattr(response, 'to_json'):
-                        self._correlate_response(individual_msg, response)
                         if response.type == MessageType.PAINT_SNAPSHOT_CHUNK:
+                            self._correlate_response(individual_msg, response)
                             # The paint handler already streams earlier chunks.
                             # Nesting its final chunk (or several snapshots) in
                             # a batch would invalidate the complete frame budget.
                             await self.send_to_client(response, client_id)
                             continue
-                        responses.append(response)
+                        await record_response(individual_msg, response)
                 else:
                     logger.warning(f"No handler for batch message type: {individual_msg.type}")
                     response = Message(MessageType.ERROR, {'error': 'Unsupported batch message type'})
@@ -475,7 +489,7 @@ class ServerProtocol(
                 responses[-1].correlation_id = msg_data.get('correlation_id') or msg_data.get('message_id')
                 responses[-1].causation_id = msg_data.get('message_id')
         return Message(MessageType.BATCH_RESPONSE, {
-            'messages': [response.to_dict() for response in responses],
+            'messages': [response.to_dict() for response in responses if response.message_id not in streamed],
             'seq': sequence_id,
             'processed_count': len(messages_data),
             'response_count': len(responses),

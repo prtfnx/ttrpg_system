@@ -5,7 +5,12 @@ from types import MethodType
 from core_table.actions_core import ActionsCore
 from core_table.protocol import Message, MessageType
 from service.combat_engine import CombatEngine
-from service.sprite_editor_commands import EDITOR_UPDATE_FIELDS, SpriteCommandScope, SpriteEditorCommandService, sprite_command_scope
+from service.sprite_editor_commands import (
+    EDITOR_UPDATE_FIELDS,
+    SpriteCommandScope,
+    SpriteEditorCommandService,
+    sprite_command_scope,
+)
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 
@@ -94,12 +99,20 @@ async def apply_sprite_batch(protocol, messages, client_id, factory):
                     continue
                 table.__dict__.clear()
                 table.__dict__.update(replacement.__dict__)
-            for entry in staged.actions.action_history:
-                await protocol.actions._add_to_history(entry)
     except Exception:
         logger.exception("Buffered sprite transaction rolled back")
         return [Message(MessageType.ERROR, {"error": "Sprite batch could not be saved; reload before retrying",
             "code": "persistence_failed", "resync_required": True}) for _ in messages]
+    try:
+        for entry in staged.actions.action_history:
+            await protocol.actions._add_to_history(entry)
+    except Exception:
+        # The journal and canonical state are already committed. In-memory
+        # history availability is recoverable; it cannot become a rejection.
+        logger.exception("Buffered sprite history publication failed after commit")
+        for response in responses:
+            if response and response.type not in {MessageType.ERROR, MessageType.ACTION_REJECTED}:
+                response.data["resync_required"] = True
     for method, message, args in publications:
         try:
             await getattr(protocol, method)(message, *args)

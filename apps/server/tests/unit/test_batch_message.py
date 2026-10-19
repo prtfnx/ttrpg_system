@@ -1,4 +1,5 @@
 """Tests for batch message serialization — verifies inline dict construction is JSON-safe."""
+import asyncio
 import json
 import uuid
 from unittest.mock import AsyncMock
@@ -92,6 +93,64 @@ async def test_batch_handler_does_not_dispatch_schema_invalid_entries():
     status_handler.assert_not_awaited()
     assert response.type == MessageType.BATCH_RESPONSE
     assert response.data["messages"][0]["type"] == MessageType.ERROR.value
+
+
+@pytest.mark.asyncio
+async def test_committed_mutation_receipt_precedes_a_later_blocked_member():
+    protocol = object.__new__(ServerProtocol)
+    protocol.send_to_client = AsyncMock()
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def blocked(*_args):
+        entered.set()
+        await release.wait()
+        return Message(MessageType.PONG, {"timestamp": 1, "client_id": "client"})
+
+    first = Message(MessageType.TABLE_SETTINGS_UPDATE, {"table_id": str(uuid.uuid4()), "grid_cell_px": 64})
+    protocol.handlers = {
+        first.type: AsyncMock(return_value=Message(MessageType.SUCCESS, {"success": True})),
+        MessageType.PING: blocked,
+    }
+    task = asyncio.create_task(protocol.handle_batch_request(Message(MessageType.BATCH_REQUEST, {
+        "messages": [first.to_dict(), Message(MessageType.PING, {}).to_dict()],
+    }), "client"))
+    await asyncio.wait_for(entered.wait(), 1)
+    receipt = protocol.send_to_client.call_args.args[0]
+    assert receipt.causation_id == first.message_id and not task.done()
+    release.set()
+    summary = await task
+    assert summary.data["response_count"] == 2
+    assert [item["type"] for item in summary.data["messages"]] == ["pong"]
+
+
+@pytest.mark.asyncio
+async def test_batched_table_snapshot_is_streamed_outside_the_summary():
+    protocol = object.__new__(ServerProtocol)
+    protocol.send_to_client = AsyncMock()
+    protocol.handlers = {MessageType.TABLE_REQUEST: AsyncMock(return_value=Message(
+        MessageType.TABLE_RESPONSE, {"table_data": {"layers": {}}}))}
+    request = Message(MessageType.TABLE_REQUEST, {"table_id": str(uuid.uuid4())})
+    response = await protocol.handle_batch_request(Message(MessageType.BATCH_REQUEST, {
+        "messages": [request.to_dict()],
+    }), "client")
+    assert response.data["response_count"] == 1 and not response.data["messages"]
+    assert protocol.send_to_client.call_args.args[0].causation_id == request.message_id
+
+
+@pytest.mark.asyncio
+async def test_paint_recovery_queues_one_ordered_stream_without_awaiting_network(monkeypatch):
+    table_id = str(uuid.uuid4())
+    monkeypatch.setattr(paint_module, "_paint_snapshot", lambda **_kwargs: PaintSnapshot(table_id, 0, []))
+    protocol = object.__new__(ServerProtocol)
+    protocol._paint_context = lambda _msg, _client: (1, 1)
+    protocol._snapshot_send = AsyncMock()
+    protocol.send_to_client = AsyncMock()
+    request = Message(MessageType.PAINT_SNAPSHOT_REQUEST, {"table_id": table_id})
+    assert await protocol.handle_paint_snapshot_request(request, "client") is None
+    chunks, client_id = protocol._snapshot_send.call_args.args
+    assert client_id == "client" and chunks[-1].data["complete"]
+    assert all(chunk.causation_id == request.message_id for chunk in chunks)
+    protocol.send_to_client.assert_not_awaited()
 
 
 @pytest.mark.asyncio

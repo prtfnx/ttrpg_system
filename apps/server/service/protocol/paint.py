@@ -340,7 +340,7 @@ class _PaintMixin(_ProtocolBase):
             client_id=client_id,
         )
 
-    async def handle_paint_snapshot_request(self, msg: Message, client_id: str) -> Message:
+    async def handle_paint_snapshot_request(self, msg: Message, client_id: str) -> Message | None:
         data = msg.data or {}
         table_id = data.get("table_id")
         if not isinstance(table_id, str):
@@ -372,6 +372,10 @@ class _PaintMixin(_ProtocolBase):
             )
         except ValueError as exc:
             return self._paint_error(PaintCommandError("limit_exceeded", str(exc)))
+        snapshot_send = getattr(self, "_snapshot_send", None)
+        if snapshot_send is not None:
+            await snapshot_send(chunks, client_id)
+            return None
         for chunk in chunks[:-1]:
             await self.send_to_client(chunk, client_id)
         return chunks[-1]

@@ -5,6 +5,7 @@ This class wraps the core_table ServerProtocol to provide persistent
 storage, ban handling, and client management for a multiplayer session.
 """
 import asyncio
+import copy
 import json
 import time
 from typing import Dict, List, Optional
@@ -44,6 +45,7 @@ class GameSessionProtocolService:
             self.table_manager,
             session_manager=self,
             transport_send=self.send_to_client,
+            snapshot_send=self.send_snapshot,
         )
         logger.info(f"ServerProtocol initialized for session {session_code}")
 
@@ -370,6 +372,24 @@ class GameSessionProtocolService:
     # Utility Methods
 
     def _enqueue_message(self, websocket: WebSocket, message: Message):
+        if message.type in {MessageType.TABLE_RESPONSE, MessageType.TABLE_DATA}:
+            snapshot = copy.deepcopy(message)
+            return self._outbox(websocket).enqueue_snapshot(frame.to_json() for frame in (snapshot,))
+        disposable = message.type in {MessageType.SPRITE_DRAG_PREVIEW, MessageType.SPRITE_RESIZE_PREVIEW,
+            MessageType.SPRITE_ROTATE_PREVIEW, MessageType.PAINT_PREVIEW, MessageType.PAINT_PREVIEW_CANCEL}
+        self.enqueue_wire(websocket, message.to_json(), disposable=disposable)
+
+    def enqueue_wire(self, websocket: WebSocket, payload: str, *, disposable=False):
+        """One writer for both protocol and connection-manager messages."""
+        return self._outbox(websocket).enqueue(payload, disposable=disposable)
+
+    async def send_snapshot(self, messages: list[Message], client_id: str):
+        """Queue one immutable recovery stream without waiting under a state lock."""
+        websocket = self.clients.get(client_id)
+        if websocket is not None:
+            self._outbox(websocket).enqueue_snapshot(message.to_json() for message in messages)
+
+    def _outbox(self, websocket: WebSocket):
         if not hasattr(self, "_outboxes"):
             self._outboxes = {}
         outbox = self._outboxes.get(websocket)
@@ -386,9 +406,7 @@ class GameSessionProtocolService:
                     logger.debug("WebSocket already closed")
 
             outbox = self._outboxes[websocket] = WebSocketOutbox(send, failed)
-        disposable = message.type in {MessageType.SPRITE_DRAG_PREVIEW, MessageType.SPRITE_RESIZE_PREVIEW,
-            MessageType.SPRITE_ROTATE_PREVIEW, MessageType.PAINT_PREVIEW, MessageType.PAINT_PREVIEW_CANCEL}
-        outbox.enqueue(message.to_json(), disposable=disposable)
+        return outbox
 
     async def drain_outbound(self):
         """Lifecycle/test boundary; mutation handlers must only enqueue."""
@@ -396,7 +414,11 @@ class GameSessionProtocolService:
             await outbox.drain()
 
     async def _send_message(self, websocket: WebSocket, message: Message):
-        """Send one message without allowing a slow peer to stall fan-out."""
+        """Lifecycle delivery joins the same writer as queued mutation events."""
+        if websocket in self.websocket_to_client:
+            self._enqueue_message(websocket, message)
+            await self._outboxes[websocket].drain()
+            return
         await asyncio.wait_for(
             websocket.send_text(message.to_json()),
             timeout=settings.WS_SEND_TIMEOUT_SECONDS,

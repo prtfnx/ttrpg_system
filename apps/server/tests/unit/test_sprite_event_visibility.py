@@ -56,6 +56,7 @@ async def test_every_sprite_event_uses_authoritative_layer(monkeypatch, layer, o
     if operation == "compendium_sprite_add":
         data["sprite_data"] = {**data["sprite_data"], "layer": layer}
     await getattr(proto, f"handle_{operation}")(Message(MessageType.SPRITE_UPDATE, data), "sender")
+    await service.drain_outbound()
 
     proto.broadcast_to_session.assert_not_awaited()
     for role, socket in sockets.items():

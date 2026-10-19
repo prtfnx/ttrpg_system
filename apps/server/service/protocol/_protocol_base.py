@@ -24,6 +24,7 @@ class _ProtocolBase:
     clients: Dict[str, Any]
     _rules_cache: Dict[str, Any]
     _transport_send: Callable[[Message, str], Awaitable[None]] | None
+    _snapshot_send: Callable[[list[Message], str], Awaitable[None]] | None
     combat_persistence_service: CombatPersistenceService | None
     # ── transport ────────────────────────────────────────────────────────────
     async def send_to_client(self, message: Message, client_id: str) -> None:

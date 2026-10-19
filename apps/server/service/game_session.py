@@ -408,13 +408,19 @@ class ConnectionManager:
         websockets = list(self.connection_info)
         for websocket in websockets:
             try:
-                await websocket.send_json({
+                notice = {
                     "type": "error",
                     "data": {
                         "error": reason,
                         "retryable": True,
                     },
-                })
+                }
+                service = self.sessions_protocols.get(self.connection_info.get(websocket, {}).get("session_code"))
+                if isinstance(service, GameSessionProtocolService):
+                    service.enqueue_wire(websocket, json.dumps(notice))
+                    await service._outbox(websocket).drain()
+                else:
+                    await websocket.send_json(notice)
             except Exception:
                 logger.debug(
                     "WebSocket shutdown notice could not be delivered",
@@ -471,6 +477,11 @@ class ConnectionManager:
     async def send_personal_message(self, message: dict, websocket: WebSocket):
         """Send message to specific websocket"""
         try:
+            info = self.connection_info.get(websocket, {})
+            service = self.sessions_protocols.get(info.get("session_code"))
+            if isinstance(service, GameSessionProtocolService):
+                service.enqueue_wire(websocket, json.dumps(message))
+                return
             await websocket.send_text(json.dumps(message))
         except Exception:
             logger.exception(
@@ -484,12 +495,16 @@ class ConnectionManager:
             return
         message_text = message.to_json() if isinstance(message, Message) else json.dumps(message)
         disconnected_websockets = []
-        for websocket in self.active_connections[session_code]:
+        for websocket in list(self.active_connections[session_code]):
             if websocket == exclude_websocket:
                 continue
 
             try:
-                await websocket.send_text(message_text)
+                service = self.sessions_protocols.get(session_code)
+                if isinstance(service, GameSessionProtocolService):
+                    service.enqueue_wire(websocket, message_text)
+                else:
+                    await websocket.send_text(message_text)
             except Exception:
                 logger.exception(
                     "WebSocket broadcast send failed",

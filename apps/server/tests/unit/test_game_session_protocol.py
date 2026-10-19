@@ -43,6 +43,56 @@ def _ws():
     return ws
 
 
+@pytest.mark.asyncio
+async def test_connection_messages_and_snapshots_share_one_ordered_socket_writer():
+    from service.game_session import ConnectionManager
+
+    svc, ws = _make_service(), _ws()
+    svc.clients["client"] = ws
+    svc.websocket_to_client[ws] = "client"
+    manager = ConnectionManager()
+    manager.sessions_protocols["TST"] = svc
+    manager.active_connections["TST"] = [ws]
+    manager.connection_info[ws] = {"session_code": "TST"}
+    entered, release = asyncio.Event(), asyncio.Event()
+    deliveries = []
+    active = 0
+
+    async def slow(payload):
+        nonlocal active
+        active += 1
+        assert active == 1
+        entered.set()
+        await release.wait()
+        deliveries.append(json.loads(payload))
+        active -= 1
+
+    ws.send_text.side_effect = slow
+    await svc.send_to_client(Message(MessageType.SUCCESS, {"step": 1}), "client")
+    await entered.wait()
+    await manager.broadcast_to_session("TST", {"step": 2})
+    await manager.send_personal_message({"step": 3}, ws)
+    await svc.send_snapshot([Message(MessageType.SUCCESS, {"step": 4}),
+                             Message(MessageType.SUCCESS, {"step": 5})], "client")
+    assert not deliveries
+    release.set()
+    await svc.drain_outbound()
+    assert [row.get("data", row)["step"] for row in deliveries] == [1, 2, 3, 4, 5]
+
+
+@pytest.mark.asyncio
+async def test_full_table_larger_than_ordinary_event_budget_can_resynchronize():
+    svc, ws = _make_service(), _ws()
+    svc.clients["client"] = ws
+    response = Message(MessageType.TABLE_RESPONSE, {"table_data": {"name": "x" * (5 * 1024 * 1024)}})
+    await svc.send_to_client(response, "client")
+    response.data["table_data"]["name"] = "changed after capture"
+    await svc.drain_outbound()
+    ws.send_text.assert_awaited_once()
+    ws.close.assert_not_awaited()
+    assert len(ws.send_text.call_args.args[0]) > 5 * 1024 * 1024
+
+
 # ---------------------------------------------------------------------------
 # add_client / remove_client
 # ---------------------------------------------------------------------------

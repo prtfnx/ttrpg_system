@@ -3,6 +3,7 @@ import asyncio
 import copy
 import json
 import time
+from collections import Counter
 from unittest.mock import AsyncMock
 
 import pytest
@@ -11,8 +12,8 @@ from core_table.server import TableManager
 from database import crud, models
 from service.protocol.base import ServerProtocol
 from service.sprite_editor_commands import sprite_command_scope
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy import event
+from sqlalchemy.orm import sessionmaker
 
 
 @pytest.fixture
@@ -169,6 +170,8 @@ async def test_sprite_burst_commits_once_without_exposing_provisional_state(prot
     response = await send(proto, Message(MessageType.BATCH_REQUEST, {"messages": [
         rotation(table, 30).to_dict(), rotation(table, 60).to_dict()]}))
     assert response.type == MessageType.BATCH_RESPONSE and response.data["failed_count"] == 0
+    assert response.data["response_count"] == 2 and not response.data["messages"]
+    assert proto.send_to_client.await_count == 3  # Two independent receipts and one transport summary.
     assert len(commits) == 2  # One read preflight and one write transaction, not two per action.
     assert table.find_entity_by_sprite_id("text").rotation == 60
     assert proto.broadcast_filtered.await_count == 2
@@ -180,9 +183,11 @@ async def test_sprite_burst_commits_once_without_exposing_provisional_state(prot
 async def test_denied_member_does_not_discard_other_buffered_changes(protocol):
     proto, table, _ = protocol
     await send(proto, create(table))
+    proto.send_to_client.reset_mock()
     response = await send(proto, Message(MessageType.BATCH_REQUEST, {"messages": [
         rotation(table, 30).to_dict(), rotation(table, 40, "missing").to_dict(), rotation(table, 60).to_dict()]}))
-    outcomes = response.data["messages"]
+    assert response.data["failed_count"] == 1
+    outcomes = [call.args[0].to_dict() for call in proto.send_to_client.call_args_list[:-1]]
     assert [item["type"] for item in outcomes] == ["sprite_response", "error", "sprite_response"]
     assert outcomes[1]["data"]["action_id"] == "rotate-40"
     assert table.find_entity_by_sprite_id("text").rotation == 60
@@ -191,6 +196,7 @@ async def test_denied_member_does_not_discard_other_buffered_changes(protocol):
 async def test_failed_buffered_commit_leaves_live_and_stored_table_unchanged(protocol, monkeypatch):
     proto, table, factory = protocol
     await send(proto, create(table))
+    proto.send_to_client.reset_mock()
     proto.broadcast_filtered.reset_mock()
 
     def fail(*_args, **_kwargs):
@@ -200,7 +206,7 @@ async def test_failed_buffered_commit_leaves_live_and_stored_table_unchanged(pro
     response = await send(proto, Message(MessageType.BATCH_REQUEST, {"messages": [
         rotation(table, 30).to_dict(), rotation(table, 60).to_dict()]}))
     assert response.data["failed_count"] == 2
-    assert all(item["data"]["resync_required"] for item in response.data["messages"])
+    assert all(call.args[0].data["resync_required"] for call in proto.send_to_client.call_args_list[:-1])
     assert table.find_entity_by_sprite_id("text").rotation == 0
     proto.broadcast_filtered.assert_not_awaited()
     with factory() as db:
@@ -211,10 +217,55 @@ async def test_failed_buffered_commit_leaves_live_and_stored_table_unchanged(pro
 async def test_same_identity_in_burst_has_one_history_entry(protocol):
     proto, table, factory = protocol
     await send(proto, create(table))
+    proto.send_to_client.reset_mock()
     message = rotation(table, 30)
     response = await send(proto, Message(MessageType.BATCH_REQUEST, {"messages": [
         message.to_dict(), message.to_dict()]}))
     assert response.data["failed_count"] == 0
-    assert response.data["messages"][1]["data"]["resync_required"]
+    assert proto.send_to_client.call_args_list[1].args[0].data["resync_required"]
     with factory() as db:
         assert db.query(models.CanvasCommandJournal).count() == 2
+
+
+async def test_failed_in_memory_history_publication_cannot_reject_a_committed_burst(protocol, monkeypatch):
+    proto, table, factory = protocol
+    await send(proto, create(table))
+    proto.send_to_client.reset_mock()
+    proto.broadcast_filtered.reset_mock()
+    monkeypatch.setattr(proto.actions, "_add_to_history", AsyncMock(side_effect=RuntimeError("history cache")))
+    response = await send(proto, Message(MessageType.BATCH_REQUEST, {"messages": [
+        rotation(table, 30).to_dict(), rotation(table, 60).to_dict()]}))
+    assert response.data["failed_count"] == 0
+    assert all(call.args[0].data["resync_required"] for call in proto.send_to_client.call_args_list[:-1])
+    assert table.find_entity_by_sprite_id("text").rotation == 60
+    assert proto.broadcast_filtered.await_count == 2
+    with factory() as db:
+        assert db.query(models.Entity).one().rotation == 60
+        assert db.query(models.CanvasCommandJournal).count() == 3
+
+
+@pytest.mark.parametrize("unrelated_sprites", [0, 100])
+async def test_burst_sql_work_does_not_scale_with_unrelated_sprites(protocol, test_db, test_db_engine, test_game_session, unrelated_sprites):
+    proto, table, _ = protocol
+    await send(proto, create(table))
+    for index in range(unrelated_sprites):
+        table.add_entity({"sprite_id": f"unrelated-{index}", "x": index + 200, "y": 300})
+    crud.save_table_to_db(test_db, table, test_game_session.id)
+    counts = Counter()
+    commits = []
+
+    def capture(_conn, _cursor, sql, _parameters, _context, _many):
+        counts[sql.split()[0].upper()] += 1
+
+    event.listen(test_db_engine, "before_cursor_execute", capture)
+    event.listen(test_db_engine, "commit", lambda _connection: commits.append(True))
+    started = time.perf_counter()
+    try:
+        response = await send(proto, Message(MessageType.BATCH_REQUEST, {"messages": [
+            rotation(table, angle).to_dict() for angle in range(1, 21)]}))
+    finally:
+        event.remove(test_db_engine, "before_cursor_execute", capture)
+    assert response.data["failed_count"] == 0
+    assert sum(counts.values()) < 600
+    assert len(commits) == 2
+    print(f"BURST_SQL unrelated={unrelated_sprites} statements={sum(counts.values())} counts={dict(counts)} elapsed_ms={(time.perf_counter()-started)*1000:.1f}")

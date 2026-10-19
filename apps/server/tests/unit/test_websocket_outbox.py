@@ -49,3 +49,48 @@ async def test_send_failure_closes_queue_and_requests_resynchronization():
     await box.drain()
     assert box.closed and not box.queue
     failed.assert_awaited_once()
+
+
+async def test_large_recovery_serializes_lazily_and_preserves_event_order():
+    started, release = asyncio.Event(), asyncio.Event()
+    delivered, serialized = [], []
+
+    def snapshot():
+        for index in range(4):
+            serialized.append(index)
+            yield str(index) * 32  # Each frame exceeds the ordinary event budget.
+
+    async def send(payload):
+        started.set()
+        await release.wait()
+        delivered.append(payload)
+
+    failed = AsyncMock()
+    box = WebSocketOutbox(send, failed, max_bytes=16)
+    assert box.enqueue_snapshot(snapshot())
+    assert not serialized  # No large serialized copy is retained in the queue.
+    assert box.enqueue("receipt")
+    await started.wait()
+    assert serialized == [0] and box.bytes == len("receipt")
+    release.set()
+    await box.drain()
+    assert delivered == [str(index) * 32 for index in range(4)] + ["receipt"]
+    assert not box.snapshots and not box.bytes
+    failed.assert_not_awaited()
+
+
+async def test_recovery_has_separate_bounded_stream_and_byte_budgets():
+    failed = AsyncMock()
+    box = WebSocketOutbox(AsyncMock(), failed, max_snapshots=1)
+    assert box.enqueue_snapshot(iter(["snapshot"]))
+    assert not box.enqueue_snapshot(iter(["another snapshot"]))
+    await box.drain()
+    failed.assert_awaited_once()
+    assert box.closed and not box.snapshots
+
+    failed = AsyncMock()
+    box = WebSocketOutbox(AsyncMock(), failed, max_snapshot_bytes=4)
+    assert box.enqueue_snapshot(iter(["too large"]))
+    await box.drain()
+    failed.assert_awaited_once()
+    assert box.closed and not box.snapshots

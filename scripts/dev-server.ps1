@@ -18,6 +18,10 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "[server] starting on http://localhost:$port" -ForegroundColor Cyan
 Push-Location $ServerDir
 try {
+    python -c "from scripts.migrate_and_start import migrate_or_exit; migrate_or_exit()"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Database migration failed; the development server was not started."
+    }
     python -m uvicorn main:app --reload --port $port
 } finally {
     Pop-Location

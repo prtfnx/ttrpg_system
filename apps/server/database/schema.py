@@ -26,6 +26,7 @@ def alembic_config(database_url=None) -> Config:
 def alembic_config_for_connection(connection: Connection) -> Config:
     config = alembic_config()
     config.attributes["connection"] = connection
+    config.attributes["configure_logger"] = False
     return config
 
 

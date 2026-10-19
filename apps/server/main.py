@@ -34,6 +34,7 @@ from fastapi.templating import Jinja2Templates
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from routers import audit, auth, compendium, demo, game, invitations, telemetry, users
 from routers.users import get_current_user_optional
+from scripts.migrate_and_start import migrate_or_exit
 from service.application_writer import WriterAdmissionMiddleware, monitor_writer
 from service.asset_deletion_service import process_pending_asset_deletions
 from service.asset_manager import get_server_asset_manager
@@ -658,10 +659,9 @@ def service_metrics(request: Request, db: Session = Depends(get_db)):
     refresh_durable_metrics(db)
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
-if __name__ == "__main__":
-
-
-
+def run_server() -> None:
+    """Migrate explicitly before starting the direct development entry point."""
+    migrate_or_exit()
     # Get port from environment (render.com sets this automatically)
     port = int(os.environ.get("PORT", 12345))
 
@@ -683,3 +683,7 @@ if __name__ == "__main__":
         log_level="warning",
         access_log=True
     )
+
+
+if __name__ == "__main__":
+    run_server()

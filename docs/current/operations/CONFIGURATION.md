@@ -30,8 +30,14 @@ For normal local development:
 .\scripts\dev-server.ps1
 ```
 
-That starts `uvicorn main:app --reload` from `apps/server`, on port `8000` by
-default. In development, `main.py` accepts a missing or short `SESSION_SECRET`
+That applies and verifies Alembic migrations, then starts
+`uvicorn main:app --reload` from `apps/server`, on port `8000` by default.
+Migration failure prevents the reload server from starting. Running
+`python main.py` directly also migrates before starting HTTP, using port
+`12345` unless `PORT` is set. Both launchers use `DATABASE_MIGRATION_URL`
+when configured, falling back to `DATABASE_URL`. Use an isolated development
+database; PostgreSQL startup claims writer ownership for that database.
+In development, `main.py` accepts a missing or short `SESSION_SECRET`
 and falls back to a known development secret.
 
 The default database is:

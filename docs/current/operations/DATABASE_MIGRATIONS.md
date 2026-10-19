@@ -65,6 +65,20 @@ and writer singleton rows are expected. Some older contract fixtures accept
 `ALLOW_POSTGRESQL_INTEGRATION_TARGET=1` for isolated targets, but the writer
 handover suite always requires a database name containing `test`.
 
+## Local startup
+
+`python main.py` from `apps/server` and the root
+`scripts/dev-server.ps1` launcher both run the same locked migration routine
+as hosted startup before starting HTTP. It uses `DATABASE_MIGRATION_URL`
+when configured, verifies the head, disposes its engine, and stops startup
+on failure. Use an isolated development database for these commands.
+
+Importing `main:app` does not migrate. When launching Uvicorn directly,
+run the operator migration commands first. The application readiness guard
+continues to reject stale schemas, including databases still at
+`0010_paint_objects` that need revisions 0011 and 0012. Apply the migrations;
+do not stamp the head or bypass readiness to hide the mismatch.
+
 ## SQLite importer limitation
 
 `apps/server/scripts/import_sqlite_to_postgresql.py` is a one-time legacy data

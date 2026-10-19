@@ -36,17 +36,20 @@ def migrate() -> tuple[str, ...]:
     return revisions
 
 
+def migrate_or_exit() -> tuple[str, ...]:
+    """Require a migrated schema before any supported launcher starts HTTP."""
+    try:
+        return migrate()
+    except Exception:
+        pass
+    # Log outside the handler so exception-context filters cannot expose driver details.
+    logger.error("database.migration.failed")
+    raise SystemExit(1)
+
+
 def main() -> None:
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
-    migration_failed = False
-    try:
-        migrate()
-    except Exception:
-        migration_failed = True
-
-    if migration_failed:
-        logger.error("database.migration.failed")
-        raise SystemExit(1)
+    migrate_or_exit()
 
     port = os.getenv("PORT", "8000")
     os.execvp(

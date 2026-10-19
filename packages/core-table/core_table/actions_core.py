@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from .async_actions_protocol import LAYERS, ActionResult, AsyncActionsProtocol, Position
 from .sprite_commands import atomic_sprite_command, transform_sprite_geometry
 from .table import VirtualTable
+from .wall_commands import atomic_wall_command, write_wall
 
 if typing.TYPE_CHECKING:
     pass
@@ -1443,6 +1444,7 @@ class ActionsCore(AsyncActionsProtocol):
                     f"Wall coordinate {field} must be between 0 and {limit}"
                 )
 
+    @atomic_wall_command
     async def create_wall(self, table_id: str, wall_data: dict, session_id: Optional[int] = None) -> dict:
         """Create a wall segment, persist to DB, and return its dict representation."""
         from core_table.entities import Wall
@@ -1456,12 +1458,9 @@ class ActionsCore(AsyncActionsProtocol):
 
         if session_id and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
             try:
-                from database import crud
-                db = self.table_manager.db_session
-                crud.create_wall(db, wall.to_dict())
+                await write_wall(self, str(table.table_id), "create", wall.wall_id, wall.to_dict(), session_id)
                 logger.info(f"Persisted wall {wall.wall_id} to database")
             except Exception as e:
-                self.table_manager.db_session.rollback()
                 logger.error(f"Failed to persist wall to database: {e}")
                 raise
 
@@ -1469,6 +1468,7 @@ class ActionsCore(AsyncActionsProtocol):
 
         return wall.to_dict()
 
+    @atomic_wall_command
     async def update_wall(self, table_id: str, wall_id: str, updates: dict, session_id: Optional[int] = None) -> dict:
         """Update wall fields, persist change, and return updated dict."""
         table = await self._get_table(table_id)
@@ -1480,14 +1480,9 @@ class ActionsCore(AsyncActionsProtocol):
 
         if session_id and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
             try:
-                from database import crud
-                db = self.table_manager.db_session
-                db_wall = crud.update_wall(db, wall_id, updates)
-                if not db_wall:
-                    raise KeyError(f"Wall {wall_id!r} not found in database")
+                await write_wall(self, str(table.table_id), "update", wall_id, updates, session_id)
                 logger.info(f"Updated wall {wall_id} in database")
             except Exception as e:
-                self.table_manager.db_session.rollback()
                 logger.error(f"Failed to update wall in database: {e}")
                 raise
 
@@ -1495,6 +1490,7 @@ class ActionsCore(AsyncActionsProtocol):
 
         return wall.to_dict()
 
+    @atomic_wall_command
     async def delete_wall(self, table_id: str, wall_id: str, session_id: Optional[int] = None) -> None:
         """Remove a wall from in-memory table and delete from database."""
         table = await self._get_table(table_id)
@@ -1505,13 +1501,9 @@ class ActionsCore(AsyncActionsProtocol):
 
         if session_id and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
             try:
-                from database import crud
-                db = self.table_manager.db_session
-                if not crud.delete_wall(db, wall_id):
-                    raise KeyError(f"Wall {wall_id!r} not found in database")
+                await write_wall(self, str(table.table_id), "delete", wall_id, {}, session_id)
                 logger.info(f"Deleted wall {wall_id} from database")
             except Exception as e:
-                self.table_manager.db_session.rollback()
                 logger.error(f"Failed to delete wall from database: {e}")
                 raise
 

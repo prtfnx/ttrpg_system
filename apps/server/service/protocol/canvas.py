@@ -93,7 +93,7 @@ class _CanvasMixin(_ProtocolBase):
                 self.table_manager.add_table(result.table)
             receipt = copy.deepcopy(result.receipt)
             for event in result.events:
-                message = Message(MessageType(event["type"]), event["data"])
+                message = Message(MessageType(event["type"]), event["data"], correlation_id=data["operation_id"])
                 # Publication is post-commit. A transport failure cannot turn a
                 # durable success into a rejected command or prevent live state
                 # publication. The receipt asks the sender for fresh hydration.

@@ -299,7 +299,7 @@ describe('PaintInteractionController', () => {
       { kind: 'paint', id: OBJECT_ID, version: 3 }, { kind: 'paint', id: second.id, version: 3 },
     ] });
     expect(h.scene.submitUpdate).not.toHaveBeenCalled();
-    expect(h.controller.restyleSelected(style)).toBe(false);
+    expect(h.controller.restyleSelected(style)).toBe(true);
     h.owner.acceptResult({ operation_id: command.operation_id, table_id: TABLE, success: true,
       selection: [{ kind: 'paint', id: OBJECT_ID }, { kind: 'paint', id: second.id }], can_undo: true });
     expect(h.controller.getState()).toMatchObject({ selectionCount: 4, selectedSpriteIds: ['sprite'], canUndo: true });
@@ -337,23 +337,23 @@ describe('PaintInteractionController', () => {
     expect(transport.sendCanvasCommand).not.toHaveBeenCalled();
   });
 
-  it('nudges by one world unit, or ten with Shift, and prevents parallel authoring', () => {
+  it('nudges by ten with Shift and permits independent authoring before confirmation', () => {
     const { controller, transport, scene } = sharedSelection();
     controller.handleKeyDown(new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true }));
     expect(transport.sendCanvasCommand.mock.lastCall![0]).toMatchObject({ transform: { dx: 10, dy: 0 } });
     controller.setSelectOnly(false); controller.setTool('draw');
     controller.handlePointerDown(pointer(3, 50, 50)); controller.handlePointerUp(pointer(3, 60, 60));
-    expect(scene.submitCreate).not.toHaveBeenCalled();
+    expect(scene.submitCreate).toHaveBeenCalledOnce();
     expect(transport.sendCanvasCommand).toHaveBeenCalledOnce();
   });
 
-  it('refuses shared edits while paint intent is unconfirmed', () => {
+  it('accepts shared intent while paint confirmations are outstanding', () => {
     const { controller, updateState, transport, scene } = sharedSelection();
     updateState({ ...initialState([object()]), pending: [{ operationId: crypto.randomUUID(), createdAt: 1,
       command: { kind: 'delete', tableId: TABLE, objectId: OBJECT_ID, expectedVersion: 3 } }] });
-    expect(controller.selectionCommand('copy')).toBe(false);
-    expect(transport.sendCanvasCommand).not.toHaveBeenCalled();
-    expect(scene.reportLocalError).toHaveBeenCalledWith(expect.stringContaining('pending paint'));
+    expect(controller.selectionCommand('copy')).toBe(true);
+    expect(transport.sendCanvasCommand).toHaveBeenCalledOnce();
+    expect(scene.reportLocalError).not.toHaveBeenCalled();
   });
   it('selects all visible paint/sprites and adopts entity-list selections in combined mode', () => {
     const { controller } = harness([object()]);

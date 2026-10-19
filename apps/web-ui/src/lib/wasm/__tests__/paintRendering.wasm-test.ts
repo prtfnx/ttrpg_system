@@ -8,6 +8,7 @@ import {
 } from '@/features/painting/model/paintObject';
 import initWasm, { RenderEngine } from '../generated/ttrpg_rust_core';
 import { normalizeTableSnapshot } from '../tableSnapshot';
+import { PaintController } from '@/features/painting/controller/PaintController';
 
 // Real Chromium/WebGL tests; rebuild WASM before running the browser project.
 beforeAll(async () => {
@@ -59,6 +60,39 @@ function pixel(canvas: HTMLCanvasElement, x: number, y: number): number[] {
 }
 
 describe('paint triangle rendering (real browser)', () => {
+  it('previews dependent paint edits and rolls back a denial without losing the later gesture', () => {
+    const { engine } = renderer();
+    const original = object({ kind: 'rectangle', width: 20, height: 20 });
+    original.style.fill_rgba = [1, 0, 0, 1];
+    const send = vi.fn(() => true);
+    const scene = new PaintController({ createPaintObject: send, updatePaintObject: send, deletePaintObject: send,
+      requestPaintSnapshot: send, sendPaintPreview: send, cancelPaintPreview: send }, {
+      getRenderEngine: () => engine,
+      replacePaintObjectSnapshot: (id, revision, objects) => engine.paint_replace_object_snapshot(id, revision, JSON.stringify(objects)),
+      upsertPaintObject: (id, revision, value) => engine.paint_upsert_object(id, revision, JSON.stringify(value)),
+      removePaintObject: (id, revision, target, version) => engine.paint_remove_object(id, revision, target, version),
+    }, { snapshotRequestId: () => 'paint-sync' });
+    try {
+      scene.selectTable(TABLE_ID);
+      scene.acceptSnapshotChunk({ table_id: TABLE_ID, revision: 1, chunk_index: 0, chunk_count: 1,
+        objects: [original], request_id: 'paint-sync', snapshot_id: crypto.randomUUID(), complete: true });
+      const { table_id: _table, created_by: _actor, version: _version, z_order: _order,
+        created_at: _created, updated_at: _updated, ...editable } = original;
+      const first = scene.submitUpdate(original.id, 1, { ...editable, transform: { ...editable.transform, x: 60 } });
+      const second = scene.submitUpdate(original.id, 1, { ...editable, transform: { ...editable.transform, x: 100 } });
+      expect(engine.paint_hit_test_object(110, 30, 1)).toBe(original.id);
+      expect(engine.paint_hit_test_object(30, 30, 1)).toBeUndefined();
+      scene.rejectOperation({ operation_id: first!, code: 'forbidden', error: 'Denied' });
+      // The second +40 gesture rebases onto the original x=20 baseline.
+      expect(scene.getState().visible?.[0].transform.x).toBe(60);
+      expect(engine.paint_hit_test_object(70, 30, 1)).toBe(original.id);
+      scene.acceptEvent({ operation_id: second!, table_id: TABLE_ID, revision: 2, action: 'update',
+        object: { ...original, version: 2, transform: { ...original.transform, x: 60 } } });
+      expect(scene.getState().pending).toHaveLength(0);
+      expect(engine.paint_object_revision()).toBe(2);
+      expect(engine.paint_hit_test_object(70, 30, 1)).toBe(original.id);
+    } finally { scene.dispose(); engine.free(); }
+  });
   it('renders and picks a transient shared frame without creating paint objects', () => {
     const { canvas, engine } = renderer();
     try {

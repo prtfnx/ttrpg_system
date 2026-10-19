@@ -29,10 +29,11 @@ import { demoQuery } from '@shared/utils/demoSession';
 import { showToast } from '@shared/utils/toast';
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
-import { emitProtocolEvent, onProtocolEvent } from './protocolEvents';
+import { emitProtocolEvent, onProtocolEvent, type ProtocolEventMap } from './protocolEvents';
 import { validateTableId } from './tableProtocolAdapter';
 import { TableSettingsBuffer } from './tableSettingsBuffer';
 import { CommandTracking, MUTATION_MESSAGES, PREVIEW_MESSAGES } from './commandTracking';
+import { WallCommandSync } from './wallCommandSync';
 
 type WallCreateInput = Pick<WallData, 'x1' | 'y1' | 'x2' | 'y2'>
   & Partial<Omit<WallData, 'wall_id' | 'table_id' | 'x1' | 'y1' | 'x2' | 'y2'>>;
@@ -114,6 +115,16 @@ export class WebClientProtocol {
   private incomingChain: Promise<void> = Promise.resolve();
   private readonly resyncs = new Map<string, { requestId: string; watermark: string[]; received?: boolean; timer: ReturnType<typeof setTimeout> }>();
   private readonly commandTracking = new CommandTracking();
+  private readonly optimisticSpriteRequests = new Set<string>();
+  private readonly wallSync = new WallCommandSync({
+    read: () => useGameStore.getState().walls ?? [], active: () => useGameStore.getState().activeTableId,
+    render: (id, wall) => {
+      const store = useGameStore.getState();
+      if (!wall) store.removeWall(id);
+      else if (store.walls?.some(item => item.wall_id === id)) store.updateWall(id, wall);
+      else store.addWall(wall);
+    },
+  });
   private readonly settingsBuffer = new TableSettingsBuffer({
     read: () => {
       const state = useGameStore.getState();
@@ -215,7 +226,7 @@ export class WebClientProtocol {
     // Critical messages (table, actions, player, assets) sent immediately
     const critical = [
       'table_data', 'table_update_request', 'table_list_request', 'table_request', 'new_table_request', 'table_delete',
-      'sprite_create', 'sprite_remove', 'player_kick_request', 'player_ban_request', 'player_list_request',
+      'player_kick_request', 'player_ban_request', 'player_list_request',
       'character_save', 'character_load', 'character_roll', 'xp_award', 'multiclass_request',
       'character_draft_create_request', 'character_draft_update_request',
       'character_draft_finalize_request', 'character_draft_abandon_request',
@@ -238,6 +249,10 @@ export class WebClientProtocol {
     if (!this.commandTracking.track(message,
       typeof message.data?.table_id === 'string' ? message.data.table_id : null,
       tableId => this.resynchronizeTable(tableId))) return false;
+    this.previewSpriteCommand(message);
+    if (new Set<MessageType>([MessageType.WALL_CREATE, MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE]).has(message.type)) {
+      queueMicrotask(() => { if (message.message_id && this.commandTracking.has(message.message_id)) this.wallSync.stage(message); });
+    }
     if (new Set<MessageType>([MessageType.SPRITE_MOVE, MessageType.SPRITE_SCALE, MessageType.SPRITE_ROTATE]).has(message.type)) {
       this.batchQueue = this.batchQueue.filter(item => !PREVIEW_MESSAGES.has(item.type)
         || item.data?.table_id !== message.data?.table_id || item.data?.id !== message.data?.sprite_id);
@@ -313,17 +328,22 @@ export class WebClientProtocol {
     
     const removeSender = onProtocolEvent('protocol-send-message', handleProtocolSendMessage);
     const removeHydrated = onProtocolEvent('table-sprites-loaded', ({ table_id }) => {
+      emitProtocolEvent('table-canonical-snapshot', { tableId: table_id });
       const request = this.resyncs.get(table_id);
+      this.wallSync.resolveSnapshot(request?.received ? request.watermark : []);
       if (request?.received) {
         clearTimeout(request.timer);
         this.commandTracking.resolveSnapshot(request.watermark);
         this.settingsBuffer.resolveSnapshot(request.watermark);
+        for (const id of request.watermark) this.optimisticSpriteRequests.delete(id);
+        emitProtocolEvent('optimistic-sprite-snapshot', { tableId: table_id, requestIds: request.watermark });
         this.resyncs.delete(table_id);
         emitProtocolEvent('table-resync-completed', { tableId: table_id });
       }
       this.settingsBuffer.reapply(table_id);
     });
-    this.cleanupProtocolMessageSender = () => { removeSender(); removeHydrated(); };
+    const removeUncertain = onProtocolEvent('sprite-confirmation-uncertain', ({ tableId }) => this.resynchronizeTable(tableId));
+    this.cleanupProtocolMessageSender = () => { removeSender(); removeHydrated(); removeUncertain(); };
     logger.debug('Protocol: Registered protocol-send-message event listener');
   }
 
@@ -579,7 +599,11 @@ export class WebClientProtocol {
       emitProtocolEvent('canvas-history-state', message.data);
     });
     this.registerHandler(MessageType.PAINT_OBJECT_EVENT, (message) => {
-      emitProtocolEvent('paint-object-event', parsePaintObjectEvent(message.data));
+      const event = parsePaintObjectEvent(message.data);
+      emitProtocolEvent('paint-object-event', event);
+      emitProtocolEvent('canvas-canonical-object', { operationId: message.correlation_id, tableId: event.table_id,
+        kind: 'paint', id: event.action === 'delete' ? event.deleted_id : event.object.id,
+        object: event.action === 'delete' ? null : event.object });
     });
     this.registerHandler(MessageType.PAINT_SNAPSHOT_CHUNK, (message) => {
       emitProtocolEvent('paint-snapshot-chunk', parsePaintSnapshotChunk(message.data, message.correlation_id));
@@ -789,18 +813,63 @@ export class WebClientProtocol {
     if (!request) return;
     const rejected = message.type === MessageType.ERROR || message.type === MessageType.ACTION_REJECTED
       || message.data?.success === false;
+    const optimistic = request.message_id && this.optimisticSpriteRequests.delete(request.message_id);
+    if (optimistic) emitProtocolEvent('optimistic-sprite-settled', { requestId: request.message_id!, accepted: !rejected });
     if (!rejected) return;
+    const wallReverted = request.message_id ? this.wallSync.reject(request.message_id) : false;
     message.data ??= {};
     const payload = request.data ?? {};
+    if (request.type === MessageType.SPRITE_CREATE) {
+      const sprite = payload.sprite_data as { sprite_id?: string } | undefined;
+      if (sprite?.sprite_id) message.data.client_temp_id = sprite.sprite_id;
+    }
     // Older handlers may omit the action echo. The envelope still identifies it.
     if (payload.action_id && !message.data.action_id) message.data.action_id = payload.action_id;
     if (typeof payload.table_id === 'string' && !message.data.table_id) message.data.table_id = payload.table_id;
     const owned = new Set<MessageType>([MessageType.SPRITE_MOVE, MessageType.SPRITE_SCALE, MessageType.SPRITE_ROTATE,
       MessageType.TABLE_SETTINGS_UPDATE, MessageType.CANVAS_COMMAND, MessageType.PAINT_OBJECT_CREATE,
       MessageType.PAINT_OBJECT_UPDATE, MessageType.PAINT_OBJECT_DELETE]);
-    if (!owned.has(request.type) && typeof payload.table_id === 'string') {
+    if (!optimistic && !wallReverted && !owned.has(request.type) && typeof payload.table_id === 'string') {
       this.resynchronizeTable(payload.table_id);
     }
+  }
+
+  private previewSpriteCommand(message: Message): void {
+    if (message.type === MessageType.SPRITE_CREATE && message.message_id) {
+      const sprite = message.data?.sprite_data as Record<string, unknown> | undefined;
+      if (sprite && typeof sprite === 'object') {
+        sprite.sprite_id ??= crypto.randomUUID();
+        const id = sprite.sprite_id, tableId = message.data?.table_id, requestId = message.message_id;
+        queueMicrotask(() => {
+          if (this.commandTracking.has(requestId) && tableId === useGameStore.getState().activeTableId
+            && !useGameStore.getState().sprites?.some(item => item.id === id)) {
+            emitProtocolEvent('optimistic-sprite-create', { ...sprite, table_id: tableId });
+          }
+        });
+      }
+      return;
+    }
+    if (message.type !== MessageType.SPRITE_REMOVE && message.type !== MessageType.SPRITE_UPDATE) return;
+    const data = message.data, requestId = message.message_id;
+    if (!requestId || typeof data?.table_id !== 'string' || typeof data.sprite_id !== 'string') return;
+    const patch: Partial<import('@/types').Sprite> = {};
+    for (const field of ['x', 'y', 'width', 'height', 'rotation', 'hp', 'ac'] as const) {
+      if (typeof data[field] === 'number' && Number.isFinite(data[field])) patch[field] = data[field];
+    }
+    for (const field of ['name', 'layer', 'texture', 'metadata'] as const) {
+      if (typeof data[field] === 'string') patch[field] = data[field];
+    }
+    if (typeof data.max_hp === 'number') patch.maxHp = data.max_hp;
+    if (Array.isArray(data.controlled_by)) patch.controlledBy = data.controlled_by.map(String);
+    if (typeof data.character_id === 'string') patch.characterId = data.character_id;
+    const detail: ProtocolEventMap['optimistic-sprite-command'] = { requestId, tableId: data.table_id,
+      spriteId: data.sprite_id, kind: message.type === MessageType.SPRITE_REMOVE ? 'remove' : 'update', patch };
+    // A Rust callback may still hold its renderer borrow until the stack unwinds.
+    queueMicrotask(() => {
+      if (!this.commandTracking.has(requestId)) return;
+      emitProtocolEvent('optimistic-sprite-command', detail);
+      if (detail.handled) this.optimisticSpriteRequests.add(requestId);
+    });
   }
 
   // ...existing code...
@@ -1228,12 +1297,20 @@ export class WebClientProtocol {
     logger.debug('Sprite updated:', message.data);
     if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('sprite-updated', message.data);
+    if (message.data?.sprite_data && typeof message.data.table_id === 'string' && typeof message.data.sprite_id === 'string') {
+      emitProtocolEvent('canvas-canonical-object', { operationId: message.correlation_id, tableId: message.data.table_id,
+        kind: 'sprite', id: message.data.sprite_id, object: message.data.sprite_data });
+    }
   }
 
   private async handleSpriteRemove(message: Message): Promise<void> {
     logger.debug('Sprite removed:', message.data);
     if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('sprite-removed', message.data);
+    if (typeof message.data?.table_id === 'string' && typeof message.data.sprite_id === 'string') {
+      emitProtocolEvent('canvas-canonical-object', { operationId: message.correlation_id, tableId: message.data.table_id,
+        kind: 'sprite', id: message.data.sprite_id, object: null });
+    }
   }
 
   private async handleSpriteMove(message: Message): Promise<void> {
@@ -1242,6 +1319,7 @@ export class WebClientProtocol {
     }
     if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('sprite-moved', message.data);
+    this.publishCanonicalSprite(message.data);
   }
 
   private async handleSpriteScale(message: Message): Promise<void> {
@@ -1250,6 +1328,7 @@ export class WebClientProtocol {
     }
     if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('sprite-scaled', message.data);
+    this.publishCanonicalSprite(message.data);
   }
 
   private async handleSpriteRotate(message: Message): Promise<void> {
@@ -1258,6 +1337,7 @@ export class WebClientProtocol {
     }
     if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('sprite-rotated', message.data);
+    this.publishCanonicalSprite(message.data);
   }
 
   private async handleSpriteDragPreview(message: Message): Promise<void> {
@@ -1717,6 +1797,7 @@ export class WebClientProtocol {
   private async handleWallData(message: Message): Promise<void> {
     const data = message.data as { operation: string; table_id?: string; wall?: Partial<WallData>; wall_id?: string };
     if (!this.targetsActiveTable(data)) return;
+    if (this.wallSync.accept(message)) return;
     const store = useGameStore.getState();
     switch (data.operation) {
       case 'create':
@@ -2399,6 +2480,11 @@ export class WebClientProtocol {
   }
 
   disconnect(): void {
+    if (this.batchTimer) clearTimeout(this.batchTimer);
+    this.batchTimer = null;
+    this.batchQueue = [];
+    this.messageQueue = [];
+    this.wallSync.dispose();
     this.commandTracking.dispose();
     this.settingsBuffer.dispose();
     for (const request of this.resyncs.values()) clearTimeout(request.timer);
@@ -2528,6 +2614,25 @@ export class WebClientProtocol {
         ...(state && Object.values(state).every(Number.isFinite) ? { state } : {}) });
     }
     emitProtocolEvent('sprite-response', message.data);
+    if (message.data?.success) {
+      const data = message.data;
+      if (data.operation === 'move') emitProtocolEvent('sprite-moved', data);
+      if (data.operation === 'resize') emitProtocolEvent('sprite-scaled', data);
+      if (data.operation === 'rotate') emitProtocolEvent('sprite-rotated', data);
+      this.publishCanonicalSprite(data);
+    }
+  }
+
+  private publishCanonicalSprite(data: Record<string, unknown> | undefined): void {
+    if (typeof data?.table_id !== 'string' || typeof data.sprite_id !== 'string') return;
+    const state: Partial<import('@/types').Sprite> = {};
+    const position = data.to as { x?: number; y?: number } | undefined;
+    const x = position?.x ?? data.x, y = position?.y ?? data.y;
+    if (typeof x === 'number' && typeof y === 'number') Object.assign(state, { x, y });
+    for (const field of ['width', 'height', 'rotation'] as const) {
+      if (typeof data[field] === 'number') state[field] = data[field];
+    }
+    emitProtocolEvent('sprite-canonical-state', { tableId: data.table_id, spriteId: data.sprite_id, state });
   }
 
   private async handleSpriteData(message: Message): Promise<void> {

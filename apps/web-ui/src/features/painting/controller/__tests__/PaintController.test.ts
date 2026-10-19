@@ -198,22 +198,28 @@ describe('PaintController', () => {
     expect(controller.getState()).toMatchObject({ pending: [], hydrating: true });
   });
 
-  it('keeps only one unconfirmed mutation per paint object across update/delete intents', () => {
+  it('previews dependent paint updates and deletes and sends them at authoritative versions', () => {
     const { controller, transport, errors } = harness(1_000, () => crypto.randomUUID());
     controller.selectTable(TABLE);
     controller.acceptSnapshotChunk(chunk(0, 1, [object()], 4));
     const operation = controller.submitUpdate(object().id, 1, input());
     expect(operation).not.toBeNull();
-    expect(controller.submitUpdate(object().id, 1, input())).toBeNull();
-    expect(controller.submitDelete(object().id, 1)).toBeNull();
+    const second = controller.submitUpdate(object().id, 1, input());
+    const deletion = controller.submitDelete(object().id, 1);
+    expect(second).not.toBeNull();
+    expect(deletion).not.toBeNull();
     expect(transport.updatePaintObject).toHaveBeenCalledOnce();
     expect(transport.deletePaintObject).not.toHaveBeenCalled();
-    expect(controller.getState().pending).toHaveLength(1);
-    expect(errors).toHaveLength(2);
+    expect(controller.getState().pending).toHaveLength(3);
+    expect(controller.getState().visible).toHaveLength(0);
+    expect(errors).toHaveLength(0);
     controller.acceptEvent({ operation_id: operation!, table_id: TABLE, revision: 5,
       action: 'update', object: object(2) });
-    expect(controller.submitDelete(object().id, 2)).not.toBeNull();
+    expect(transport.updatePaintObject).toHaveBeenLastCalledWith(TABLE, second, object().id, 2, expect.anything(), expect.any(Number));
+    controller.acceptEvent({ operation_id: second!, table_id: TABLE, revision: 6,
+      action: 'update', object: object(3) });
     expect(transport.deletePaintObject).toHaveBeenCalledOnce();
+    expect(transport.deletePaintObject).toHaveBeenLastCalledWith(TABLE, deletion, object().id, 3, expect.any(Number));
   });
 
   it('keeps pending creates exclusive until their rejection and permits independent objects', () => {
@@ -222,8 +228,10 @@ describe('PaintController', () => {
     controller.acceptSnapshotChunk(chunk(0, 1, [], 0));
     const operation = controller.submitCreate(input());
     expect(controller.submitCreate(input())).toBeNull();
-    expect(controller.submitUpdate(input().id, 1, input())).toBeNull();
-    expect(controller.submitDelete(input().id, 1)).toBeNull();
+    expect(controller.submitUpdate(input().id, 1, input())).not.toBeNull();
+    expect(controller.submitDelete(input().id, 1)).not.toBeNull();
+    expect(transport.updatePaintObject).not.toHaveBeenCalled();
+    expect(transport.deletePaintObject).not.toHaveBeenCalled();
     expect(controller.submitCreate(input(crypto.randomUUID()))).not.toBeNull();
     expect(transport.createPaintObject).toHaveBeenCalledTimes(2);
     controller.rejectOperation({ operation_id: operation!, code: 'forbidden', error: 'Denied' });

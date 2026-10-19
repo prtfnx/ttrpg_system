@@ -13,6 +13,9 @@ const mocks = vi.hoisted(() => ({
   runtime: {},
   runtimeStatus: { isCanvasAttached: false, isContextLost: false },
   controller: {
+    setEditorBusy: vi.fn(),
+    setEditorProjection: vi.fn(),
+    getState: vi.fn(() => ({ pending: [], committed: [], tableId: 'table-1' })),
     connectEvents: vi.fn(() => vi.fn()),
     subscribe: vi.fn((listener: (state: object) => void) => {
       listener({ tableId: 'table-1', revision: 3, committed: [] });
@@ -57,7 +60,7 @@ vi.mock('@/store', () => ({
       userId: mocks.actorId,
       sessionRole: mocks.sessionRole,
     })
-  ), { subscribe: vi.fn(() => vi.fn()) }),
+  ), { subscribe: vi.fn(() => vi.fn()), getState: vi.fn(() => ({ sprites: [], activeTableId: 'table-1' })) }),
 }));
 
 vi.mock('@lib/wasm/runtime', () => ({

@@ -88,6 +88,8 @@ interface PendingPaintOperation {
 interface RetainedPaintOperation extends PendingPaintOperation {
   bytes: number;
   sentAt: number;
+  baseTransform?: PaintObjectInput['transform'];
+  queued?: boolean;
 }
 
 interface SnapshotAssembly {
@@ -105,12 +107,14 @@ export interface PaintControllerState {
   revision: number;
   hydrating: boolean;
   committed: readonly PaintObject[];
+  visible?: readonly PaintObject[];
   pending: readonly PendingPaintOperation[];
   remotePreviews: readonly PaintPreview[];
   lastError: string | null;
 }
 
 interface PaintControllerOptions {
+  actorId?: () => number;
   now?: () => number;
   operationId?: () => string;
   snapshotRequestId?: () => string;
@@ -129,6 +133,11 @@ export class PaintController {
   private activeSnapshotRequestId: string | null = null;
   private committed = new Map<string, PaintObject>();
   private pending = new Map<string, RetainedPaintOperation>();
+  private editorProjection = new Map<string, PaintObject | null>();
+  private projectionVersion = 0;
+  private renderedSignature = '';
+  private sendingWaiting = false;
+  private editorBusy: (id: string) => boolean = () => false;
   private lastAckRetryAt = Number.NEGATIVE_INFINITY;
   private queuedEvents = new Map<number, { event: PaintObjectEvent; bytes: number }>();
   private queuedEventBytes = 0;
@@ -152,6 +161,7 @@ export class PaintController {
   private readonly schedule: (callback: () => void, delay: number) => number;
   private readonly cancelScheduled: (timer: number) => void;
   private readonly transport: PaintTransport;
+  private readonly actorId: () => number;
   private readonly runtime: PaintSceneRuntime;
 
   constructor(
@@ -160,6 +170,7 @@ export class PaintController {
     options: PaintControllerOptions = {},
   ) {
     this.transport = transport;
+    this.actorId = options.actorId ?? (() => 1);
     this.runtime = runtime;
     this.now = options.now ?? Date.now;
     this.operationId = options.operationId ?? (() => crypto.randomUUID());
@@ -210,6 +221,7 @@ export class PaintController {
       revision: this.revision,
       hydrating: this.hydrating,
       committed: this.orderedCommitted(),
+      visible: [...this.visibleObjects().values()],
       pending: [...this.pending.values()].filter(pending => pending.command.tableId === this.tableId),
       remotePreviews: [...this.remotePreviews.values()],
       lastError: this.lastError,
@@ -228,6 +240,8 @@ export class PaintController {
     this.snapshotRequestedAt = tableId !== null ? this.now() : null;
     this.activeSnapshotRequestId = tableId !== null ? this.snapshotRequestId() : null;
     this.committed.clear();
+    this.editorProjection.clear();
+    this.renderedSignature = '';
     this.clearQueuedEvents();
     this.snapshots.clear();
     this.remotePreviews.clear();
@@ -253,6 +267,35 @@ export class PaintController {
     this.snapshots.clear();
     this.transport.requestPaintSnapshot(this.tableId, this.activeSnapshotRequestId);
     this.emit();
+  }
+
+  setEditorProjection(objects: ReadonlyMap<string, PaintObject | null>): void {
+    if (!objects.size && !this.editorProjection.size) return;
+    this.editorProjection = new Map(objects);
+    this.projectionVersion += 1;
+    this.emit();
+  }
+
+  setEditorBusy(check: (id: string) => boolean): void { this.editorBusy = check; }
+
+  private visibleObjects(): Map<string, PaintObject> {
+    const objects = new Map(this.committed);
+    for (const pending of this.pending.values()) {
+      const command = pending.command;
+      if (command.tableId !== this.tableId) continue;
+      if (command.kind === 'delete') objects.delete(command.objectId);
+      else if (command.kind === 'update') {
+        const current = objects.get(command.objectId);
+        if (current) objects.set(command.objectId, { ...current, ...command.object });
+      } else objects.set(command.object.id, { ...command.object, table_id: command.tableId, version: 1, created_by: this.actorId(),
+        z_order: Math.max(0, ...[...objects.values()].map(object => object.z_order)) + 1,
+        created_at: new Date(pending.createdAt).toISOString(), updated_at: new Date(pending.createdAt).toISOString() });
+    }
+    for (const [id, object] of this.editorProjection) {
+      if (object) objects.set(id, object);
+      else objects.delete(id);
+    }
+    return objects;
   }
 
   submitCreate(object: PaintObjectInput): string | null {
@@ -571,7 +614,7 @@ export class PaintController {
     }
     if (now - this.lastAckRetryAt >= ACK_TIMEOUT_MS) {
       const due = [...this.pending.values()]
-        .filter(pending => pending.command.tableId === this.tableId && now - pending.sentAt >= ACK_TIMEOUT_MS)
+        .filter(pending => pending.command.tableId === this.tableId && Number.isFinite(pending.sentAt) && now - pending.sentAt >= ACK_TIMEOUT_MS)
         .sort((left, right) => left.sentAt - right.sentAt)
         .slice(0, MAX_ACK_RETRIES_PER_INTERVAL);
       if (due.length > 0) {
@@ -605,12 +648,14 @@ export class PaintController {
       }
     }
     const objectId = command.kind === 'create' ? command.object.id : command.objectId;
-    if ([...this.pending.values()].some(({ command: previous }) => previous.tableId === command.tableId
-      && (previous.kind === 'create' ? previous.object.id : previous.objectId) === objectId)) {
-      this.reportLocalError('Wait for the previous paint change to be confirmed before editing this object again.');
+    if (command.kind === 'create' && (this.committed.has(objectId) || [...this.pending.values()].some(item =>
+      item.command.kind === 'create' && item.command.object.id === objectId))) {
+      this.reportLocalError('This paint object already exists.');
       return null;
     }
+    const baseTransform = this.visibleObjects().get(objectId)?.transform;
     const operationId = this.operationId();
+    if (this.pending.has(operationId)) return null;
     const candidate = { operationId, createdAt: this.now(), command };
     const bytes = new TextEncoder().encode(JSON.stringify(candidate)).byteLength;
     const retainedBytes = [...this.pending.values()].reduce((total, pending) => total + pending.bytes, 0);
@@ -621,7 +666,8 @@ export class PaintController {
       this.reportLocalError('Too many pending paint changes. Wait for confirmation or reconnect before drawing more.');
       return null;
     }
-    const pending = { ...candidate, bytes, sentAt: Number.NEGATIVE_INFINITY, command: structuredClone(command) };
+    const pending = { ...candidate, bytes, sentAt: Number.NEGATIVE_INFINITY, command: structuredClone(command),
+      baseTransform: baseTransform ? structuredClone(baseTransform) : undefined };
     this.pending.set(operationId, pending);
     if (command.kind !== 'delete') {
       this.runtime.setPaintDraft?.(
@@ -638,6 +684,28 @@ export class PaintController {
   private sendPending(pending: RetainedPaintOperation): boolean {
     const { command, operationId } = pending;
     if (command.tableId !== this.tableId) return false;
+    const objectId = command.kind === 'create' ? command.object.id : command.objectId;
+    if (this.editorBusy(objectId)) { pending.queued = true; return true; }
+    for (const earlier of this.pending.values()) {
+      if (earlier === pending) break;
+      const previousId = earlier.command.kind === 'create' ? earlier.command.object.id : earlier.command.objectId;
+      if (earlier.command.tableId === command.tableId && previousId === objectId) { pending.queued = true; return true; }
+    }
+    if (!Number.isFinite(pending.sentAt) && pending.queued && command.kind !== 'create') {
+      const canonical = this.committed.get(command.objectId);
+      if (!canonical) {
+        this.pending.delete(pending.operationId);
+        this.reportError('The edited paint object no longer exists.');
+        return false;
+      }
+      command.expectedVersion = canonical.version;
+      if (command.kind === 'update' && pending.baseTransform) {
+        const base = pending.baseTransform, local = command.object.transform, current = canonical.transform;
+        command.object.transform = { ...local, x: current.x + local.x - base.x, y: current.y + local.y - base.y,
+          scale_x: current.scale_x * local.scale_x / base.scale_x, scale_y: current.scale_y * local.scale_y / base.scale_y,
+          rotation: (current.rotation ?? 0) + (local.rotation ?? 0) - (base.rotation ?? 0) };
+      }
+    }
     pending.sentAt = this.now();
     try {
       if (command.kind === 'create') {
@@ -689,6 +757,9 @@ export class PaintController {
         || remaining.reduce((total, object) => total + paintPointCount(object), 0)
           + paintPointCount(event.object) > PAINT_LIMITS.maxPointsPerTable
       ) return false;
+    }
+    if ((this.pending.size || this.editorProjection.size || this.renderedSignature) && this.tableId && this.rendererAvailable()) {
+      this.runtime.replacePaintObjectSnapshot(this.tableId, this.revision, this.orderedCommitted());
     }
     const accepted = !this.rendererAvailable() || (event.action === 'delete'
       ? this.runtime.removePaintObject(
@@ -803,6 +874,19 @@ export class PaintController {
   }
 
   private emit(): void {
+    if (!this.sendingWaiting && !this.hydrating) {
+      this.sendingWaiting = true;
+      try {
+        for (const pending of this.pending.values()) if (!Number.isFinite(pending.sentAt)) this.sendPending(pending);
+      } finally { this.sendingWaiting = false; }
+    }
+    const signature = `${this.revision}:${this.projectionVersion}:${[...this.pending.keys()].join(',')}`;
+    if (signature !== this.renderedSignature && this.tableId && !this.hydrating && this.rendererAvailable()
+      && (this.pending.size || this.editorProjection.size || this.renderedSignature)) {
+      this.renderedSignature = this.pending.size || this.editorProjection.size ? signature : '';
+      this.runtime.replacePaintObjectSnapshot(this.tableId, this.revision, [...this.visibleObjects().values()]);
+      for (const id of this.pending.keys()) this.runtime.clearPaintDraft?.(this.pendingDraftKey(id));
+    }
     const state = this.getState();
     for (const listener of this.listeners) listener(state);
   }

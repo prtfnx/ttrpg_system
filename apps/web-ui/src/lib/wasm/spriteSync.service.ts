@@ -355,8 +355,12 @@ export class SpriteSyncService {
 
   startOptimisticTimer(tempId: string): void {
     this.clearOptimisticTimer(tempId);
+    const tableId = useGameStore.getState().sprites.find(item => item.id === tempId)?.tableId
+      ?? useGameStore.getState().activeTableId;
     const t = window.setTimeout(() => {
-      try { this.removeSceneEntity(tempId); } catch { /* best-effort */ }
+      if (tableId && tableId === useGameStore.getState().activeTableId) {
+        emitProtocolEvent('sprite-confirmation-uncertain', { tableId });
+      }
       this.optimisticTimers.delete(tempId);
     }, OPTIMISTIC_TIMEOUT);
     this.optimisticTimers.set(tempId, t as unknown as number);
@@ -384,6 +388,7 @@ export class SpriteSyncService {
         this.removeSceneEntity(tempId);
       }
       const confirmedId = data.sprite_data?.sprite_id;
+      if (confirmedId) this.clearOptimisticTimer(confirmedId);
       if (confirmedId && confirmedId !== tempId) {
         this.removeSceneEntity(confirmedId);
       }

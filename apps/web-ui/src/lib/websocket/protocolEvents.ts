@@ -1,4 +1,5 @@
 import type { CharacterDraft } from '@features/character/characterDraft';
+import type { Sprite } from '@/types';
 import type {
   PaintObjectEvent,
   PaintOperationRejection,
@@ -11,6 +12,14 @@ type ProtocolRecord = Record<string, unknown> | undefined;
 
 export type ProtocolEventMap = {
   'canvas-command-result': ProtocolRecord;
+  'canvas-canonical-object': { operationId?: string; tableId: string; kind: 'sprite' | 'paint'; id: string; object: unknown | null };
+  'optimistic-sprite-command': { requestId: string; tableId: string; spriteId: string; kind: 'remove' | 'update'; patch: Partial<Sprite>; handled?: boolean };
+  'optimistic-sprite-settled': { requestId: string; accepted: boolean };
+  'sprite-canonical-state': { tableId: string; spriteId: string; state: Partial<Sprite> };
+  'optimistic-sprite-create': Record<string, unknown>;
+  'sprite-confirmation-uncertain': { tableId: string };
+  'optimistic-sprite-snapshot': { tableId: string; requestIds: readonly string[] };
+  'table-canonical-snapshot': { tableId: string };
   'canvas-history-state': ProtocolRecord;
   'active-table-response': ProtocolRecord;
   'asset-delete-response': ProtocolRecord;

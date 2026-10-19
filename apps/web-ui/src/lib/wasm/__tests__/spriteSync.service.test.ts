@@ -397,18 +397,23 @@ describe('SpriteSyncService', () => {
       expect(engine.remove_sprite).not.toHaveBeenCalled();
     });
 
-    it('expired timer calls remove_sprite', () => {
+    it('expired timer requests reconciliation without assuming the creation failed', () => {
+      const uncertain = vi.fn();
+      window.addEventListener('sprite-confirmation-uncertain', uncertain, { once: true });
       service.startOptimisticTimer('tmp-3');
       vi.advanceTimersByTime(11_000);
-      expect(engine.remove_sprite).toHaveBeenCalledWith('tmp-3');
+      expect(engine.remove_sprite).not.toHaveBeenCalled();
+      expect(uncertain).toHaveBeenCalledOnce();
     });
 
     it('starting a timer twice replaces the old one', () => {
+      const uncertain = vi.fn();
+      window.addEventListener('sprite-confirmation-uncertain', uncertain, { once: true });
       service.startOptimisticTimer('tmp-4');
       service.startOptimisticTimer('tmp-4'); // re-registers
       vi.advanceTimersByTime(11_000);
       // Should only fire once
-      expect(engine.remove_sprite).toHaveBeenCalledTimes(1);
+      expect(uncertain).toHaveBeenCalledTimes(1);
     });
   });
 

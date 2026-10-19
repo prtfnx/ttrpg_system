@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // Mock heavy deps before importing bridge
 vi.mock('@/store', () => ({
   useGameStore: {
+    setState: vi.fn(),
     getState: vi.fn(() => ({
       sessionRole: 'dm',
       userId: 1,
@@ -427,7 +428,7 @@ describe('WasmBridgeService', () => {
   });
 
   describe('wasm-light-moved event', () => {
-    it('calls protocol.moveSprite and updateSprite in store', () => {
+    it('uses the same optimistic command owner without sending a second store update', async () => {
       const moveSprite = vi.fn();
       const updateSprite = vi.fn();
       const protocol = { moveSprite, sendMessage: vi.fn() };
@@ -438,8 +439,11 @@ describe('WasmBridgeService', () => {
         detail: { lightId: 'light-1', x: 100, y: 200 },
       }));
 
-      expect(moveSprite).toHaveBeenCalledWith('light-1', 100, 200);
-      expect(updateSprite).toHaveBeenCalledWith('light-1', { x: 100, y: 200 });
+      await Promise.resolve();
+      expect(protocol.sendMessage).toHaveBeenCalledOnce();
+      expect(protocol.sendMessage.mock.calls[0][0].data).toMatchObject({ sprite_id: 'light-1', to: { x: 100, y: 200 } });
+      expect(moveSprite).not.toHaveBeenCalled();
+      expect(updateSprite).not.toHaveBeenCalled();
     });
   });
 

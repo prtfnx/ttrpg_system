@@ -211,7 +211,8 @@ export class PaintInteractionController {
   ) {
     this.scene = scene;
     this.runtime = runtime;
-    this.sceneState = scene.getState();
+    const state = scene.getState();
+    this.sceneState = { ...state, committed: state.visible ?? state.committed };
     this.tableId = this.sceneState.tableId;
   }
 
@@ -226,15 +227,15 @@ export class PaintInteractionController {
         this.runtime.clearPaintObjectSelection();
         this.tableId = state.tableId;
       }
-      this.sceneState = state;
+      this.sceneState = { ...state, committed: state.visible ?? state.committed };
       if (state.hydrating) this.cancelGesture();
       const oldIds = this.paintIds().join(',');
-      this.selection.retain(ref => ref.kind !== 'paint' || state.committed.some(object => object.id === ref.id));
+      this.selection.retain(ref => ref.kind !== 'paint' || this.sceneState.committed.some(object => object.id === ref.id));
       if (oldIds !== this.paintIds().join(',')) this.syncSelection();
       const editing = this.gesture;
       if (editing && editing.kind !== 'create' && editing.kind !== 'marquee') {
         const originals = editing.kind === 'group' ? editing.paints : [editing.original];
-        if (originals.some(original => !state.committed.some(item => item.id === original.id && item.version === original.version))) {
+        if (originals.some(original => !this.sceneState.committed.some(item => item.id === original.id && item.version === original.version))) {
           this.cancelGesture();
         }
       }
@@ -270,7 +271,7 @@ export class PaintInteractionController {
       : null;
     return {
       enabled: this.enabled,
-      ready: this.enabled && this.sceneState.tableId !== null && !this.sceneState.hydrating && !this.commandState?.pending,
+      ready: this.enabled && this.sceneState.tableId !== null && !this.sceneState.hydrating,
       tool: this.selectOnly ? 'select' : this.tool,
       style: structuredClone(this.style),
       gestureActive: this.gesture !== null,
@@ -332,6 +333,8 @@ export class PaintInteractionController {
   }
 
   replaceSelection(refs: readonly SelectionRef[]): void {
+    if (refs.length === this.selection.items.length && refs.every((ref, index) =>
+      ref.kind === this.selection.items[index].kind && ref.id === this.selection.items[index].id)) return;
     this.cancelGesture();
     this.selection.replace(refs);
     // A receipt owns the resulting selection even when legacy pointer input
@@ -429,10 +432,6 @@ export class PaintInteractionController {
 
   private canvasMembers(paints: readonly PaintObject[], sprites: readonly SelectionSprite[], deleting = false): CanvasMember[] | null {
     if (!this.commands || !this.runtime.getRenderEngine() || this.commands.getState().tableId !== this.sceneState.tableId || this.sceneState.hydrating || this.actorId === null) return null;
-    if (this.sceneState.pending.length) {
-      this.scene.reportLocalError('Wait for pending paint commands before editing the selection.');
-      return null;
-    }
     const editableSprites = sprites.filter(sprite => deleting ? sprite.canDelete === true : sprite.canEdit);
     if (editableSprites.some(sprite => !sprite.expected)) {
       this.scene.reportLocalError('Sprite state is not ready; reload the table.');
@@ -506,7 +505,6 @@ export class PaintInteractionController {
 
   restyleSelected(style: PaintStyle): boolean {
     this.cancelGesture();
-    if (this.commandState?.pending) return false;
     const selected = this.selectedObject();
     if (
       !selected
@@ -582,7 +580,6 @@ export class PaintInteractionController {
   }
 
   readonly handlePointerDown = (event: PointerEvent): void => {
-    if (this.commandState?.pending) { event.preventDefault(); return; }
     if (
       !this.enabled
       || this.sceneState.hydrating

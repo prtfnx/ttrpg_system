@@ -17,6 +17,7 @@ import {
 import { createSpriteSelectionPort } from './spriteSelectionPort';
 import { loadSelectionPreference, useSelectionPreferences } from './selectionPreferences';
 import { CanvasCommandController } from './CanvasCommandController';
+import { createCanvasOptimism } from './createCanvasOptimism';
 
 const EMPTY_STATE: PaintControllerState = Object.freeze({
   tableId: null,
@@ -71,25 +72,34 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
     return new PaintController(
       protocol as PaintTransport,
       runtime as PaintSceneRuntime,
-      { onError: message => toast.error(message) },
+      { onError: message => toast.error(message), actorId: () => useGameStore.getState().userId ?? 1 },
     );
   }, [protocol, runtime]);
   const interaction = useMemo(() => (
     controller ? new PaintInteractionController(controller, runtime) : null
   ), [controller, runtime]);
+  const optimism = useMemo(() => controller ? createCanvasOptimism(runtime, controller) : null, [runtime, controller]);
   const commands = useMemo(() => protocol && controller && interaction ? new CanvasCommandController(protocol, {
     onError: message => toast.error(message),
     onResync: tableId => {
       if (useGameStore.getState().activeTableId !== tableId) return;
-      controller.requestSnapshot();
-      protocol.requestTableData(tableId);
+      protocol.resynchronizeTable(tableId);
     },
     onSelection: refs => interaction.replaceSelection(refs),
-  }) : null, [protocol, controller, interaction]);
+    onOptimistic: (id, intent) => optimism?.state.stage(id, intent),
+    onSettled: (id, accepted) => optimism?.state.settle(id, accepted),
+    beforeSend: intent => optimism?.state.rebase(intent) ?? intent,
+    readyToSend: intent => !('members' in intent) || !intent.members.some(member => member.kind === 'paint'
+      && controller.getState().pending.some(item => (item.command.kind === 'create'
+        ? item.command.object.id : item.command.objectId) === member.id)),
+    onReset: () => optimism?.state.reset(),
+    onSnapshot: ids => optimism?.state.resolveSnapshot(ids),
+  }) : null, [protocol, controller, interaction, optimism]);
   const [state, setState] = useState<PaintControllerState>(EMPTY_STATE);
   const [interactionState, setInteractionState] = useState<PaintInteractionState>(
     EMPTY_INTERACTION_STATE,
   );
+  useEffect(() => optimism?.connectEvents(), [optimism]);
 
   useEffect(() => {
     if (!controller) {

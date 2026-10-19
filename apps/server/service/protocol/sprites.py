@@ -349,6 +349,11 @@ class _SpritesMixin(_ProtocolBase):
 
         # Movement validation (server-authoritative)
         table = self.table_manager.tables_id.get(table_id) or self.table_manager.tables.get(table_id)
+        entity = table.find_entity_by_sprite_id(sprite_id) if table is not None else None
+        if entity is not None:
+            # Pipelined clients may still name an older confirmed origin.
+            # Validate paths and movement costs from authoritative current state.
+            from_pos = {'x': entity.position[0], 'y': entity.position[1]}
         if table is not None and not table_edit_override:
             try:
                 from core_table.session_rules import SessionRules

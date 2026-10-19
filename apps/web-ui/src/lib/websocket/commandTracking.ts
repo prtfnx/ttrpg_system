@@ -38,7 +38,10 @@ export class CommandTracking {
       if (tableId) uncertain(tableId);
       return false;
     }
-    const timer = setTimeout(() => { if (tableId) uncertain(tableId); }, 10_000);
+    const timer = setTimeout(() => {
+      if (tableId) uncertain(tableId);
+      else this.pending.delete(message.message_id!);
+    }, 10_000);
     this.pending.set(message.message_id, { message, tableId, timer });
     return true;
   }
@@ -61,6 +64,7 @@ export class CommandTracking {
   watermark(tableId: string): string[] {
     return [...this.pending].filter(([, item]) => item.tableId === tableId).map(([id]) => id);
   }
+  has(id: string): boolean { return this.pending.has(id); }
 
   resolveSnapshot(ids: readonly string[]): void {
     for (const id of ids) {

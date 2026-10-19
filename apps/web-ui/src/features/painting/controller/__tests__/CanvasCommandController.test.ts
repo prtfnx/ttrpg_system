@@ -37,14 +37,17 @@ describe('CanvasCommandController', () => {
     expect(h.options.onSelection).not.toHaveBeenCalled();
     expect(h.owner.getState()).toMatchObject({ pending: false, canUndo: true });
   });
-  it('tracks one intent before send and accepts only its matching authoritative receipt', () => {
+  it('previews dependent intent without waiting and sends it after its predecessor settles', () => {
     const { owner, transport, accept } = harness();
     expect(owner.submit({ mode: 'transform', members, transform: IDENTITY_TRANSFORM })).toBe(true);
     expect(owner.getState().pending).toBe(true);
     emitProtocolEvent('canvas-command-result', { operation_id: 'other', table_id: TABLE, success: true });
     expect(owner.getState().pending).toBe(true);
-    expect(owner.submit({ mode: 'delete', members })).toBe(false);
+    expect(owner.submit({ mode: 'delete', members })).toBe(true);
     expect(transport.sendCanvasCommand).toHaveBeenCalledOnce();
+    accept();
+    expect(transport.sendCanvasCommand).toHaveBeenCalledTimes(2);
+    expect(owner.getState().pending).toBe(true);
     accept();
     expect(owner.getState()).toMatchObject({ pending: false, canUndo: true, canRedo: false });
   });
@@ -138,7 +141,7 @@ describe('CanvasCommandController', () => {
     accept({ success: false, error: 'Permission changed' });
     expect(transport.sendCanvasCommand).toHaveBeenCalledOnce();
     expect(owner.getState()).toMatchObject({ pending: false, canPaste: false, lastError: 'Permission changed' });
-    expect(options.onResync).toHaveBeenCalledWith(TABLE);
+    expect(options.onResync).not.toHaveBeenCalled();
   });
 
   it('requests fresh snapshots when a successful retry cannot replay historical sprite events', () => {

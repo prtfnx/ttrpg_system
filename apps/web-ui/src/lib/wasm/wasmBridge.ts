@@ -172,7 +172,10 @@ class WasmBridgeService {
     this.committedPositions.delete(id);
     this.committedSizes.delete(id);
     this.committedRotations.delete(id);
-    for (const operation of ['move', 'resize', 'rotate'] as const) this.baselineGenerations.delete(`${id}:${operation}`);
+    for (const operation of ['move', 'resize', 'rotate'] as const) {
+      this.baselineGenerations.delete(`${id}:${operation}`);
+      this.latestSettled.delete(`${id}:${operation}`);
+    }
     for (const [actionId, pending] of this.pendingActions) {
       if (pending.spriteId === id) { clearTimeout(pending.timerId); this.pendingActions.delete(actionId); }
     }
@@ -200,11 +203,7 @@ class WasmBridgeService {
 
   private onLightMoved = ({ lightId, x, y }: WasmEventMap['wasm-light-moved']) => {
     if (!this.protocol || !lightId) return;
-    // Lights are sprites on the server with texture_path '__LIGHT__'.
-    // Send a sprite move so the server persists the new coordinates.
-    this.protocol.moveSprite(lightId, x, y);
-    // Also update the Zustand store so the UI stays consistent
-    useGameStore.getState().updateSprite(lightId, { x, y });
+    this.onWasmOperation({ operation: 'move', spriteId: lightId, data: { x, y } });
   };
 
   private onWallMoved = ({ wallId, x1, y1, x2, y2 }: WasmEventMap['wasm-wall-moved']) => {
@@ -354,8 +353,12 @@ class WasmBridgeService {
       const previewIsCurrent = currentPreview && [...this.pendingActions.values()].includes(currentPreview);
       const originalState = previewIsCurrent ? currentPreview.newState : this.snapshotCommitted(spriteId, operation);
       if (Object.keys(originalState).length > 0) {
-        useGameStore.getState().updateSprite(spriteId, originalState);
+        // Reconciliation is local state application, never another command.
+        useGameStore.setState(state => ({ sprites: state.sprites.map(sprite =>
+          sprite.id === spriteId ? { ...sprite, ...originalState } : sprite) }));
         emitWasmEvent('sprite-revert', { spriteId, operation, originalState, reason });
+      } else if (reason !== 'optimistic') {
+        this.protocol?.resynchronizeTable?.(tableId);
       }
     });
   }

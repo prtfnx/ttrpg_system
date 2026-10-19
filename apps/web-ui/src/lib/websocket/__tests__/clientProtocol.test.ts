@@ -817,6 +817,7 @@ describe('WebClientProtocol', () => {
         blocks_sight: true, blocks_sound: true, is_door: false,
         door_state: 'closed', is_secret: false, direction: 'both', created_by: 1,
       };
+      mocks.storeState.walls = [wall];
       await dispatch(p, 'wall_data', { operation: 'update', wall, table_id: 'table-abc' });
       expect(mockUpdateWall).toHaveBeenCalledWith('w3', wall);
     });
@@ -1936,7 +1937,8 @@ describe('WebClientProtocol', () => {
       const p = makeProtocol();
       const ws = makeOpenWs(p);
       p.createSprite({ name: 'Goblin', table_id: 'table-abc' });
-      const msg = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      p.sendBatch();
+      const msg = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]).data.messages[0];
       expect(msg.type).toBe('sprite_create');
       expect(msg.data.table_id).toBe('table-abc');
     });
@@ -1964,7 +1966,8 @@ describe('WebClientProtocol', () => {
       const p = makeProtocol();
       const ws = makeOpenWs(p);
       p.removeSprite('s2');
-      const msg = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      p.sendBatch();
+      const msg = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]).data.messages[0];
       expect(msg.type).toBe('sprite_remove');
       expect(msg.data.sprite_id).toBe('s2');
     });

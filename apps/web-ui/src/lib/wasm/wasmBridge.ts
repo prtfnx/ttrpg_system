@@ -33,6 +33,7 @@ interface PendingAction {
   newState: Record<string, number>;
   timerId: ReturnType<typeof setTimeout>;
   baselineGeneration: number;
+  sequence: number;
 }
 
 class WasmBridgeService {
@@ -48,6 +49,9 @@ class WasmBridgeService {
   private pendingActions = new Map<string, PendingAction>();
   private baselineGenerations = new Map<string, number>();
   private trackingGeneration = 0;
+  private sequence = 0;
+  private latestSettled = new Map<string, number>();
+  private resyncWatermarks = new Map<string, number>();
   init() {
     if (this.isInitialized) return;
     this.eventCleanups = [
@@ -58,6 +62,23 @@ class WasmBridgeService {
       onProtocolEvent('sprite-action-confirmed', this.onActionConfirmed),
       onProtocolEvent('sprite-action-rejected', this.onActionRejected),
       onProtocolEvent('sprite-removed', this.onSpriteRemoved),
+      onProtocolEvent('table-resync-started', ({ tableId }) => this.resyncWatermarks.set(tableId, this.sequence)),
+      onProtocolEvent('table-resync-completed', ({ tableId }) => {
+        const watermark = this.resyncWatermarks.get(tableId);
+        if (watermark === undefined) return;
+        this.resyncWatermarks.delete(tableId);
+        for (const [id, pending] of this.pendingActions) {
+          if (pending.tableId === tableId && pending.sequence <= watermark) {
+            clearTimeout(pending.timerId);
+            this.pendingActions.delete(id);
+          }
+        }
+      }),
+      onProtocolEvent('table-sprites-loaded', ({ table_id }) => {
+        for (const pending of this.pendingActions.values()) {
+          if (pending.tableId === table_id) this.queueRevert(table_id, pending.spriteId, pending.operation, 'reconciled');
+        }
+      }),
     ];
     this.isInitialized = true;
   }
@@ -99,6 +120,9 @@ class WasmBridgeService {
         this.advanceBaseline(spriteId, 'rotate');
       }
     }
+    for (const pending of this.pendingActions.values()) {
+      if (pending.spriteId === spriteId) this.queueRevert(pending.tableId, spriteId, pending.operation, 'reconciled');
+    }
   }
 
   cleanup() {
@@ -115,10 +139,14 @@ class WasmBridgeService {
     const pending = this.pendingActions.get(actionId);
     if (!pending) return;
     clearTimeout(pending.timerId);
-    if (pending.baselineGeneration === this.baselineGeneration(pending.spriteId, pending.operation)) {
-      this.applyToCommitted(pending.spriteId, pending.operation, pending.newState);
+    const key = `${pending.spriteId}:${pending.operation}`;
+    if (pending.sequence > (this.latestSettled.get(key) ?? 0)
+      && (detail.state || pending.baselineGeneration === this.baselineGeneration(pending.spriteId, pending.operation))) {
+      this.applyToCommitted(pending.spriteId, pending.operation, detail.state ?? pending.newState);
+      this.latestSettled.set(key, pending.sequence);
     }
     this.pendingActions.delete(actionId);
+    this.queueRevert(pending.tableId, pending.spriteId, pending.operation, 'reconciled');
   };
 
   private onActionRejected = (detail: ProtocolEventMap['sprite-action-rejected']) => {
@@ -166,6 +194,8 @@ class WasmBridgeService {
     this.committedSizes.clear();
     this.committedRotations.clear();
     this.baselineGenerations.clear();
+    this.latestSettled.clear();
+    this.resyncWatermarks.clear();
   }
 
   private onLightMoved = ({ lightId, x, y }: WasmEventMap['wasm-light-moved']) => {
@@ -195,13 +225,6 @@ class WasmBridgeService {
     if (!['move', 'resize', 'rotate'].includes(operation)) return;
     const tableId = useGameStore.getState().activeTableId;
     if (!tableId) return;
-    const inFlight = [...this.pendingActions.values()].find(p => p.spriteId === spriteId && p.operation === operation);
-    if (inFlight) {
-      this.queueRevert(tableId, spriteId, operation, 'operation_pending', inFlight);
-      toast.error('Wait for the previous change to be confirmed.', { autoClose: 4000 });
-      return;
-    }
-
     // Permission check: only DM/co-DM can move ownerless sprites;
     // players may only move sprites that list them in controlled_by.
     const { canControlSprite, sessionRole } = useGameStore.getState();
@@ -219,7 +242,7 @@ class WasmBridgeService {
     const newState = this.dataToState(operation, data);
     const timerId = setTimeout(() => this.onTimeout(actionId), CONFIRM_TIMEOUT_MS);
     const pending = { tableId, spriteId, operation, newState, timerId,
-      baselineGeneration: this.baselineGeneration(spriteId, operation) };
+      baselineGeneration: this.baselineGeneration(spriteId, operation), sequence: ++this.sequence };
     this.pendingActions.set(actionId, pending);
     if (this.pendingActions.size > 100 || !Object.values(newState).every(Number.isFinite)
       || operation === 'resize' && (newState.width <= 0 || newState.height <= 0)) {
@@ -227,6 +250,7 @@ class WasmBridgeService {
     }
     try {
       this.sendCommit(operation, spriteId, data, actionId, tableId);
+      this.queueRevert(tableId, spriteId, operation, 'optimistic');
     } catch {
       clearTimeout(timerId); this.pendingActions.delete(actionId); this.emitRevert(pending, 'send_failed');
     }
@@ -235,8 +259,11 @@ class WasmBridgeService {
   private onTimeout(actionId: string) {
     const pending = this.pendingActions.get(actionId);
     if (!pending) return;
-    this.pendingActions.delete(actionId);
-    this.emitRevert(pending, 'timeout');
+    // A timeout is an unknown outcome: the command may already be committed.
+    // Keep newer local intent visible while a fenced snapshot resolves it.
+    if (pending.tableId === useGameStore.getState().activeTableId) {
+      this.protocol?.resynchronizeTable?.(pending.tableId);
+    }
   }
 
   // ──────────────────────────────────────────────
@@ -301,16 +328,16 @@ class WasmBridgeService {
         break;
       }
       case 'resize':
-        this.protocol?.sendMessage(createMessage(MessageType.SPRITE_SCALE, {
+        if (this.protocol?.sendMessage(createMessage(MessageType.SPRITE_SCALE, {
           sprite_id: spriteId, table_id: tableId, action_id: actionId,
           width: data.width, height: data.height,
-        }, 2));
+        }, 2)) === false) throw new Error('Disconnected');
         break;
       case 'rotate':
-        this.protocol?.sendMessage(createMessage(MessageType.SPRITE_ROTATE, {
+        if (this.protocol?.sendMessage(createMessage(MessageType.SPRITE_ROTATE, {
           sprite_id: spriteId, table_id: tableId, action_id: actionId,
           rotation: data.rotation,
-        }, 2));
+        }, 2)) === false) throw new Error('Disconnected');
         break;
     }
   }
@@ -322,10 +349,12 @@ class WasmBridgeService {
     queueMicrotask(() => {
       if (!this.isInitialized || generation !== this.trackingGeneration
         || tableId !== useGameStore.getState().activeTableId) return;
-      const previewIsCurrent = preview && [...this.pendingActions.values()].includes(preview)
-        && preview.baselineGeneration === this.baselineGeneration(spriteId, operation);
-      const originalState = previewIsCurrent ? preview.newState : this.snapshotCommitted(spriteId, operation);
+      const currentPreview = [...this.pendingActions.values()].filter(p => p.tableId === tableId
+        && p.spriteId === spriteId && p.operation === operation).at(-1) ?? preview;
+      const previewIsCurrent = currentPreview && [...this.pendingActions.values()].includes(currentPreview);
+      const originalState = previewIsCurrent ? currentPreview.newState : this.snapshotCommitted(spriteId, operation);
       if (Object.keys(originalState).length > 0) {
+        useGameStore.getState().updateSprite(spriteId, originalState);
         emitWasmEvent('sprite-revert', { spriteId, operation, originalState, reason });
       }
     });

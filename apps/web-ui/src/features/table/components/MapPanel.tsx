@@ -53,7 +53,6 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
   }));
 
   const initialized = useRef(false);
-  const sendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!initialized.current) return;
@@ -99,16 +98,14 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
   const updateSettings = useCallback((next: MapSettings) => {
     setSettings(next);
     applyToWasm(next);
-    if (sendTimer.current) clearTimeout(sendTimer.current);
-    sendTimer.current = setTimeout(() => sendToServer(next), 300);
+    sendToServer(next);
   }, [applyToWasm, sendToServer]);
 
   const updateGrid = useCallback((updates: Partial<GridSettings>) => {
     setSettings(prev => {
       const next = { ...prev, gridSettings: { ...prev.gridSettings, ...updates } };
       applyToWasm(next);
-      if (sendTimer.current) clearTimeout(sendTimer.current);
-      sendTimer.current = setTimeout(() => sendToServer(next), 300);
+      sendToServer(next);
       return next;
     });
   }, [applyToWasm, sendToServer]);

@@ -60,8 +60,11 @@ export type ProtocolEventMap = {
   'protocol-send-message': { type: string; data: unknown };
   'protocol-success': ProtocolRecord;
   'show-toast': { message: string; type: 'info' | 'success' | 'warning' | 'error' };
-  'sprite-action-confirmed': { actionId: unknown };
+  'sprite-action-confirmed': { actionId: unknown; state?: Record<string, number> };
   'sprite-action-rejected': { actionId: unknown; reason: string };
+  'table-resync-started': { tableId: string };
+  'table-resync-completed': { tableId: string };
+  'table-sprites-loaded': { table_id: string; count: number };
   'sprite-created': ProtocolRecord;
   'sprite-data-received': ProtocolRecord;
   'sprite-drag-preview-remote': ProtocolRecord;

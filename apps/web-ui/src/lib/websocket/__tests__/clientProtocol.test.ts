@@ -136,6 +136,28 @@ function makeOpenWs(protocol: WebClientProtocol) {
 // ---------------------------------------------------------------------------
 
 describe('WebClientProtocol', () => {
+  it('resolves uncertainty only after the correlated snapshot hydrates', async () => {
+    const protocol = makeProtocol();
+    const ws = makeOpenWs(protocol);
+    protocol.resynchronizeTable('table-abc');
+    protocol.resynchronizeTable('table-abc');
+    expect(ws.send).toHaveBeenCalledOnce();
+    const request = JSON.parse(ws.send.mock.calls[0][0]);
+    const completed = vi.fn();
+    window.addEventListener('table-resync-completed', completed);
+    try {
+      const internal = protocol as unknown as { handleTableResponse: (message: unknown) => Promise<void> };
+      await internal.handleTableResponse({ type: 'table_response', data: { table_data: { table_id: 'table-abc' } },
+        causation_id: request.message_id });
+      expect(completed).not.toHaveBeenCalled();
+      window.dispatchEvent(new CustomEvent('table-sprites-loaded', { detail: { table_id: 'table-abc', count: 0 } }));
+      expect(completed).toHaveBeenCalledOnce();
+    } finally {
+      window.removeEventListener('table-resync-completed', completed);
+      protocol.disconnect();
+    }
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     Object.assign(mocks.storeState, makeStoreState());
@@ -1259,9 +1281,9 @@ describe('WebClientProtocol', () => {
           priority: 5,
         }),
       } as MessageEvent);
-      window.removeEventListener('player-joined', handler);
       // Give async handler a tick
       await new Promise(r => setTimeout(r, 0));
+      window.removeEventListener('player-joined', handler);
       expect(handler).toHaveBeenCalled();
     });
   });
@@ -1307,16 +1329,18 @@ describe('WebClientProtocol', () => {
   // ── flushMessageQueue ────────────────────────────────────────────────────
 
   describe('flushMessageQueue', () => {
-    it('sends queued critical messages when ws becomes OPEN', () => {
+    it('retains reads but does not replay unaccepted sprite creation after reconnect', () => {
       const p = makeProtocol();
       const closedWs = { readyState: WebSocket.CLOSED, send: vi.fn(), close: vi.fn() };
       (p as unknown as Record<string, unknown>)['websocket'] = closedWs;
       p.sendMessage({ type: 'sprite_create', data: {}, version: '0.1', priority: 2 });
+      p.sendMessage({ type: 'table_request', data: { table_id: 'table-abc' }, version: '0.1', priority: 2 });
       // Now open the connection
       const openWs = { readyState: WebSocket.OPEN, send: vi.fn(), close: vi.fn() };
       (p as unknown as Record<string, unknown>)['websocket'] = openWs;
       (p as unknown as Record<string, () => void>)['flushMessageQueue']();
       expect(openWs.send).toHaveBeenCalledOnce();
+      expect(JSON.parse(openWs.send.mock.calls[0][0]).type).toBe('table_request');
     });
 
     it('retains character updates while reconnecting', () => {
@@ -1499,7 +1523,7 @@ describe('WebClientProtocol', () => {
 
     it('rehydrates the active table for accepted sprite retry receipts without replaying old sprite data', async () => {
       const p = makeProtocol();
-      const request = vi.spyOn(p, 'requestTableData').mockImplementation(() => {});
+      const request = vi.spyOn(p, 'resynchronizeTable').mockImplementation(() => {});
       await dispatch(p, 'sprite_response', { table_id: 'other', success: true, resync_required: true });
       expect(request).not.toHaveBeenCalled();
       await dispatch(p, 'sprite_response', { table_id: 'table-abc', success: true, resync_required: true });

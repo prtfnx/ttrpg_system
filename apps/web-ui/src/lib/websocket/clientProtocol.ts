@@ -31,6 +31,8 @@ import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
 import { emitProtocolEvent, onProtocolEvent } from './protocolEvents';
 import { validateTableId } from './tableProtocolAdapter';
+import { TableSettingsBuffer } from './tableSettingsBuffer';
+import { CommandTracking, MUTATION_MESSAGES, PREVIEW_MESSAGES } from './commandTracking';
 
 type WallCreateInput = Pick<WallData, 'x1' | 'y1' | 'x2' | 'y2'>
   & Partial<Omit<WallData, 'wall_id' | 'table_id' | 'x1' | 'y1' | 'x2' | 'y2'>>;
@@ -109,12 +111,32 @@ export class WebClientProtocol {
   private pendingCharacterCreates = new Map<string, string>();
   private readonly BATCH_DELAY_MS = 30;
   private readonly MAX_BATCH_SIZE = 15;
+  private incomingChain: Promise<void> = Promise.resolve();
+  private readonly resyncs = new Map<string, { requestId: string; watermark: string[]; received?: boolean; timer: ReturnType<typeof setTimeout> }>();
+  private readonly commandTracking = new CommandTracking();
+  private readonly settingsBuffer = new TableSettingsBuffer({
+    read: () => {
+      const state = useGameStore.getState();
+      return { grid_cell_px: state.gridCellPx, cell_distance: state.cellDistance, distance_unit: state.distanceUnit,
+        grid_enabled: state.gridEnabled, snap_to_grid: state.gridSnapping, grid_color_hex: state.gridColorHex,
+        background_color_hex: state.backgroundColorHex };
+    },
+    apply: (tableId, settings) => this.applyTableSettings({ ...settings, table_id: tableId }),
+    send: message => this.sendMessage(message),
+    connected: () => this.websocket?.readyState === WebSocket.OPEN,
+  });
 
   /** Queue message for batching, flush after short delay or if batch is large */
   queueMessage(msg: Message) {
     // Skip batching if connection is not stable
     if (this.websocket?.readyState !== WebSocket.OPEN) {
       return;
+    }
+
+    if (PREVIEW_MESSAGES.has(msg.type)) {
+      if (this.websocket.bufferedAmount > 64 * 1024) return;
+      this.batchQueue = this.batchQueue.filter(item => item.type !== msg.type
+        || item.data?.table_id !== msg.data?.table_id || item.data?.id !== msg.data?.id);
     }
 
     this.batchQueue.push(msg);
@@ -188,7 +210,8 @@ export class WebClientProtocol {
   }
 
   /** Override sendMessage to use batching for non-critical messages */
-  sendMessage(message: Message): void {
+  sendMessage(message: Message): boolean {
+    if (message.type !== MessageType.TABLE_SETTINGS_UPDATE) this.settingsBuffer.flush();
     // Critical messages (table, actions, player, assets) sent immediately
     const critical = [
       'table_data', 'table_update_request', 'table_list_request', 'table_request', 'new_table_request', 'table_delete',
@@ -206,18 +229,28 @@ export class WebClientProtocol {
     ];
 
     if (this.websocket?.readyState !== WebSocket.OPEN) {
-      if (critical.includes(message.type) || durableDuringReconnect.includes(message.type)) {
+      if ((critical.includes(message.type) && !MUTATION_MESSAGES.has(message.type)) || durableDuringReconnect.includes(message.type)) {
         this.messageQueue.push(message);
       }
-      return;
+      return false;
+    }
+
+    if (!this.commandTracking.track(message,
+      typeof message.data?.table_id === 'string' ? message.data.table_id : null,
+      tableId => this.resynchronizeTable(tableId))) return false;
+    if (new Set<MessageType>([MessageType.SPRITE_MOVE, MessageType.SPRITE_SCALE, MessageType.SPRITE_ROTATE]).has(message.type)) {
+      this.batchQueue = this.batchQueue.filter(item => !PREVIEW_MESSAGES.has(item.type)
+        || item.data?.table_id !== message.data?.table_id || item.data?.id !== message.data?.sprite_id);
     }
 
     if (critical.includes(message.type)) {
+      this.sendBatch();
       logger.debug('Protocol: Sending critical message:', message.type);
       this.websocket.send(JSON.stringify(message));
     } else {
       this.queueMessage(message);
     }
+    return true;
   }
 
   constructor(sessionCode: string, userId?: number) {
@@ -278,7 +311,19 @@ export class WebClientProtocol {
       }
     };
     
-    this.cleanupProtocolMessageSender = onProtocolEvent('protocol-send-message', handleProtocolSendMessage);
+    const removeSender = onProtocolEvent('protocol-send-message', handleProtocolSendMessage);
+    const removeHydrated = onProtocolEvent('table-sprites-loaded', ({ table_id }) => {
+      const request = this.resyncs.get(table_id);
+      if (request?.received) {
+        clearTimeout(request.timer);
+        this.commandTracking.resolveSnapshot(request.watermark);
+        this.settingsBuffer.resolveSnapshot(request.watermark);
+        this.resyncs.delete(table_id);
+        emitProtocolEvent('table-resync-completed', { tableId: table_id });
+      }
+      this.settingsBuffer.reapply(table_id);
+    });
+    this.cleanupProtocolMessageSender = () => { removeSender(); removeHydrated(); };
     logger.debug('Protocol: Registered protocol-send-message event listener');
   }
 
@@ -640,6 +685,8 @@ export class WebClientProtocol {
           this.resendUnacknowledgedCharacterUpdates();
           this.flushMessageQueue();
           this.flushPendingBatches(); // Flush any batched messages that were queued during disconnection
+          const activeTableId = useGameStore.getState().activeTableId;
+          if (activeTableId && this.commandTracking.watermark(activeTableId).length) this.resynchronizeTable(activeTableId);
           // Auto-start heartbeat for connection monitoring
           this.startPing();
           this.connecting = false;
@@ -648,11 +695,15 @@ export class WebClientProtocol {
 
         socket.onmessage = (event) => {
           if (this.websocket !== socket) return;
-          this.handleIncomingMessage(event.data);
+          this.incomingChain = this.incomingChain.then(async () => {
+            if (this.websocket === socket) await this.handleIncomingMessage(event.data);
+          });
         };
 
         socket.onclose = (event) => {
           if (this.websocket !== socket) return;
+          for (const request of this.resyncs.values()) clearTimeout(request.timer);
+          this.resyncs.clear();
           logger.debug(`[Protocol] WebSocket CLOSED - code: ${event.code}, reason: '${event.reason}', wasClean: ${event.wasClean}`);
           protocolLogger.connection('WebSocket connection closed', { code: event.code, reason: event.reason });
           this.websocket = null;
@@ -710,6 +761,7 @@ export class WebClientProtocol {
   private async handleIncomingMessage(data: string): Promise<void> {
     try {
       const message = parseMessage(data);
+      this.observeOutcome(message);
       
       // Log all incoming messages for debugging
       if (message.type === 'pong') {
@@ -727,6 +779,27 @@ export class WebClientProtocol {
       }
     } catch (error) {
       logger.error('Error handling incoming message:', error);
+      const tableId = useGameStore.getState().activeTableId;
+      if (tableId) this.resynchronizeTable(tableId);
+    }
+  }
+
+  private observeOutcome(message: Message): void {
+    const request = this.commandTracking.settle(message);
+    if (!request) return;
+    const rejected = message.type === MessageType.ERROR || message.type === MessageType.ACTION_REJECTED
+      || message.data?.success === false;
+    if (!rejected) return;
+    message.data ??= {};
+    const payload = request.data ?? {};
+    // Older handlers may omit the action echo. The envelope still identifies it.
+    if (payload.action_id && !message.data.action_id) message.data.action_id = payload.action_id;
+    if (typeof payload.table_id === 'string' && !message.data.table_id) message.data.table_id = payload.table_id;
+    const owned = new Set<MessageType>([MessageType.SPRITE_MOVE, MessageType.SPRITE_SCALE, MessageType.SPRITE_ROTATE,
+      MessageType.TABLE_SETTINGS_UPDATE, MessageType.CANVAS_COMMAND, MessageType.PAINT_OBJECT_CREATE,
+      MessageType.PAINT_OBJECT_UPDATE, MessageType.PAINT_OBJECT_DELETE]);
+    if (!owned.has(request.type) && typeof payload.table_id === 'string') {
+      this.resynchronizeTable(payload.table_id);
     }
   }
 
@@ -940,6 +1013,10 @@ export class WebClientProtocol {
 
   private async handleError(message: Message): Promise<void> {
     logger.error('Server error', message.data);
+    this.settingsBuffer.reject(message);
+    if (message.data?.resync_required === true && typeof message.data.table_id === 'string') {
+      this.resynchronizeTable(message.data.table_id);
+    }
     // If this error is a rejection of a pending sprite action, notify the bridge
     if (message.data?.action_id) {
       emitProtocolEvent('sprite-action-rejected', {
@@ -986,6 +1063,7 @@ export class WebClientProtocol {
       // Process each message in the batch response
       for (const msgData of message.data.messages) {
         try {
+          this.observeOutcome(msgData);
           // Handle each message individually
           const handlers = this.handlers.get(msgData.type);
           if (handlers?.size) {
@@ -1020,6 +1098,8 @@ export class WebClientProtocol {
   private async handleTableData(message: Message): Promise<void> {
     logger.debug('Table data received:', message.data);
     if (!this.targetsActiveTable(message.data)) return;
+    if (typeof message.data?.table_id === 'string') this.settingsBuffer.seed(message.data.table_id, message.data);
+    this.completeTableResync(message);
     emitProtocolEvent('table-data-received', message.data);
   }
 
@@ -1103,6 +1183,8 @@ export class WebClientProtocol {
     }
     // Complete table payloads are applied only by TableSyncService after
     // validation. This protocol owner only admits the scoped event.
+    if (data.table_data?.table_id) this.settingsBuffer.seed(data.table_data.table_id, data.table_data);
+    this.completeTableResync(message);
     emitProtocolEvent('table-response', message.data);
   }
 
@@ -1587,7 +1669,11 @@ export class WebClientProtocol {
   }
 
   private async handleTableSettingsChanged(message: Message): Promise<void> {
-    const data = message.data as {
+    this.settingsBuffer.accept(message);
+  }
+
+  private applyTableSettings(input: Record<string, unknown>): void {
+    const data = input as {
       table_id?: string;
       dynamic_lighting_enabled: boolean;
       fog_exploration_mode: string;
@@ -1605,9 +1691,9 @@ export class WebClientProtocol {
     store.applyTableLightingSettings(data);
     if (data.grid_cell_px != null || data.cell_distance != null || data.distance_unit != null) {
       store.setTableUnits({
-        gridCellPx: data.grid_cell_px ?? 50,
-        cellDistance: data.cell_distance ?? 5,
-        distanceUnit: (data.distance_unit as 'ft' | 'm') ?? 'ft',
+        gridCellPx: data.grid_cell_px ?? store.gridCellPx,
+        cellDistance: data.cell_distance ?? store.cellDistance,
+        distanceUnit: (data.distance_unit as 'ft' | 'm') ?? store.distanceUnit,
       });
     }
     if (data.grid_enabled != null) store.setGridEnabled(data.grid_enabled);
@@ -1718,6 +1804,31 @@ export class WebClientProtocol {
     }));
   }
 
+  resynchronizeTable(tableId: string): void {
+    if (tableId !== useGameStore.getState().activeTableId || this.resyncs.has(tableId)
+      || this.websocket?.readyState !== WebSocket.OPEN) return;
+    this.settingsBuffer.flush();
+    this.sendBatch();
+    const request = createMessage(MessageType.TABLE_REQUEST, { table_id: tableId }, 2);
+    const timer = setTimeout(() => {
+      this.resyncs.delete(tableId);
+      this.websocket?.close(4000, 'Table synchronization timed out');
+    }, 10_000);
+    this.resyncs.set(tableId, { requestId: request.message_id!, watermark: this.commandTracking.watermark(tableId), timer });
+    emitProtocolEvent('table-resync-started', { tableId });
+    this.sendMessage(request);
+  }
+
+  private completeTableResync(message: Message): void {
+    const nested = message.data?.table_data as { table_id?: string } | undefined;
+    const tableId = nested?.table_id ?? message.data?.table_id;
+    if (typeof tableId !== 'string') return;
+    const request = this.resyncs.get(tableId);
+    if (!request || (message.causation_id ?? message.correlation_id) !== request.requestId) return;
+    // Only validated renderer/store hydration resolves uncertain commands.
+    request.received = true;
+  }
+
   // Active table persistence methods
   requestActiveTable(): void {
     logger.debug('[Protocol] Requesting active table for current user');
@@ -1747,7 +1858,7 @@ export class WebClientProtocol {
     grid_color_hex?: string;
     background_color_hex?: string;
   }): void {
-    this.sendMessage(createMessage(MessageType.TABLE_SETTINGS_UPDATE, { table_id: tableId, ...settings }, 2));
+    this.settingsBuffer.stage(tableId, settings);
   }
 
   requestPlayerList(): void {
@@ -1852,8 +1963,12 @@ export class WebClientProtocol {
     const socket = this.websocket;
     if (!socket || socket.readyState !== WebSocket.OPEN) return false;
     try {
+      this.settingsBuffer.flush();
+      this.sendBatch();
       const message = createMessage(type, data, 3);
       if (messageId) message.message_id = messageId;
+      if (!this.commandTracking.track(message, typeof data.table_id === 'string' ? data.table_id : null,
+        tableId => this.resynchronizeTable(tableId))) return false;
       socket.send(JSON.stringify(message));
       return true;
     } catch (error) {
@@ -2284,6 +2399,10 @@ export class WebClientProtocol {
   }
 
   disconnect(): void {
+    this.commandTracking.dispose();
+    this.settingsBuffer.dispose();
+    for (const request of this.resyncs.values()) clearTimeout(request.timer);
+    this.resyncs.clear();
     this.reconnectEnabled = false;
     this.reconnectAttempts = 0;
     this.cancelReconnectTimer();
@@ -2396,12 +2515,17 @@ export class WebClientProtocol {
   private async handleSpriteResponse(message: Message): Promise<void> {
     if (message.data?.resync_required === true && typeof message.data.table_id === 'string'
       && this.targetsActiveTable(message.data)) {
-      this.requestTableData(message.data.table_id);
+      this.resynchronizeTable(message.data.table_id);
     }
     // Confirm pending action - server echoes action_id back to the originating client
     // via sprite_response (broadcasts go to others without action_id)
     if (message.data?.action_id && message.data?.success) {
-      emitProtocolEvent('sprite-action-confirmed', { actionId: message.data.action_id });
+      const data = message.data;
+      const state: Record<string, number> | undefined = data.operation === 'move' ? data.to as Record<string, number>
+        : data.operation === 'resize' ? { width: Number(data.width), height: Number(data.height) }
+        : data.operation === 'rotate' ? { rotation: Number(data.rotation) } : undefined;
+      emitProtocolEvent('sprite-action-confirmed', { actionId: data.action_id,
+        ...(state && Object.values(state).every(Number.isFinite) ? { state } : {}) });
     }
     emitProtocolEvent('sprite-response', message.data);
   }

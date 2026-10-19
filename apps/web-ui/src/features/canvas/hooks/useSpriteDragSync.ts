@@ -57,15 +57,27 @@ export function useSpriteDragSync(sendMessage: (msg: unknown) => void) {
     const onDrag   = (e: Event) => { pendingMove.current   = (e as CustomEvent).detail; throttle('move'); };
     const onResize = (e: Event) => { pendingResize.current = (e as CustomEvent).detail; throttle('resize'); };
     const onRotate = (e: Event) => { pendingRotate.current = (e as CustomEvent).detail; throttle('rotate'); };
+    const onCommit = (event: Event) => {
+      const { operation } = (event as CustomEvent).detail;
+      const type = operation === 'resize' ? 'resize' : operation === 'rotate' ? 'rotate' : 'move';
+      const timer = timers.current[type];
+      if (timer) clearTimeout(timer);
+      timers.current[type] = null;
+      if (type === 'move') pendingMove.current = null;
+      if (type === 'resize') pendingResize.current = null;
+      if (type === 'rotate') pendingRotate.current = null;
+    };
 
     window.addEventListener('sprite-drag-preview',   onDrag);
     window.addEventListener('sprite-resize-preview', onResize);
     window.addEventListener('sprite-rotate-preview', onRotate);
+    window.addEventListener('wasm-sprite-operation', onCommit);
 
     return () => {
       window.removeEventListener('sprite-drag-preview',   onDrag);
       window.removeEventListener('sprite-resize-preview', onResize);
       window.removeEventListener('sprite-rotate-preview', onRotate);
+      window.removeEventListener('wasm-sprite-operation', onCommit);
       // eslint-disable-next-line react-hooks/exhaustive-deps -- known: timers.current stable ref, captured before use
       Object.values(timers.current).forEach(t => t && clearTimeout(t));
     };

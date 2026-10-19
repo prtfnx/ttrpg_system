@@ -78,6 +78,27 @@ afterEach(() => {
 });
 
 describe('WasmBridgeService', () => {
+  it('rejects an earlier change without losing later local intent and accepts canonical coordinates', async () => {
+    const protocol = { sendMessage: vi.fn() };
+    wasmBridgeService.setProtocol(protocol as never);
+    wasmBridgeService.seedSpriteState('pipeline', { x: 0, y: 0 });
+    dispatchWasmOp('move', 'pipeline', { x: 10, y: 10 });
+    dispatchWasmOp('move', 'pipeline', { x: 20.5, y: 20.5 });
+    const [first, second] = protocol.sendMessage.mock.calls.map(call => call[0].data.action_id);
+    const revert = vi.fn();
+    window.addEventListener('sprite-revert', revert);
+    try {
+      window.dispatchEvent(new CustomEvent('sprite-action-rejected', { detail: { actionId: first, reason: 'denied' } }));
+      await Promise.resolve();
+      expect(revert.mock.lastCall![0].detail.originalState).toEqual({ x: 20.5, y: 20.5 });
+      window.dispatchEvent(new CustomEvent('sprite-action-confirmed', {
+        detail: { actionId: second, state: { x: 20, y: 20 } },
+      }));
+      await Promise.resolve();
+      expect(revert.mock.lastCall![0].detail.originalState).toEqual({ x: 20, y: 20 });
+    } finally { window.removeEventListener('sprite-revert', revert); }
+  });
+
   it('tracks combined-selection moves with the existing acknowledgement and timeout owner', () => {
     const protocol = { sendMessage: vi.fn() };
     wasmBridgeService.setProtocol(protocol as never);
@@ -108,7 +129,7 @@ describe('WasmBridgeService', () => {
     wasmBridgeService.setProtocol(protocol as never);
     wasmBridgeService.commitSelectionMove(protocol as never, 'tbl-1', 'sprite', 10, 20);
     wasmBridgeService.commitSelectionMove(protocol as never, 'tbl-1', 'sprite', 30, 40);
-    expect(protocol.sendMessage).toHaveBeenCalledOnce();
+    expect(protocol.sendMessage).toHaveBeenCalledTimes(2);
     const actionId = protocol.sendMessage.mock.calls[0][0].data.action_id;
     vi.mocked(toast.error).mockClear();
     window.dispatchEvent(new CustomEvent('sprite-action-rejected', { detail: { actionId, reason: 'denied' } }));
@@ -154,7 +175,7 @@ describe('WasmBridgeService', () => {
     }
   });
 
-  it('restores an in-flight preview after a second transform without renderer re-entry', async () => {
+  it('keeps the newest optimistic transform without renderer re-entry', async () => {
     const protocol = { sendMessage: vi.fn() };
     wasmBridgeService.setProtocol(protocol as never);
     const onRevert = vi.fn();
@@ -164,8 +185,8 @@ describe('WasmBridgeService', () => {
       dispatchWasmOp('move', 'preview', { x: 30, y: 40 });
       expect(onRevert).not.toHaveBeenCalled();
       await Promise.resolve();
-      expect(onRevert.mock.calls[0][0].detail.originalState).toEqual({ x: 10, y: 20 });
-      expect(protocol.sendMessage).toHaveBeenCalledOnce();
+      expect(onRevert.mock.calls[0][0].detail.originalState).toEqual({ x: 30, y: 40 });
+      expect(protocol.sendMessage).toHaveBeenCalledTimes(2);
     } finally {
       window.removeEventListener('sprite-revert', onRevert);
     }
@@ -181,12 +202,13 @@ describe('WasmBridgeService', () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it('does not send a second unconfirmed transform for the same sprite property', () => {
+  it('pipelines unconfirmed transforms for the same sprite property', () => {
     const protocol = { sendMessage: vi.fn() };
     wasmBridgeService.setProtocol(protocol as never);
     dispatchWasmOp('move', 'busy', { x: 10, y: 20 });
     dispatchWasmOp('move', 'busy', { x: 30, y: 40 });
-    expect(protocol.sendMessage).toHaveBeenCalledTimes(1);
+    expect(protocol.sendMessage).toHaveBeenCalledTimes(2);
+    expect(toast.error).not.toHaveBeenCalled();
   });
 
   it('does not overwrite newer authoritative state with an old confirmation', () => {
@@ -357,15 +379,16 @@ describe('WasmBridgeService', () => {
       }
     });
 
-    it('timeouts a pending action and shows toast', () => {
-      const protocol = { sendMessage: vi.fn() };
+    it('resynchronizes an uncertain action without assuming rejection', () => {
+      const protocol = { sendMessage: vi.fn(), resynchronizeTable: vi.fn() };
       wasmBridgeService.setProtocol(protocol as never);
       mockStore({ activeTableId: 'tbl-1' });
 
       dispatchWasmOp('move', 's2', { x: 10, y: 10 });
       vi.advanceTimersByTime(6000);
 
-      expect(toast.error).toHaveBeenCalledOnce();
+      expect(protocol.resynchronizeTable).toHaveBeenCalledWith('tbl-1');
+      expect(toast.error).not.toHaveBeenCalled();
     });
   });
 

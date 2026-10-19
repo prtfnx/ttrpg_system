@@ -179,6 +179,9 @@ export class PaintController {
       onProtocolEvent('paint-preview', preview => this.acceptPreview(preview)),
       onProtocolEvent('paint-preview-cancel', cancel => this.acceptPreviewCancel(cancel)),
       onProtocolEvent('protocol-connected', () => this.reconnect()),
+      onProtocolEvent('table-resync-started', ({ tableId }) => {
+        if (tableId === this.tableId) this.requestSnapshot();
+      }),
     ];
     this.unbindEvents = () => {
       for (const cleanup of cleanups) cleanup();

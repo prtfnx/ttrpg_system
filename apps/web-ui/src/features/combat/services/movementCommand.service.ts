@@ -57,20 +57,20 @@ export function sendSpriteMovement(
     };
 
     useOAStore.getState().setPendingCombatCommand(payload);
-    protocol.sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
+    if (protocol.sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
       sequence_id: payload.sequence_id,
       commands: payload.commands,
-    }));
+    })) === false) throw new Error('Movement could not be sent');
     return 'combat';
   }
 
-  protocol.sendMessage(createMessage(MessageType.SPRITE_MOVE, {
+  if (protocol.sendMessage(createMessage(MessageType.SPRITE_MOVE, {
     sprite_id: input.spriteId,
     table_id: input.tableId,
     from: input.from,
     to: input.to,
     ...(input.actionId ? { action_id: input.actionId } : {}),
     ...(input.path ? { path: input.path } : {}),
-  }, 2));
+  }, 2)) === false) throw new Error('Movement could not be sent');
   return 'table';
 }

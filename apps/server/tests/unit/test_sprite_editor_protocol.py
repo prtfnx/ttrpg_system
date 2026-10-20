@@ -245,6 +245,83 @@ async def test_failed_in_memory_history_publication_cannot_reject_a_committed_bu
         assert db.query(models.CanvasCommandJournal).count() == 3
 
 
+async def test_single_history_cache_failure_keeps_success_and_peer_publication(protocol, monkeypatch):
+    proto, table, factory = protocol
+    await send(proto, create(table))
+    proto.broadcast_filtered.reset_mock()
+    monkeypatch.setattr(proto.actions, "_add_to_history", AsyncMock(side_effect=RuntimeError("history cache")))
+    response = await send(proto, rotation(table, 30))
+    assert response.type == MessageType.SPRITE_RESPONSE and response.data["success"]
+    assert response.data["can_undo"]
+    assert proto.broadcast_filtered.await_count == 1
+    with factory() as db:
+        assert db.query(models.Entity).one().rotation == 30
+        assert db.query(models.CanvasCommandJournal).count() == 2
+
+
+async def test_raw_sprite_delta_does_not_serialize_unrelated_entities(protocol, monkeypatch):
+    from core_table.table import Entity
+    proto, table, _ = protocol
+    await send(proto, create(table))
+    table.add_entity({"sprite_id": "unrelated", "x": 500, "y": 500, "layer": "tokens"})
+    original = Entity.to_dict
+    def serialize(entity):
+        assert entity.sprite_id != "unrelated", "An unrelated sprite was serialized"
+        return original(entity)
+    monkeypatch.setattr(Entity, "to_dict", serialize)
+    response = await send(proto, rotation(table, 30))
+    assert response.type == MessageType.SPRITE_RESPONSE and response.data["success"]
+
+
+async def test_inbox_accumulates_frames_into_one_durable_run_and_preserves_every_gesture(protocol, test_db_engine):
+    from service.websocket_inbox import WebSocketInbox
+    proto, table, factory = protocol
+    await send(proto, create(table))
+    release, done = asyncio.Event(), asyncio.Event()
+    commits, calls = [], []
+    def committed(_connection):
+        commits.append(True)
+    event.listen(test_db_engine, "commit", committed)
+
+    async def dispatch(request):
+        calls.append(request)
+        if len(calls) == 1:
+            await release.wait()
+        await proto.handle_client(Message.from_dict(request), "client")
+        if len(calls) == 2:
+            done.set()
+
+    inbox = WebSocketInbox(dispatch)
+    try:
+        for angle in range(1, 22):
+            assert await inbox.submit(rotation(table, angle).to_dict(), 500)
+        release.set()
+        await asyncio.wait_for(done.wait(), 10)
+        assert len(calls) == 2 and calls[1]["type"] == "batch_request"
+        assert len(commits) == 4  # Two preflights and two writes, not 42 transactions.
+        with factory() as db:
+            assert db.query(models.Entity).one().rotation == 21
+            assert db.query(models.CanvasCommandJournal).count() == 22
+    finally:
+        release.set()
+        await inbox.close()
+        event.remove(test_db_engine, "commit", committed)
+
+
+async def test_batched_wall_postcommit_failure_is_uncertain_and_correlated(protocol, monkeypatch):
+    proto, table, factory = protocol
+    monkeypatch.setattr(proto, "broadcast_to_session", AsyncMock(side_effect=RuntimeError("publication")))
+    request = Message(MessageType.WALL_CREATE, {"table_id": str(table.table_id), "wall_data": {
+        "x1": 0, "y1": 0, "x2": 10, "y2": 10}})
+    response = await send(proto, Message(MessageType.BATCH_REQUEST, {"messages": [request.to_dict()]}))
+    error = response.data["messages"][0]
+    assert error["causation_id"] == request.message_id
+    assert error["data"]["code"] == "outcome_unknown" and error["data"]["resync_required"]
+    assert error["data"]["table_id"] == str(table.table_id)
+    with factory() as db:
+        assert db.query(models.Wall).count() == 1
+
+
 @pytest.mark.parametrize("unrelated_sprites,distinct_targets", [(0, False), (100, False), (1000, False), (99, True)])
 async def test_burst_sql_work_does_not_scale_with_unrelated_sprites(protocol, test_db, test_db_engine, test_game_session, unrelated_sprites, distinct_targets):
     proto, table, _ = protocol
@@ -267,7 +344,7 @@ async def test_burst_sql_work_does_not_scale_with_unrelated_sprites(protocol, te
     finally:
         event.remove(test_db_engine, "before_cursor_execute", capture)
     assert response.data["failed_count"] == 0
-    assert sum(counts.values()) < 600
+    assert sum(counts.values()) < 250
     assert len(commits) == 2
     print(f"BURST_SQL unrelated={unrelated_sprites} distinct_targets={distinct_targets} statements={sum(counts.values())} counts={dict(counts)} elapsed_ms={(time.perf_counter()-started)*1000:.1f}")
 

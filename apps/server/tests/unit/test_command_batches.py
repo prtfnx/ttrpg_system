@@ -60,7 +60,7 @@ async def test_batch_errors_do_not_echo_sensitive_payloads():
         {"type": "ping", "message_id": "request", "data": {"secret": "private"}},
     ]}), "client")
     child = response.data["messages"][0]
-    assert child["data"] == {"error": "Batch message processing failed"}
+    assert child["data"] == {"error": "Batch message processing failed", "code": "invalid_payload"}
     assert child["correlation_id"] == "request"
     assert response.data["failed_count"] == 1
 

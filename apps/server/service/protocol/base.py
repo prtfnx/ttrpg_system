@@ -16,8 +16,9 @@ from service.sprite_editor_commands import (
     SpriteEditorCommandService,
     sprite_command_scope,
 )
+from utils.action_diagnostics import ActionDiagnostics, current_action_diagnostics
 from utils.blocking import run_blocking
-from utils.logger import setup_logger
+from utils.logger import log_context, setup_logger
 
 from ..legacy_paint import is_legacy_paint_message, legacy_paint_upgrade_data
 from .assets import _AssetsMixin
@@ -171,6 +172,7 @@ class ServerProtocol(
         self.init_handlers()
         self.actions = ActionsCore(self.table_manager)
         self.actions.persist_sprite_command = self._persist_sprite_editor_command
+        self.actions.sprite_delta_snapshots = True
         # Ensure tables have id mapping
         if not self.table_manager.tables_id:
             self.table_manager.tables_id = {
@@ -308,6 +310,20 @@ class ServerProtocol(
         self.register_handler(MessageType.CHAT_MODERATE, self.handle_chat_moderate)
 
     async def handle_client(self, msg: Message, client_id: str) -> bool:
+        stats = ActionDiagnostics()
+        token = current_action_diagnostics.set(stats)
+        started = time.perf_counter()
+        try:
+            return await self._dispatch_client(msg, client_id, stats)
+        finally:
+            elapsed = time.perf_counter() - started
+            log = logger.info if elapsed >= 0.25 else logger.debug
+            log("Protocol command completed", extra={"event_name": "websocket.command.completed",
+                "message_type": msg.type.value, "message_id": msg.message_id,
+                "client_id": client_id, "duration_ms": round(elapsed * 1000, 2), **stats.fields()})
+            current_action_diagnostics.reset(token)
+
+    async def _dispatch_client(self, msg: Message, client_id: str, stats: ActionDiagnostics) -> bool:
         """Dispatch an incoming message to the registered handler."""
         logger.debug(
             "Dispatching WebSocket protocol message",
@@ -321,7 +337,14 @@ class ServerProtocol(
         )
         if msg.type in self.handlers:
             if msg.type in SERIALIZED_MESSAGE_TYPES:
+                waiting = time.perf_counter()
                 async with self._mutation_lock:
+                    waited = time.perf_counter() - waiting
+                    stats.lock_wait_seconds += waited
+                    if waited >= 0.25:
+                        logger.info("Command waited for session mutation ownership", extra={
+                            "event_name": "websocket.command.lock_wait", "message_id": msg.message_id,
+                            "message_type": msg.type.value, "lock_wait_ms": round(waited * 1000, 2)})
                     response = await self._invoke_handler(msg, client_id)
             else:
                 response = await self._invoke_handler(msg, client_id)
@@ -333,6 +356,11 @@ class ServerProtocol(
         return False
 
     async def _invoke_handler(self, msg: Message, client_id: str):
+        with log_context(message_id=msg.message_id, correlation_id=msg.correlation_id or msg.message_id,
+                         message_type=msg.type.value):
+            return await self._invoke_handler_in_scope(msg, client_id)
+
+    async def _invoke_handler_in_scope(self, msg: Message, client_id: str):
         if msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
                 MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE,
                 MessageType.TABLE_SETTINGS_UPDATE} and getattr(
@@ -406,7 +434,7 @@ class ServerProtocol(
     # ── Misc handlers ─────────────────────────────────────────────────────────
 
     async def handle_ping(self, msg: Message, client_id: str) -> Message:
-        logger.info(f"PING received from client {client_id}")
+        logger.debug(f"PING received from client {client_id}")
         return Message(MessageType.PONG, {'timestamp': time.time(), 'client_id': client_id})
 
     async def handle_batch_request(self, msg: Message, client_id: str) -> Message:
@@ -438,6 +466,7 @@ class ServerProtocol(
         while index < len(messages_data):
             msg_data = messages_data[index]
             index += 1
+            individual_msg = None
             try:
                 if is_legacy_paint_message(msg_data):
                     response = Message(MessageType.ERROR, legacy_paint_upgrade_data())
@@ -484,11 +513,17 @@ class ServerProtocol(
                     responses.append(response)
             except Exception:
                 logger.exception("Batch message processing failed")
-                responses.append(Message(MessageType.ERROR, {
-                    'error': 'Batch message processing failed',
-                }))
+                error = {'error': 'Batch message processing failed',
+                    'code': 'invalid_payload' if individual_msg is None else 'outcome_unknown'}
+                if individual_msg is not None:
+                    error['resync_required'] = True
+                responses.append(Message(MessageType.ERROR, error))
                 responses[-1].correlation_id = msg_data.get('correlation_id') or msg_data.get('message_id')
                 responses[-1].causation_id = msg_data.get('message_id')
+                for key in ('action_id', 'operation_id', 'table_id', 'sprite_id'):
+                    value = msg_data.get('data', {}).get(key) if isinstance(msg_data.get('data'), dict) else None
+                    if isinstance(value, str) and 0 < len(value) <= 128:
+                        responses[-1].data[key] = value
         return Message(MessageType.BATCH_RESPONSE, {
             'messages': [response.to_dict() for response in responses if response.message_id not in streamed],
             'seq': sequence_id,

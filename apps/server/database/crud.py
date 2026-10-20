@@ -546,7 +546,7 @@ def delete_virtual_table(db: Session, table_id: str) -> bool:
     return True
 
 # Entity operations
-def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: int, *, commit: bool = True) -> models.Entity:
+def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: int, *, commit: bool = True, flush: bool = True) -> models.Entity:
     """Create a new entity in the database"""
     db_entity = models.Entity(
         entity_id=entity_data.entity_id,
@@ -587,7 +587,7 @@ def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: i
     if commit:
         db.commit()
         db.refresh(db_entity)
-    else:
+    elif flush:
         db.flush()
     return db_entity
 
@@ -601,9 +601,9 @@ def get_table_entities(db: Session, table_db_id: int) -> list[models.Entity]:
     """Get all entities for a table"""
     return db.query(models.Entity).filter(models.Entity.table_id == table_db_id).all()
 
-def update_entity(db: Session, sprite_id: str, entity_update: schemas.EntityUpdate, *, commit: bool = True) -> Optional[models.Entity]:
+def update_entity(db: Session, sprite_id: str, entity_update: schemas.EntityUpdate, *, commit: bool = True, existing_entity: Optional[models.Entity] = None, flush: bool = True) -> Optional[models.Entity]:
     """Update entity"""
-    db_entity = get_entity_by_sprite_id(db, sprite_id)
+    db_entity = existing_entity if existing_entity is not None else get_entity_by_sprite_id(db, sprite_id)
     if not db_entity:
         return None
 
@@ -617,7 +617,7 @@ def update_entity(db: Session, sprite_id: str, entity_update: schemas.EntityUpda
     if commit:
         db.commit()
         db.refresh(db_entity)
-    else:
+    elif flush:
         db.flush()
     return db_entity
 
@@ -787,12 +787,14 @@ def _serialize_cover_zones(virtual_table_obj) -> list[dict]:
     return [zone.to_dict() if hasattr(zone, 'to_dict') else dict(zone) for zone in zones]
 
 
-def save_entity_to_db(db: Session, entity_obj, table_db_id: int, *, commit: bool = True) -> models.Entity:
+def save_entity_to_db(db: Session, entity_obj, table_db_id: int, *, commit: bool = True,
+                      existing_entity: Optional[models.Entity] = None, existing_loaded: bool = False, flush: bool = True) -> models.Entity:
     """
     Save an Entity object from table.py to the database
     """
     # Check if entity already exists
-    existing_entity = get_entity_by_sprite_id(db, entity_obj.sprite_id)
+    if not existing_loaded:
+        existing_entity = get_entity_by_sprite_id(db, entity_obj.sprite_id)
     if existing_entity and (existing_entity.table_id != table_db_id
                             or existing_entity.entity_id != entity_obj.entity_id):
         raise ValueError("Sprite ID already belongs to another entity")
@@ -836,7 +838,7 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int, *, commit: bool
             vision_radius_units=getattr(entity_obj, 'vision_radius_units', None),
             darkvision_radius_units=getattr(entity_obj, 'darkvision_radius_units', None),
         )
-        db_entity = update_entity(db, entity_obj.sprite_id, entity_update, commit=commit)
+        db_entity = update_entity(db, entity_obj.sprite_id, entity_update, commit=commit, existing_entity=existing_entity, flush=flush)
     else:
         # Create new entity
         entity_data = schemas.EntityCreate(
@@ -873,7 +875,7 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int, *, commit: bool
             vision_radius_units=getattr(entity_obj, 'vision_radius_units', None),
             darkvision_radius_units=getattr(entity_obj, 'darkvision_radius_units', None),
         )
-        db_entity = create_entity(db, entity_data, table_db_id, commit=commit)
+        db_entity = create_entity(db, entity_data, table_db_id, commit=commit, flush=flush)
 
     if db_entity is None:
         raise RuntimeError(

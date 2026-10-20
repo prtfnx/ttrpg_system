@@ -76,11 +76,11 @@ class SpriteEditorCommandService(CanvasCommandService):
             raise CanvasRejected("retry_window_expired", "Sprite intent expired; reload before editing")
 
     def _role(self, db, scope):
-        _, role = self.paint._lock_table_and_role(db, table_id=scope.table_id,
+        table, role = self.paint._lock_table_and_role(db, table_id=scope.table_id,
             session_id=scope.session_id, actor_id=scope.actor_id)
         if not can_interact(role):
             raise CanvasRejected("forbidden", "Spectators cannot modify sprites")
-        return role
+        return table, role
 
     def replay(self, scope):
         self._require_intent_age(scope)
@@ -92,20 +92,42 @@ class SpriteEditorCommandService(CanvasCommandService):
 
     def replay_many(self, scopes):
         results = {}
+        groups = {}
         with self.factory() as db, db.begin():
             for scope in scopes:
                 try:
                     self._require_intent_age(scope)
-                    results[(scope.operation_id, scope.request_hash)] = self._replay_in_transaction(db, scope)
-                except _Rejected as exc:
-                    results[(scope.operation_id, scope.request_hash)] = CanvasRejected(exc.error.code, exc.error.message)
+                    groups.setdefault((scope.session_id, scope.table_id, scope.actor_id), []).append(scope)
                 except CanvasRejected as exc:
                     results[(scope.operation_id, scope.request_hash)] = exc
+            for group in groups.values():
+                first = group[0]
+                try:
+                    self._role(db, first)
+                    rows = {row.operation_id: row for row in self._entries(db, first.table_id, first.actor_id).filter(
+                        models.CanvasCommandJournal.operation_id.in_([scope.operation_id for scope in group])).all()}
+                except _Rejected as exc:
+                    error = CanvasRejected(exc.error.code, exc.error.message)
+                    for scope in group:
+                        results[(scope.operation_id, scope.request_hash)] = error
+                    continue
+                except CanvasRejected as exc:
+                    for scope in group:
+                        results[(scope.operation_id, scope.request_hash)] = exc
+                    continue
+                for scope in group:
+                    try:
+                        results[(scope.operation_id, scope.request_hash)] = self._replay_row(db, scope, rows.get(scope.operation_id))
+                    except CanvasRejected as exc:
+                        results[(scope.operation_id, scope.request_hash)] = exc
         return results
 
     def _replay_in_transaction(self, db, scope):
         self._role(db, scope)
         row = self._entries(db, scope.table_id, scope.actor_id).filter_by(operation_id=scope.operation_id).one_or_none()
+        return self._replay_row(db, scope, row)
+
+    def _replay_row(self, db, scope, row):
         if row is None:
             return None
         if row.request_hash != scope.request_hash:
@@ -124,21 +146,31 @@ class SpriteEditorCommandService(CanvasCommandService):
             self._require_intent_age(command["scope"])
         try:
             with self.factory() as db, db.begin():
-                receipts = [self._persist_in_transaction(db, **command) for command in commands]
+                abandoned_scopes = set()
+                pending_deltas = {}
+                receipts = [self._persist_in_transaction(db, **command, abandoned_scopes=abandoned_scopes,
+                    pending_deltas=pending_deltas) for command in commands]
+                for delta in pending_deltas.values():
+                    stage_sprite_delta(db, delta["staged"], list(delta["changes"].values()), delta["session_id"], stored=delta["stored"])
             return receipts
         except _Rejected as exc:
             raise CanvasRejected(exc.error.code, exc.error.message) from exc
 
-    def _persist_in_transaction(self, db, *, scope, before_snapshot, staged, combat_sprite_ids=()):
-        role = self._role(db, scope)
+    def _persist_in_transaction(self, db, *, scope, before_snapshot, staged, combat_sprite_ids=(), abandoned_scopes=None, pending_deltas=None):
+        stored, role = self._role(db, scope)
         if str(staged.table_id) != scope.table_id or before_snapshot.get("table_id") != scope.table_id:
             raise CanvasRejected("not_found", "Sprite table scope changed")
         if self._entries(db, scope.table_id, scope.actor_id).filter_by(operation_id=scope.operation_id).first():
             raise CanvasRejected("conflict", "Sprite command was already accepted; reload before retrying")
-        before = VirtualTable(before_snapshot["table_name"], staged.width, staged.height, table_id=scope.table_id)
-        before.from_dict(copy.deepcopy(before_snapshot))
-        old = {entity.sprite_id: entity.to_dict() for entity in before.entities.values()}
-        new = {entity.sprite_id: entity.to_dict() for entity in staged.entities.values()}
+        targets = before_snapshot.get("_sprite_targets")
+        if targets is not None:
+            old = {target: before_snapshot["sprites"][target] for target in targets if before_snapshot["sprites"][target] is not None}
+            new = {target: entity.to_dict() for target in targets if (entity := staged.find_entity_by_sprite_id(target)) is not None}
+        else:
+            before = VirtualTable(before_snapshot["table_name"], staged.width, staged.height, table_id=scope.table_id)
+            before.from_dict(copy.deepcopy(before_snapshot))
+            old = {entity.sprite_id: entity.to_dict() for entity in before.entities.values()}
+            new = {entity.sprite_id: entity.to_dict() for entity in staged.entities.values()}
         changes = [{"kind": "sprite", "id": target, "before": old.get(target), "after": new.get(target)}
             for target in sorted(old.keys() | new.keys()) if encoded(old.get(target)) != encoded(new.get(target))]
         moved = [change for change in changes if change["before"] is not None and change["after"] is not None
@@ -167,19 +199,28 @@ class SpriteEditorCommandService(CanvasCommandService):
         reversible = scope.editor and bool(changes) and not any(change["id"] in combat_ids for change in changes)
         if reversible:
             self._authorize(changes, role, scope.actor_id, "sprite", ())
-        stage_sprite_delta(db, staged, changes, scope.session_id)
-        if reversible:
+        if pending_deltas is None:
+            stage_sprite_delta(db, staged, changes, scope.session_id, stored=stored)
+        else:
+            key = (scope.session_id, scope.table_id)
+            delta = pending_deltas.setdefault(key, {"session_id": scope.session_id, "stored": stored, "changes": {}})
+            delta["staged"] = staged
+            for change in changes:
+                prior = delta["changes"].get(change["id"])
+                delta["changes"][change["id"]] = {**change, "before": prior["before"] if prior else change["before"]}
+        history_scope = (scope.table_id, scope.actor_id)
+        if reversible and (abandoned_scopes is None or history_scope not in abandoned_scopes):
             self._entries(db, scope.table_id, scope.actor_id).filter_by(state="undone").update(
                 {"state": "abandoned"}, synchronize_session=False)
+            if abandoned_scopes is not None:
+                abandoned_scopes.add(history_scope)
         receipt = {"success": True, "table_id": scope.table_id}
         row = models.CanvasCommandJournal(table_id=scope.table_id, actor_id=scope.actor_id,
             operation_id=scope.operation_id, request_hash=scope.request_hash,
             kind="sprite" if reversible else "sprite_receipt", state="applied" if reversible else "accepted",
             changes=changes if reversible else None, changes_bytes=len(encoded(changes)) if reversible else 0,
-            result_json={"receipt": receipt}, created_at=self.now())
+            result_json={"receipt": dict(receipt)}, created_at=self.now())
         db.add(row)
         db.flush()
-        self._trim(db, scope.table_id, scope.actor_id)
-        receipt.update(self._history(db, scope.table_id, scope.actor_id))
-        row.result_json = {"receipt": receipt}
+        receipt.update(self._trim(db, scope.table_id, scope.actor_id))
         return receipt

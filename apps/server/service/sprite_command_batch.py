@@ -32,13 +32,14 @@ async def apply_sprite_batch(protocol, messages, client_id, factory):
     """
     manager = copy.copy(protocol.table_manager)
     affected = {message.data.get("table_id") for message in messages}
-    tables = {id(table): copy.deepcopy(table) if str(table.table_id) in affected else table
+    tables = {id(table): table.fork_for_sprite_edit() if str(table.table_id) in affected else table
         for table in manager.tables.values()}
     manager.tables = {key: tables[id(table)] for key, table in manager.tables.items()}
     manager.tables_id = {key: tables[id(table)] for key, table in manager.tables_id.items()}
     staged = copy.copy(protocol)
     staged.table_manager = manager
     staged.actions = ActionsCore(manager)
+    staged.actions.sprite_delta_snapshots = True
     staged.handlers = {kind: MethodType(handler.__func__, staged)
         if getattr(handler, "__self__", None) is protocol else handler
         for kind, handler in protocol.handlers.items()}

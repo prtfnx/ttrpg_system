@@ -416,6 +416,9 @@ class _TablesMixin(_ProtocolBase):
             name: value if value is not None else getattr(table, name)
             for name, value in changes.items()
         }
+        if all(getattr(table, name) == value for name, value in settings.items()):
+            # Confirm the request without another write or redundant peer event.
+            return Message(MessageType.TABLE_SETTINGS_CHANGED, {'table_id': table_id, **settings})
         worker = asyncio.create_task(run_blocking(persist_table_settings, str(table.table_id), settings))
         cancelled = False
         try:

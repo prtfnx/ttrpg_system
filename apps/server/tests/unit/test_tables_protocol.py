@@ -502,6 +502,18 @@ class TestTableRequest:
 
 @pytest.mark.unit
 class TestTableSettingsUpdate:
+    async def test_identical_settings_confirm_without_storage_or_peer_broadcast(self):
+        proto = self._proto()
+        proto.broadcast_to_session = AsyncMock()
+        with patch("service.protocol.tables.persist_table_settings") as save:
+            response = await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_UPDATE, {
+                "table_id": "t1", "grid_cell_px": 50,
+            }), "c1")
+        save.assert_not_called()
+        proto.broadcast_to_session.assert_not_awaited()
+        assert response.type == MessageType.TABLE_SETTINGS_CHANGED
+        assert response.data["grid_cell_px"] == 50
+
     def _table_stub(self):
         t = MagicMock()
         t.dynamic_lighting_enabled = False

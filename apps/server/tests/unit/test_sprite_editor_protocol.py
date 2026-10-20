@@ -2,6 +2,7 @@
 import asyncio
 import copy
 import json
+import threading
 import time
 from collections import Counter
 from unittest.mock import AsyncMock
@@ -244,12 +245,12 @@ async def test_failed_in_memory_history_publication_cannot_reject_a_committed_bu
         assert db.query(models.CanvasCommandJournal).count() == 3
 
 
-@pytest.mark.parametrize("unrelated_sprites", [0, 100])
-async def test_burst_sql_work_does_not_scale_with_unrelated_sprites(protocol, test_db, test_db_engine, test_game_session, unrelated_sprites):
+@pytest.mark.parametrize("unrelated_sprites,distinct_targets", [(0, False), (100, False), (1000, False), (99, True)])
+async def test_burst_sql_work_does_not_scale_with_unrelated_sprites(protocol, test_db, test_db_engine, test_game_session, unrelated_sprites, distinct_targets):
     proto, table, _ = protocol
     await send(proto, create(table))
     for index in range(unrelated_sprites):
-        table.add_entity({"sprite_id": f"unrelated-{index}", "x": index + 200, "y": 300})
+        table.add_entity({"sprite_id": f"unrelated-{index}", "x": (index % 50) * 15 + 100, "y": (index // 50) * 15 + 300})
     crud.save_table_to_db(test_db, table, test_game_session.id)
     counts = Counter()
     commits = []
@@ -262,10 +263,40 @@ async def test_burst_sql_work_does_not_scale_with_unrelated_sprites(protocol, te
     started = time.perf_counter()
     try:
         response = await send(proto, Message(MessageType.BATCH_REQUEST, {"messages": [
-            rotation(table, angle).to_dict() for angle in range(1, 21)]}))
+            rotation(table, angle, f"unrelated-{angle - 1}" if distinct_targets else "text").to_dict() for angle in range(1, 21)]}))
     finally:
         event.remove(test_db_engine, "before_cursor_execute", capture)
     assert response.data["failed_count"] == 0
     assert sum(counts.values()) < 600
     assert len(commits) == 2
-    print(f"BURST_SQL unrelated={unrelated_sprites} statements={sum(counts.values())} counts={dict(counts)} elapsed_ms={(time.perf_counter()-started)*1000:.1f}")
+    print(f"BURST_SQL unrelated={unrelated_sprites} distinct_targets={distinct_targets} statements={sum(counts.values())} counts={dict(counts)} elapsed_ms={(time.perf_counter()-started)*1000:.1f}")
+
+
+async def test_repeated_settings_cancellation_keeps_the_lock_through_commit_and_publication(protocol, monkeypatch):
+    from service.canvas_persistence_service import persist_table_settings
+    proto, table, factory = protocol
+    started, release = threading.Event(), threading.Event()
+    proto.broadcast_to_session = AsyncMock()
+
+    def slow(*args):
+        started.set()
+        assert release.wait(3)
+        return persist_table_settings(*args)
+
+    monkeypatch.setattr("service.protocol.tables.persist_table_settings", slow)
+    task = asyncio.create_task(proto.handle_client(Message(MessageType.TABLE_SETTINGS_UPDATE,
+        {"table_id": str(table.table_id), "grid_cell_px": 60}), "client"))
+    while not started.is_set():
+        await asyncio.sleep(0)
+    task.cancel()
+    await asyncio.sleep(0)
+    task.cancel()
+    await asyncio.sleep(0)
+    assert proto._mutation_lock.locked() and not task.done() and table.grid_cell_px == 50
+    release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert table.grid_cell_px == 60 and not proto._mutation_lock.locked()
+    proto.broadcast_to_session.assert_awaited_once()
+    with factory() as db:
+        assert db.query(models.VirtualTable).one().grid_cell_px == 60

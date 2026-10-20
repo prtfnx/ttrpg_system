@@ -593,16 +593,29 @@
         },
         "operation_id": {
           "type": "string",
-          "format": "uuid"
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "table_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "sprite_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "resync_required": {
+          "type": "boolean"
         },
         "code": {
           "enum": [
-            "forbidden",
-            "not_found",
-            "version_conflict",
-            "limit_exceeded",
-            "retry_window_expired",
-            "invalid_payload"
+            "forbidden", "not_found", "version_conflict", "limit_exceeded",
+            "retry_window_expired", "invalid_payload", "outcome_unknown",
+            "persistence_failed", "table_settings_save_failed", "conflict",
+            "history_conflict", "unsupported", "movement_rejected",
+            "combat_required", "paint_disabled", "history_unavailable"
           ]
         },
         "current_object": {

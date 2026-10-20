@@ -1,5 +1,6 @@
 import json
 import math
+import time
 from typing import Any
 
 from core_table.protocol import Message, MessageType
@@ -56,6 +57,18 @@ def _bounded_number(value: object, minimum: float, maximum: float) -> float | No
     if number is None or not minimum <= number <= maximum:
         return None
     return number
+
+
+def _preview_fields(data, client_id):
+    now = time.time() * 1000
+    expires = _finite_number(data.get('expires_at', now + 1500))
+    sequence = data.get('sequence')
+    if expires is None or not now < expires <= now + 2000:
+        return None
+    if sequence is not None and _bounded_integer(sequence, 0, 9_007_199_254_740_991) is None:
+        return None
+    return {'expires_at': expires, 'source_client_id': client_id,
+        **({'sequence': sequence} if sequence is not None else {})}
 
 
 class _SpritesMixin(_ProtocolBase):
@@ -582,8 +595,11 @@ class _SpritesMixin(_ProtocolBase):
         table_id = _get_required_table_id(data)
         if table_id is None:
             return
+        preview = _preview_fields(data, client_id)
+        if preview is None:
+            return
         await self._broadcast_sprite_event(
-            Message(MessageType.SPRITE_DRAG_PREVIEW, {'id': sprite_id, 'x': x, 'y': y, 'table_id': table_id}),
+            Message(MessageType.SPRITE_DRAG_PREVIEW, {'id': sprite_id, 'x': x, 'y': y, 'table_id': table_id, **preview}),
             client_id
         )
 
@@ -605,8 +621,11 @@ class _SpritesMixin(_ProtocolBase):
         table_id = _get_required_table_id(data)
         if table_id is None:
             return
+        preview = _preview_fields(data, client_id)
+        if preview is None:
+            return
         await self._broadcast_sprite_event(
-            Message(MessageType.SPRITE_RESIZE_PREVIEW, {'id': sprite_id, 'width': width, 'height': height, 'table_id': table_id}),
+            Message(MessageType.SPRITE_RESIZE_PREVIEW, {'id': sprite_id, 'width': width, 'height': height, 'table_id': table_id, **preview}),
             client_id
         )
 
@@ -627,8 +646,11 @@ class _SpritesMixin(_ProtocolBase):
         table_id = _get_required_table_id(data)
         if table_id is None:
             return
+        preview = _preview_fields(data, client_id)
+        if preview is None:
+            return
         await self._broadcast_sprite_event(
-            Message(MessageType.SPRITE_ROTATE_PREVIEW, {'id': sprite_id, 'rotation': rotation, 'table_id': table_id}),
+            Message(MessageType.SPRITE_ROTATE_PREVIEW, {'id': sprite_id, 'rotation': rotation, 'table_id': table_id, **preview}),
             client_id
         )
 

@@ -1,4 +1,5 @@
 import json
+import time
 from unittest.mock import AsyncMock
 
 import pytest
@@ -21,6 +22,30 @@ class SpriteProtocol(_SpritesMixin):
 
     def _get_session_code(self, msg=None):
         return "VISIBILITY"
+
+
+@pytest.mark.parametrize("extra", [{"expires_at": 0}, {"expires_at": float("nan")},
+    {"sequence": True}, {"sequence": -1}, {"expires_at": time.time() * 1000 + 60_000}])
+async def test_stale_or_invalid_preview_metadata_is_not_relayed(extra):
+    proto = SpriteProtocol()
+    proto.broadcast_filtered = AsyncMock()
+    await proto.handle_sprite_drag_preview(Message(MessageType.SPRITE_DRAG_PREVIEW,
+        {"id": "token", "table_id": "table", "x": 1, "y": 2, **extra}), "sender")
+    proto.broadcast_filtered.assert_not_awaited()
+
+
+async def test_preview_source_identity_is_server_owned_and_sequence_survives_relay():
+    manager = TableManager()
+    table = manager.create_table("Preview", 100, 100)
+    table.add_entity({"sprite_id": "token", "layer": "tokens", "x": 10, "y": 10})
+    proto = SpriteProtocol()
+    proto.table_manager = manager
+    proto.broadcast_filtered = AsyncMock()
+    await proto.handle_sprite_drag_preview(Message(MessageType.SPRITE_DRAG_PREVIEW,
+        {"id": "token", "table_id": str(table.table_id), "x": 1, "y": 2,
+         "expires_at": time.time() * 1000 + 1500, "sequence": 2, "source_client_id": "forged"}), "sender")
+    payload = proto.broadcast_filtered.call_args.args[0].data
+    assert payload["source_client_id"] == "sender" and payload["sequence"] == 2
 
 
 @pytest.mark.asyncio

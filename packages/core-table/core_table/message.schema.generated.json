@@ -425,6 +425,125 @@
     }
   },
   "$defs": {
+    "spritePreviewScope": {
+      "type": "object",
+      "required": [
+        "table_id"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "id"
+          ]
+        },
+        {
+          "required": [
+            "sprite_id"
+          ]
+        }
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "sprite_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "table_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expires_at": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "source_client_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "spriteDragPreviewData": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/spritePreviewScope"
+        },
+        {
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "spriteResizePreviewData": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/spritePreviewScope"
+        },
+        {
+          "properties": {
+            "width": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 10000
+            },
+            "height": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 10000
+            }
+          },
+          "required": [
+            "width",
+            "height"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "spriteRotatePreviewData": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/spritePreviewScope"
+        },
+        {
+          "properties": {
+            "rotation": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "rotation"
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
     "emptyData": {
       "type": "object",
       "maxProperties": 0
@@ -3030,6 +3149,72 @@
         "properties": {
           "timestamp": {"type": "number", "minimum": 0, "maximum": 9007199254740.991},
           "message_id": {"type": "string", "minLength": 1, "maxLength": 128}
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "sprite_drag_preview"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/spriteDragPreviewData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "sprite_resize_preview"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/spriteResizePreviewData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "sprite_rotate_preview"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/spriteRotatePreviewData"
+          }
         }
       }
     }

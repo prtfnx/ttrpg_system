@@ -73,7 +73,8 @@ async def _apply(actions, method, arguments):
         live = await actions._get_table(table_id)
         if live is None:
             return ActionResult(False, "Table not found")
-        staged = copy.deepcopy(live)
+        compact = getattr(actions, "sprite_delta_snapshots", False)
+        staged = live.fork_for_sprite_edit([arguments.get("sprite_id")]) if compact else copy.deepcopy(live)
         manager = TableManager()
         manager.tables = {**actions.table_manager.tables, table_id: staged}
         manager.tables_id = {**actions.table_manager.tables_id, str(live.table_id): staged}
@@ -92,14 +93,29 @@ async def _apply(actions, method, arguments):
             if persist is None:
                 saved = await actions.table_manager.save_table_async(str(live.table_id), session_id, draft=staged)
             else:
-                saved = await persist(staged, copy.deepcopy(live.to_dict()), result, session_id)
+                if compact:
+                    target = arguments.get("sprite_id") or (result.data or {}).get("sprite_id") or (result.data or {}).get("sprite_data", {}).get("sprite_id")
+                    if not isinstance(target, str):
+                        raise ValueError("Sprite delta has no target identity")
+                    before_entity = live.find_entity_by_sprite_id(target)
+                    before = {"table_id": str(live.table_id), "_sprite_targets": [target],
+                              "sprites": {target: copy.deepcopy(before_entity.to_dict()) if before_entity else None}}
+                else:
+                    before = copy.deepcopy(live.to_dict())
+                saved = await persist(staged, before, result, session_id)
             if not saved:
                 return ActionResult(False, "Sprite persistence failed; live state unchanged. Reload before retrying.")
-            live.__dict__.clear()
-            live.__dict__.update(staged.__dict__)
-            for entry in worker.action_history:
-                await actions._add_to_history(entry)
-            return result
         except Exception:
             logger.exception("Isolated sprite command failed")
             return ActionResult(False, "Sprite could not be persisted; live state unchanged. Reload before retrying.")
+        # Durability is settled. Cache/publication failures cannot prove rollback.
+        live.__dict__.clear()
+        live.__dict__.update(staged.__dict__)
+        try:
+            for entry in worker.action_history:
+                await actions._add_to_history(entry)
+        except Exception:
+            # The transactional journal owns undo. Keep publishing the accepted
+            # canonical edit even if the optional in-memory history cache fails.
+            logger.exception("Sprite history cache failed after commit")
+        return result

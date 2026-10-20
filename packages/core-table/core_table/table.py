@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 import math
@@ -299,6 +300,23 @@ class VirtualTable:
             return 10.0
         return self.grid_cell_px / self.cell_distance
 
+    def fork_for_sprite_edit(self, sprite_ids=()) -> 'VirtualTable':
+        """Isolate sprite mutations without cloning unrelated metadata or walls.
+
+        Other table properties are read-only in this draft. Callers must replace
+        affected entities or include their IDs before mutating them in place.
+        """
+        draft = copy.copy(self)
+        draft.entities = self.entities.copy()
+        for sprite_id in sprite_ids:
+            entity_id = self.sprite_to_entity.get(sprite_id)
+            if entity_id is not None:
+                draft.entities[entity_id] = copy.deepcopy(self.entities[entity_id])
+        draft.sprite_to_entity = self.sprite_to_entity.copy()
+        draft.entity_index = {layer: {position: list(ids) for position, ids in index.items()}
+                              for layer, index in self.entity_index.items()}
+        return draft
+
     def _index_entity(self, entity: 'Entity') -> bool:
         """Add an entity to the sparse position index when its position is valid."""
         if entity.entity_id is None:
@@ -525,7 +543,7 @@ class VirtualTable:
         entity.position = new_position
         entity.layer = target_layer
         self._index_entity(entity)
-        logger.info(f"Moved entity {entity_id} (sprite: {entity.sprite_id}) to {new_position} on layer {entity.layer}")
+        logger.debug(f"Moved entity {entity_id} (sprite: {entity.sprite_id}) to {new_position} on layer {entity.layer}")
 
     def remove_entity(self, entity_id: int):
         """Remove entity and clean up sprite tracking"""
@@ -541,7 +559,7 @@ class VirtualTable:
 
         # Remove entity
         del self.entities[entity_id]
-        logger.info(f"Removed entity {entity_id} (sprite: {entity.sprite_id})")
+        logger.debug(f"Removed entity {entity_id} (sprite: {entity.sprite_id})")
 
     def is_valid_position(self, position: Tuple[int, int]) -> bool:
         """Check if position is within table bounds"""
@@ -709,7 +727,7 @@ class VirtualTable:
             if isinstance(zone, dict)
         ]
 
-        logger.info(f"Loaded table '{self.display_name}' with {len(self.entities)} entities and {len(self.fog_rectangles['hide'])} fog rectangles")
+        logger.debug(f"Loaded table '{self.display_name}' with {len(self.entities)} entities and {len(self.fog_rectangles['hide'])} fog rectangles")
 
     def save_to_disk(self, file_path: str):
         """Save table to disk with 'layers' format"""

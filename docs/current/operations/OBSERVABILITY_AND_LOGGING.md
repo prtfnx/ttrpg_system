@@ -4,7 +4,7 @@ Status: usable. Structured logs, request correlation, protected Prometheus
 metrics, audit retention, and optional OTLP traces are implemented. External
 dashboards and alert delivery remain operator work.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-10-20
 
 ## Logging
 
@@ -27,6 +27,36 @@ into logs and selected `audit_logs` rows.
 Startup and migration events contain bounded event names and Alembic revision
 identifiers. They must never contain either database URL, a Neon hostname/role,
 R2 credentials, presigned URLs, or object keys.
+
+## Action latency
+
+Join browser and server records by message/correlation identity. The server
+propagates each batch member's context into handlers and blocking workers.
+Timings contain counts and durations, without SQL text, parameters or command
+payloads. Operation identities belong in logs, not metric labels.
+
+| Event | Meaning |
+| --- | --- |
+| `websocket.command.completed` | Dispatch duration plus `lock_wait_ms`, `worker_wait_ms`, `worker_ms`, `sql_count` and `sql_ms`. INFO at 250 ms, DEBUG otherwise. SQL timings come from the instrumented SQLAlchemy engine. |
+| `websocket.command.lock_wait` | Session mutation ownership took at least 250 ms. |
+| `websocket.inbox.dispatched` | Admission wait was at least 250 ms or adjacent sprite frames merged. Includes `inbox_wait_ms`, `merged_frames`, `member_count`, `queued_frames` and `queued_bytes`. |
+| `websocket.inbox.overflow` | The durable inbound limit was exceeded or dispatch failed; the socket closes for recovery. |
+| `websocket.delivery.delayed` | A send took at least 250 ms or an item waited at least 500 ms. Includes `send_ms` and `queue_ms`. |
+| `websocket.delivery.failed` | Includes queue/byte counts and `reason`: `queue_overflow`, `snapshot_queue_overflow`, `snapshot_budget_exceeded`, `send_timeout` or `send_failed`. Send exceptions include `error_type` and elapsed timings. |
+
+Browser development logs emit `Command outcome received` with `queue_ms`,
+`acknowledgement_ms`, `pending_count`, message ID and type. Queue time ends at
+the first successful local send; acknowledgement time ends at the correlated
+outcome. An unknown send time produces null timings. These durations do not
+require synchronized browser/server clocks.
+
+High SQL time points to database cursor work; high worker wait points to admission
+or executor contention. Worker duration also includes Python work and database
+connection/commit overhead, so it is not additive with SQL time. Dispatch duration
+excludes inbound admission wait and network transit. Slow delivery records
+distinguish socket congestion from mutation work. None measures one-way network
+latency. Routine table staging and origin correction diagnostics use DEBUG;
+an equal dictionary/Position origin no longer produces a false desync warning.
 
 ## Health
 

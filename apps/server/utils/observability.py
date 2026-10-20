@@ -267,18 +267,22 @@ def install_database_metrics(engine: Any, session_factory: Any) -> None:
 
     @event.listens_for(engine, "after_cursor_execute")
     def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+        from utils.action_diagnostics import record_sql
         operation = _database_operation(statement)
         DB_OPERATIONS.labels(operation, "success").inc()
         started = getattr(context, "_ttrpg_metric_started", time.perf_counter())
+        record_sql(started)
         DB_OPERATION_DURATION.labels(operation).observe(time.perf_counter() - started)
 
     @event.listens_for(engine, "handle_error")
     def handle_error(exception_context):
+        from utils.action_diagnostics import record_sql
         context = exception_context.execution_context
         statement = exception_context.statement or ""
         operation = _database_operation(statement)
         DB_OPERATIONS.labels(operation, "error").inc()
         started = getattr(context, "_ttrpg_metric_started", None) if context else None
+        record_sql(started)
         if started is not None:
             DB_OPERATION_DURATION.labels(operation).observe(time.perf_counter() - started)
 

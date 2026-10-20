@@ -3,6 +3,7 @@ import threading
 import time
 
 import pytest
+from utils.action_diagnostics import ActionDiagnostics, current_action_diagnostics, record_sql
 from utils.blocking import BlockingWorkerLimiter
 
 
@@ -35,6 +36,19 @@ async def test_worker_limiter_bounds_concurrent_executor_submissions():
     release.set()
     assert await asyncio.gather(*tasks) == list(range(6))
     assert maximum == 2
+
+
+async def test_request_diagnostics_follow_worker_context_without_leaking():
+    stats = ActionDiagnostics()
+    token = current_action_diagnostics.set(stats)
+    try:
+        await BlockingWorkerLimiter(1).run(record_sql, time.perf_counter())
+        assert stats.sql_count == 1
+        assert stats.worker_seconds > 0 and stats.worker_wait_seconds >= 0
+        assert stats.fields()["sql_count"] == 1
+    finally:
+        current_action_diagnostics.reset(token)
+    assert current_action_diagnostics.get() is None
 
 
 @pytest.mark.unit

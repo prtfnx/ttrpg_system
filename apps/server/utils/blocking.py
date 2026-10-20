@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Callable
 from typing import ParamSpec, TypeVar
 from weakref import WeakKeyDictionary
 
 from config import Settings
+from utils.action_diagnostics import current_action_diagnostics
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -42,8 +44,21 @@ class BlockingWorkerLimiter:
     ) -> R:
         """Wait for capacity, then run one callable in asyncio's worker pool."""
         semaphore = self._semaphore()
+        admitted = time.perf_counter()
         await semaphore.acquire()
-        worker = asyncio.create_task(asyncio.to_thread(func, *args, **kwargs))
+        stats = current_action_diagnostics.get()
+
+        def invoke():
+            started = time.perf_counter()
+            if stats is not None:
+                stats.worker_wait_seconds += started - admitted
+            try:
+                return func(*args, **kwargs)
+            finally:
+                if stats is not None:
+                    stats.worker_seconds += time.perf_counter() - started
+
+        worker = asyncio.create_task(asyncio.to_thread(invoke))
 
         def release_cancelled_worker(completed: asyncio.Task[R]) -> None:
             """Observe a detached worker's result and release its capacity."""

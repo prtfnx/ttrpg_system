@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
 from core_table.pathfinding import PathfindingSystem
 from core_table.session_rules import SessionRules
 from service.movement_validator import Combatant, MovementValidator
@@ -10,6 +11,18 @@ def make_rules(**kwargs):
     for k, v in kwargs.items():
         setattr(r, k, v)
     return r
+
+
+@pytest.mark.parametrize("method", ["validate", "validate_lightweight"])
+@pytest.mark.parametrize("policy,is_dm,allowed", [
+    ("all", False, True), ("all", True, True), ("dm_only", False, False),
+    ("dm_only", True, True), ("none", False, False), ("none", True, False),
+])
+def test_outside_destination_and_path_follow_policy(method, policy, is_dm, allowed):
+    validator = MovementValidator(make_rules(movement_mode="free", out_of_bounds_movement=policy), is_dm=is_dm)
+    result = getattr(validator, method)("sprite", (10, 20), (-10, 20), make_table(),
+                                      client_path=[[10, 20], [-10, 20]])
+    assert result.valid is allowed
 
 
 def make_table(width=1000, height=1000, grid_cell_px=50.0, walls=None, entities=None):

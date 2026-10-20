@@ -982,7 +982,7 @@ def load_table_from_db(db: Session, table_id: str):
             entity.rotation = db_entity.rotation
 
             if entity.entity_id is not None:
-                virtual_table.restore_entity(entity)
+                virtual_table.restore_entity(entity, allow_out_of_bounds=True)
 
         # Load wall segments into the in-memory wall registry used by lighting,
         # movement validation, and door operations.

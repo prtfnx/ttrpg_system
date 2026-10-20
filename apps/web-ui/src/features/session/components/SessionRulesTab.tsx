@@ -96,6 +96,17 @@ export function SessionRulesTab() {
         <Toggle label="Enforce movement speed" field="enforce_movement_speed" draft={draft} update={update} />
         <Toggle label="Enforce line of sight" field="enforce_line_of_sight" draft={draft} update={update} />
         <Select
+          label="Move sprites outside the table"
+          field="out_of_bounds_movement"
+          options={[
+            { value: 'all', label: 'Allowed for everyone' },
+            { value: 'dm_only', label: 'Allowed for DM and co-DM only (default)' },
+            { value: 'none', label: 'Disallowed for everyone' },
+          ]}
+          draft={draft}
+          update={update}
+        />
+        <Select
           label="Movement precision"
           field="movement_mode"
           options={[

@@ -437,10 +437,40 @@ def test_uniform_group_resize_and_rotation_share_a_pivot(scene):
 
 
 def test_group_out_of_bounds_rolls_back_the_entire_transform(scene):
+    with scene["factory"].begin() as db:
+        db.get(models.GameSession, scene["session"]).session_rules_json = '{"out_of_bounds_movement":"none"}'
     with pytest.raises(CanvasRejected, match="leave the table"):
         scene["execute"](scene["command"](transform={**IDENTITY, "dx": -500}))
     with scene["factory"]() as db:
         assert db.get(models.PaintObject, PAINT).version == 1
+
+
+@pytest.mark.parametrize("policy", ["all", "dm_only", "none"])
+@pytest.mark.parametrize("role", ["owner", "co_dm", "player", "trusted_player"])
+def test_sprite_boundary_policy_persists_and_reloads_off_table_positions(scene, policy, role):
+    with scene["factory"].begin() as db:
+        db.get(models.GameSession, scene["session"]).session_rules_json = '{"out_of_bounds_movement":"' + policy + '"}'
+        actor = scene["actor"]
+        if role != "owner":
+            user = models.User(username="boundary-user", hashed_password="x")
+            db.add(user)
+            db.flush()
+            actor = user.id
+            db.add(models.GamePlayer(session_id=scene["session"], user_id=actor, role=role))
+    scene["table"]["table"].find_entity_by_sprite_id("sprite").controlled_by = [actor]
+    command = scene["command"](members=scene["members"]()[1:], transform={**IDENTITY, "dx": -500})
+    allowed = policy == "all" or policy == "dm_only" and role in {"owner", "co_dm"}
+    if not allowed:
+        with pytest.raises(CanvasRejected, match="leave the table"):
+            scene["execute"](command, actor_id=actor)
+        return
+    result = scene["execute"](command, actor_id=actor)
+    assert result.table.find_entity_by_sprite_id("sprite").position == (-490, 20)
+    with scene["factory"]() as db:
+        loaded, ok = crud.load_table_from_db(db, TABLE)
+        assert ok and loaded.find_entity_by_sprite_id("sprite").position == (-490, 20)
+    scene["execute"](scene["command"]("undo"), actor_id=actor)
+    assert scene["table"]["table"].find_entity_by_sprite_id("sprite").position == (10, 20)
 
 
 def test_copy_does_not_clear_redo_but_a_new_edit_does(scene):

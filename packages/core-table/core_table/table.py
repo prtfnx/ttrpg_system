@@ -305,9 +305,6 @@ class VirtualTable:
             raise ValueError("Entity ID is required")
         if entity.layer not in self.entity_index:
             raise ValueError("Invalid layer")
-        if not self.is_valid_position(entity.position):
-            return False
-
         occupants = self.entity_index[entity.layer].setdefault(entity.position, [])
         if entity.entity_id not in occupants:
             occupants.append(entity.entity_id)
@@ -324,13 +321,15 @@ class VirtualTable:
             if not occupants:
                 layer_index.pop(entity.position, None)
 
-    def restore_entity(self, entity: 'Entity') -> bool:
+    def restore_entity(self, entity: 'Entity', *, allow_out_of_bounds: bool = False) -> bool:
         """Restore a pre-existing entity and all of its in-memory indexes."""
         if entity.entity_id is None:
             raise ValueError("Entity ID is required")
         if entity.layer not in self.entity_index:
             raise ValueError("Invalid layer")
-        if not self.is_valid_position(entity.position):
+        if (not all(isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+                    for value in entity.position)
+                or (not allow_out_of_bounds and not self.is_valid_position(entity.position))):
             return False
 
         indexed_id = self.sprite_to_entity.get(entity.sprite_id)
@@ -481,13 +480,16 @@ class VirtualTable:
             return self.entities.get(entity_id)
         return None
 
-    def move_entity(self, entity_id: int, new_position: Tuple[int, int], new_layer: Optional[str] = None):
+    def move_entity(self, entity_id: int, new_position: Tuple[int, int], new_layer: Optional[str] = None, *, allow_out_of_bounds: bool = False):
         """Move entity with sprite ID tracking"""
         if entity_id not in self.entities:
             logger.error(f"Entity {entity_id} not found")
             raise ValueError("Entity not found")
-        new_position = self._clamp_position(new_position)
-        if not self.is_valid_position(new_position):
+        if not allow_out_of_bounds:
+            new_position = self._clamp_position(new_position)
+        if (not all(isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+                    for value in new_position)
+                or (not allow_out_of_bounds and not self.is_valid_position(new_position))):
             logger.error(f"Invalid move to {new_position}")
             raise ValueError("Invalid position")
         logger.debug(f"Moving entity {entity_id} to {new_position} on layer {new_layer}")
@@ -676,7 +678,7 @@ class VirtualTable:
                         'entity_id': entity_id,
                     })
 
-                    if not self.restore_entity(entity):
+                    if not self.restore_entity(entity, allow_out_of_bounds=True):
                         logger.warning(f"Entity {entity_id} has invalid position: {entity.position}")
 
                 except (TypeError, ValueError, KeyError) as e:
@@ -790,7 +792,7 @@ def create_table_from_json(json_data: str) -> VirtualTable:
         for e_data in data.get('entities', []):
             entity = Entity.from_dict(e_data)
             if entity.entity_id is not None:
-                table.restore_entity(entity)
+                table.restore_entity(entity, allow_out_of_bounds=True)
     logger.info("Created table from JSON data")
     return table
 

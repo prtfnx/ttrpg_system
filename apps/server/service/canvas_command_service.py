@@ -20,7 +20,7 @@ from core_table.paint import PaintValidationError, validate_paint_object_input, 
 from core_table.session_rules import SessionRules
 from core_table.sprite_commands import transform_sprite_geometry
 from core_table.table import LAYER_NAMES, Entity, VirtualTable
-from database import crud, models
+from database import models
 from service.canvas_journal import MAX_HISTORY_BYTES, MAX_HISTORY_ENTRIES, RETENTION, trim_history
 from service.movement_validator import MovementValidator
 from service.paint_object_service import PaintObjectService, _object_dict, _Rejected
@@ -586,12 +586,13 @@ class CanvasCommandService:
                         if not after.get("_restoring"):
                             raise CanvasRejected("conflict", "Entity ID is occupied")
                         candidate.entity_id = candidate.id = table.next_entity_id
-                    if not table.is_valid_position(candidate.position):
-                        raise CanvasRejected("conflict", "A group member would leave the table")
+                    allow_outside = rules.allows_out_of_bounds(is_dm=is_dm(role))
+                    if not allow_outside and not table.is_valid_position(candidate.position):
+                        raise CanvasRejected("movement_rejected", "A group member would leave the table")
                     if table.entity_index[candidate.layer].get(candidate.position):
                         raise CanvasRejected("conflict", "A group member's final anchor is occupied")
                     if before is not None and before["position"] != after["position"]:
-                        validator = MovementValidator(rules)
+                        validator = MovementValidator(rules, is_dm=is_dm(role))
                         # Group authoring preserves its shared geometry. Check
                         # the exact target rather than a different cell-snapped
                         # endpoint; combat tokens cannot enter this path.
@@ -605,7 +606,8 @@ class CanvasCommandService:
                         movement = validate(target, tuple(before["position"]), candidate.position, table)
                         if not movement.valid:
                             raise CanvasRejected("movement_rejected", movement.reason)
-                    table.restore_entity(candidate)
+                    if not table.restore_entity(candidate, allow_out_of_bounds=allow_outside):
+                        raise CanvasRejected("invalid_payload", "Invalid sprite position")
                     if before is not None and before["layer"] != candidate.layer:
                         # Old-layer viewers must remove the object without
                         # receiving its newly private payload. Undo uses this

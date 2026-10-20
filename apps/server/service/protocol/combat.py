@@ -256,8 +256,10 @@ class _CombatMixin(_ProtocolBase):
                     self._move_sprite_for_combat_command(
                         table_id, sprite_id, old_position, new_position,
                         session_id=self._get_session_id(msg),
+                        actor_role=self._get_client_role(client_id),
                     ),
-                validate_move=self._validate_move_for_combat_command,
+                validate_move=lambda *args: self._validate_move_for_combat_command(
+                    *args, actor_role=self._get_client_role(client_id)),
                 build_combatants=lambda table_id, entity_ids, combatants: CombatantFactory().build_many(
                     entity_ids,
                     combatants,
@@ -301,15 +303,24 @@ class _CombatMixin(_ProtocolBase):
         old_position: dict[str, float],
         new_position: dict[str, float],
         session_id: int | None,
+        actor_role: str = "player",
     ) -> dict[str, Any]:
         if session_id is None:
             return {"success": False, "message": "Authenticated session identity required"}
+        from core_table.session_rules import SessionRules
+        from service.canvas_persistence_service import load_movement_policy
+        from utils.blocking import run_blocking
+        session_code = self._get_session_code()
+        cached = self._rules_cache.get(session_code)
+        rules = cached[0] if cached else (await run_blocking(load_movement_policy, session_code))[0]
+        rules = rules or SessionRules.defaults(session_code or "default")
         result = await self.actions.move_sprite(
             table_id=table_id,
             sprite_id=sprite_id,
             old_position=old_position,
             new_position=new_position,
             session_id=session_id,
+            allow_out_of_bounds=rules.allows_out_of_bounds(is_dm=is_dm(actor_role)),
         )
         return {"success": result.success, "message": result.message}
 
@@ -321,6 +332,7 @@ class _CombatMixin(_ProtocolBase):
         new_position: dict[str, float],
         path: list[Any],
         combatant: Any,
+        *, actor_role: str = "player",
     ) -> dict[str, Any]:
         table = self._get_table_by_id(table_id)
         if table is None:
@@ -350,7 +362,7 @@ class _CombatMixin(_ProtocolBase):
         from service.combat_engine import CombatEngine
         from service.movement_validator import MovementValidator
 
-        validator = MovementValidator(rules)
+        validator = MovementValidator(rules, is_dm=is_dm(actor_role))
         tier = getattr(rules, "server_validation_tier", "lightweight")
         from_pos = (float(old_position.get("x", 0)), float(old_position.get("y", 0)))
         to_pos = (float(new_position.get("x", 0)), float(new_position.get("y", 0)))

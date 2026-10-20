@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { useGameStore } from '@/store';
@@ -28,5 +28,16 @@ describe('SessionRulesTab', () => {
       'Lightweight (segment check, no A*)',
       'Full (server A* pathfinding)',
     ]);
+  });
+
+  it('defaults to DM-only outside movement and stages each policy', () => {
+    render(<SessionRulesTab />);
+    const select = screen.getByLabelText('Move sprites outside the table');
+    expect(select).toHaveValue('dm_only');
+    expect(within(select).getAllByRole('option')).toHaveLength(3);
+    fireEvent.change(select, { target: { value: 'all' } });
+    expect(useSessionRulesStore.getState().draft.out_of_bounds_movement).toBe('all');
+    fireEvent.change(select, { target: { value: 'none' } });
+    expect(useSessionRulesStore.getState().draft.out_of_bounds_movement).toBe('none');
   });
 });

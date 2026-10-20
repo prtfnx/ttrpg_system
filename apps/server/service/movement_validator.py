@@ -32,8 +32,9 @@ class MovementResult:
 class MovementValidator:
     """Server-side movement validation using active SessionRules and table state."""
 
-    def __init__(self, rules: SessionRules):
+    def __init__(self, rules: SessionRules, *, is_dm: bool = False):
         self.rules = rules
+        self.allow_out_of_bounds = rules.allows_out_of_bounds(is_dm=is_dm)
 
     def validate(
         self,
@@ -48,7 +49,7 @@ class MovementValidator:
         # Table dimensions and entity positions share pixel-space coordinates.
         if getattr(self.rules, 'movement_mode', 'cell') == 'cell':
             to_pos = self._snap_to_cell(to_pos, table.grid_cell_px)
-        if not self._is_within_table(to_pos, table):
+        if not self.allow_out_of_bounds and not self._is_within_table(to_pos, table):
             return MovementResult(valid=False, reason="Outside table bounds")
 
         walls = []
@@ -96,7 +97,7 @@ class MovementValidator:
                         from_pos, to_pos, walls, obstacles,
                         grid_size=table.grid_cell_px,
                         exclude_entity_id=entity_id,
-                        grid_bounds=self._astar_grid_bounds(table, table.grid_cell_px),
+                        grid_bounds=None if self.allow_out_of_bounds else self._astar_grid_bounds(table, table.grid_cell_px),
                         spatial_hash=sh,
                     )
                     if path is None:
@@ -251,7 +252,7 @@ class MovementValidator:
                 return None, "Movement path coordinates must be finite numbers"
             if not all(math.isfinite(value) for value in normalized):
                 return None, "Movement path coordinates must be finite numbers"
-            if not self._is_within_table(normalized, table):
+            if not self.allow_out_of_bounds and not self._is_within_table(normalized, table):
                 return None, "Movement path leaves table bounds"
             path.append(normalized)
 
@@ -306,7 +307,7 @@ class MovementValidator:
         if getattr(self.rules, 'movement_mode', 'cell') == 'cell':
             to_pos = self._snap_to_cell(to_pos, grid)
 
-        if not self._is_within_table(to_pos, table):
+        if not self.allow_out_of_bounds and not self._is_within_table(to_pos, table):
             return MovementResult(valid=False, reason="Outside table bounds")
 
         walls, obstacles = self._get_walls_and_obstacles(entity_id, table)

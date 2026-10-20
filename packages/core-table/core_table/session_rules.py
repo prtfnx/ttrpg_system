@@ -14,6 +14,7 @@ class SessionRules:
     enforce_movement_speed: bool = True
     diagonal_movement_rule: str = "standard"  # "standard" | "alternate" (5-10-5) | "realistic"
     default_movement_speed: float = 30.0
+    out_of_bounds_movement: str = "dm_only"  # "all" | "dm_only" | "none"
 
     # Turn economy
     turn_order: str = "initiative"  # "none" | "concurrent" | "initiative" | "dm_assigned"
@@ -72,6 +73,8 @@ class SessionRules:
 
     def validate(self) -> list[str]:
         errors = []
+        if self.out_of_bounds_movement not in {"all", "dm_only", "none"}:
+            errors.append("out_of_bounds_movement must be 'all', 'dm_only' or 'none'")
         if self.default_movement_speed <= 0:
             errors.append("default_movement_speed must be > 0")
         if self.actions_per_turn < 0:
@@ -98,6 +101,9 @@ class SessionRules:
     def to_dict(self) -> dict:
         d = asdict(self)
         return d
+
+    def allows_out_of_bounds(self, *, is_dm: bool = False) -> bool:
+        return self.out_of_bounds_movement == "all" or (self.out_of_bounds_movement == "dm_only" and is_dm)
 
     @classmethod
     def from_dict(cls, data: dict) -> "SessionRules":

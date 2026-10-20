@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from datetime import UTC
 
 from core_table.protocol import Message, MessageType
+from core_table.session_rules import SessionRules
 from core_table.table import VirtualTable
 from database import models
 from service.canvas_command_service import (
@@ -21,7 +22,7 @@ from service.canvas_command_service import (
 )
 from service.paint_object_service import _Rejected
 from service.sprite_delta_persistence import stage_sprite_delta
-from utils.roles import can_interact
+from utils.roles import can_interact, is_dm
 
 SPRITE_COMMAND_TYPES = frozenset({MessageType.SPRITE_CREATE, MessageType.SPRITE_REMOVE,
     MessageType.SPRITE_MOVE, MessageType.SPRITE_SCALE, MessageType.SPRITE_ROTATE, MessageType.SPRITE_UPDATE})
@@ -140,6 +141,14 @@ class SpriteEditorCommandService(CanvasCommandService):
         new = {entity.sprite_id: entity.to_dict() for entity in staged.entities.values()}
         changes = [{"kind": "sprite", "id": target, "before": old.get(target), "after": new.get(target)}
             for target in sorted(old.keys() | new.keys()) if encoded(old.get(target)) != encoded(new.get(target))]
+        moved = [change for change in changes if change["before"] is not None and change["after"] is not None
+                 and change["before"]["position"] != change["after"]["position"]]
+        if moved:
+            session = db.get(models.GameSession, scope.session_id)
+            rules = SessionRules.from_dict({**json.loads(session.session_rules_json or "{}"), "session_id": session.session_code})
+            if not rules.allows_out_of_bounds(is_dm=is_dm(role)) and any(
+                    not staged.is_valid_position(change["after"]["position"]) for change in moved):
+                raise CanvasRejected("movement_rejected", "Outside table bounds")
         if len(changes) > 100 or len(encoded(changes)) > MAX_ENTRY_BYTES:
             raise CanvasRejected("limit_exceeded", "Sprite command exceeds the editor history budget")
         for change in changes:

@@ -1,3 +1,4 @@
+import copy
 import json
 import math
 import time
@@ -352,7 +353,7 @@ class _SpritesMixin(_ProtocolBase):
             str(combatant.entity_id) == str(sprite_id)
             for combatant in combat_state.combatants
         )
-        table_edit_override = msg.data.get('table_edit_override') is True
+        table_edit_override = is_dm(role) and msg.data.get('table_edit_override') is True
         if is_combat_token and not (is_dm(role) and table_edit_override):
             return Message(MessageType.ACTION_REJECTED, {
                 'reason': 'Combat token movement requires combat_command',
@@ -367,7 +368,8 @@ class _SpritesMixin(_ProtocolBase):
             # Pipelined clients may still name an older confirmed origin.
             # Validate paths and movement costs from authoritative current state.
             from_pos = {'x': entity.position[0], 'y': entity.position[1]}
-        if table is not None and not table_edit_override:
+        allow_out_of_bounds = False
+        if table is not None:
             try:
                 from core_table.session_rules import SessionRules
                 session_code = self._get_session_code()
@@ -394,7 +396,13 @@ class _SpritesMixin(_ProtocolBase):
                         return (float(pos.get('x', 0)), float(pos.get('y', 0)))
                     return (float(pos[0]), float(pos[1]))
 
-                validator = MovementValidator(rules)
+                allow_out_of_bounds = rules.allows_out_of_bounds(is_dm=is_dm(role))
+                validator = MovementValidator(rules, is_dm=is_dm(role))
+                if table_edit_override:
+                    validator.rules = copy.copy(rules)
+                    validator.rules.movement_mode = 'free'
+                    validator.rules.walls_block_movement = False
+                    validator.rules.obstacles_block_movement = False
                 combatant = None
                 tier = getattr(rules, 'server_validation_tier', 'lightweight')
 
@@ -439,7 +447,8 @@ class _SpritesMixin(_ProtocolBase):
             sprite_id=sprite_id,
             old_position=from_pos,
             new_position=to_pos,
-            session_id=session_id
+            session_id=session_id,
+            allow_out_of_bounds=allow_out_of_bounds,
         )
 
         if result.success:

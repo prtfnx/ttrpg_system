@@ -61,3 +61,16 @@ def test_validate_rejects_trust_client_tier():
 def test_validate_ok():
     rules = SessionRules.defaults("x")
     assert rules.validate() == []
+
+
+def test_boundary_policy_default_roundtrip_and_validation():
+    rules = SessionRules.from_dict({"session_id": "x"})
+    assert rules.out_of_bounds_movement == "dm_only"
+    assert rules.allows_out_of_bounds(is_dm=True)
+    assert not rules.allows_out_of_bounds()
+    for policy in ("all", "dm_only", "none"):
+        rules.out_of_bounds_movement = policy
+        assert SessionRules.from_dict(rules.to_dict()).out_of_bounds_movement == policy
+        assert not rules.validate()
+    rules.out_of_bounds_movement = "invalid"
+    assert any("out_of_bounds_movement" in error for error in rules.validate())

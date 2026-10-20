@@ -371,3 +371,28 @@ reversible editor history. Transport batches cannot supply atomicity. Groups
 remain local selection references, not persistent scene entities.
 See [Measurement and painting](../features/MEASUREMENT_AND_PAINTING.md) for the
 currently supported selection operations and limits.
+
+## Sprite movement outside the table
+
+Session Settings / Rules / Movement provides `out_of_bounds_movement`:
+
+| Value | Movement outside the table |
+| --- | --- |
+| `all` | Every interactive role may move sprites they can control. |
+| `dm_only` | Owner/DM and co-DM only. Default for existing and new sessions. |
+| `none` | No role may move sprites outside the table. |
+
+The existing session-rules JSON stores this setting. `session_rules_changed`
+broadcasts it. It does not grant ownership, bypass combat commands, disable
+collision checks, or change movement costs. The DM table-edit override still
+obeys the boundary policy. Bounds apply to the sprite anchor in table pixels:
+`0 <= x < table.width` and `0 <= y < table.height`.
+
+`MovementValidator` checks full and lightweight routes, including client path
+points. Canvas group commands and raw sprite persistence enforce the policy.
+A denied group move rejects the whole command. Loading saved state retains
+finite off-table anchors, including after changing the policy; it controls new
+moves rather than deleting existing sprites.
+
+Regression owners: `test_movement_validator.py`, `test_canvas_command_service.py`,
+`test_session_rules.py`, and `SessionRulesTab.test.tsx`.

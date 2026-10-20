@@ -7,6 +7,7 @@ export interface SessionRules {
   enforce_movement_speed: boolean;
   diagonal_movement_rule: 'standard' | 'alternate' | 'realistic';
   default_movement_speed: number;
+  out_of_bounds_movement: 'all' | 'dm_only' | 'none';
   turn_order: 'none' | 'concurrent' | 'initiative' | 'dm_assigned';
   actions_per_turn: number;
   bonus_actions_per_turn: number;
@@ -49,6 +50,7 @@ export const DEFAULT_RULES: Omit<SessionRules, 'session_id'> = {
   enforce_movement_speed: true,
   diagonal_movement_rule: 'standard',
   default_movement_speed: 30,
+  out_of_bounds_movement: 'dm_only',
   turn_order: 'initiative',
   actions_per_turn: 1,
   bonus_actions_per_turn: 1,

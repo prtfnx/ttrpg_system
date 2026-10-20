@@ -480,7 +480,7 @@ class ActionsCore(AsyncActionsProtocol):
 
 
     @atomic_sprite_command
-    async def move_sprite(self, table_id: str, sprite_id: str, old_position: Union[Position, dict], new_position: Union[Position, dict], session_id: Optional[Any] = None) -> ActionResult:
+    async def move_sprite(self, table_id: str, sprite_id: str, old_position: Union[Position, dict], new_position: Union[Position, dict], session_id: Optional[Any] = None, *, allow_out_of_bounds: bool = False) -> ActionResult:
         """Move sprite to new position"""
         try:
             logger.info(f"Moving sprite {sprite_id} from {old_position} to {new_position} on table {table_id}")
@@ -511,7 +511,9 @@ class ActionsCore(AsyncActionsProtocol):
             grid_x, grid_y = int(raw_x), int(raw_y)
 
             assert entity.entity_id is not None, f"Entity for sprite {sprite_id} has no entity_id"
-            table.move_entity(entity.entity_id, (grid_x, grid_y))
+            if not allow_out_of_bounds and not table.is_valid_position((grid_x, grid_y)):
+                return ActionResult(False, "Outside table bounds")
+            table.move_entity(entity.entity_id, (grid_x, grid_y), allow_out_of_bounds=allow_out_of_bounds)
             logger.info(f"Moved sprite {sprite_id} to new position ({entity.entity_id}, {grid_x}, {grid_y})")
 
             # Persist the move to database

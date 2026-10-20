@@ -175,7 +175,8 @@ class CanvasCommandService:
         session_id: int,
         actor_id: int,
         command: dict,
-        table_snapshot: dict,
+        table_snapshot: dict | None = None,
+        table_source: VirtualTable | None = None,
         combat_sprite_ids: tuple[str, ...] = (),
     ) -> CanvasResult:
         if not isinstance(command, dict) or len(encoded(command)) > MAX_COMMAND_BYTES:
@@ -235,10 +236,13 @@ class CanvasCommandService:
                 # snapshots instead; a retry never rebroadcasts old mutations.
                 result["receipt"]["resync_required"] = True
                 return CanvasResult(result["receipt"], [], replayed=True)
-            if table_snapshot.get("table_id") != table_id:
+            if (str(table_source.table_id) if table_source is not None else (table_snapshot or {}).get("table_id")) != table_id:
                 raise CanvasRejected("not_found", "Table is not loaded")
-            table = VirtualTable(db_table.name, db_table.width, db_table.height, table_id=table_id)
-            table.from_dict(copy.deepcopy(table_snapshot))
+            if table_source is not None:
+                table = table_source.fork_for_sprite_edit()
+            else:
+                table = VirtualTable(db_table.name, db_table.width, db_table.height, table_id=table_id)
+                table.from_dict(copy.deepcopy(table_snapshot))
             # Paint locks follow the same virtual-table -> paint-state order as
             # standalone writes. No scene changes are published by this worker.
             changes, events = [], []
@@ -331,7 +335,7 @@ class CanvasCommandService:
                 events = self._apply(db, table, changes, role, actor_id, session_id, operation_id, rules)
                 if any(change["kind"] == "sprite" for change in changes):
                     from service.sprite_delta_persistence import stage_sprite_delta
-                    stage_sprite_delta(db, table, changes, session_id)
+                    stage_sprite_delta(db, table, changes, session_id, stored=db_table)
                 if not is_dm(role):
                     self._require_sprite_quota(db, table, session_id, actor_id, role)
                 for change in changes:
@@ -369,16 +373,14 @@ class CanvasCommandService:
                 request_hash=request_hash,
                 changes=changes if reversible or mode == "copy" else None,
                 changes_bytes=len(encoded(changes)) if reversible or mode == "copy" else 0,
-                result_json={},
+                result_json={"receipt": copy.deepcopy(receipt)},
                 created_at=self.now(),
             )
             db.add(row)
             db.flush()
-            self._trim(db, table_id, actor_id)
-            receipt.update(self._history(db, table_id, actor_id))
+            receipt.update(self._trim(db, table_id, actor_id))
             # Large object payloads belong in the bounded delta, not a second
             # unbounded copy on every retained retry receipt.
-            row.result_json = {"receipt": receipt}
         return CanvasResult(receipt, events, table if mode != "copy" else None)
 
     @staticmethod
@@ -656,4 +658,4 @@ class CanvasCommandService:
             raise CanvasRejected("limit_exceeded", "Sprite quota would be exceeded")
 
     def _trim(self, db, table_id, actor_id):
-        trim_history(db, table_id, actor_id, self.now(), max_entries=MAX_HISTORY_ENTRIES, max_bytes=MAX_HISTORY_BYTES)
+        return trim_history(db, table_id, actor_id, self.now(), max_entries=MAX_HISTORY_ENTRIES, max_bytes=MAX_HISTORY_BYTES)

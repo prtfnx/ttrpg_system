@@ -5,7 +5,7 @@ Audience: contributors changing canvas mutations, selection, or undo/redo.
 Status: usable. Mixed-domain transactions, shared transform handles and durable
 paint/sprite editor history use one authoritative canvas command service.
 
-Last source audit: 2026-10-16
+Last source audit: 2026-10-20
 
 ## Ownership and current flow
 
@@ -53,8 +53,11 @@ retries return before history recording and never add a second undo step.
 
 `apps/server/service/canvas_command_service.py` composes paint and sprite edits
 inside one database transaction. The `canvas_command` handler holds the session
-mutation lock, serializes against table saves, provides an isolated live table
-snapshot, and publishes the returned table and events only after durable success.
+mutation lock, serializes against table saves, and passes the locked live table
+to its worker. The worker forks index containers and replaces affected entities
+without serializing unrelated sprite metadata. External snapshot-based callers
+retain their isolated snapshot path. The handler publishes returned state and
+events only after durable success.
 
 Supported modes are transform, sprite_edit, restyle, delete, copy, cut, paste, undo and redo. A
 transform uses one translation, uniform scale and rotation around a shared world
@@ -255,7 +258,10 @@ separate wall operations, not members of sprite/paint history. Regression owner:
 
 `batch_request` is transport aggregation, not an atomic domain command or one
 undo step. The dispatcher preflights 1–50 messages and rejects nested batches.
-Contiguous compatible sprite members can share a write transaction; other
+Contiguous compatible sprite members can share a write transaction, including
+already-queued frames accumulated by the connection inbox. Final row writes for
+repeated targets coalesce while each gesture keeps its own journal entry. Replay
+preflight groups actor/table lookups; writes still recheck authorization. Other
 members retain their domain transaction boundaries. Validation denials remain
 independent, while storage failure rolls back the provisional sprite run.
 

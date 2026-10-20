@@ -15,18 +15,24 @@ def trim_history(db, table_id, actor_id, now, *, max_entries=MAX_HISTORY_ENTRIES
         models.CanvasCommandJournal.id,
         models.CanvasCommandJournal.changes_bytes,
         models.CanvasCommandJournal.created_at,
+        models.CanvasCommandJournal.kind,
+        models.CanvasCommandJournal.state,
     ).filter_by(table_id=table_id, actor_id=actor_id).filter(
         models.CanvasCommandJournal.changes.isnot(None)).order_by(models.CanvasCommandJournal.id.desc()).all()
     size = 0
     expired = []
+    states = set()
     for index, entry in enumerate(entries):
         size += entry.changes_bytes
         if index >= max_entries or size > max_bytes or entry.created_at < now - RETENTION:
             expired.append(entry.id)
+        elif entry.kind in {"paint", "sprite", "transform", "sprite_edit", "restyle", "delete", "cut", "paste"}:
+            states.add(entry.state)
     if expired:
         db.query(models.CanvasCommandJournal).filter(models.CanvasCommandJournal.id.in_(expired)).update(
             {"changes": None, "changes_bytes": 0, "state": "expired"}, synchronize_session="fetch")
     db.flush()
+    return {"table_id": table_id, "can_undo": "applied" in states, "can_redo": "undone" in states}
 
 
 def record_paint_command(db, *, table_id, actor_id, operation_id, request_hash, before, after, now):

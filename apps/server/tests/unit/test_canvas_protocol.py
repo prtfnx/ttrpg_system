@@ -59,6 +59,22 @@ async def test_real_service_commits_before_publication_and_returns_correlated_re
 
 
 @pytest.mark.asyncio
+async def test_live_canvas_path_does_not_serialize_unrelated_sprites(scene, protocol, monkeypatch):
+    from core_table.table import Entity
+    table = protocol.table_manager.get_table(TABLE)
+    table.add_entity({"sprite_id": "unrelated", "x": 500, "y": 500, "layer": "tokens"})
+    original = Entity.to_dict
+    def serialize(entity):
+        assert entity.sprite_id != "unrelated", "An unrelated sprite was serialized"
+        return original(entity)
+    monkeypatch.setattr(Entity, "to_dict", serialize)
+    receipt = await dispatch(protocol, scene["command"]())
+    assert receipt.data["success"]
+    assert table.find_entity_by_sprite_id("sprite").position == (10, 20)
+    assert protocol.table_manager.get_table(TABLE).find_entity_by_sprite_id("sprite").position == (20, 40)
+
+
+@pytest.mark.asyncio
 async def test_retry_does_not_publish_stale_table_or_rebroadcast_events(scene, protocol):
     command = scene["command"]()
     await dispatch(protocol, command)
@@ -138,7 +154,7 @@ async def test_command_serializes_with_table_saves_and_snapshots_after_the_lock(
     captured = []
 
     async def execute(_function, **context):
-        captured.append(context["table_snapshot"])
+        captured.append(context["table_source"].to_dict())
         raise CanvasRejected("conflict", "expected test rejection")
 
     monkeypatch.setattr(module, "run_blocking", execute)

@@ -87,7 +87,7 @@ class _CanvasMixin(_ProtocolBase):
             result = await run_blocking(
                 CanvasCommandService(SessionLocal).execute,
                 session_id=session_id, actor_id=actor_id, command=data,
-                table_snapshot=copy.deepcopy(table.to_dict()), combat_sprite_ids=combat_ids,
+                table_source=table, combat_sprite_ids=combat_ids,
             )
             if result.table is not None:
                 self.table_manager.add_table(result.table)

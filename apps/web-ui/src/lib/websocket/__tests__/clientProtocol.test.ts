@@ -28,7 +28,7 @@ vi.mock('@/store', () => ({ useGameStore: mocks.useGameStore }));
 vi.mock('@lib/wasm/runtime', () => ({ getCurrentWasmRuntime: vi.fn(() => mocks.runtime) }));
 
 import { WebClientProtocol } from '../clientProtocol';
-import { MessageType } from '../message';
+import { createMessage, MessageType } from '../message';
 import { useCombatStore } from '@features/combat/stores/combatStore';
 import { useCoverStore } from '@features/combat/stores/coverStore';
 import { useEncounterStore } from '@features/combat/stores/encounterStore';
@@ -347,6 +347,67 @@ describe('WebClientProtocol', () => {
   });
 
   describe('sendBatch', () => {
+    it('keeps one acknowledgement owner when an editor operation is retried', () => {
+      const protocol = makeProtocol();
+      const ws = makeOpenWs(protocol);
+      const command = { table_id: 'table-abc', operation_id: 'same-operation', mode: 'undo', issued_at: Date.now() };
+      expect(protocol.sendCanvasCommand(command)).toBe(true);
+      expect(protocol.sendCanvasCommand(command)).toBe(true);
+      expect(ws.send.mock.calls.map(args => JSON.parse(String(args[0])).message_id)).toEqual(['same-operation', 'same-operation']);
+      const tracker = (protocol as unknown as { commandTracking: { watermark: (id: string) => string[] } }).commandTracking;
+      expect(tracker.watermark('table-abc')).toEqual(['same-operation']);
+      protocol.disconnect();
+    });
+
+    it('splits bursts by their UTF-8 frame size and retains member order', () => {
+      const protocol = makeProtocol();
+      const ws = makeOpenWs(protocol);
+      for (let index = 0; index < 3; index++) {
+        protocol.sendMessage(createMessage(MessageType.PING, { index, value: 'й'.repeat(20_000) }));
+      }
+      protocol.sendBatch();
+      const frames = ws.send.mock.calls.map(args => String(args[0]));
+      expect(frames).toHaveLength(3);
+      expect(frames.every((frame: string) => new TextEncoder().encode(frame).length <= 64 * 1024)).toBe(true);
+      expect(frames.flatMap((frame: string) => JSON.parse(frame).data.messages).map(message => message.data.index)).toEqual([0, 1, 2]);
+      protocol.disconnect();
+    });
+
+    it('sends a near-limit member directly when the batch wrapper would overflow', () => {
+      const protocol = makeProtocol();
+      const ws = makeOpenWs(protocol);
+      const message = createMessage(MessageType.PING, { value: '' });
+      message.data!.value = 'x'.repeat(64 * 1024 - new TextEncoder().encode(JSON.stringify(message)).length - 10);
+      expect(protocol.sendMessage(message)).toBe(true);
+      protocol.sendBatch();
+      expect(ws.send).toHaveBeenCalledOnce();
+      expect(JSON.parse(ws.send.mock.calls[0][0]).type).toBe(MessageType.PING);
+      protocol.disconnect();
+    });
+
+    it('retains only unsent members after a partially delivered burst', () => {
+      const protocol = makeProtocol();
+      const ws = makeOpenWs(protocol);
+      ws.send.mockImplementationOnce(() => {}).mockImplementationOnce(() => { throw new Error('closed'); });
+      for (let index = 0; index < 3; index++) {
+        protocol.sendMessage(createMessage(MessageType.PING, { index, value: 'x'.repeat(40_000) }));
+      }
+      protocol.sendBatch();
+      expect((protocol as unknown as { batchQueue: Array<{ data: { index: number } }> }).batchQueue.map(message => message.data.index)).toEqual([1, 2]);
+      protocol.disconnect();
+    });
+
+    it('rejects an oversized mutation before registering optimistic state', () => {
+      const protocol = makeProtocol();
+      const ws = makeOpenWs(protocol);
+      const message = createMessage(MessageType.CHAT, { content: 'й'.repeat(40_000) });
+      expect(protocol.sendMessage(message)).toBe(false);
+      protocol.sendBatch();
+      expect(ws.send).not.toHaveBeenCalled();
+      expect((protocol as unknown as { commandTracking: { has: (id: string) => boolean } }).commandTracking.has(message.message_id!)).toBe(false);
+      protocol.disconnect();
+    });
+
     it('sends batch message and clears queue', () => {
       const p = makeProtocol();
       const ws = makeOpenWs(p);

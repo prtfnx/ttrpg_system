@@ -112,6 +112,7 @@ export class WebClientProtocol {
   private pendingCharacterCreates = new Map<string, string>();
   private readonly BATCH_DELAY_MS = 30;
   private readonly MAX_BATCH_SIZE = 15;
+  private readonly MAX_OUTBOUND_FRAME_BYTES = 64 * 1024;
   private incomingChain: Promise<void> = Promise.resolve();
   private readonly resyncs = new Map<string, { requestId: string; watermark: string[]; received?: boolean; timer: ReturnType<typeof setTimeout> }>();
   private readonly commandTracking = new CommandTracking();
@@ -181,20 +182,28 @@ export class WebClientProtocol {
       return;
     }
 
-    // Create batch message with proper structure
-    const batchMessage = createMessage(MessageType.BATCH_REQUEST, {
-      messages: [...this.batchQueue]  // Copy the array to avoid mutation issues
-    }, 1);
-    
     try {
-      this.websocket.send(JSON.stringify(batchMessage));
-      for (const message of this.batchQueue) {
-        if (!message.message_id) continue;
-        const pendingUpdate = this.pendingCharacterUpdates.get(message.message_id);
-        if (pendingUpdate) pendingUpdate.sent = true;
+      while (this.batchQueue.length) {
+        const messages: Message[] = [];
+        const batchMessage = createMessage(MessageType.BATCH_REQUEST, { messages }, 1);
+        let bytes = new TextEncoder().encode(JSON.stringify(batchMessage)).length;
+        for (const message of this.batchQueue.slice(0, this.MAX_BATCH_SIZE)) {
+          const memberBytes = new TextEncoder().encode(JSON.stringify(message)).length + (messages.length ? 1 : 0);
+          if (bytes + memberBytes > this.MAX_OUTBOUND_FRAME_BYTES) break;
+          messages.push(message);
+          bytes += memberBytes;
+        }
+        // A valid single message can fit the frame budget while its additional
+        // batch envelope does not. Send it directly, retaining causal order.
+        const sent = messages.length ? messages : [this.batchQueue[0]!];
+        this.websocket.send(JSON.stringify(messages.length ? batchMessage : sent[0]));
+        for (const message of sent) {
+          if (!message.message_id) continue;
+          const pendingUpdate = this.pendingCharacterUpdates.get(message.message_id);
+          if (pendingUpdate) pendingUpdate.sent = true;
+        }
+        this.batchQueue.splice(0, sent.length);
       }
-      // Only clear queue after successful send
-      this.batchQueue = [];
       logger.debug('Protocol: Batch sent successfully');
     } catch (error) {
       logger.error('Protocol: Failed to send batch:', error);
@@ -222,6 +231,10 @@ export class WebClientProtocol {
 
   /** Override sendMessage to use batching for non-critical messages */
   sendMessage(message: Message): boolean {
+    if (new TextEncoder().encode(JSON.stringify(message)).length > this.MAX_OUTBOUND_FRAME_BYTES) {
+      logger.error('Protocol message exceeds the 64 KiB frame limit', message.type);
+      return false;
+    }
     if (message.type !== MessageType.TABLE_SETTINGS_UPDATE) this.settingsBuffer.flush();
     // Critical messages (table, actions, player, assets) sent immediately
     const critical = [
@@ -2047,10 +2060,13 @@ export class WebClientProtocol {
       this.settingsBuffer.flush();
       this.sendBatch();
       const message = createMessage(type, data, 3);
-      if (messageId) message.message_id = messageId;
+      const identity = messageId ?? data.operation_id;
+      if (typeof identity === 'string') message.message_id = identity;
+      const wire = JSON.stringify(message);
+      if (new TextEncoder().encode(wire).length > this.MAX_OUTBOUND_FRAME_BYTES) return false;
       if (!this.commandTracking.track(message, typeof data.table_id === 'string' ? data.table_id : null,
         tableId => this.resynchronizeTable(tableId))) return false;
-      socket.send(JSON.stringify(message));
+      socket.send(wire);
       return true;
     } catch (error) {
       logger.error('Protocol: Failed to send paint message', error);

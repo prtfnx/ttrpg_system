@@ -2,7 +2,7 @@
  * WASM Bridge Service
  * Bridges completed WASM sprite operations to the network protocol.
  * Owns optimistic-update tracking: sends commit messages with action_ids,
- * reverts on server rejection or timeout, and notifies the user.
+ * reconciles server rejection and requests authoritative recovery on timeout.
  */
 
 import { useGameStore } from '@/store';

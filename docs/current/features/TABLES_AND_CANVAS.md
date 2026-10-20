@@ -5,7 +5,7 @@ canvas bootstrap, or table settings.
 
 Status: current but partial.
 
-Last source audit: 2026-10-01
+Last source audit: 2026-10-16
 
 ## Source owners
 
@@ -206,6 +206,13 @@ them.
 The shared protocol schema defines the complete `table_settings_changed`
 payload. The browser validates table IDs, lighting and grid value types,
 ranges, units, and colors before dispatching a settings broadcast.
+
+All settings controls share `tableSettingsBuffer.ts`: local preview is
+immediate; only unsent same-table patches merge. A 150 ms trailing debounce
+and 500 ms maximum wait bound accumulation. A dependent command flushes older
+settings first. Accepted settings update the baseline underneath later intent;
+denial removes its matching patch. Identical validated settings confirm without
+another database write. See [Action confirmation](../reference/ACTION_CONFIRMATION.md).
 
 ## State and persistence
 

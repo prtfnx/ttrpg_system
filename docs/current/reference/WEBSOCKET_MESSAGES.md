@@ -5,7 +5,7 @@ Audience: contributors changing browser/server protocol behavior.
 Status: partial. This page catalogs the currently registered server handlers
 and the main browser message families. It does not document every payload field.
 
-Last source audit: 2026-10-01
+Last source audit: 2026-10-16
 
 ## Envelope identities
 
@@ -208,9 +208,11 @@ Feature code should prefer protocol helper methods or focused hooks over raw
 `sendMessage` calls. Combat mutations are stricter: use `combat_command`, not
 new direct mutation messages.
 
-Protocol sends use the bounded `WS_SEND_TIMEOUT_SECONDS` deadline. A timed-out
-peer is handled through normal disconnect cleanup so one slow connection cannot
-hold a protocol broadcast indefinitely.
+One ordered writer per socket uses the bounded `WS_SEND_TIMEOUT_SECONDS`
+deadline. Mutation handlers enqueue frames without waiting for peer sends.
+Overflow/send failure disconnects that peer for recovery. Table/paint snapshots
+have bounded ordered streams instead of consuming the ordinary event byte budget.
+See [Action confirmation](ACTION_CONFIRMATION.md) for limits and outcome semantics.
 
 ## Adding or changing a message
 

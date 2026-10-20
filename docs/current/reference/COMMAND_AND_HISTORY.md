@@ -5,7 +5,7 @@ Audience: contributors changing canvas mutations, selection, or undo/redo.
 Status: usable. Mixed-domain transactions, shared transform handles and durable
 paint/sprite editor history use one authoritative canvas command service.
 
-Last source audit: 2026-10-12
+Last source audit: 2026-10-16
 
 ## Ownership and current flow
 
@@ -31,9 +31,9 @@ typed local operations. Detached renderer calls fail safely and never send a
 network command. Runtime regressions live in `runtime/__tests__/WasmRuntime.test.ts`.
 `wasmBridge.ts` forwards completed sprite transforms with action IDs and tracks
 acknowledgements. Sprite protocol handlers authorize commands and invoke
-`core_table.actions_core.ActionsCore`; accepted table snapshots persist before
-success. Paint commands use `PaintObjectService` transactions, object versions,
-table revisions and an operation-result ledger. Combat uses its separate
+`core_table.actions_core.ActionsCore`; affected sprite rows and journal entries
+persist before success. Paint commands use `PaintObjectService` transactions,
+object versions, table revisions and an operation-result ledger. Combat uses its separate
 `CombatCommandService`, not canvas history.
 `PaintObjectService.apply_in_transaction` stages a paint command inside a
 trusted caller's active ORM transaction. It retains normal authorization,
@@ -135,7 +135,7 @@ they migrate and remove only their own temporary schema. Run them from
 
 `service/sprite_editor_commands.py` provides the trusted persistence adapter for
 staged legacy sprite commands. `SpriteEditorCommandService.persist` commits the
-table snapshot and affected-object deltas in one transaction, rechecks database
+affected sprite rows and journal deltas in one transaction, rechecks database
 membership, and uses the same retention and inverse service as canvas commands.
 It records receipt-only entries for stat changes, combat tokens and no-ops;
 these are not reversible editor actions. Request identity is actor/session/table
@@ -196,42 +196,35 @@ not database details. History reads share the session lock and return only the
 current actor's availability, not scene snapshots or other users' history.
 Regression owner: `apps/server/tests/unit/test_canvas_protocol.py`.
 
-`CanvasCommandController.ts` owns browser command acknowledgements and clipboard
-tokens. Its transport sends directly only on an open socket; it does not put
-editor writes in the generic transport batch/queue. The controller registers an
-intent before sending, accepts only its matching operation/table receipt, and
-allows one pending editor command in the active actor/table scope. Missing
-acknowledgements retry the identical body after ten seconds or reconnect. The
-24-hour retry deadline reloads uncertain state instead of replaying an expired
-intent. Actor/table replacement drops local pending references and clipboard
-tokens. Durable accepted history stays on the server. Copy/duplicate waits for
-the server clipboard token before paste; fresh paste IDs never contain client
-metadata. A conflict or replay receipt requests fresh hydration. The controller
-coalesces paint-event history refreshes on the existing expiry tick, so accepted
-standalone authoring updates Undo availability without polling the full scene.
-Clipboard expiry also publishes state without requiring reconnect. It
-does not own domain previews or replace legacy sprite history. The paint provider
-attaches this owner to the selection controller for its session lifecycle.
-Regression owner:
-`apps/web-ui/src/features/painting/controller/__tests__/CanvasCommandController.test.ts`.
+`CanvasCommandController.ts` owns correlated command outcomes and clipboard
+tokens. `CanvasOptimisticState.ts` and `createCanvasOptimism.ts` project pending
+intent over canonical per-object state. Repeated edits preview immediately;
+only dependent objects wait at the transport boundary for rebase. Disjoint
+commands can proceed independently. Exact operation identities and original
+intent times survive retry; actor/table changes clear the local editor scope.
+See [Action confirmation and continuous editing](ACTION_CONFIRMATION.md) for
+buffering, denial reconciliation, timeout recovery and resource bounds.
+Clipboard tokens remain server-owned and actor/table-scoped. History availability
+refreshes coalesce on the existing controller tick. Regression owners are the
+canvas command, optimistic-state and provider tests.
 
 `PaintInteractionController.setCanvasCommandPort` connects selection intent to
 this owner. With the port attached, mixed drags and selected-object deletion use
 one expected-state command instead of per-member writes. Selection clipboard,
 duplicate, shared-pivot uniform scale/rotation, one-unit arrow nudging (ten with
 Shift), and Ctrl/Cmd undo/redo route through the same owner. Text-entry targets
-retain their native shortcuts. Pending paint intent blocks a new selection
-command; pending canvas intent blocks new pointer authoring. Locked members are
-excluded from the editable command, and the server validates every included
+retain their native shortcuts. Pending paint/canvas intent remains visible;
+only dependent wire submissions wait for the preceding object outcome. Locked
+members are excluded from the editable command, and the server validates every included
 member atomically. The sprite selection adapter captures the authoritative
 transform projection rather than renderer preview coordinates. Regression owner:
 `apps/web-ui/src/features/painting/controller/__tests__/PaintInteractionController.test.ts`.
 Explicit sprite commands use that same projection even while default pointer
 selection is active. They reject missing or ineligible requested members instead
 of silently editing a subset. Absolute edits and keyboard transforms send intent
-without optimistic scene writes. Detached renderers, hydration, and pending paint
-intent block these calls. Paste uses the active actor/table clipboard and the same
-guards; a scope change cannot reuse an old clipboard.
+with immediate optimistic scene projection. Detached renderers and incomplete
+hydration block these calls; pending same-object intent waits only on the wire.
+Paste uses the active actor/table clipboard and the same guards; a scope change cannot reuse an old clipboard.
 Accepted command receipts publish their resulting sprite selection to the default
 renderer too, without enabling mixed pointer selection. Default context-menu
 commands read current renderer-selected IDs, not stale shared references from an
@@ -247,8 +240,8 @@ DOM event persists a context-menu edit. Regressions live in
 `GameCanvas/__tests__/useContextMenu.test.ts`.
 
 Default-mode sprite keyboard copy/cut/duplicate captures every selected sprite,
-not only the first. Paste, uniform scaling and grid-step nudging use the same
-confirmed owner and never write renderer state first. A single combat-token nudge
+not only the first. Paste, uniform scaling and grid-step nudging use the
+shared command owner with immediate local previews. A single combat-token nudge
 keeps the existing combat movement route and reads its start from authoritative
 store state. Mixed combat/editor mutation still rejects as one editor command.
 Combat nudges read the store's `tableId` identity and never read renderer preview
@@ -260,20 +253,19 @@ separate wall operations, not members of sprite/paint history. Regression owner:
 
 ## Transport batching
 
-`batch_request` reduces WebSocket framing overhead. It is not a database
-transaction and does not create one undo step. The session mutation lock covers
-the batch; each child retains its normal authorization and persistence path.
-The dispatcher preflights 1–50 message objects and rejects nested batches before
-dispatching any child. Malformed children and unsupported types produce errors.
-Child responses preserve their own correlation/causation IDs. `batch_response`
-reports `failed_count` and `atomic: false`; no response does not prove persistence.
-The summary remains schema-valid when no child returns a response.
-Errors do not echo complete input payloads or internal exception details.
-Mutation-coupled session autosave runs only after an accepted response, not after
-permission or validation rejection.
+`batch_request` is transport aggregation, not an atomic domain command or one
+undo step. The dispatcher preflights 1–50 messages and rejects nested batches.
+Contiguous compatible sprite members can share a write transaction; other
+members retain their domain transaction boundaries. Validation denials remain
+independent, while storage failure rolls back the provisional sprite run.
 
-Regression owners: `apps/server/tests/unit/test_command_batches.py` and
-`test_protocol_serialization.py`.
+Correlated outcomes stream after commit without waiting for later unrelated
+members. The schema-valid summary omits already-streamed outcomes and reports
+counts and `atomic: false`. No response does not prove persistence. Errors do
+not echo payloads or internal details; persisted sprite updates skip duplicate
+autosave. See [Action confirmation](ACTION_CONFIRMATION.md) for ordering and
+byte budgets. Regression owners: `test_batch_message.py`,
+`test_sprite_editor_protocol.py`, and `test_command_batches.py`.
 
 ## Existing history boundaries
 
@@ -324,23 +316,18 @@ update/move/scale enter the audit only after persistence succeeds.
 Regression owners: `packages/core-table/tests/test_action_batches.py` and
 `apps/server/tests/unit/test_action_batch_persistence.py`.
 
-The sprite bridge registers pending state before sending, including synchronous
-acknowledgements. It allows at most one unconfirmed transform per sprite/property
-and 100 pending commands overall. A subsequent transform of that property restores
-the pending preview and asks the user to wait. Accepted server seeds take
-precedence over late acknowledgements; rejection restores the current authoritative
-baseline, not an obsolete pre-command snapshot. Timers cannot revert another
-active table. Protocol replacement, cleanup and sprite removal release tracking.
-Renderer rollback waits for the current WASM callback to unwind. It rechecks the
-table, lifecycle and latest baseline before applying; stale queued work is dropped.
-Non-interactive roles, invalid transforms and synchronous send failures do not
-leave untracked writes or delayed failure timers. The bridge remains a confirmation
-tracker, not an undo journal. Regression owner:
-`apps/web-ui/src/lib/wasm/__tests__/wasmBridge.test.ts`.
-Legacy sprite-selection movement still uses the sprite bridge confirmation
-owner. The shared paint provider attaches the canvas command owner instead;
-mixed editor movement uses its atomic server transaction. Combat tokens reject
-editor group mutation and must use the separate combat command path.
+The sprite bridge registers each transform before sending and supports repeated
+same-property edits within its 100-command bound. Confirmation advances the
+authoritative transform and reapplies later pending actions. Denial removes only
+its own action; timeout requests authoritative recovery without declaring a
+rollback. Deferred renderer reconciliation checks the active table and lifecycle
+after the current WASM callback unwinds. Removal, replacement and cleanup release
+tracking. It is a confirmation owner, not an undo journal. Shared canvas edits
+wait for pending raw commands on the same sprite before capturing expected state.
+Regression owner: `apps/web-ui/src/lib/wasm/__tests__/wasmBridge.test.ts`.
+
+Combat tokens retain the separate combat command path. Wall commands remain
+outside sprite/paint history.
 
 Persistent legacy sprite create/delete/move/scale/rotate/update and layer moves
 stage against an isolated table through `core_table/sprite_commands.py`. They

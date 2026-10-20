@@ -45,6 +45,8 @@ older plans or reports in `docs/`.
 
 - [Canvas commands and history](reference/COMMAND_AND_HISTORY.md): transport
   versus atomic domain batches, confirmation tracking, scoped undo and limits.
+- [Action confirmation and continuous editing](reference/ACTION_CONFIRMATION.md):
+  optimistic ownership, buffering, correlated outcomes, recovery and queue limits.
 - [WebSocket messages](reference/WEBSOCKET_MESSAGES.md): registered server
   message handlers, response families, and protocol ownership.
 - [Combat commands](reference/COMBAT_COMMANDS.md): current

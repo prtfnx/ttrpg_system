@@ -4,7 +4,7 @@ Audience: contributors changing measurement, paint tools, reconciliation, or ren
 
 Status: usable. Completed measurements and paint objects are server-authoritative.
 
-Last source audit: 2026-10-13
+Last source audit: 2026-10-16
 
 ## Ownership
 
@@ -207,7 +207,7 @@ Marquee and group previews are local and cleared on cancellation. A committed
 paint version change cancels an in-flight edit based on the old version.
 Group movement and selected-object deletion use one atomic canvas transaction.
 One stale or invalid editable member rejects all included edits. Locked members
-are not mutated. The server publishes only after the sprite snapshot, paint
+are not mutated. The server publishes only after the affected sprite rows, paint
 state and actor-scoped journal commit together. Clipboard, history, permissions,
 budgets and retry behavior are defined in
 [Canvas commands and history](../reference/COMMAND_AND_HISTORY.md).
@@ -221,8 +221,8 @@ pointer-up cannot submit the abandoned transform after the command.
 Restyling selected paint uses one atomic canvas command and one undo step,
 including a single selected painting. It changes only editable paint members,
 preserves retained sprite and locked-object selection, and waits for the server
-receipt. Pending paint or canvas commands block another restyle. A stale member
-rejects the whole command, leaving every included painting unchanged.
+receipt. Repeated restyles preview immediately and wait only for dependent
+object versions. A stale member rejects the whole command, leaving every included painting unchanged.
 
 Sprite movement uses control ownership; deletion remains DM-only even for
 player-controlled text. Changing layer visibility cancels local gestures.
@@ -276,8 +276,8 @@ cancelling the UI cannot retract a command already accepted by the server.
 
 The DM polygon dialog captures the table and sprite ID when geometry completes.
 It sends complete world vertices, dimensions, layer and name, then waits for
-confirmation without inserting a local sprite. Rejection retains the draft;
-an explicit retry keeps its sprite ID. Duplicate submissions are disabled.
+confirmation while the shared insertion lifecycle previews the sprite. Rejection
+retains the draft; an explicit retry keeps its sprite ID. Duplicate submissions are disabled.
 Table, user, role, protocol or renderer changes cancel the dialog and in-progress
 Rust polygon input. Late confirmations cannot close a newer draft. The same
 cancellation applies on unmount; a cancelled save may still have committed.
@@ -384,11 +384,12 @@ without changing or resynchronizing the visible table. Pending intent across
 tables is capped at 128 operations or 4 MiB. Regular expiry checks discard
 stale intent even without reconnect; active-table expiry starts hydration.
 Rejections remove optimistic drafts and retain confirmed state.
-Only one unresolved create/update/delete intent may target an object at a time.
-A second local edit reports a wait-for-confirmation error without sending or
-replacing the retained draft. Acceptance or rejection releases that object;
-unrelated objects may still be edited. This prevents a local group gesture from
-immediately conflicting with its own earlier unconfirmed version.
+Multiple local update/delete intents can target one object. The visible scene
+projects them immediately over confirmed state; dependent wire submissions wait
+for their predecessor and rebase the expected version. Denying an earlier edit
+retains later intent. Duplicate creation under one object identity still rejects.
+Standalone paint and shared canvas owners coordinate dependencies; unrelated
+objects can proceed. See [Action confirmation](../reference/ACTION_CONFIRMATION.md).
 
 The browser retains validated authoritative snapshots/events independently of
 WebGL. A recreated renderer receives the latest confirmed scene plus current

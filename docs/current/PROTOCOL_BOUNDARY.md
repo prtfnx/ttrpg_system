@@ -4,7 +4,7 @@ Audience: contributors changing browser/server WebSocket messages.
 
 Status: current but partial.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-10-16
 
 The protocol boundary connects browser clients to a game session on the server.
 It is message-based and should stay explicit.
@@ -107,6 +107,14 @@ rolls back. Transport-only ping, ephemeral drag previews, and independent
 durable-store queries remain concurrent. A batch holds the mutation lock for
 its entire dispatch, including every nested handler. Add new state-changing
 messages to that set and to the serialization tests.
+
+The browser's `commandTracking.ts` mirrors every mutation classification; the
+outer transport batch tracks its members. Schema errors preserve bounded request
+identities. Ordered per-socket writers isolate network delivery from the mutation
+lock. Receipts stream after a member/run commits; snapshots use separate bounded
+ordered streams. Incoming browser frames are serialized and fenced by socket
+identity. See [Action confirmation and continuous editing](reference/ACTION_CONFIRMATION.md)
+for optimistic ownership, buffering, rollback and full-table recovery.
 
 ## Message flow
 

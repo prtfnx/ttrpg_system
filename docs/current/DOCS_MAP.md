@@ -52,6 +52,7 @@ Canvas or WASM contributor:
 | [Web UI architecture](WEB_UI_ARCHITECTURE.md) | explanation | web contributors |
 | [Feature map](explanation/FEATURE_MAP.md) | explanation/reference | feature contributors |
 | [Protocol boundary](PROTOCOL_BOUNDARY.md) | explanation/how-to | protocol contributors |
+| [Action confirmation](reference/ACTION_CONFIRMATION.md) | reference | editor and protocol contributors |
 | [Battle flow](BATTLE_FLOW.md) | explanation/how-to | combat contributors |
 | [WASM React boundary](WASM_REACT_BOUNDARY.md) | explanation/how-to | web and WASM contributors |
 | [Rust/WASM engine](RUST_WASM_ENGINE.md) | explanation | WASM contributors |

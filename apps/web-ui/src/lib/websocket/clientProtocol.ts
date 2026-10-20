@@ -838,7 +838,11 @@ export class WebClientProtocol {
     }
     // Older handlers may omit the action echo. The envelope still identifies it.
     if (payload.action_id && !message.data.action_id) message.data.action_id = payload.action_id;
+    if (payload.operation_id && !message.data.operation_id) message.data.operation_id = payload.operation_id;
     if (typeof payload.table_id === 'string' && !message.data.table_id) message.data.table_id = payload.table_id;
+    if (request.type === MessageType.CANVAS_COMMAND && message.type !== MessageType.CANVAS_COMMAND_RESULT) {
+      emitProtocolEvent('canvas-command-result', { ...message.data, success: false });
+    }
     const owned = new Set<MessageType>([MessageType.SPRITE_MOVE, MessageType.SPRITE_SCALE, MessageType.SPRITE_ROTATE,
       MessageType.TABLE_SETTINGS_UPDATE, MessageType.CANVAS_COMMAND, MessageType.PAINT_OBJECT_CREATE,
       MessageType.PAINT_OBJECT_UPDATE, MessageType.PAINT_OBJECT_DELETE]);
@@ -2078,6 +2082,10 @@ export class WebClientProtocol {
     return this.sendPaintMessage(MessageType.CANVAS_COMMAND, command);
   }
 
+  hasPendingSpriteCommand(tableId: string, spriteId: string): boolean {
+    return this.commandTracking.hasSprite(tableId, spriteId);
+  }
+
   requestCanvasHistory(tableId: string): boolean {
     validateTableId(tableId);
     return this.sendPaintMessage(MessageType.CANVAS_HISTORY_REQUEST, { table_id: tableId });
@@ -2640,7 +2648,14 @@ export class WebClientProtocol {
   }
 
   private publishCanonicalSprite(data: Record<string, unknown> | undefined): void {
-    if (typeof data?.table_id !== 'string' || typeof data.sprite_id !== 'string') return;
+    if (typeof data?.table_id !== 'string') return;
+    const object = data.sprite_data as Record<string, unknown> | undefined;
+    if (object && typeof object.sprite_id === 'string') {
+      emitProtocolEvent('canvas-canonical-object', { operationId: undefined, tableId: data.table_id,
+        kind: 'sprite', id: object.sprite_id, object });
+      return;
+    }
+    if (typeof data.sprite_id !== 'string') return;
     const state: Partial<import('@/types').Sprite> = {};
     const position = data.to as { x?: number; y?: number } | undefined;
     const x = position?.x ?? data.x, y = position?.y ?? data.y;

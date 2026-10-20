@@ -248,8 +248,11 @@ class GameSessionProtocolService:
 
     async def handle_protocol_message(self, websocket: WebSocket, message_str: str):
         """Handle incoming protocol message from a client"""
+        request = None
+        message = None
         try:
-            message = Message.from_json(message_str)
+            request = json.loads(message_str)
+            message = Message.from_dict(request)
             client_id = self.websocket_to_client.get(websocket)
             if not client_id:
                 await self._send_error(
@@ -285,13 +288,14 @@ class GameSessionProtocolService:
                 "Invalid WebSocket protocol envelope",
                 extra={"event_name": "websocket.message.invalid", "outcome": "rejected"},
             )
-            await self._send_error(websocket, "Invalid JSON format")
+            await self._reject_protocol_request(websocket, "Invalid JSON format" if message is None else "Command outcome is uncertain",
+                request=request, uncertain=message is not None)
         except Exception:
             logger.exception(
                 "WebSocket protocol handler failed",
                 extra={"event_name": "websocket.message.failed", "outcome": "error"},
             )
-            await self._send_error(websocket, "Internal server error")
+            await self._reject_protocol_request(websocket, "Internal server error", request=request, uncertain=message is not None)
         finally:
             self._release_db_session()
 
@@ -431,13 +435,42 @@ class GameSessionProtocolService:
         *,
         causation_id: str | None = None,
         correlation_id: str | None = None,
+        request: dict | None = None,
+        uncertain: bool = False,
     ):
         """Send error message to WebSocket"""
-        error_msg = Message(MessageType.ERROR, {
+        data: dict[str, object] = {
             "error": error_message,
             "session_code": self.session_code
-        }, causation_id=causation_id, correlation_id=correlation_id)
+        }
+        if isinstance(request, dict):
+            def identity(value):
+                return value if isinstance(value, str) and 0 < len(value) <= 128 else None
+            causation_id = identity(request.get("message_id"))
+            correlation_id = identity(request.get("correlation_id")) or causation_id
+            payload = request.get("data")
+            if isinstance(payload, dict):
+                for key in ("action_id", "operation_id", "table_id", "sprite_id"):
+                    value = identity(payload.get(key))
+                    if value is not None:
+                        data[key] = value
+            data["code"] = "outcome_unknown" if uncertain else "invalid_payload"
+            if uncertain:
+                data["resync_required"] = True
+        error_msg = Message(MessageType.ERROR, data, causation_id=causation_id, correlation_id=correlation_id)
         await self._send_message(websocket, error_msg)
+
+    async def _reject_protocol_request(self, websocket, error, *, request, uncertain=False):
+        # Schema validation rejects the whole envelope before dispatch. Each
+        # member owns client intent; an outer error alone cannot release it.
+        if isinstance(request, dict) and request.get("type") == MessageType.BATCH_REQUEST.value:
+            payload = request.get("data")
+            members = payload.get("messages") if isinstance(payload, dict) else None
+            if isinstance(members, list) and len(members) <= 50:
+                for member in members:
+                    if isinstance(member, dict):
+                        await self._send_error(websocket, error, request=member, uncertain=uncertain)
+        await self._send_error(websocket, error, request=request, uncertain=uncertain)
 
     def get_session_stats(self) -> dict:
         """Get session statistics"""

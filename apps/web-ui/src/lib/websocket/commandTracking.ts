@@ -66,6 +66,12 @@ export class CommandTracking {
   }
   has(id: string): boolean { return this.pending.has(id); }
 
+  hasSprite(tableId: string, spriteId: string): boolean {
+    return [...this.pending.values()].some(item => item.tableId === tableId
+      && (item.message.data?.sprite_id === spriteId
+        || (item.message.data?.sprite_data as { sprite_id?: unknown } | undefined)?.sprite_id === spriteId));
+  }
+
   resolveSnapshot(ids: readonly string[]): void {
     for (const id of ids) {
       const item = this.pending.get(id);

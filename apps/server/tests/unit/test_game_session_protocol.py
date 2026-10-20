@@ -189,6 +189,49 @@ class TestClientLifecycle:
 
 @pytest.mark.asyncio
 class TestHandleProtocolMessage:
+    async def test_schema_rejection_retains_bounded_request_and_operation_identity(self):
+        svc, ws = _make_service(), _ws()
+        svc.clients["c1"] = ws
+        svc.websocket_to_client[ws] = "c1"
+        request = {"type": "canvas_command", "message_id": "request-one", "correlation_id": "correlation-one",
+            "data": {"operation_id": "operation-one", "table_id": "table-one", "mode": "invalid", "secret": "private"}}
+        await svc.handle_protocol_message(ws, json.dumps(request))
+        payload = json.loads(ws.send_text.call_args.args[0])
+        assert payload["causation_id"] == "request-one" and payload["correlation_id"] == "correlation-one"
+        assert payload["data"]["operation_id"] == "operation-one"
+        assert payload["data"]["code"] == "invalid_payload" and "private" not in json.dumps(payload)
+        svc.server_protocol.handle_client.assert_not_awaited()
+
+    async def test_unexpected_handler_failure_reports_correlated_uncertainty(self):
+        svc, ws = _make_service(), _ws()
+        svc.clients["c1"] = ws
+        svc.websocket_to_client[ws] = "c1"
+        svc.server_protocol.handlers = {MessageType.SPRITE_ROTATE: AsyncMock()}
+        svc.server_protocol.handle_client.side_effect = ValueError("private storage details")
+        request = Message(MessageType.SPRITE_ROTATE, {"table_id": "table-one", "sprite_id": "sprite-one",
+            "rotation": 45, "action_id": "action-one"})
+        await svc.handle_protocol_message(ws, request.to_json())
+        payload = json.loads(ws.send_text.call_args.args[0])
+        assert payload["causation_id"] == request.message_id
+        assert payload["data"]["code"] == "outcome_unknown" and payload["data"]["resync_required"]
+        assert payload["data"]["action_id"] == "action-one" and "private" not in json.dumps(payload)
+
+    async def test_invalid_batch_envelope_releases_each_member_without_dispatch(self):
+        svc, ws = _make_service(), _ws()
+        svc.clients["c1"] = ws
+        svc.websocket_to_client[ws] = "c1"
+        good = Message(MessageType.SPRITE_ROTATE, {"table_id": "table-one", "sprite_id": "sprite-one",
+            "rotation": 45, "action_id": "action-one"})
+        invalid = {"type": "table_settings_update", "message_id": "invalid-member",
+            "data": {"table_id": "table-one", "grid_cell_px": "invalid"}}
+        batch = Message(MessageType.BATCH_REQUEST, {"messages": [good.to_dict(), invalid]})
+        await svc.handle_protocol_message(ws, batch.to_json())
+        payloads = [json.loads(call.args[0]) for call in ws.send_text.call_args_list]
+        assert [row["causation_id"] for row in payloads] == [good.message_id, "invalid-member", batch.message_id]
+        assert all(row["data"]["code"] == "invalid_payload" for row in payloads)
+        assert payloads[0]["data"]["action_id"] == "action-one"
+        svc.server_protocol.handle_client.assert_not_awaited()
+
     async def test_invalid_json_sends_error(self):
         svc = _make_service()
         ws = _ws()

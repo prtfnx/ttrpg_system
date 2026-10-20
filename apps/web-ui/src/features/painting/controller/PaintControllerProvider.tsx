@@ -90,8 +90,9 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
     onSettled: (id, accepted) => optimism?.state.settle(id, accepted),
     beforeSend: intent => optimism?.state.rebase(intent) ?? intent,
     readyToSend: intent => !('members' in intent) || !intent.members.some(member => member.kind === 'paint'
-      && controller.getState().pending.some(item => (item.command.kind === 'create'
-        ? item.command.object.id : item.command.objectId) === member.id)),
+      ? controller.getState().pending.some(item => (item.command.kind === 'create'
+        ? item.command.object.id : item.command.objectId) === member.id)
+      : protocol.hasPendingSpriteCommand?.(useGameStore.getState().activeTableId ?? '', member.id) === true),
     onReset: () => optimism?.state.reset(),
     onSnapshot: ids => optimism?.state.resolveSnapshot(ids),
   }) : null, [protocol, controller, interaction, optimism]);

@@ -347,6 +347,46 @@ describe('WebClientProtocol', () => {
   });
 
   describe('sendBatch', () => {
+    it('publishes the complete canonical create before a dependent editor command rebases', async () => {
+      const protocol = makeProtocol(); makeOpenWs(protocol);
+      const canonical = vi.fn();
+      const listener = (event: Event) => canonical((event as CustomEvent).detail);
+      window.addEventListener('canvas-canonical-object', listener);
+      try {
+        const incoming = createMessage(MessageType.SPRITE_RESPONSE, { table_id: 'table-abc', operation: 'create',
+          success: true, sprite_data: { sprite_id: 'sprite-one', position: [10, 20], width: 50, height: 60 } });
+        await (protocol as unknown as { handleIncomingMessage: (raw: string) => Promise<void> }).handleIncomingMessage(JSON.stringify(incoming));
+        expect(canonical).toHaveBeenCalledWith(expect.objectContaining({ tableId: 'table-abc', id: 'sprite-one',
+          object: expect.objectContaining({ position: [10, 20], width: 50, height: 60 }) }));
+      } finally { window.removeEventListener('canvas-canonical-object', listener); protocol.disconnect(); }
+    });
+
+    it('releases the canvas owner on an early envelope error without a domain result', async () => {
+      const protocol = makeProtocol(); makeOpenWs(protocol);
+      const result = vi.fn();
+      const listener = (event: Event) => result((event as CustomEvent).detail);
+      window.addEventListener('canvas-command-result', listener);
+      try {
+        protocol.sendCanvasCommand({ table_id: 'table-abc', operation_id: 'one', mode: 'undo', issued_at: Date.now() });
+        const incoming = { ...createMessage(MessageType.ERROR, { error: 'Invalid command', code: 'invalid_payload' }), causation_id: 'one' };
+        await (protocol as unknown as { handleIncomingMessage: (raw: string) => Promise<void> }).handleIncomingMessage(JSON.stringify(incoming));
+        expect(result).toHaveBeenCalledWith(expect.objectContaining({ operation_id: 'one', table_id: 'table-abc', success: false }));
+      } finally { window.removeEventListener('canvas-command-result', listener); protocol.disconnect(); }
+    });
+
+    it('exposes only the matching raw sprite dependency until its correlated outcome', async () => {
+      const protocol = makeProtocol(); makeOpenWs(protocol);
+      const request = createMessage(MessageType.SPRITE_ROTATE, { table_id: 'table-abc', sprite_id: 'sprite-one', rotation: 45 });
+      protocol.sendMessage(request);
+      expect(protocol.hasPendingSpriteCommand('table-abc', 'sprite-one')).toBe(true);
+      expect(protocol.hasPendingSpriteCommand('table-abc', 'sprite-two')).toBe(false);
+      expect(protocol.hasPendingSpriteCommand('other-table', 'sprite-one')).toBe(false);
+      const incoming = { ...createMessage(MessageType.ERROR, { error: 'Denied' }), causation_id: request.message_id };
+      await (protocol as unknown as { handleIncomingMessage: (raw: string) => Promise<void> }).handleIncomingMessage(JSON.stringify(incoming));
+      expect(protocol.hasPendingSpriteCommand('table-abc', 'sprite-one')).toBe(false);
+      protocol.disconnect();
+    });
+
     it('keeps one acknowledgement owner when an editor operation is retried', () => {
       const protocol = makeProtocol();
       const ws = makeOpenWs(protocol);
@@ -1614,7 +1654,7 @@ describe('WebClientProtocol', () => {
       const p = makeProtocol();
       const fn = vi.fn();
       window.addEventListener('sprite-drag-preview-remote', fn);
-      await dispatch(p, 'sprite_drag_preview', { sprite_id: 's1' });
+      await dispatch(p, 'sprite_drag_preview', { id: 's1', table_id: 'table-abc', x: 10, y: 20 });
       window.removeEventListener('sprite-drag-preview-remote', fn);
       expect(fn).toHaveBeenCalledOnce();
     });

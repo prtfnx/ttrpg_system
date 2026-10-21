@@ -41,7 +41,7 @@ payloads. Operation identities belong in logs, not metric labels.
 | `websocket.command.lock_wait` | Session mutation ownership took at least 250 ms. |
 | `websocket.inbox.dispatched` | Admission wait was at least 250 ms or adjacent sprite frames merged. Includes `inbox_wait_ms`, `merged_frames`, `member_count`, `queued_frames` and `queued_bytes`. |
 | `websocket.inbox.overflow` | The durable inbound limit was exceeded or dispatch failed; the socket closes for recovery. |
-| `websocket.delivery.delayed` | A send took at least 250 ms or an item waited at least 500 ms. Includes `send_ms` and `queue_ms`. |
+| `websocket.delivery.delayed` | A send took at least 250 ms or an item waited at least 500 ms. Sampled at most once per second per socket to bound recovery log volume. Includes `send_ms` and `queue_ms`. |
 | `websocket.delivery.failed` | Includes queue/byte counts and `reason`: `queue_overflow`, `snapshot_queue_overflow`, `snapshot_budget_exceeded`, `send_timeout` or `send_failed`. Send exceptions include `error_type` and elapsed timings. |
 
 Browser development logs emit `Command outcome received` with `queue_ms`,

@@ -59,6 +59,22 @@ async def test_send_failure_closes_queue_and_requests_resynchronization(error, r
     failed.assert_awaited_once()
 
 
+async def test_delayed_snapshot_frames_do_not_flood_info_logs(monkeypatch):
+    from service import websocket_outbox
+
+    now = [100.0]
+    logged = []
+    monkeypatch.setattr(websocket_outbox.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(websocket_outbox.logger, "info", lambda *args, **kwargs: logged.append(kwargs["extra"]))
+    box = WebSocketOutbox(AsyncMock(), AsyncMock())
+    for _ in range(2000):
+        await box._send_frame("frame", queued_at=0)
+    assert len(logged) == 1 and logged[0]["queue_ms"] == 100000
+    now[0] += 1.1
+    await box._send_frame("frame", queued_at=0)
+    assert len(logged) == 2
+
+
 async def test_large_recovery_serializes_lazily_and_preserves_event_order():
     started, release = asyncio.Event(), asyncio.Event()
     delivered, serialized = [], []

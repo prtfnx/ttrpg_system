@@ -25,6 +25,7 @@ class WebSocketOutbox:
         self.task = None
         self.closed = False
         self.failure_details = {}
+        self._last_delay_log = None
 
     def enqueue(self, payload, *, disposable=False):
         if self.closed:
@@ -95,9 +96,14 @@ class WebSocketOutbox:
                 error_type=type(exc).__name__, send_ms=round((time.monotonic() - started) * 1000, 2),
                 queue_ms=round((started - queued_at) * 1000, 2))
             raise
-        elapsed = time.monotonic() - started
+        completed = time.monotonic()
+        elapsed = completed - started
         waited = started - queued_at
-        if elapsed >= 0.25 or waited >= 0.5:
+        # A queued snapshot may contain thousands of fast frames. Report its
+        # congestion without producing one INFO event for every frame.
+        if (elapsed >= 0.25 or waited >= 0.5) and (
+                self._last_delay_log is None or completed - self._last_delay_log >= 1):
+            self._last_delay_log = completed
             logger.info("WebSocket delivery delayed", extra={"event_name": "websocket.delivery.delayed",
                 "send_ms": round(elapsed * 1000, 2), "queue_ms": round(waited * 1000, 2),
                 "queued_messages": len(self.queue), "queued_bytes": self.bytes, "snapshot_streams": self.snapshots})

@@ -12,3 +12,14 @@ def test_browser_acknowledgement_policy_covers_every_server_mutation():
     client_types = {getattr(MessageType, name) for name in re.findall(r"MessageType\.(\w+)", body)}
     # The transport batch tracks each member, never the outer envelope twice.
     assert client_types == MUTATING_MESSAGE_TYPES - {MessageType.BATCH_REQUEST}
+
+
+def test_rate_policy_classifies_every_registered_handler():
+    from core_table.server import TableManager
+    from service.command_policy import READ_ONLY_MESSAGE_TYPES
+    from service.protocol.base import ServerProtocol
+    from utils.websocket_rate_limit import WebSocketMessageLimiter
+    server = ServerProtocol(TableManager())
+    ephemeral = {MessageType(kind) for kind in WebSocketMessageLimiter.PREVIEW_TYPES}
+    missing = set(server.handlers) - MUTATING_MESSAGE_TYPES - READ_ONLY_MESSAGE_TYPES - ephemeral - {MessageType.PING}
+    assert not missing, sorted(kind.value for kind in missing)

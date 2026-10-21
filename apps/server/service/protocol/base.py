@@ -9,6 +9,7 @@ from core_table.actions_core import ActionsCore
 from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
 from service.canvas_command_service import CanvasRejected
+from service.command_policy import MUTATING_MESSAGE_TYPES, SESSION_STATE_READ_MESSAGE_TYPES
 from service.sprite_command_batch import apply_sprite_batch, can_buffer
 from service.sprite_editor_commands import (
     SPRITE_COMMAND_TYPES,
@@ -38,82 +39,9 @@ from .walls import _WallsMixin
 
 logger = setup_logger(__name__)
 
+# Transport accepts 50 members; durable sub-runs publish receipts sooner.
+MAX_SPRITE_RUN_COMMANDS = 10
 
-MUTATING_MESSAGE_TYPES = frozenset({
-    MessageType.CANVAS_COMMAND,
-    MessageType.BATCH_REQUEST,
-    MessageType.NEW_TABLE_REQUEST,
-    MessageType.TABLE_UPDATE_REQUEST,
-    MessageType.TABLE_SCALE,
-    MessageType.TABLE_MOVE,
-    MessageType.TABLE_DELETE,
-    MessageType.TABLE_ACTIVE_SET,
-    MessageType.TABLE_ACTIVE_SET_ALL,
-    MessageType.TABLE_SETTINGS_UPDATE,
-    MessageType.PLAYER_READY,
-    MessageType.PLAYER_UNREADY,
-    MessageType.PLAYER_KICK_REQUEST,
-    MessageType.PLAYER_BAN_REQUEST,
-    MessageType.SPRITE_CREATE,
-    MessageType.SPRITE_REMOVE,
-    MessageType.SPRITE_MOVE,
-    MessageType.SPRITE_SCALE,
-    MessageType.SPRITE_ROTATE,
-    MessageType.SPRITE_UPDATE,
-    MessageType.ASSET_UPLOAD_REQUEST,
-    MessageType.ASSET_UPLOAD_CONFIRM,
-    MessageType.ASSET_DELETE_REQUEST,
-    MessageType.COMPENDIUM_SPRITE_ADD,
-    MessageType.COMPENDIUM_SPRITE_UPDATE,
-    MessageType.COMPENDIUM_SPRITE_REMOVE,
-    MessageType.CHARACTER_SAVE_REQUEST,
-    MessageType.CHARACTER_DELETE_REQUEST,
-    MessageType.CHARACTER_UPDATE,
-    MessageType.CHARACTER_ROLL,
-    MessageType.CHARACTER_DRAFT_CREATE_REQUEST,
-    MessageType.CHARACTER_DRAFT_UPDATE_REQUEST,
-    MessageType.CHARACTER_DRAFT_FINALIZE_REQUEST,
-    MessageType.CHARACTER_DRAFT_ABANDON_REQUEST,
-    MessageType.XP_AWARD,
-    MessageType.MULTICLASS_REQUEST,
-    MessageType.WALL_CREATE,
-    MessageType.WALL_UPDATE,
-    MessageType.WALL_REMOVE,
-    MessageType.DOOR_TOGGLE,
-    MessageType.PAINT_OBJECT_CREATE,
-    MessageType.PAINT_OBJECT_UPDATE,
-    MessageType.PAINT_OBJECT_DELETE,
-    MessageType.MEASUREMENT_UPSERT,
-    MessageType.MEASUREMENT_DELETE,
-    MessageType.MEASUREMENT_CLEAR,
-    MessageType.LAYER_SETTINGS_UPDATE,
-    MessageType.GAME_MODE_CHANGE,
-    MessageType.SESSION_RULES_UPDATE,
-    MessageType.COMBAT_COMMAND,
-    MessageType.ENCOUNTER_START,
-    MessageType.ENCOUNTER_END,
-    MessageType.ENCOUNTER_CHOICE,
-    MessageType.ENCOUNTER_ROLL,
-    MessageType.CHAT,
-    MessageType.CHAT_MODERATE,
-})
-
-SESSION_STATE_READ_MESSAGE_TYPES = frozenset({
-    MessageType.CANVAS_HISTORY_REQUEST,
-    MessageType.TABLE_REQUEST,
-    MessageType.TABLE_LIST_REQUEST,
-    MessageType.TABLE_ACTIVE_REQUEST,
-    MessageType.PLAYER_STATUS_REQUEST,
-    MessageType.PLAYER_LIST_REQUEST,
-    MessageType.SPRITE_REQUEST,
-    MessageType.PAINT_SNAPSHOT_REQUEST,
-    MessageType.MEASUREMENT_SYNC,
-    MessageType.SESSION_RULES_REQUEST,
-    MessageType.COMBAT_STATE_REQUEST,
-    MessageType.COVER_ZONES_SYNC,
-    MessageType.ATTACK_PREVIEW,
-    MessageType.AI_ACTION,
-})
 
 SERIALIZED_MESSAGE_TYPES = MUTATING_MESSAGE_TYPES | SESSION_STATE_READ_MESSAGE_TYPES
 
@@ -478,7 +406,7 @@ class ServerProtocol(
                 if (can_buffer(individual_msg)
                         and getattr(getattr(self, "table_manager", None), "db_session", None)):
                     run = [individual_msg]
-                    while index < len(messages_data):
+                    while index < len(messages_data) and len(run) < MAX_SPRITE_RUN_COMMANDS:
                         try:
                             following = Message.from_dict(messages_data[index])
                         except ValueError:

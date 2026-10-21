@@ -4,7 +4,7 @@ Audience: contributors changing browser/server WebSocket messages.
 
 Status: current but partial.
 
-Last source audit: 2026-10-16
+Last source audit: 2026-10-20
 
 The protocol boundary connects browser clients to a game session on the server.
 It is message-based and should stay explicit.
@@ -21,7 +21,11 @@ It is message-based and should stay explicit.
 
 ## Server side
 
-- `apps/server/api/game_ws.py` accepts WebSocket connections.
+- `apps/server/api/game_ws.py` accepts WebSocket connections and owns the reader.
+- `service/websocket_inbox.py` owns bounded per-connection FIFO dispatch. The
+  reader processes pings without waiting for database-backed mutations. Other
+  commands and queries preserve order; adjacent compatible queued sprite frames
+  can merge within the 50-member batch limit.
 - `ConnectionManager` groups sockets by session and attaches user metadata.
 - `GameSessionProtocolService` owns per-session protocol state and client
   registration.
@@ -110,7 +114,9 @@ messages to that set and to the serialization tests.
 
 The browser's `commandTracking.ts` mirrors every mutation classification; the
 outer transport batch tracks its members. Schema errors preserve bounded request
-identities. Ordered per-socket writers isolate network delivery from the mutation
+identities, including bounded non-UUID operation IDs from malformed input. Error
+codes remain an explicit schema enum; uncertain handler outcomes use
+`outcome_unknown` with `resync_required`. Ordered per-socket writers isolate network delivery from the mutation
 lock. Receipts stream after a member/run commits; snapshots use separate bounded
 ordered streams. Incoming browser frames are serialized and fenced by socket
 identity. See [Action confirmation and continuous editing](reference/ACTION_CONFIRMATION.md)

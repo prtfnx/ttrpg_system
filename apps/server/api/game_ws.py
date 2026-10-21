@@ -18,7 +18,10 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 from service.authentication import AccessTokenRejected, resolve_active_user_from_token
 from service.demo_guests import DEMO_COOKIE, demo_message_allowed, resolve_demo_guest
 from service.game_session import ConnectionManager, get_connection_manager
+from service.protocol_rejection import rejection_messages
+from service.websocket_inbox import WebSocketInbox
 from sqlalchemy.orm import Session
+from starlette.websockets import WebSocketState
 from utils.blocking import run_blocking
 from utils.logger import log_context, setup_logger
 from utils.observability import (
@@ -120,6 +123,7 @@ async def websocket_game_endpoint(
     """Authenticate from the HTTP-only cookie and join a durable game session."""
     connection_id = uuid.uuid4().hex
     connected = False
+    inbox = None
     connection_started = time.perf_counter()
     with log_context(
         connection_id=connection_id,
@@ -218,6 +222,21 @@ async def websocket_game_endpoint(
             )
 
             limiter = WebSocketMessageLimiter(settings.WS_MESSAGES_PER_MINUTE, settings.WS_PREVIEWS_PER_MINUTE)
+            async def dispatch_message(message_data):
+                started = time.perf_counter()
+                outcome = "success"
+                with log_context(message_id=message_data.get("message_id")):
+                    try:
+                        await connection_manager.handle_message(websocket, message_data)
+                    except Exception:
+                        outcome = "error"
+                        logger.exception("Queued command failed", extra={"event_name": "websocket.command.failed"})
+                        for rejection in rejection_messages(message_data, "Command outcome is unknown", code="outcome_unknown"):
+                            await connection_manager.send_personal_message(rejection.to_dict(), websocket)
+                    finally:
+                        record_ws_message("inbound", message_data.get("type"), outcome, time.perf_counter() - started)
+
+            inbox = WebSocketInbox(dispatch_message)
             while True:
                 if context.guest_expires_at is None:
                     raw_message = await websocket.receive_text()
@@ -261,6 +280,7 @@ async def websocket_game_endpoint(
                     )
                     await websocket.close(code=status.WS_1013_TRY_AGAIN_LATER, reason="Message rate exceeded")
                     return
+                message_data = None
                 try:
                     message_data = json.loads(raw_message)
                     if not isinstance(message_data, dict):
@@ -269,23 +289,24 @@ async def websocket_game_endpoint(
                     if message_data is None:
                         continue
                     if demo and not demo_message_allowed(message_data):
-                        await connection_manager.send_personal_message(
-                            {"type": "error", "data": {"error": "Demo is read-only"}},
-                            websocket,
-                        )
+                        for rejection in rejection_messages(message_data, "Demo is read-only", code="forbidden"):
+                            await connection_manager.send_personal_message(rejection.to_dict(), websocket)
                         continue
                     message_id = message_data.get("message_id")
                     if not isinstance(message_id, str) or not message_id:
                         message_id = uuid.uuid4().hex
                         message_data["message_id"] = message_id
                     with log_context(message_id=message_id):
-                        await connection_manager.handle_message(websocket, message_data)
-                        record_ws_message(
-                            "inbound",
-                            message_data.get("type"),
-                            "success",
-                            time.perf_counter() - message_started,
-                        )
+                        if message_data.get("type") == "ping":
+                            # Liveness has no state dependency and must not wait
+                            # behind database-backed edits on this connection.
+                            await dispatch_message(message_data)
+                        elif not await inbox.submit(message_data, payload_bytes):
+                            logger.warning("WebSocket inbound queue exceeded", extra={
+                                "event_name": "websocket.inbox.overflow", "queued_frames": len(inbox.queue),
+                                "queued_bytes": inbox.bytes, "reason": inbox.failure_reason or "queue_limit"})
+                            await websocket.close(code=1013, reason="Command queue exceeded")
+                            return
                         logger.debug(
                             "WebSocket message processed",
                             extra={
@@ -314,10 +335,12 @@ async def websocket_game_endpoint(
                             "outcome": "rejected",
                         },
                     )
-                    await connection_manager.send_personal_message(
-                        {"type": "error", "data": {"message": "Invalid message format"}},
-                        websocket,
-                    )
+                    if isinstance(message_data, dict):
+                        for rejection in rejection_messages(message_data, "Invalid message format"):
+                            await connection_manager.send_personal_message(rejection.to_dict(), websocket)
+                    else:
+                        await connection_manager.send_personal_message(
+                            {"type": "error", "data": {"message": "Invalid message format"}}, websocket)
         except WriterOwnershipLost:
             await websocket.close(code=1012, reason="Server replaced; reconnect")
         except WebSocketDisconnect as exc:
@@ -330,7 +353,12 @@ async def websocket_game_endpoint(
                     "outcome": "closed",
                 },
             )
-        except Exception:
+        except Exception as exc:
+            if isinstance(exc, RuntimeError) and websocket.application_state == WebSocketState.DISCONNECTED:
+                record_ws_connection("closed")
+                logger.info("WebSocket closed during receive", extra={
+                    "event_name": "websocket.connection.closed", "reason": "socket_already_closed", "outcome": "closed"})
+                return
             record_ws_connection("error", "server_error")
             logger.exception(
                 "WebSocket connection failed",
@@ -342,7 +370,11 @@ async def websocket_game_endpoint(
                 except RuntimeError:
                     pass
         finally:
-            if connected:
-                WS_ACTIVE.dec()
-                WS_DURATION.observe(time.perf_counter() - connection_started)
-                await connection_manager.disconnect(websocket)
+            try:
+                if inbox is not None:
+                    await inbox.close()
+            finally:
+                if connected:
+                    WS_ACTIVE.dec()
+                    WS_DURATION.observe(time.perf_counter() - connection_started)
+                    await connection_manager.disconnect(websocket)

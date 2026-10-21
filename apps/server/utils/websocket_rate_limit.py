@@ -41,8 +41,8 @@ class WebSocketMessageLimiter:
         if batched:
             data = message.get("data")
             items = data.get("messages") if isinstance(data, dict) else None
-            if not isinstance(items, list) or not 1 <= len(items) <= 100:
-                raise ValueError("Batch must contain between 1 and 100 messages")
+            if not isinstance(items, list) or not 1 <= len(items) <= 50:
+                raise ValueError("Batch must contain between 1 and 50 messages")
             if any(not isinstance(item, dict) or item.get("type") == "batch_request" for item in items):
                 raise ValueError("Nested or malformed batches are not allowed")
         else:

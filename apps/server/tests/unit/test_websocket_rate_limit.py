@@ -1,3 +1,4 @@
+import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock
 
@@ -90,3 +91,61 @@ async def test_endpoint_separates_drag_traffic_from_command_abuse(monkeypatch, p
     else:
         assert websocket.close.call_args.kwargs["code"] == close_code
     manager.disconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_endpoint_reads_heartbeat_while_a_durable_command_is_blocked(monkeypatch):
+    release = asyncio.Event()
+    websocket = MagicMock()
+    websocket.headers, websocket.cookies = {}, {"token": "valid"}
+    websocket.receive_text = AsyncMock(side_effect=[json.dumps(COMMAND), '{"type":"ping","data":{}}', WebSocketDisconnect()])
+    websocket.close = AsyncMock()
+    manager = MagicMock()
+    manager.connect, manager.disconnect = AsyncMock(return_value="client"), AsyncMock()
+
+    async def dispatch(_socket, message):
+        if message["type"] == "ping":
+            release.set()
+        else:
+            await release.wait()
+
+    manager.handle_message = AsyncMock(side_effect=dispatch)
+    monkeypatch.setattr(game_ws, "_origin_is_allowed", lambda _: True)
+    monkeypatch.setattr(game_ws, "_load_websocket_session_context", lambda *_: (game_ws.WebSocketSessionContext(1, "player", "player"), None))
+    await asyncio.wait_for(game_ws.websocket_game_endpoint(websocket, "TEST", manager), 1)
+    assert manager.handle_message.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_endpoint_batch_preflight_releases_identified_members(monkeypatch):
+    websocket = MagicMock()
+    websocket.headers, websocket.cookies = {}, {"token": "valid"}
+    request = {"type": "batch_request", "message_id": "outer", "data": {"messages": [
+        {"type": "sprite_rotate", "message_id": "member", "data": {"table_id": "table", "action_id": "action"}}, "invalid"]}}
+    websocket.receive_text = AsyncMock(side_effect=[json.dumps(request), WebSocketDisconnect()])
+    websocket.close = AsyncMock()
+    manager = MagicMock()
+    manager.connect, manager.disconnect = AsyncMock(return_value="client"), AsyncMock()
+    manager.handle_message, manager.send_personal_message = AsyncMock(), AsyncMock()
+    monkeypatch.setattr(game_ws, "_origin_is_allowed", lambda _: True)
+    monkeypatch.setattr(game_ws, "_load_websocket_session_context", lambda *_: (game_ws.WebSocketSessionContext(1, "player", "player"), None))
+    await game_ws.websocket_game_endpoint(websocket, "TEST", manager)
+    responses = [call.args[0] for call in manager.send_personal_message.call_args_list]
+    assert [item["causation_id"] for item in responses] == ["member", "outer"]
+    assert responses[0]["data"]["action_id"] == "action"
+    manager.handle_message.assert_not_awaited()
+
+
+@pytest.mark.parametrize("code", ["invalid_payload", "outcome_unknown"])
+def test_malformed_operation_identity_has_a_schema_valid_correlated_denial(code):
+    from core_table.protocol import Message
+    from service.protocol_rejection import rejection_messages
+
+    responses = rejection_messages({"type": "canvas_command", "message_id": "request",
+        "data": {"operation_id": "malformed-id", "table_id": "table", "sprite_id": "sprite"}},
+        "Invalid message format", code=code)
+    response = Message.from_dict(next(iter(responses)).to_dict())
+    assert response.causation_id == "request"
+    assert response.data["operation_id"] == "malformed-id"
+    assert response.data["table_id"] == "table" and response.data["sprite_id"] == "sprite"
+    assert response.data.get("resync_required", False) == (code == "outcome_unknown")

@@ -167,7 +167,7 @@ async def test_guest_transport_rejects_writes_including_mixed_batches(monkeypatc
     await game_ws.websocket_game_endpoint(websocket, "DEMO2026", manager)
     assert manager.handle_message.await_count == 1
     assert manager.handle_message.call_args.args[1]["type"] == "table_list_request"
-    assert manager.send_personal_message.await_count == 3
+    assert manager.send_personal_message.await_count == 5  # Each rejected batch member and its outer request.
     manager.disconnect.assert_awaited_once()
 
 

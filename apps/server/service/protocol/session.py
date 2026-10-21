@@ -237,6 +237,7 @@ class _SessionMixin(_ProtocolBase):
         if error:
             return Message(MessageType.ERROR, {'error': error})
 
+        self._rules_cache.pop(session_code, None)
         response = Message(MessageType.GAME_MODE_STATE, {'game_mode': target_mode})
         await self.broadcast_to_session(response, client_id)
         return response

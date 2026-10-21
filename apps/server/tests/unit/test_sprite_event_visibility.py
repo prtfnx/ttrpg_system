@@ -6,11 +6,15 @@ import pytest
 from core_table.actions_core import ActionsCore
 from core_table.protocol import Message, MessageType
 from core_table.server import TableManager
+from core_table.session_rules import SessionRules
 from service.game_session_protocol import GameSessionProtocolService
 from service.protocol.sprites import _SpritesMixin
 
 
 class SpriteProtocol(_SpritesMixin):
+    def __init__(self):
+        self._rules_cache = {"VISIBILITY": (SessionRules.defaults("VISIBILITY"), "free_roam")}
+
     def _get_session_id(self, msg):
         return None
 

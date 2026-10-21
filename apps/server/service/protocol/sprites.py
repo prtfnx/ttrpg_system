@@ -389,6 +389,8 @@ class _SpritesMixin(_ProtocolBase):
 
                 if rules is None:
                     rules = SessionRules.defaults(session_code or 'default')
+                if session_code:
+                    self._rules_cache[session_code] = (rules, game_mode)
 
                 # Normalise positions to pixel tuples
                 def to_tuple(pos):

@@ -312,8 +312,10 @@ class _CombatMixin(_ProtocolBase):
         from utils.blocking import run_blocking
         session_code = self._get_session_code()
         cached = self._rules_cache.get(session_code)
-        rules = cached[0] if cached else (await run_blocking(load_movement_policy, session_code))[0]
+        rules, mode = cached if cached else await run_blocking(load_movement_policy, session_code)
         rules = rules or SessionRules.defaults(session_code or "default")
+        if session_code:
+            self._rules_cache[session_code] = (rules, mode)
         result = await self.actions.move_sprite(
             table_id=table_id,
             sprite_id=sprite_id,
@@ -358,6 +360,8 @@ class _CombatMixin(_ProtocolBase):
             finally:
                 db.close()
         rules = rules or SessionRules.defaults(session_code or "default")
+        if session_code:
+            self._rules_cache[session_code] = (rules, mode_str)
 
         from service.combat_engine import CombatEngine
         from service.movement_validator import MovementValidator

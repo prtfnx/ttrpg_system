@@ -28,7 +28,7 @@ vi.mock('@/store', () => ({ useGameStore: mocks.useGameStore }));
 vi.mock('@lib/wasm/runtime', () => ({ getCurrentWasmRuntime: vi.fn(() => mocks.runtime) }));
 
 import { WebClientProtocol } from '../clientProtocol';
-import { createMessage, MessageType } from '../message';
+import { createMessage, MessageType, type Message } from '../message';
 import { useCombatStore } from '@features/combat/stores/combatStore';
 import { useCoverStore } from '@features/combat/stores/coverStore';
 import { useEncounterStore } from '@features/combat/stores/encounterStore';
@@ -136,6 +136,83 @@ function makeOpenWs(protocol: WebClientProtocol) {
 // ---------------------------------------------------------------------------
 
 describe('WebClientProtocol', () => {
+  it('defers provisional-wall commands and remaps them after creation confirmation', async () => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      protocol.createWall({ x1: 0, y1: 0, x2: 10, y2: 10 }); protocol.sendBatch();
+      const create = JSON.parse(ws.send.mock.calls[0][0]).data.messages[0];
+      await Promise.resolve();
+      protocol.removeWall(create.message_id); await Promise.resolve(); protocol.sendBatch();
+      expect(ws.send).toHaveBeenCalledOnce();
+      await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> }).handleIncomingMessage(JSON.stringify({
+        ...createMessage(MessageType.WALL_DATA, { operation: 'create', table_id: 'table-abc', wall: {
+          wall_id: 'server-wall', table_id: 'table-abc', x1: 0, y1: 0, x2: 10, y2: 10,
+          wall_type: 'normal', blocks_movement: true, blocks_light: true, blocks_sight: true,
+          blocks_sound: false, is_door: false, door_state: 'closed', is_secret: false,
+          direction: 'both', created_by: 1 } }), causation_id: create.message_id,
+      }));
+      protocol.sendBatch();
+      const remove = JSON.parse(ws.send.mock.calls[1][0]).data.messages[0];
+      expect(remove.type).toBe('wall_remove');
+      expect(remove.data.wall_id).toBe('server-wall');
+    } finally { protocol.disconnect(); }
+  });
+
+  it('drops dependent provisional-wall edits when creation is denied', async () => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      protocol.createWall({ x1: 0, y1: 0, x2: 10, y2: 10 }); protocol.sendBatch();
+      const create = JSON.parse(ws.send.mock.calls[0][0]).data.messages[0];
+      await Promise.resolve();
+      protocol.removeWall(create.message_id); await Promise.resolve();
+      await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> }).handleIncomingMessage(JSON.stringify({
+        ...createMessage(MessageType.ERROR, { error: 'Denied' }), causation_id: create.message_id,
+      }));
+      protocol.sendBatch();
+      expect(ws.send).toHaveBeenCalledOnce();
+      const tracker = (protocol as unknown as { commandTracking: { watermark(id: string): string[] } }).commandTracking;
+      expect(tracker.watermark('table-abc')).toEqual([]);
+    } finally { protocol.disconnect(); }
+  });
+  it('retains a failed batch for reconnect and prevents a direct command overtaking it', () => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    const setting = createMessage(MessageType.TABLE_SETTINGS_UPDATE, { table_id: 'table-abc', grid_cell_px: 80 });
+    try {
+      protocol.sendMessage(setting);
+      ws.send.mockImplementationOnce(() => { throw new Error('transport'); });
+      expect(protocol.sendMessage(createMessage(MessageType.TABLE_REQUEST, { table_id: 'table-abc' }))).toBe(false);
+      expect(ws.send).toHaveBeenCalledOnce();
+      expect(ws.close).toHaveBeenCalledWith(4000, 'Batch transmission failed');
+      const replacement = makeOpenWs(protocol);
+      protocol.flushPendingBatches();
+      const members = JSON.parse(replacement.send.mock.calls[0][0]).data.messages;
+      expect(members.map((item: Message) => item.message_id)).toEqual([setting.message_id]);
+    } finally { protocol.disconnect(); }
+  });
+
+  it('cancels the old recovery watchdog before replacing its socket', () => {
+    vi.useFakeTimers();
+    const protocol = makeProtocol(); makeOpenWs(protocol);
+    try {
+      protocol.resynchronizeTable('table-abc');
+      (protocol as unknown as { closeForReconnect(reason: string): void }).closeForReconnect('Test replacement');
+      const replacement = makeOpenWs(protocol);
+      vi.advanceTimersByTime(10_001);
+      expect(replacement.close).not.toHaveBeenCalled();
+    } finally { protocol.disconnect(); }
+  });
+
+  it('keeps a busy connection alive when command outcomes arrive before a delayed pong', async () => {
+    vi.useFakeTimers();
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      protocol.startPing(); vi.advanceTimersByTime(34_000);
+      await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> }).handleIncomingMessage(
+        JSON.stringify(createMessage(MessageType.SUCCESS, { message: 'Committed' })));
+      vi.advanceTimersByTime(1000);
+      expect(ws.close).not.toHaveBeenCalled();
+    } finally { protocol.disconnect(); }
+  });
   it('resolves uncertainty only after the correlated snapshot hydrates', async () => {
     const protocol = makeProtocol();
     const ws = makeOpenWs(protocol);

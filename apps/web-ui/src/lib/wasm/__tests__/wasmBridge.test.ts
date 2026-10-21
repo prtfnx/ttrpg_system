@@ -79,6 +79,17 @@ afterEach(() => {
 });
 
 describe('WasmBridgeService', () => {
+  it('does not request a snapshot while older table commands keep settling', () => {
+    const protocol = { sendMessage: vi.fn(), resynchronizeTable: vi.fn() };
+    wasmBridgeService.setProtocol(protocol as never);
+    dispatchWasmOp('move', 's2', { x: 10, y: 10 });
+    vi.advanceTimersByTime(4000);
+    window.dispatchEvent(new CustomEvent('table-command-progress', { detail: { tableId: 'tbl-1' } }));
+    vi.advanceTimersByTime(4000);
+    expect(protocol.resynchronizeTable).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1000);
+    expect(protocol.resynchronizeTable).toHaveBeenCalledWith('tbl-1');
+  });
   it('rejects an earlier change without losing later local intent and accepts canonical coordinates', async () => {
     const protocol = { sendMessage: vi.fn() };
     wasmBridgeService.setProtocol(protocol as never);

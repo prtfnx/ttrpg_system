@@ -88,6 +88,7 @@ export class WebClientProtocol {
 
   // Heartbeat mechanism to detect dead connections
   private lastPongReceived: number = Date.now();
+  private lastMessageReceived: number = Date.now();
   private pongTimeout: number | null = null;
   private readonly PONG_TIMEOUT_MS = 5000; // 5 seconds to receive pong
   private connectionAlive: boolean = false;
@@ -117,6 +118,7 @@ export class WebClientProtocol {
   private readonly resyncs = new Map<string, { requestId: string; watermark: string[]; received?: boolean; timer: ReturnType<typeof setTimeout> }>();
   private readonly commandTracking = new CommandTracking();
   private readonly optimisticSpriteRequests = new Set<string>();
+  private readonly pendingWallCreates = new Map<string, { tableId: string; commands: Message[] }>();
   private readonly wallSync = new WallCommandSync({
     read: () => useGameStore.getState().walls ?? [], active: () => useGameStore.getState().activeTableId,
     render: (id, wall) => {
@@ -165,7 +167,7 @@ export class WebClientProtocol {
   }
 
   /** Send all batched messages as a single batch */
-  sendBatch() {
+  sendBatch(): boolean {
     // Clear timer first
     if (this.batchTimer) {
       clearTimeout(this.batchTimer);
@@ -173,13 +175,13 @@ export class WebClientProtocol {
     }
     
     if (this.batchQueue.length === 0) {
-      return;
+      return true;
     }
     
     // Check connection state before attempting to send
     if (this.websocket?.readyState !== WebSocket.OPEN) {
       // Keep messages in queue for retry when connection is restored
-      return;
+      return false;
     }
 
     try {
@@ -198,6 +200,7 @@ export class WebClientProtocol {
         const sent = messages.length ? messages : [this.batchQueue[0]!];
         this.websocket.send(JSON.stringify(messages.length ? batchMessage : sent[0]));
         for (const message of sent) {
+          this.commandTracking.markSent(message.message_id);
           if (!message.message_id) continue;
           const pendingUpdate = this.pendingCharacterUpdates.get(message.message_id);
           if (pendingUpdate) pendingUpdate.sent = true;
@@ -205,9 +208,12 @@ export class WebClientProtocol {
         this.batchQueue.splice(0, sent.length);
       }
       logger.debug('Protocol: Batch sent successfully');
+      return true;
     } catch (error) {
       logger.error('Protocol: Failed to send batch:', error);
-      // Keep messages in queue for retry
+      // Retain exact identities and causal order for the replacement socket.
+      this.closeForReconnect('Batch transmission failed');
+      return false;
     }
   }
 
@@ -259,12 +265,20 @@ export class WebClientProtocol {
       return false;
     }
 
+    if (critical.includes(message.type) && !this.sendBatch()) return false;
+
     if (!this.commandTracking.track(message,
       typeof message.data?.table_id === 'string' ? message.data.table_id : null,
       tableId => this.resynchronizeTable(tableId))) return false;
     this.previewSpriteCommand(message);
     if (new Set<MessageType>([MessageType.WALL_CREATE, MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE]).has(message.type)) {
       queueMicrotask(() => { if (message.message_id && this.commandTracking.has(message.message_id)) this.wallSync.stage(message); });
+      if (message.type === MessageType.WALL_CREATE && message.message_id) {
+        this.pendingWallCreates.set(message.message_id, { tableId: String(message.data?.table_id), commands: [] });
+      } else if (typeof message.data?.wall_id === 'string') {
+        const creation = this.pendingWallCreates.get(message.data.wall_id);
+        if (creation) { creation.commands.push(message); return true; }
+      }
     }
     if (new Set<MessageType>([MessageType.SPRITE_MOVE, MessageType.SPRITE_SCALE, MessageType.SPRITE_ROTATE]).has(message.type)) {
       this.batchQueue = this.batchQueue.filter(item => !PREVIEW_MESSAGES.has(item.type)
@@ -272,9 +286,13 @@ export class WebClientProtocol {
     }
 
     if (critical.includes(message.type)) {
-      this.sendBatch();
       logger.debug('Protocol: Sending critical message:', message.type);
-      this.websocket.send(JSON.stringify(message));
+      try { this.websocket.send(JSON.stringify(message)); this.commandTracking.markSent(message.message_id); }
+      catch {
+        this.commandTracking.forgetUnsent(message.message_id);
+        this.closeForReconnect('Command transmission failed');
+        return false;
+      }
     } else {
       this.queueMessage(message);
     }
@@ -343,6 +361,9 @@ export class WebClientProtocol {
     const removeHydrated = onProtocolEvent('table-sprites-loaded', ({ table_id }) => {
       emitProtocolEvent('table-canonical-snapshot', { tableId: table_id });
       const request = this.resyncs.get(table_id);
+      for (const [id, creation] of this.pendingWallCreates) {
+        if (creation.tableId !== table_id || request?.received && request.watermark.includes(id)) this.discardWallDependents(id);
+      }
       this.wallSync.resolveSnapshot(request?.received ? request.watermark : []);
       if (request?.received) {
         clearTimeout(request.timer);
@@ -716,12 +737,16 @@ export class WebClientProtocol {
           this.connectionAlive = true;
           this.reconnectAttempts = 0;
           this.lastPongReceived = Date.now();
+          this.lastMessageReceived = Date.now();
           this.lastCloseCode = null;
           this.lastCloseReason = null;
           this.notifyConnectionState('connected');
           this.resendUnacknowledgedCharacterUpdates();
-          this.flushMessageQueue();
+          if (this.websocket !== socket) { rejectConnection(new Error('Reconnect transmission failed')); return; }
           this.flushPendingBatches(); // Flush any batched messages that were queued during disconnection
+          if (this.websocket !== socket) { rejectConnection(new Error('Reconnect transmission failed')); return; }
+          this.flushMessageQueue();
+          if (this.websocket !== socket) { rejectConnection(new Error('Reconnect transmission failed')); return; }
           const activeTableId = useGameStore.getState().activeTableId;
           if (activeTableId && this.commandTracking.watermark(activeTableId).length) this.resynchronizeTable(activeTableId);
           // Auto-start heartbeat for connection monitoring
@@ -798,6 +823,7 @@ export class WebClientProtocol {
   private async handleIncomingMessage(data: string): Promise<void> {
     try {
       const message = parseMessage(data);
+      this.lastMessageReceived = Date.now();
       this.observeOutcome(message);
       
       // Log all incoming messages for debugging
@@ -824,12 +850,16 @@ export class WebClientProtocol {
   private observeOutcome(message: Message): void {
     const request = this.commandTracking.settle(message);
     if (!request) return;
+    if (typeof request.data?.table_id === 'string') {
+      emitProtocolEvent('table-command-progress', { tableId: request.data.table_id });
+    }
     const rejected = message.type === MessageType.ERROR || message.type === MessageType.ACTION_REJECTED
       || message.data?.success === false;
     const optimistic = request.message_id && this.optimisticSpriteRequests.delete(request.message_id);
     if (optimistic) emitProtocolEvent('optimistic-sprite-settled', { requestId: request.message_id!, accepted: !rejected });
     if (!rejected) return;
     const wallReverted = request.message_id ? this.wallSync.reject(request.message_id) : false;
+    if (request.type === MessageType.WALL_CREATE && request.message_id) this.discardWallDependents(request.message_id);
     message.data ??= {};
     const payload = request.data ?? {};
     if (request.type === MessageType.SPRITE_CREATE) {
@@ -893,8 +923,10 @@ export class WebClientProtocol {
 
   private flushMessageQueue(): void {
     while (this.messageQueue.length > 0 && this.websocket?.readyState === WebSocket.OPEN) {
-      const message = this.messageQueue.shift()!;
-      this.websocket.send(JSON.stringify(message));
+      const message = this.messageQueue[0]!;
+      try { this.websocket.send(JSON.stringify(message)); }
+      catch { this.closeForReconnect('Queued transmission failed'); return; }
+      this.messageQueue.shift();
       if (message.message_id) {
         const pendingUpdate = this.pendingCharacterUpdates.get(message.message_id);
         if (pendingUpdate) pendingUpdate.sent = true;
@@ -905,7 +937,10 @@ export class WebClientProtocol {
   private resendUnacknowledgedCharacterUpdates(): void {
     if (this.websocket?.readyState !== WebSocket.OPEN) return;
     for (const pending of this.pendingCharacterUpdates.values()) {
-      if (pending.sent) this.websocket.send(JSON.stringify(pending.message));
+      if (pending.sent) {
+        try { this.websocket.send(JSON.stringify(pending.message)); }
+        catch { this.closeForReconnect('Retry transmission failed'); return; }
+      }
     }
   }
 
@@ -925,7 +960,9 @@ export class WebClientProtocol {
         // Send ping
         logger.debug('[Protocol]  Sending PING message...');
         const pingTime = Date.now();
-        this.sendMessage(createMessage(MessageType.PING));
+        // Heartbeats may bypass durable commands: they carry no state dependency.
+        try { this.websocket.send(JSON.stringify(createMessage(MessageType.PING))); }
+        catch { this.closeForReconnect('Heartbeat transmission failed'); return; }
         protocolLogger.connection('Ping sent', { lastPong: new Date(this.lastPongReceived).toISOString() });
         logger.debug(`[Protocol] Ping sent. Time since last pong: ${pingTime - this.lastPongReceived}ms`);
         
@@ -936,7 +973,7 @@ export class WebClientProtocol {
         this.pongTimeout = window.setTimeout(() => {
           // Check if pong was received AFTER we sent this ping
           const timeSincePing = Date.now() - pingTime;
-          if (this.lastPongReceived < pingTime) {
+          if (Math.max(this.lastPongReceived, this.lastMessageReceived) < pingTime) {
             logger.error(`[Protocol] PONG TIMEOUT! No pong received for ${timeSincePing}ms after ping (timeout: ${this.PONG_TIMEOUT_MS}ms)`);
             logger.error('[Protocol] Connection appears dead - disconnecting and reconnecting...');
             this.connectionAlive = false;
@@ -991,6 +1028,8 @@ export class WebClientProtocol {
   }
 
   private closeForReconnect(reason: string): void {
+    for (const request of this.resyncs.values()) clearTimeout(request.timer);
+    this.resyncs.clear();
     const socket = this.websocket;
     this.websocket = null;
     this.connectionAlive = false;
@@ -1814,7 +1853,22 @@ export class WebClientProtocol {
   private async handleWallData(message: Message): Promise<void> {
     const data = message.data as { operation: string; table_id?: string; wall?: Partial<WallData>; wall_id?: string };
     if (!this.targetsActiveTable(data)) return;
-    if (this.wallSync.accept(message)) return;
+    emitProtocolEvent('wall-data', data);
+    if (this.wallSync.accept(message)) {
+      const key = message.causation_id ?? message.correlation_id;
+      const creation = key ? this.pendingWallCreates.get(key) : undefined;
+      if (creation && key && typeof data.wall?.wall_id === 'string') {
+        this.pendingWallCreates.delete(key);
+        for (const command of creation.commands) {
+          command.data = { ...command.data, wall_id: data.wall.wall_id };
+          if (!this.sendMessage(command) && command.message_id) {
+            this.wallSync.reject(command.message_id);
+            this.commandTracking.forgetUnsent(command.message_id);
+          }
+        }
+      }
+      return;
+    }
     const store = useGameStore.getState();
     switch (data.operation) {
       case 'create':
@@ -1835,6 +1889,17 @@ export class WebClientProtocol {
     if (data?.layer && data?.settings) {
       this.applyLayerSettings({ [data.layer]: data.settings });
     }
+  }
+
+  private discardWallDependents(id: string): void {
+    const creation = this.pendingWallCreates.get(id);
+    if (!creation) return;
+    this.pendingWallCreates.delete(id);
+    for (const command of creation.commands) if (command.message_id) {
+      this.wallSync.reject(command.message_id);
+      this.commandTracking.forgetUnsent(command.message_id);
+    }
+    this.wallSync.reject(id);
   }
 
   /** Apply a map of { layerName -> settings } to the WASM engine and Zustand store. */
@@ -1906,7 +1971,7 @@ export class WebClientProtocol {
     if (tableId !== useGameStore.getState().activeTableId || this.resyncs.has(tableId)
       || this.websocket?.readyState !== WebSocket.OPEN) return;
     this.settingsBuffer.flush();
-    this.sendBatch();
+    if (!this.sendBatch()) return;
     const request = createMessage(MessageType.TABLE_REQUEST, { table_id: tableId }, 2);
     const timer = setTimeout(() => {
       this.resyncs.delete(tableId);
@@ -2060,10 +2125,12 @@ export class WebClientProtocol {
   private sendPaintMessage(type: MessageType, data: Record<string, unknown>, messageId?: string): boolean {
     const socket = this.websocket;
     if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+    let outgoing: Message | undefined;
     try {
       this.settingsBuffer.flush();
-      this.sendBatch();
+      if (!this.sendBatch()) return false;
       const message = createMessage(type, data, 3);
+      outgoing = message;
       const identity = messageId ?? data.operation_id;
       if (typeof identity === 'string') message.message_id = identity;
       const wire = JSON.stringify(message);
@@ -2071,8 +2138,10 @@ export class WebClientProtocol {
       if (!this.commandTracking.track(message, typeof data.table_id === 'string' ? data.table_id : null,
         tableId => this.resynchronizeTable(tableId))) return false;
       socket.send(wire);
+      this.commandTracking.markSent(message.message_id);
       return true;
     } catch (error) {
+      this.commandTracking.forgetUnsent(outgoing?.message_id);
       logger.error('Protocol: Failed to send paint message', error);
       return false;
     }
@@ -2509,6 +2578,7 @@ export class WebClientProtocol {
     this.batchQueue = [];
     this.messageQueue = [];
     this.wallSync.dispose();
+    this.pendingWallCreates.clear();
     this.commandTracking.dispose();
     this.settingsBuffer.dispose();
     for (const request of this.resyncs.values()) clearTimeout(request.timer);

@@ -72,6 +72,7 @@ export type ProtocolEventMap = {
   'sprite-action-confirmed': { actionId: unknown; state?: Record<string, number> };
   'sprite-action-rejected': { actionId: unknown; reason: string };
   'table-resync-started': { tableId: string };
+  'table-command-progress': { tableId: string };
   'table-resync-completed': { tableId: string };
   'table-sprites-loaded': { table_id: string; count: number };
   'sprite-created': ProtocolRecord;
@@ -91,6 +92,7 @@ export type ProtocolEventMap = {
   'table-list-updated': ProtocolRecord;
   'table-response': ProtocolRecord;
   'table-settings-changed': ProtocolRecord;
+  'wall-data': ProtocolRecord;
   'table-updated': ProtocolRecord;
   'xp-award-response': ProtocolRecord;
 };

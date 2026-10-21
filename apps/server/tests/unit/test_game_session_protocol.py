@@ -441,8 +441,19 @@ class TestAutoSave:
         svc.game_session_db_id = 1
         svc._last_save_time = 0  # very old
         svc.table_manager.save_to_database_async = AsyncMock(return_value=True)
+        svc.server_protocol.actions.flush_all_pending_saves = AsyncMock(return_value=True)
         await svc.auto_save()
-        svc.table_manager.save_to_database_async.assert_awaited_once()
+        svc.table_manager.save_to_database_async.assert_not_awaited()
+        svc.server_protocol.actions.flush_all_pending_saves.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_dirty_flush_propagates_failure_without_full_snapshot_overwrite(self):
+        svc = _make_service()
+        svc.db_session, svc.game_session_db_id = MagicMock(), 1
+        svc.server_protocol.actions.flush_all_pending_saves = AsyncMock(return_value=False)
+        svc.table_manager.save_to_database_async = AsyncMock(return_value=True)
+        assert not await svc.save_to_database_async(dirty_only=True)
+        svc.table_manager.save_to_database_async.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------

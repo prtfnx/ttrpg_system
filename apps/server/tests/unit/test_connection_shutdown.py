@@ -232,8 +232,14 @@ async def test_disconnect_user_persists_and_cleans_last_session_once(monkeypatch
     monkeypatch.setattr(game_session, "get_server_asset_manager", lambda: asset_manager)
 
     assert await manager.disconnect_user("ROOM", 7, reason="Membership removed") == 2
-
-    protocol_service.save_to_database_async.assert_awaited_once_with()
+    protocol_service.save_to_database_async.assert_not_awaited()
+    assert manager.sessions_protocols["ROOM"] is protocol_service
+    # Exercise the cleanup after the reconnect grace period without sleeping.
+    task = manager._cleanup_tasks.pop("ROOM")
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+    await manager._cleanup_empty_session("ROOM")
+    protocol_service.save_to_database_async.assert_awaited_once_with(dirty_only=True)
     protocol_service.stop_persistence.assert_awaited_once_with()
     protocol_service.wait_for_mutations.assert_awaited_once_with()
     protocol_service.cleanup.assert_called_once_with()

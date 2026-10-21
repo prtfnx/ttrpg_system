@@ -96,9 +96,11 @@ class GameSessionProtocolService:
         """Save current state to database - delegates to to_db()"""
         return self.to_db()
 
-    async def save_to_database_async(self) -> bool:
+    async def save_to_database_async(self, *, dirty_only: bool = False) -> bool:
         if not self.db_session or self.game_session_db_id is None:
             return False
+        if dirty_only:
+            return await self.server_protocol.actions.flush_all_pending_saves()
         return await self.table_manager.save_to_database_async(self.game_session_db_id)
 
     async def stop_persistence(self) -> None:
@@ -118,7 +120,7 @@ class GameSessionProtocolService:
                 logger.debug(f"Session {self.session_code} - Skipping auto-save, only {time_since_last_save:.1f}s since last save")
                 return
 
-            success = await self.save_to_database_async()
+            success = await self.save_to_database_async(dirty_only=True)
             if success:
                 self._last_save_time = current_time
                 logger.info(f"Session {self.session_code} - Auto-save successful")
@@ -402,7 +404,8 @@ class GameSessionProtocolService:
                 await asyncio.wait_for(websocket.send_text(payload), timeout=settings.WS_SEND_TIMEOUT_SECONDS)
 
             async def failed():
-                logger.warning("Slow or disconnected WebSocket requires fresh synchronization")
+                logger.warning("Slow or disconnected WebSocket requires fresh synchronization", extra={
+                    "event_name": "websocket.delivery.failed", **outbox.failure_details})
                 await self.remove_client(websocket)
                 try:
                     await asyncio.wait_for(websocket.close(code=1013, reason="Resynchronize session"), timeout=1)

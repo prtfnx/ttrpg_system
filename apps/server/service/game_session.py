@@ -205,7 +205,11 @@ class ConnectionManager:
                 )
                 async with lifecycle_lock:
                     if session_code not in self.active_connections:
-                        await self._cleanup_empty_session(session_code)
+                        # A transient socket failure must not force a full session
+                        # teardown/reload before the reconnect can reuse its cache.
+                        task = self._cleanup_tasks.get(session_code)
+                        if task is None or task.done():
+                            self._cleanup_tasks[session_code] = asyncio.create_task(self._retry_empty_session(session_code))
 
         logger.info(
             "WebSocket client removed",
@@ -243,7 +247,7 @@ class ConnectionManager:
             success = True
         else:
             try:
-                success = await protocol_service.save_to_database_async()
+                success = await protocol_service.save_to_database_async(dirty_only=True)
             except Exception:
                 logger.exception("Error saving session %s before cleanup", session_code)
                 success = False

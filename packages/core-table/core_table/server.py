@@ -59,7 +59,7 @@ class TableManager:
         table_id = str(table.table_id)
         self.tables[table_id] = table
         self.tables_id[table_id] = table
-        logger.info(f"Added table '{table.display_name}' (ID: {table.table_id}) to manager")
+        logger.debug(f"Added table '{table.display_name}' (ID: {table.table_id}) to manager")
 
     def remove_table(self, table_id: str):
         """Remove table from manager by UUID"""

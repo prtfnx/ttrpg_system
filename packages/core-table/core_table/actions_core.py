@@ -483,7 +483,7 @@ class ActionsCore(AsyncActionsProtocol):
     async def move_sprite(self, table_id: str, sprite_id: str, old_position: Union[Position, dict], new_position: Union[Position, dict], session_id: Optional[Any] = None, *, allow_out_of_bounds: bool = False) -> ActionResult:
         """Move sprite to new position"""
         try:
-            logger.info(f"Moving sprite {sprite_id} from {old_position} to {new_position} on table {table_id}")
+            logger.debug(f"Moving sprite {sprite_id} from {old_position} to {new_position} on table {table_id}")
             table = await self._get_table(table_id)
             if not table:
                 logger.error(f"Table {table_id} not found")
@@ -496,8 +496,10 @@ class ActionsCore(AsyncActionsProtocol):
                 return ActionResult(False, f"Sprite {sprite_id} not found")
             logger.debug(f"Entity found: {entity} with position {entity.position}")
             old_position_entity = Position(entity.position[0], entity.position[1])
+            if isinstance(old_position, dict):
+                old_position = Position(old_position.get('x'), old_position.get('y'))
             if old_position_entity != old_position:
-                logger.warning(f"Sprite position desync for {sprite_id}. Client expected {old_position}, server has {old_position_entity}. Using server position.")
+                logger.debug(f"Sprite position differs for {sprite_id}. Client expected {old_position}, server has {old_position_entity}. Using server position.")
                 # Server-authoritative: ignore client's old_position, move from where we actually are
 
 
@@ -514,7 +516,7 @@ class ActionsCore(AsyncActionsProtocol):
             if not allow_out_of_bounds and not table.is_valid_position((grid_x, grid_y)):
                 return ActionResult(False, "Outside table bounds")
             table.move_entity(entity.entity_id, (grid_x, grid_y), allow_out_of_bounds=allow_out_of_bounds)
-            logger.info(f"Moved sprite {sprite_id} to new position ({entity.entity_id}, {grid_x}, {grid_y})")
+            logger.debug(f"Moved sprite {sprite_id} to new position ({entity.entity_id}, {grid_x}, {grid_y})")
 
             # Persist the move to database
             await self._persist_table_state(table, "sprite move", session_id)

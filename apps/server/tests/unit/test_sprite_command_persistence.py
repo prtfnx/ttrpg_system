@@ -35,6 +35,12 @@ def command(actions, table, session_id, kind):
     return actions.update_sprite(table_id, "sprite", session_id, metadata='{"text":"Changed"}', width=120)
 
 
+async def test_equal_dictionary_origin_is_not_reported_as_desync(scene):
+    actions, table, session_id = scene
+    result = await actions.move_sprite(str(table.table_id), "sprite", {"x": 10, "y": 20}, {"x": 30, "y": 40}, session_id)
+    assert result.success and result.data["corrected"] is False
+
+
 @pytest.mark.parametrize("kind", ["create", "delete", "move", "scale", "rotate", "update", "layer"])
 @pytest.mark.parametrize("raises", [False, True])
 async def test_failed_write_has_no_live_history_or_background_retry(scene, monkeypatch, kind, raises):

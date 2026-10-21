@@ -55,7 +55,7 @@ def test_paint_preview_messages_use_disposable_budget(preview):
 
 def test_frame_budget_also_bounds_malformed_traffic():
     limiter = WebSocketMessageLimiter(2, 1)
-    assert all(limiter.allow_frame(0) for _ in range(3))
+    assert all(limiter.allow_frame(0) for _ in range(183))
     assert not limiter.allow_frame(0)
     assert limiter.allow_frame(60)
 
@@ -69,7 +69,7 @@ def test_malformed_batches_are_rejected(items):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("payload, count, close_code", [(PREVIEW, 1200, None), (COMMAND, 121, 1013)])
+@pytest.mark.parametrize("payload, count, close_code", [(PREVIEW, 1200, None), (COMMAND, 61, 1013)])
 async def test_endpoint_separates_drag_traffic_from_command_abuse(monkeypatch, payload, count, close_code):
     websocket = MagicMock()
     websocket.headers = {"origin": "https://game.example.com"}
@@ -85,12 +85,35 @@ async def test_endpoint_separates_drag_traffic_from_command_abuse(monkeypatch, p
         game_ws.WebSocketSessionContext(1, "player", "player"), None,
     ))
     await game_ws.websocket_game_endpoint(websocket, "TEST", manager)
-    assert manager.handle_message.await_count == (count if close_code is None else 120)
+    assert manager.handle_message.await_count == (count if close_code is None else 60)
     if close_code is None:
         websocket.close.assert_not_awaited()
     else:
         assert websocket.close.call_args.kwargs["code"] == close_code
     manager.disconnect.assert_awaited_once()
+
+
+def test_sustained_editor_work_does_not_spend_query_or_heartbeat_capacity():
+    limiter = WebSocketMessageLimiter(600, 1800)
+    for index in range(200):
+        assert limiter.filter_message(COMMAND, index * 0.2) is COMMAND
+    for index in range(30):
+        assert limiter.filter_message({"type": "table_request", "data": {}}, 40)
+    with pytest.raises(WebSocketRateExceeded):
+        limiter.filter_message({"type": "table_request", "data": {}}, 40)
+    assert limiter.filter_message({"type": "ping", "data": {}}, 40)
+    assert limiter.filter_message(COMMAND, 40)
+
+
+def test_mixed_batch_admission_is_atomic_and_cannot_hide_a_command_flood():
+    limiter = WebSocketMessageLimiter(2, 1800)
+    request = {"type": "batch_request", "data": {"messages": [COMMAND] * 3 + [{"type": "ping", "data": {}}]}}
+    with pytest.raises(WebSocketRateExceeded):
+        limiter.filter_message(request, 0)
+    assert limiter.filter_message(COMMAND, 0)
+    assert limiter.filter_message(COMMAND, 0)
+    with pytest.raises(WebSocketRateExceeded):
+        limiter.filter_message(COMMAND, 0)
 
 
 @pytest.mark.asyncio

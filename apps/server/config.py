@@ -80,7 +80,7 @@ class Settings(BaseSettings):
     CHAT_RETENTION_DAYS: int = 365
     TRUST_PROXY_HEADERS: bool = False
     WS_MAX_MESSAGE_BYTES: int = 64 * 1024
-    WS_MESSAGES_PER_MINUTE: int = 120  # Durable commands, including batch members
+    WS_MESSAGES_PER_MINUTE: int = 600  # Mutation token refill, with a 60-command burst
     WS_PREVIEWS_PER_MINUTE: int = 1800  # Allows sustained 20 Hz drag updates
     WS_SEND_TIMEOUT_SECONDS: float = 5.0
     PAINT_OPERATION_RETRY_WINDOW_SECONDS: int = 24 * 60 * 60

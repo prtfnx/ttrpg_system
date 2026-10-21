@@ -82,6 +82,27 @@ beforeEach(() => {
 });
 
 describe('TableSyncService', () => {
+  it.each(['sprite-moved', 'compendium-sprite-added', 'compendium-sprite-updated',
+    'compendium-sprite-removed', 'canvas-canonical-object'])('requests a fresh snapshot after detached %s instead of restoring stale state', type => {
+    let attached = true;
+    const service = new TableSyncService(() => attached ? mockEngine as never : null, mockSpriteSync as never);
+    const request = vi.fn();
+    window.addEventListener('protocol-send-message', request);
+    mockGameState.activeTableId = TABLE_A;
+    service.init();
+    const snapshot = (x: number) => tableSnapshot({ layers: { tokens: [{ sprite_id: 's', position: [x, 20] }] } });
+    try {
+      dispatch('table-data-received', snapshot(10));
+      service.retainLatestForRenderer(); attached = false;
+      dispatch(type, { table_id: TABLE_A, tableId: TABLE_A, kind: 'sprite', sprite_id: 's', to: { x: 90, y: 20 } });
+      attached = true; service.flushPending(); service.flushPending();
+      expect(mockEngine.handle_table_data).toHaveBeenCalledOnce();
+      expect(request).toHaveBeenCalledOnce();
+      expect(request.mock.calls[0][0].detail).toEqual({ type: 'table_request', data: { table_id: TABLE_A } });
+      dispatch('table-data-received', snapshot(90));
+      expect(mockEngine.handle_table_data.mock.lastCall![0].layers.tokens[0].coord_x).toBe(90);
+    } finally { service.dispose(); window.removeEventListener('protocol-send-message', request); }
+  });
   it('passes saved procedural anchors and geometry through the post-stage', () => {
     const service = makeService(); service.init();
     const geometry = { x1: 200, y1: 100, x2: 240, y2: 80 };

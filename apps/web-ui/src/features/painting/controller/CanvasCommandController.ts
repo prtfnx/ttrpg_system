@@ -85,6 +85,7 @@ export class CanvasCommandController {
   private pending = new Map<string, PendingCommand>();
   private flushing = false;
   private resyncWatermark: string[] = [];
+  private recovering = false;
   private clipboard: { id: string; members: readonly SelectionRef[]; copiedAt: number } | null = null;
   private history = { canUndo: false, canRedo: false };
   private lastError: string | null = null;
@@ -108,7 +109,9 @@ export class CanvasCommandController {
     const removers = [
       onProtocolEvent('canvas-command-result', data => this.acceptResult(data)),
       onProtocolEvent('table-resync-started', ({ tableId }) => {
-        if (tableId === this.tableId) this.resyncWatermark = [...this.pending]
+        if (tableId !== this.tableId) return;
+        this.recovering = true;
+        this.resyncWatermark = [...this.pending]
           .filter(([, item]) => Number.isFinite(item.sentAt)).map(([id]) => id);
       }),
       onProtocolEvent('table-resync-completed', ({ tableId }) => {
@@ -116,6 +119,7 @@ export class CanvasCommandController {
         for (const id of this.resyncWatermark) this.pending.delete(id);
         this.options.onSnapshot?.(this.resyncWatermark);
         this.resyncWatermark = [];
+        this.recovering = false;
         this.flushQueued();
         this.refreshHistory();
         this.emit();
@@ -132,6 +136,7 @@ export class CanvasCommandController {
         }
       })),
       onProtocolEvent('protocol-connected', () => {
+        if (this.recovering && this.tableId) { this.options.onResync(this.tableId); return; }
         this.retry();
         this.refreshHistory();
       }),
@@ -146,6 +151,7 @@ export class CanvasCommandController {
     this.disconnect = null;
     this.pending.clear();
     this.resyncWatermark = [];
+    this.recovering = false;
     this.options.onReset?.();
     this.clipboard = null;
     this.historyDirty = false;
@@ -158,6 +164,7 @@ export class CanvasCommandController {
     this.actorId = actorId;
     this.pending.clear();
     this.resyncWatermark = [];
+    this.recovering = false;
     this.options.onReset?.();
     this.clipboard = null;
     this.history = { canUndo: false, canRedo: false };
@@ -214,7 +221,7 @@ export class CanvasCommandController {
   }
 
   refreshHistory(): void {
-    if (this.tableId && this.actorId !== null) {
+    if (this.tableId && this.actorId !== null && !this.recovering) {
       try { this.transport.requestCanvasHistory(this.tableId); } catch { /* reconnect refreshes availability */ }
     }
   }
@@ -241,6 +248,7 @@ export class CanvasCommandController {
   }
 
   private retry(force = true): void {
+    if (this.recovering) return;
     for (const pending of this.pending.values()) {
       if (!Number.isFinite(pending.sentAt) || pending.command.table_id !== this.tableId
         || this.now() - pending.command.issued_at > RETRY_WINDOW_MS
@@ -251,7 +259,7 @@ export class CanvasCommandController {
   }
 
   private flushQueued(): void {
-    if (this.flushing) return;
+    if (this.flushing || this.recovering) return;
     this.flushing = true;
     try {
       const previous: PendingCommand[] = [];
@@ -285,6 +293,7 @@ export class CanvasCommandController {
     if (data.success !== true) {
       this.fail(typeof data.error === 'string' ? data.error : 'Canvas command was rejected.');
       if (data.resync_required === true || ['conflict', 'history_conflict', 'retry_window_expired'].includes(String(data.code))) {
+        this.recovering = true;
         this.options.onResync(pending.command.table_id);
       }
       this.flushQueued();
@@ -297,7 +306,10 @@ export class CanvasCommandController {
       this.clipboard = { id: data.clipboard_id, copiedAt: this.now(),
         members: pending.command.members.map(ref => ({ kind: ref.kind, id: ref.id })) };
     }
-    if (data.resync_required === true) this.options.onResync(pending.command.table_id);
+    if (data.resync_required === true) {
+      this.recovering = true;
+      this.options.onResync(pending.command.table_id);
+    }
     if (!this.pending.size && pending.command.mode !== 'copy' && pending.command.mode !== 'restyle' && Array.isArray(data.selection)) {
       this.options.onSelection(data.selection.filter((ref): ref is SelectionRef =>
         ref !== null && typeof ref === 'object' && (ref.kind === 'paint' || ref.kind === 'sprite') && typeof ref.id === 'string'));

@@ -58,6 +58,7 @@ export class WasmSyncCoordinator {
   }
 
   detachRenderer(): void {
+    this.tableTextureIds.clear();
     this.remoteSync.dispose();
     this.spriteSync.dispose();
     this.assetSync.dispose();

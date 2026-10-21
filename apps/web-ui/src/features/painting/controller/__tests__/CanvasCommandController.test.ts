@@ -27,6 +27,19 @@ function harness() {
 }
 
 describe('CanvasCommandController', () => {
+  it('keeps later intent queued through conflict recovery and resumes after hydration', () => {
+    const h = harness();
+    h.options.onResync.mockImplementation(() => emitProtocolEvent('table-resync-started', { tableId: TABLE }));
+    h.owner.submit({ mode: 'transform', members, transform: IDENTITY_TRANSFORM });
+    h.owner.submit({ mode: 'delete', members });
+    h.accept({ success: false, code: 'conflict', resync_required: true });
+    h.advance(20_000); h.owner.tick();
+    expect(h.transport.sendCanvasCommand).toHaveBeenCalledOnce();
+    expect(h.owner.getState().pending).toBe(true);
+    emitProtocolEvent('table-resync-completed', { tableId: TABLE });
+    expect(h.transport.sendCanvasCommand).toHaveBeenCalledTimes(2);
+    expect(h.command().mode).toBe('delete');
+  });
   it('captures immutable restyle intent and retains the broader selection on acknowledgement', () => {
     const h = harness();
     const style = { stroke_rgba: [0, 1, 0, 1] as [number, number, number, number], width: 6, fill_rgba: null };

@@ -4,7 +4,7 @@
  */
 
 import { useGameStore } from '@/store';
-import { onProtocolEvent } from '@lib/websocket/protocolEvents';
+import { emitProtocolEvent, onProtocolEvent } from '@lib/websocket/protocolEvents';
 import { logger } from '@shared/utils/logger';
 
 const DEFAULT_TABLE_BACKGROUND = '#1a1a1a';
@@ -45,6 +45,8 @@ interface TablePayload {
 export class TableSyncService {
   private pendingPayload: TablePayload | null = null;
   private latestPayload: TablePayload | null = null;
+  private cacheInvalidated = false;
+  private freshSnapshotRequested = false;
   private hydratedTableId: string | null = null;
   private readonly tableDerivedLightIds = new Map<string, Set<string>>();
   private eventCleanups: Array<() => void> = [];
@@ -75,6 +77,15 @@ export class TableSyncService {
       onProtocolEvent('table-response', d => this.handleTableDataReceived((d ?? {}) as TablePayload)),
       onProtocolEvent('new-table-response', d => this.handleTableDataReceived((d ?? {}) as TablePayload)),
       onProtocolEvent('table-updated', d => this.handleTableUpdate((d ?? {}) as TablePayload)),
+      ...(['sprite-created', 'sprite-updated', 'sprite-removed', 'sprite-response', 'sprite-moved',
+        'sprite-scaled', 'sprite-rotated', 'compendium-sprite-added', 'compendium-sprite-updated',
+        'compendium-sprite-removed', 'wall-data', 'table-settings-changed'] as const).map(type =>
+        onProtocolEvent(type, d => {
+          if (d?.table_id === useGameStore.getState().activeTableId) this.cacheInvalidated = true;
+        })),
+      onProtocolEvent('canvas-canonical-object', d => {
+        if (d.kind === 'sprite' && d.tableId === useGameStore.getState().activeTableId) this.cacheInvalidated = true;
+      }),
     );
   }
 
@@ -83,11 +94,23 @@ export class TableSyncService {
     this.eventCleanups = [];
     this.pendingPayload = null;
     this.latestPayload = null;
+    this.cacheInvalidated = false;
+    this.freshSnapshotRequested = false;
     this.hydratedTableId = null;
     this.tableDerivedLightIds.clear();
   }
 
   flushPending(): void {
+    if (!this.getEngine()) return;
+    if (this.cacheInvalidated) {
+      const tableId = useGameStore.getState().activeTableId;
+      if (tableId && !this.freshSnapshotRequested) {
+        this.freshSnapshotRequested = true;
+        this.pendingPayload = null;
+        emitProtocolEvent('protocol-send-message', { type: 'table_request', data: { table_id: tableId } });
+      }
+      return;
+    }
     if (!this.pendingPayload || !this.getEngine()) return;
     const payload = this.pendingPayload;
     this.pendingPayload = null;
@@ -95,6 +118,7 @@ export class TableSyncService {
   }
 
   retainLatestForRenderer(): void {
+    this.freshSnapshotRequested = false;
     if (this.latestPayload) this.pendingPayload = this.latestPayload;
   }
 
@@ -126,6 +150,8 @@ export class TableSyncService {
       }
 
       const engine = this.getEngine();
+      this.cacheInvalidated = false;
+      this.freshSnapshotRequested = false;
       if (!engine) {
         this.pendingPayload = data;
         logger.debug('[TableSyncService] Retaining table snapshot until the renderer is attached', { tableId });

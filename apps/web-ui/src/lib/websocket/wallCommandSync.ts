@@ -4,7 +4,7 @@ import { MessageType, type Message } from './message';
 /** Replays wall edits over confirmed rows, including relative door toggles. */
 export class WallCommandSync {
   private baseline = new Map<string, WallData | null>();
-  private pending = new Map<string, { id: string; tableId: string; apply: (row: WallData | null) => WallData | null }>();
+  private pending = new Map<string, { id: string; tableId: string; creating: boolean; apply: (row: WallData | null) => WallData | null }>();
   private readonly port: { read(): readonly WallData[]; active(): string | null; render(id: string, row: WallData | null): void };
   constructor(port: WallCommandSync['port']) { this.port = port; }
 
@@ -25,13 +25,13 @@ export class WallCommandSync {
     } else {
       if (!id) return false;
       if (!this.baseline.has(id)) this.baseline.set(id, structuredClone(this.port.read().find(row => row.wall_id === id) ?? null));
-      if (!this.baseline.get(id)) return false;
+      if (!this.baseline.get(id) && ![...this.pending.values()].some(command => command.id === id && command.creating)) return false;
       if (message.type === MessageType.WALL_REMOVE) apply = () => null;
       else if (message.type === MessageType.WALL_UPDATE) apply = row => row ? { ...row, ...(data.updates as object) } : null;
       else if (message.type === MessageType.DOOR_TOGGLE) apply = row => row ? { ...row, door_state: row.door_state === 'open' ? 'closed' : 'open' } : null;
       else return false;
     }
-    this.pending.set(message.message_id, { id, tableId: String(data.table_id), apply });
+    this.pending.set(message.message_id, { id, tableId: String(data.table_id), creating: message.type === MessageType.WALL_CREATE, apply });
     this.render(id);
     return true;
   }
@@ -49,11 +49,15 @@ export class WallCommandSync {
     if (!data || data.table_id !== this.port.active()) return false;
     const key = message.causation_id ?? message.correlation_id;
     const command = key ? this.pending.get(key) : undefined;
+    const row = data.wall as WallData | undefined;
     if (command && key) {
       this.pending.delete(key);
-      this.render(command.id); // Remove a temporary creation before installing its server ID.
+      if (command.creating && row?.wall_id) {
+        for (const pending of this.pending.values()) if (pending.id === command.id) pending.id = row.wall_id;
+        this.baseline.delete(command.id);
+        this.port.render(command.id, null);
+      } else this.render(command.id);
     }
-    const row = data.wall as WallData | undefined;
     const id = row?.wall_id ?? data.wall_id;
     if (typeof id !== 'string') return false;
     this.baseline.set(id, data.operation === 'remove' ? null : { ...this.baseline.get(id), ...row } as WallData);

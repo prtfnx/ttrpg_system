@@ -1,4 +1,5 @@
 import { MessageType, type Message } from './message';
+import { logger } from '@shared/utils/logger';
 
 export const PREVIEW_MESSAGES = new Set<MessageType>([
   MessageType.SPRITE_DRAG_PREVIEW, MessageType.SPRITE_RESIZE_PREVIEW, MessageType.SPRITE_ROTATE_PREVIEW,
@@ -30,7 +31,7 @@ export const MUTATION_MESSAGES = new Set<MessageType>([
 
 export class CommandTracking {
   private readonly pending = new Map<string, { message: Message; tableId: string | null;
-    timer: ReturnType<typeof setTimeout> }>();
+    timer: ReturnType<typeof setTimeout>; startedAt: number; sentAt?: number; uncertain: (tableId: string) => void }>();
 
   track(message: Message, tableId: string | null, uncertain: (tableId: string) => void): boolean {
     if (!MUTATION_MESSAGES.has(message.type) || !message.message_id || this.pending.has(message.message_id)) return true;
@@ -42,7 +43,7 @@ export class CommandTracking {
       if (tableId) uncertain(tableId);
       else this.pending.delete(message.message_id!);
     }, 10_000);
-    this.pending.set(message.message_id, { message, tableId, timer });
+    this.pending.set(message.message_id, { message, tableId, timer, startedAt: Date.now(), uncertain });
     return true;
   }
 
@@ -56,9 +57,31 @@ export class CommandTracking {
     }
     if (!key) return;
     const pending = this.pending.get(key)!;
+    logger.debug('Command outcome received', { message_id: key, message_type: pending.message.type,
+      queue_ms: pending.sentAt === undefined ? null : Math.max(0, pending.sentAt - pending.startedAt),
+      acknowledgement_ms: pending.sentAt === undefined ? null : Math.max(0, Date.now() - pending.sentAt),
+      pending_count: this.pending.size - 1 });
     clearTimeout(pending.timer);
     this.pending.delete(key);
+    // A busy but progressing server is not a lost connection. Watch for an
+    // idle receipt stream, with an absolute bound for an individually lost ack.
+    if (pending.tableId) for (const item of this.pending.values()) {
+      if (item.tableId !== pending.tableId) continue;
+      clearTimeout(item.timer);
+      item.timer = setTimeout(() => item.uncertain(item.tableId!),
+        Math.max(0, Math.min(10_000, 60_000 - (Date.now() - item.startedAt))));
+    }
     return pending.message;
+  }
+
+  markSent(id: string | undefined): void {
+    const pending = id ? this.pending.get(id) : undefined;
+    if (pending && pending.sentAt === undefined) pending.sentAt = Date.now();
+  }
+
+  forgetUnsent(id: string | undefined): void {
+    const pending = id ? this.pending.get(id) : undefined;
+    if (id && pending && pending.sentAt === undefined) this.resolveSnapshot([id]);
   }
 
   watermark(tableId: string): string[] {

@@ -27,3 +27,17 @@ it('previews wall creation under a temporary identity and installs only the acce
   expect(render).toHaveBeenCalledWith(request.message_id, null);
   expect(render).toHaveBeenLastCalledWith('server-wall', expect.objectContaining({ x2: 10 }));
 });
+
+it('replays dependent edits over the canonical identity when a provisional wall is accepted', () => {
+  const render = vi.fn();
+  const sync = new WallCommandSync({ read: () => [], active: () => 'table', render });
+  const create = createMessage(MessageType.WALL_CREATE, { table_id: 'table', wall_data: { x1: 0, y1: 0, x2: 10, y2: 10 } });
+  sync.stage(create);
+  const edit = createMessage(MessageType.WALL_UPDATE, { table_id: 'table', wall_id: create.message_id, updates: { x2: 30 } });
+  expect(sync.stage(edit)).toBe(true);
+  sync.accept({ ...createMessage(MessageType.WALL_DATA, { table_id: 'table', operation: 'create', wall: {
+    wall_id: 'server-wall', table_id: 'table', x1: 0, y1: 0, x2: 10, y2: 10 } }), causation_id: create.message_id });
+  expect(render).toHaveBeenLastCalledWith('server-wall', expect.objectContaining({ x2: 30 }));
+  sync.reject(edit.message_id!);
+  expect(render).toHaveBeenLastCalledWith('server-wall', expect.objectContaining({ x2: 10 }));
+});

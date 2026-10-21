@@ -1,6 +1,7 @@
 import asyncio
 from unittest.mock import AsyncMock
 
+import pytest
 from service.websocket_outbox import WebSocketOutbox
 
 
@@ -38,16 +39,23 @@ async def test_overflow_drops_previews_but_disconnects_for_durable_delivery():
     assert not box.enqueue("receipt")
     await box.drain()
     assert box.closed and box.bytes == 0
+    assert box.failure_details["reason"] == "queue_overflow"
+    assert box.failure_details["queued_bytes"] == len("first")
     failed.assert_awaited_once()
 
 
-async def test_send_failure_closes_queue_and_requests_resynchronization():
+@pytest.mark.parametrize("error, reason", [(OSError("offline"), "send_failed"), (TimeoutError(), "send_timeout")])
+async def test_send_failure_closes_queue_and_requests_resynchronization(error, reason):
     failed = AsyncMock()
-    box = WebSocketOutbox(AsyncMock(side_effect=OSError("offline")), failed)
+    box = WebSocketOutbox(AsyncMock(side_effect=error), failed)
     box.enqueue("event")
     box.enqueue("receipt")
     await box.drain()
     assert box.closed and not box.queue
+    assert box.failure_details["reason"] == reason
+    assert box.failure_details["error_type"] == type(error).__name__
+    assert box.failure_details["queued_bytes"] == len("eventreceipt")
+    assert box.failure_details["send_ms"] >= 0 and box.failure_details["queue_ms"] >= 0
     failed.assert_awaited_once()
 
 

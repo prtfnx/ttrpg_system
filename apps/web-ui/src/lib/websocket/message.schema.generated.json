@@ -463,6 +463,8 @@
           "minimum": 0,
           "maximum": 9007199254740991
         },
+        "ttl_ms": {"type": "integer", "minimum": 1, "maximum": 2000},
+        "preview_id": {"type": "string", "minLength": 1, "maxLength": 128},
         "sequence": {
           "type": "integer",
           "minimum": 0,
@@ -615,7 +617,8 @@
             "retry_window_expired", "invalid_payload", "outcome_unknown",
             "persistence_failed", "table_settings_save_failed", "conflict",
             "history_conflict", "unsupported", "movement_rejected",
-            "combat_required", "paint_disabled", "history_unavailable"
+            "combat_required", "paint_disabled", "history_unavailable",
+            "text_version_conflict", "table_creation_save_failed"
           ]
         },
         "current_object": {
@@ -624,6 +627,13 @@
         "current_version": {
           "type": "integer",
           "minimum": 1
+        },
+        "current_text_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reload_required": {
+          "type": "boolean"
         },
         "original_message": {
           "type": "object"
@@ -3161,7 +3171,11 @@
         "required": ["timestamp", "message_id"],
         "properties": {
           "timestamp": {"type": "number", "minimum": 0, "maximum": 9007199254740.991},
-          "message_id": {"type": "string", "minLength": 1, "maxLength": 128}
+          "message_id": {"type": "string", "minLength": 1, "maxLength": 128},
+          "data": {"type": "object", "properties": {
+            "preview_id": {"type": "string", "minLength": 1, "maxLength": 128},
+            "source_client_id": {"type": "string", "minLength": 1, "maxLength": 128}
+          }}
         }
       }
     },

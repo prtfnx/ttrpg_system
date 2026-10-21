@@ -325,6 +325,17 @@ class TestNewTableRequest:
         assert "session context" in resp.data["error"]
         proto.actions.create_table.assert_not_awaited()
 
+    async def test_uncertain_creation_failure_has_a_valid_wire_response(self):
+        proto = _ProtoStub(role="owner")
+        failure = _fail_result()
+        failure.data = {"reload_required": True}
+        proto.actions.create_table = AsyncMock(return_value=failure)
+        response = await proto.handle_new_table_request(
+            Message(MessageType.NEW_TABLE_REQUEST, {"table_name": "Dungeon"}), "c1")
+        parsed = Message.from_json(response.to_json())
+        assert parsed.data["code"] == "table_creation_save_failed"
+        assert parsed.data["reload_required"]
+
     async def test_create_broadcasts_authoritative_table_id(self):
         proto = _ProtoStub(role="owner")
         proto.broadcast_to_session = AsyncMock()

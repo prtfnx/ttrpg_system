@@ -80,6 +80,49 @@ def test_retry_returns_fresh_history_not_old_sprite_data_and_checks_identity(edi
         service.replay(changed)
 
 
+def test_commit_timing_includes_slow_transaction_completion(editor):
+    import time
+
+    from utils.action_diagnostics import ActionDiagnostics, current_action_diagnostics
+    _service, _table, factory, _scope, edit, _history = editor
+    stats = ActionDiagnostics()
+    token = current_action_diagnostics.set(stats)
+    engine = factory.kw["bind"]
+    def slow_commit(_connection):
+        time.sleep(0.02)
+    event.listen(engine, "commit", slow_commit)
+    try:
+        edit("Changed", 2)
+    finally:
+        event.remove(engine, "commit", slow_commit)
+        current_action_diagnostics.reset(token)
+    assert stats.commit_count == 1 and stats.fields()["commit_ms"] >= 20
+
+
+def test_bulk_run_rechecks_each_command_authorization_and_rolls_back_on_revocation(editor, monkeypatch):
+    service, table, factory, scope, _, _ = editor
+    original = service._role
+    checked = []
+    def authorize(db, context):
+        checked.append(context.operation_id)
+        if len(checked) == 2:
+            raise CanvasRejected("forbidden", "Actor revoked")
+        return original(db, context)
+    monkeypatch.setattr(service, "_role", authorize)
+    commands = []
+    for angle in (10, 20):
+        staged = copy.deepcopy(table)
+        staged.find_entity_by_sprite_id("text").rotation = angle
+        commands.append(dict(scope=scope(MessageType.SPRITE_ROTATE, rotation=angle),
+            before_snapshot=table.to_dict(), staged=staged))
+    with pytest.raises(CanvasRejected, match="revoked"):
+        service.persist_many(commands)
+    assert len(checked) == 2
+    with factory() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 0
+        assert db.query(models.Entity).one().rotation == 0
+
+
 def test_text_history_cannot_overwrite_another_edit(editor):
     _, table, _, _, edit, history = editor
     edit("Accepted", 2)

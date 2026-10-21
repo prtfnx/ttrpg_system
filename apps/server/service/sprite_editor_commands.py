@@ -22,6 +22,8 @@ from service.canvas_command_service import (
 )
 from service.paint_object_service import _Rejected
 from service.sprite_delta_persistence import stage_sprite_delta
+from sqlalchemy import insert
+from utils.action_diagnostics import timed_transaction
 from utils.roles import can_interact, is_dm
 
 SPRITE_COMMAND_TYPES = frozenset({MessageType.SPRITE_CREATE, MessageType.SPRITE_REMOVE,
@@ -85,7 +87,7 @@ class SpriteEditorCommandService(CanvasCommandService):
     def replay(self, scope):
         self._require_intent_age(scope)
         try:
-            with self.factory() as db, db.begin():
+            with self.factory() as db, timed_transaction(db):
                 return self._replay_in_transaction(db, scope)
         except _Rejected as exc:
             raise CanvasRejected(exc.error.code, exc.error.message) from exc
@@ -93,7 +95,7 @@ class SpriteEditorCommandService(CanvasCommandService):
     def replay_many(self, scopes):
         results = {}
         groups = {}
-        with self.factory() as db, db.begin():
+        with self.factory() as db, timed_transaction(db):
             for scope in scopes:
                 try:
                     self._require_intent_age(scope)
@@ -145,22 +147,44 @@ class SpriteEditorCommandService(CanvasCommandService):
         for command in commands:
             self._require_intent_age(command["scope"])
         try:
-            with self.factory() as db, db.begin():
+            with self.factory() as db, timed_transaction(db):
                 abandoned_scopes = set()
                 pending_deltas = {}
-                receipts = [self._persist_in_transaction(db, **command, abandoned_scopes=abandoned_scopes,
-                    pending_deltas=pending_deltas) for command in commands]
+                run_state = {"operations": {}, "combat": {}, "rules": {}, "journal": [],
+                    "operation_ids": [command["scope"].operation_id for command in commands]}
+                # Keep pending journal entries private until all authorization
+                # checks pass, even when a caller enables ORM autoflush.
+                with db.no_autoflush:
+                    receipts = [self._persist_in_transaction(db, **command, abandoned_scopes=abandoned_scopes,
+                        pending_deltas=pending_deltas, run_state=run_state) for command in commands]
+                if run_state["journal"]:
+                    db.execute(insert(models.CanvasCommandJournal), run_state["journal"],
+                        execution_options={"render_nulls": True})
                 for delta in pending_deltas.values():
                     stage_sprite_delta(db, delta["staged"], list(delta["changes"].values()), delta["session_id"], stored=delta["stored"])
+                history = {(table_id, actor_id): self._trim(db, table_id, actor_id)
+                    for table_id, actor_id in {(command["scope"].table_id, command["scope"].actor_id) for command in commands}}
+                # All outcomes describe the same committed run. Journal rows
+                # still retain a distinct ordered undo boundary per gesture.
+                for command, receipt in zip(commands, receipts, strict=True):
+                    scope = command["scope"]
+                    receipt.update(history[(scope.table_id, scope.actor_id)])
             return receipts
         except _Rejected as exc:
             raise CanvasRejected(exc.error.code, exc.error.message) from exc
 
-    def _persist_in_transaction(self, db, *, scope, before_snapshot, staged, combat_sprite_ids=(), abandoned_scopes=None, pending_deltas=None):
+    def _persist_in_transaction(self, db, *, scope, before_snapshot, staged, combat_sprite_ids=(), abandoned_scopes=None, pending_deltas=None, run_state):
         stored, role = self._role(db, scope)
         if str(staged.table_id) != scope.table_id or before_snapshot.get("table_id") != scope.table_id:
             raise CanvasRejected("not_found", "Sprite table scope changed")
-        if self._entries(db, scope.table_id, scope.actor_id).filter_by(operation_id=scope.operation_id).first():
+        history_scope = (scope.table_id, scope.actor_id)
+        existing = run_state["operations"].get(history_scope)
+        if existing is None:
+            existing = {row[0] for row in db.query(models.CanvasCommandJournal.operation_id).filter_by(
+                table_id=scope.table_id, actor_id=scope.actor_id).filter(
+                models.CanvasCommandJournal.operation_id.in_(run_state["operation_ids"])).all()}
+            run_state["operations"][history_scope] = existing
+        if scope.operation_id in existing:
             raise CanvasRejected("conflict", "Sprite command was already accepted; reload before retrying")
         targets = before_snapshot.get("_sprite_targets")
         if targets is not None:
@@ -176,8 +200,11 @@ class SpriteEditorCommandService(CanvasCommandService):
         moved = [change for change in changes if change["before"] is not None and change["after"] is not None
                  and change["before"]["position"] != change["after"]["position"]]
         if moved:
-            session = db.get(models.GameSession, scope.session_id)
-            rules = SessionRules.from_dict({**json.loads(session.session_rules_json or "{}"), "session_id": session.session_code})
+            rules = run_state["rules"].get(scope.session_id)
+            if rules is None:
+                session = db.get(models.GameSession, scope.session_id)
+                rules = SessionRules.from_dict({**json.loads(session.session_rules_json or "{}"), "session_id": session.session_code})
+                run_state["rules"][scope.session_id] = rules
             if not rules.allows_out_of_bounds(is_dm=is_dm(role)) and any(
                     not staged.is_valid_position(change["after"]["position"]) for change in moved):
                 raise CanvasRejected("movement_rejected", "Outside table bounds")
@@ -192,10 +219,15 @@ class SpriteEditorCommandService(CanvasCommandService):
             if len(publication.to_json().encode("utf-8")) > MAX_COMMAND_BYTES:
                 raise CanvasRejected("limit_exceeded", "Sprite publication exceeds the safe WebSocket frame budget")
         combat_ids = set(combat_sprite_ids)
-        encounters = db.query(models.CombatEncounter).filter_by(session_id=scope.session_id,
-            table_id=scope.table_id, ended_at=None).filter(models.CombatEncounter.phase != "inactive").all()
-        for encounter in encounters:
-            combat_ids.update(str(member["entity_id"]) for member in json.loads(encounter.combatants_json or "[]"))
+        combat_scope = (scope.session_id, scope.table_id)
+        persisted_combat = run_state["combat"].get(combat_scope)
+        if persisted_combat is None:
+            encounters = db.query(models.CombatEncounter).filter_by(session_id=scope.session_id,
+                table_id=scope.table_id, ended_at=None).filter(models.CombatEncounter.phase != "inactive").all()
+            persisted_combat = {str(member["entity_id"]) for encounter in encounters
+                for member in json.loads(encounter.combatants_json or "[]")}
+            run_state["combat"][combat_scope] = persisted_combat
+        combat_ids.update(persisted_combat)
         reversible = scope.editor and bool(changes) and not any(change["id"] in combat_ids for change in changes)
         if reversible:
             self._authorize(changes, role, scope.actor_id, "sprite", ())
@@ -208,19 +240,17 @@ class SpriteEditorCommandService(CanvasCommandService):
             for change in changes:
                 prior = delta["changes"].get(change["id"])
                 delta["changes"][change["id"]] = {**change, "before": prior["before"] if prior else change["before"]}
-        history_scope = (scope.table_id, scope.actor_id)
         if reversible and (abandoned_scopes is None or history_scope not in abandoned_scopes):
             self._entries(db, scope.table_id, scope.actor_id).filter_by(state="undone").update(
                 {"state": "abandoned"}, synchronize_session=False)
             if abandoned_scopes is not None:
                 abandoned_scopes.add(history_scope)
         receipt = {"success": True, "table_id": scope.table_id}
-        row = models.CanvasCommandJournal(table_id=scope.table_id, actor_id=scope.actor_id,
+        row = dict(table_id=scope.table_id, actor_id=scope.actor_id,
             operation_id=scope.operation_id, request_hash=scope.request_hash,
             kind="sprite" if reversible else "sprite_receipt", state="applied" if reversible else "accepted",
             changes=changes if reversible else None, changes_bytes=len(encoded(changes)) if reversible else 0,
             result_json={"receipt": dict(receipt)}, created_at=self.now())
-        db.add(row)
-        db.flush()
-        receipt.update(self._trim(db, scope.table_id, scope.actor_id))
+        run_state["journal"].append(row)
+        existing.add(scope.operation_id)
         return receipt

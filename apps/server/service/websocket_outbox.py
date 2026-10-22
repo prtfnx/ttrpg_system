@@ -38,7 +38,8 @@ class WebSocketOutbox:
             self.close()
             self.task = asyncio.create_task(self.failed())
             return False
-        self.queue.append((payload, size, time.monotonic()))
+        queued_at = time.monotonic()
+        self.queue.append((payload, size, queued_at, queued_at + 2 if disposable else None))
         self.bytes += size
         if self.task is None or self.task.done():
             self.task = asyncio.create_task(self._deliver())
@@ -53,7 +54,7 @@ class WebSocketOutbox:
             self.task = asyncio.create_task(self.failed())
             return False
         self.snapshots += 1
-        self.queue.append((iter(frames), None, time.monotonic()))
+        self.queue.append((iter(frames), None, time.monotonic(), None))
         if self.task is None or self.task.done():
             self.task = asyncio.create_task(self._deliver())
         return True
@@ -61,7 +62,10 @@ class WebSocketOutbox:
     async def _deliver(self):
         try:
             while self.queue and not self.closed:
-                payload, size, queued_at = self.queue.popleft()
+                payload, size, queued_at, expires_at = self.queue.popleft()
+                if expires_at is not None and time.monotonic() >= expires_at:
+                    self.bytes -= size
+                    continue
                 if size is None:
                     snapshot_bytes = 0
                     for index, frame in enumerate(payload):

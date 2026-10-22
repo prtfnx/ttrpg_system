@@ -129,4 +129,19 @@ describe('RemoteSyncService', () => {
     expect(mockSpriteSync.updateSpritePosition).toHaveBeenCalledWith('s1', { x: 300, y: 400 });
     svc.dispose();
   });
+
+  it('fences a completed gesture while immediately accepting the next gesture with a relative lease', () => {
+    vi.useFakeTimers();
+    const svc = makeService(); svc.init();
+    dispatch('sprite-moved', { sprite_id: 's1', preview_id: 'old', source_client_id: 'peer' });
+    const sample = { id: 's1', x: 100, y: 200, sequence: 1, preview_id: 'old',
+      source_client_id: 'peer', ttl_ms: 1500, expires_at: Date.now() - 100_000 };
+    dispatch('sprite-drag-preview-remote', sample);
+    expect(mockSpriteSync.updateSpritePosition).not.toHaveBeenCalled();
+    dispatch('sprite-drag-preview-remote', { ...sample, preview_id: 'next' });
+    expect(mockSpriteSync.updateSpritePosition).toHaveBeenCalledWith('s1', { x: 100, y: 200 });
+    vi.advanceTimersByTime(1500);
+    expect(mockSpriteSync.updateSpritePosition).toHaveBeenCalledTimes(2);
+    svc.dispose();
+  });
 });

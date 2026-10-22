@@ -75,6 +75,30 @@ async def test_delayed_snapshot_frames_do_not_flood_info_logs(monkeypatch):
     assert len(logged) == 2
 
 
+async def test_stale_disposable_samples_do_not_arrive_after_a_slow_snapshot(monkeypatch):
+    from service import websocket_outbox
+    now = [100.0]
+    started, release = asyncio.Event(), asyncio.Event()
+    delivered = []
+
+    async def send(payload):
+        delivered.append(payload)
+        if payload == "snapshot":
+            started.set()
+            await release.wait()
+
+    monkeypatch.setattr(websocket_outbox.time, "monotonic", lambda: now[0])
+    box = WebSocketOutbox(send, AsyncMock())
+    box.enqueue_snapshot(iter(["snapshot"]))
+    await started.wait()
+    box.enqueue("preview", disposable=True)
+    box.enqueue("receipt")
+    now[0] += 3
+    release.set()
+    await box.drain()
+    assert delivered == ["snapshot", "receipt"] and box.bytes == 0
+
+
 async def test_large_recovery_serializes_lazily_and_preserves_event_order():
     started, release = asyncio.Event(), asyncio.Event()
     delivered, serialized = [], []

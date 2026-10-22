@@ -14,6 +14,7 @@ export class RemoteSyncService {
   private leases = new Map<string, ReturnType<typeof setTimeout>>();
   private sequences = new Map<string, number>();
   private grace = new Map<string, number>();
+  private completedPreviews = new Set<string>();
 
   constructor(spriteSync: SpriteSyncService) {
     this.spriteSync = spriteSync;
@@ -40,7 +41,10 @@ export class RemoteSyncService {
         if (typeof id === 'string') for (const operation of operations) {
           const key = JSON.stringify([data.table_id, id, operation]);
           this.cancel(key);
-          this.grace.set(key, Date.now() + 2000);
+          if (typeof data.preview_id === 'string' && typeof data.source_client_id === 'string') {
+            this.completedPreviews.add(JSON.stringify([key, data.source_client_id, data.preview_id]));
+            if (this.completedPreviews.size > 1024) this.completedPreviews.delete(this.completedPreviews.values().next().value!);
+          } else this.grace.set(key, Date.now() + 2000); // Compatibility for legacy peers.
           if (this.grace.size > 1024) this.grace.delete(this.grace.keys().next().value!);
         }
       });
@@ -57,14 +61,18 @@ export class RemoteSyncService {
   private preview(operation: Operation, data: Record<string, unknown>): void {
     const tableId = useGameStore.getState().activeTableId;
     if (!tableId || data.table_id !== tableId || typeof data.id !== 'string') return;
+    const modern = typeof data.preview_id === 'string' && data.preview_id.length > 0;
     const expires = data.expires_at ?? Date.now() + 1500;
-    if (typeof expires !== 'number' || !Number.isFinite(expires) || expires <= Date.now() || expires > Date.now() + 2000) return;
+    const ttl = modern ? data.ttl_ms : typeof expires === 'number' ? expires - Date.now() : NaN;
+    if (typeof ttl !== 'number' || !Number.isFinite(ttl) || ttl <= 0 || ttl > 2000) return;
     const fields = operation === 'move' ? ['x', 'y'] : operation === 'resize' ? ['width', 'height'] : ['rotation'];
     if (fields.some(field => typeof data[field] !== 'number' || !Number.isFinite(data[field]))) return;
     if (operation === 'resize' && (Number(data.width) <= 0 || Number(data.height) <= 0)) return;
     const key = JSON.stringify([tableId, data.id, operation]);
-    if ((this.grace.get(key) ?? 0) > Date.now()) return;
-    const sequenceKey = JSON.stringify([tableId, data.id, operation, data.source_client_id]);
+    if (modern) {
+      if (this.completedPreviews.has(JSON.stringify([key, data.source_client_id, data.preview_id]))) return;
+    } else if ((this.grace.get(key) ?? 0) > Date.now()) return;
+    const sequenceKey = JSON.stringify([tableId, data.id, operation, data.source_client_id, data.preview_id]);
     if (data.sequence !== undefined) {
       if (!Number.isSafeInteger(data.sequence) || Number(data.sequence) <= (this.sequences.get(sequenceKey) ?? -1)) return;
       this.sequences.set(sequenceKey, Number(data.sequence));
@@ -82,7 +90,7 @@ export class RemoteSyncService {
       if (operation === 'move') this.spriteSync.updateSpritePosition(spriteId, { x: sprite.x, y: sprite.y });
       if (operation === 'resize') this.spriteSync.resizeSpriteInWasm(spriteId, sprite.width ?? 50, sprite.height ?? 50);
       if (operation === 'rotate') this.spriteSync.updateSpriteRotation(spriteId, sprite.rotation);
-    }, expires - Date.now()));
+    }, ttl));
     if (operation === 'move') this.spriteSync.updateSpritePosition(spriteId, { x: Number(data.x), y: Number(data.y) });
     if (operation === 'resize') this.spriteSync.resizeSpriteInWasm(spriteId, Number(data.width), Number(data.height));
     if (operation === 'rotate') this.spriteSync.updateSpriteRotation(spriteId, Number(data.rotation));
@@ -98,5 +106,6 @@ export class RemoteSyncService {
     for (const key of this.leases.keys()) this.cancel(key);
     this.sequences.clear();
     this.grace.clear();
+    this.completedPreviews.clear();
   }
 }

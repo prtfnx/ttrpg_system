@@ -83,6 +83,33 @@ async def test_identical_create_retry_acknowledges_without_rebroadcast_or_stale_
     assert sprite_command_scope.get() is None
 
 
+async def test_text_conflict_response_is_valid_on_the_wire_and_keeps_correlation(protocol):
+    proto, table, _ = protocol
+    await send(proto, create(table))
+    metadata = json.loads(table.find_entity_by_sprite_id("text").metadata)
+    request = Message(MessageType.SPRITE_UPDATE, {"table_id": str(table.table_id), "sprite_id": "text",
+        "metadata": metadata, "width": 120, "height": 40, "expected_text_revision": 2})
+    response = Message.from_json((await send(proto, request)).to_json())
+    assert response.data["code"] == "text_version_conflict"
+    assert response.data["current_text_revision"] == 1
+    assert response.causation_id == request.message_id
+
+
+@pytest.mark.parametrize("kind,data", [(MessageType.SPRITE_MOVE, {"from": {"x": 20, "y": 30}, "to": {"x": 40, "y": 50}}),
+    (MessageType.SPRITE_SCALE, {"width": 80, "height": 40}), (MessageType.SPRITE_ROTATE, {"rotation": 30})])
+async def test_canonical_transform_closes_preview_with_trusted_source_identity(protocol, kind, data):
+    from core_table.session_rules import SessionRules
+    proto, table, _ = protocol
+    await send(proto, create(table))
+    code = proto._get_session_code()
+    proto._rules_cache[code] = SessionRules.defaults(code), "free_roam"
+    response = await send(proto, Message(kind, {"table_id": str(table.table_id), "sprite_id": "text",
+        "preview_id": "gesture", "source_client_id": "forged", **data}))
+    assert response.data["success"]
+    event = Message.from_json(proto.broadcast_filtered.call_args.args[0].to_json())
+    assert event.data["preview_id"] == "gesture" and event.data["source_client_id"] == "client"
+
+
 async def test_history_storage_failure_rejects_without_live_mutation_or_broadcast(protocol, monkeypatch):
     proto, table, factory = protocol
     before = table.to_dict()
@@ -298,7 +325,7 @@ async def test_inbox_accumulates_frames_into_one_durable_run_and_preserves_every
         release.set()
         await asyncio.wait_for(done.wait(), 10)
         assert len(calls) == 2 and calls[1]["type"] == "batch_request"
-        assert len(commits) == 4  # Two preflights and two writes, not 42 transactions.
+        assert len(commits) == 6  # First frame plus two bounded ten-command runs.
         with factory() as db:
             assert db.query(models.Entity).one().rotation == 21
             assert db.query(models.CanvasCommandJournal).count() == 22
@@ -344,8 +371,8 @@ async def test_burst_sql_work_does_not_scale_with_unrelated_sprites(protocol, te
     finally:
         event.remove(test_db_engine, "before_cursor_execute", capture)
     assert response.data["failed_count"] == 0
-    assert sum(counts.values()) < 250
-    assert len(commits) == 2
+    assert sum(counts.values()) < 100
+    assert len(commits) == 4  # Each ten-command sub-run has a preflight and a write.
     print(f"BURST_SQL unrelated={unrelated_sprites} distinct_targets={distinct_targets} statements={sum(counts.values())} counts={dict(counts)} elapsed_ms={(time.perf_counter()-started)*1000:.1f}")
 
 

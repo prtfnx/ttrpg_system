@@ -62,6 +62,15 @@ def _bounded_number(value: object, minimum: float, maximum: float) -> float | No
 
 def _preview_fields(data, client_id):
     now = time.time() * 1000
+    preview_id = data.get('preview_id')
+    if preview_id is not None:
+        ttl = _bounded_integer(data.get('ttl_ms'), 1, 2000)
+        sequence = _bounded_integer(data.get('sequence'), 0, 9_007_199_254_740_991)
+        if not isinstance(preview_id, str) or not 0 < len(preview_id) <= 128 or ttl is None or sequence is None:
+            return None
+        # Lifetimes use receiver-relative leases; sender clocks are irrelevant.
+        return {'preview_id': preview_id, 'ttl_ms': ttl, 'expires_at': now + ttl,
+            'sequence': sequence, 'source_client_id': client_id}
     expires = _finite_number(data.get('expires_at', now + 1500))
     sequence = data.get('sequence')
     if expires is None or not now < expires <= now + 2000:
@@ -87,7 +96,7 @@ class _SpritesMixin(_ProtocolBase):
                     return entity.layer
         return None
 
-    async def _broadcast_sprite_event(self, message: Message, client_id: str, *, layer: str | None = None) -> None:
+    async def _broadcast_sprite_event(self, message: Message, client_id: str, *, layer: str | None = None, request: Message | None = None) -> None:
         data = message.data or {}
         table_id = data.get('table_id')
         sprite_id = data.get('sprite_id') or data.get('id')
@@ -100,6 +109,9 @@ class _SpritesMixin(_ProtocolBase):
                 message = Message(MessageType.SPRITE_UPDATE, {'sprite_id': sprite_id, 'table_id': table_id,
                     'operation': 'create', 'sprite_data': {**entity.to_dict(), 'table_id': table_id}})
                 await self.send_to_client(message, client_id)
+        preview_id = (request.data or {}).get('preview_id') if request is not None else None
+        if isinstance(preview_id, str) and 0 < len(preview_id) <= 128:
+            message.data.update(preview_id=preview_id, source_client_id=client_id)
         if layer is None:
             layer = self._sprite_layer(data.get('table_id'), data.get('sprite_id') or data.get('id'))
         if layer is not None:
@@ -472,7 +484,7 @@ class _SpritesMixin(_ProtocolBase):
                 'y': accepted.get('y'),
                 'table_id': table_id
             })
-            await self._broadcast_sprite_event(move_message, client_id)
+            await self._broadcast_sprite_event(move_message, client_id, request=msg)
 
             return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:
@@ -523,7 +535,7 @@ class _SpritesMixin(_ProtocolBase):
 
             await self._broadcast_sprite_event(
                 Message(MessageType.SPRITE_SCALE, {'sprite_id': sprite_id, 'width': width, 'height': height, 'table_id': table_id}),
-                client_id
+                client_id, request=msg
             )
             return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:
@@ -579,7 +591,7 @@ class _SpritesMixin(_ProtocolBase):
                     'rotation': rotation,
                     'table_id': table_id
                 }),
-                client_id
+                client_id, request=msg
             )
 
             return Message(MessageType.SPRITE_RESPONSE, response_data)

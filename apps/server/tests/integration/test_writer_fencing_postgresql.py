@@ -238,6 +238,7 @@ def _start_server(url, port, log_path):
     environment = {
         **os.environ,
         "DATABASE_URL": url.render_as_string(hide_password=False),
+        "DATABASE_MIGRATION_URL": "",
         "PYTHONPATH": os.pathsep.join(filter(None, [
             str(Path(__file__).resolve().parents[4] / "packages" / "core-table"),
             os.getenv("PYTHONPATH", ""),
@@ -251,6 +252,8 @@ def _start_server(url, port, log_path):
         "GOOGLE_CLIENT_ID": "",
         "GOOGLE_CLIENT_SECRET": "",
         "LOG_LEVEL": "WARNING",
+        "WS_MESSAGES_PER_MINUTE": "600",
+        "WS_PREVIEWS_PER_MINUTE": "1800",
     }
     with log_path.open("w", encoding="utf-8") as output:
         process = subprocess.Popen(

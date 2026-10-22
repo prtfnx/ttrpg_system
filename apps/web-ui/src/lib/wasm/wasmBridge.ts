@@ -34,7 +34,7 @@ interface PendingAction {
   timerId: ReturnType<typeof setTimeout>;
   baselineGeneration: number;
   sequence: number;
-  startedAt: number;
+  sentAt?: number;
 }
 
 class WasmBridgeService {
@@ -65,11 +65,18 @@ class WasmBridgeService {
       onProtocolEvent('sprite-removed', this.onSpriteRemoved),
       onProtocolEvent('table-command-progress', ({ tableId }) => {
         for (const [id, pending] of this.pendingActions) {
-          if (pending.tableId !== tableId) continue;
+          if (pending.tableId !== tableId || pending.sentAt === undefined) continue;
           clearTimeout(pending.timerId);
           pending.timerId = setTimeout(() => this.onTimeout(id),
-            Math.max(0, Math.min(CONFIRM_TIMEOUT_MS, 60_000 - (Date.now() - pending.startedAt))));
+            Math.max(0, Math.min(CONFIRM_TIMEOUT_MS, 60_000 - (Date.now() - pending.sentAt))));
         }
+      }),
+      onProtocolEvent('command-transmitted', ({ actionId }) => {
+        const pending = this.pendingActions.get(actionId);
+        if (!pending || pending.sentAt !== undefined) return;
+        pending.sentAt = Date.now();
+        clearTimeout(pending.timerId);
+        pending.timerId = setTimeout(() => this.onTimeout(actionId), CONFIRM_TIMEOUT_MS);
       }),
       onProtocolEvent('table-resync-started', ({ tableId }) => this.resyncWatermarks.set(tableId, this.sequence)),
       onProtocolEvent('table-resync-completed', ({ tableId }) => {
@@ -248,9 +255,9 @@ class WasmBridgeService {
 
     const actionId = String(nextMovementSequenceId());
     const newState = this.dataToState(operation, data);
-    const timerId = setTimeout(() => this.onTimeout(actionId), CONFIRM_TIMEOUT_MS);
+    const timerId = setTimeout(() => this.onTimeout(actionId), 30_000);
     const pending = { tableId, spriteId, operation, newState, timerId,
-      baselineGeneration: this.baselineGeneration(spriteId, operation), sequence: ++this.sequence, startedAt: Date.now() };
+      baselineGeneration: this.baselineGeneration(spriteId, operation), sequence: ++this.sequence };
     this.pendingActions.set(actionId, pending);
     if (this.pendingActions.size > 100 || !Object.values(newState).every(Number.isFinite)
       || operation === 'resize' && (newState.width <= 0 || newState.height <= 0)) {

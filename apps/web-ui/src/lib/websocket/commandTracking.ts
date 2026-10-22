@@ -1,5 +1,7 @@
 import { MessageType, type Message } from './message';
 import { logger } from '@shared/utils/logger';
+import { reportCommandTiming } from '@shared/utils/commandTelemetry';
+import { emitProtocolEvent } from './protocolEvents';
 
 export const PREVIEW_MESSAGES = new Set<MessageType>([
   MessageType.SPRITE_DRAG_PREVIEW, MessageType.SPRITE_RESIZE_PREVIEW, MessageType.SPRITE_ROTATE_PREVIEW,
@@ -31,7 +33,8 @@ export const MUTATION_MESSAGES = new Set<MessageType>([
 
 export class CommandTracking {
   private readonly pending = new Map<string, { message: Message; tableId: string | null;
-    timer: ReturnType<typeof setTimeout>; startedAt: number; sentAt?: number; uncertain: (tableId: string) => void }>();
+    timer?: ReturnType<typeof setTimeout>; startedAt: number; sentAt?: number;
+    expired?: boolean; uncertain: (tableId: string) => void }>();
 
   track(message: Message, tableId: string | null, uncertain: (tableId: string) => void): boolean {
     if (!MUTATION_MESSAGES.has(message.type) || !message.message_id || this.pending.has(message.message_id)) return true;
@@ -39,12 +42,21 @@ export class CommandTracking {
       if (tableId) uncertain(tableId);
       return false;
     }
-    const timer = setTimeout(() => {
-      if (tableId) uncertain(tableId);
-      else this.pending.delete(message.message_id!);
-    }, 10_000);
-    this.pending.set(message.message_id, { message, tableId, timer, startedAt: Date.now(), uncertain });
+    const pending = { message, tableId, startedAt: Date.now(), uncertain };
+    this.pending.set(message.message_id, pending);
+    this.arm(message.message_id, 30_000);
     return true;
+  }
+
+  private arm(id: string, delay: number): void {
+    const pending = this.pending.get(id);
+    if (!pending || pending.expired) return;
+    clearTimeout(pending.timer);
+    pending.timer = setTimeout(() => {
+      pending.expired = true;
+      if (pending.tableId) pending.uncertain(pending.tableId);
+      else this.pending.delete(id);
+    }, Math.max(0, delay));
   }
 
   settle(response: Message): Message | undefined {
@@ -61,22 +73,30 @@ export class CommandTracking {
       queue_ms: pending.sentAt === undefined ? null : Math.max(0, pending.sentAt - pending.startedAt),
       acknowledgement_ms: pending.sentAt === undefined ? null : Math.max(0, Date.now() - pending.sentAt),
       pending_count: this.pending.size - 1 });
+    if (pending.sentAt !== undefined) reportCommandTiming({ message_type: pending.message.type, message_id: key,
+      queue_ms: Math.max(0, pending.sentAt - pending.startedAt),
+      acknowledgement_ms: Math.max(0, Date.now() - pending.sentAt) });
     clearTimeout(pending.timer);
     this.pending.delete(key);
     // A busy but progressing server is not a lost connection. Watch for an
     // idle receipt stream, with an absolute bound for an individually lost ack.
-    if (pending.tableId) for (const item of this.pending.values()) {
-      if (item.tableId !== pending.tableId) continue;
-      clearTimeout(item.timer);
-      item.timer = setTimeout(() => item.uncertain(item.tableId!),
-        Math.max(0, Math.min(10_000, 60_000 - (Date.now() - item.startedAt))));
+    if (pending.tableId) for (const [id, item] of this.pending) {
+      if (item.tableId !== pending.tableId || item.sentAt === undefined) continue;
+      this.arm(id, Math.min(10_000, 60_000 - (Date.now() - item.sentAt)));
     }
     return pending.message;
   }
 
   markSent(id: string | undefined): void {
     const pending = id ? this.pending.get(id) : undefined;
-    if (pending && pending.sentAt === undefined) pending.sentAt = Date.now();
+    if (id && pending && pending.sentAt === undefined) {
+      pending.sentAt = Date.now();
+      this.arm(id, 10_000);
+      const actionId = pending.message.data?.action_id ?? pending.message.data?.sequence_id;
+      if (typeof actionId === 'string' || typeof actionId === 'number') {
+        emitProtocolEvent('command-transmitted', { messageId: id, actionId: String(actionId) });
+      }
+    }
   }
 
   forgetUnsent(id: string | undefined): void {

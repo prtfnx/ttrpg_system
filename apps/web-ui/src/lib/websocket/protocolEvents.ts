@@ -73,6 +73,8 @@ export type ProtocolEventMap = {
   'sprite-action-rejected': { actionId: unknown; reason: string };
   'table-resync-started': { tableId: string };
   'table-command-progress': { tableId: string };
+  'command-transmitted': { messageId: string; actionId: string };
+  'table-recovery-progress': { tableId: string };
   'table-resync-completed': { tableId: string };
   'table-sprites-loaded': { table_id: string; count: number };
   'sprite-created': ProtocolRecord;

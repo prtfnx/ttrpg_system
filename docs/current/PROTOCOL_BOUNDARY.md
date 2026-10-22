@@ -4,7 +4,7 @@ Audience: contributors changing browser/server WebSocket messages.
 
 Status: current but partial.
 
-Last source audit: 2026-10-20
+Last source audit: 2026-10-21
 
 The protocol boundary connects browser clients to a game session on the server.
 It is message-based and should stay explicit.
@@ -223,3 +223,26 @@ Sprite broadcasts use authoritative layer visibility, including deletion and
 previews. Recipient iteration is stable across concurrent connection changes.
 Transport command and preview budgets, including retryable close 1013, are
 specified in [WebSocket messages](reference/WEBSOCKET_MESSAGES.md).
+
+
+## Canvas predecessor fences
+
+For `transform`, `sprite_edit` and `restyle`, each canvas member may carry an
+`after_operation_id` UUID. The server resolves it only in the authenticated
+actor's journal for that table, inside the normal table transaction. The
+predecessor must be an applied transform/property/style edit with retained
+after-state for that exact member. Current authoritative content must still
+match that after-state. The server then uses that committed state instead of
+the member's earlier expected transform/version. Authorization, movement,
+combat, quotas and history checks still apply to every command.
+
+An unavailable or unapplied predecessor returns `dependency_failed` before
+applying any part of the command. A changed object returns `conflict`; it cannot
+silently overwrite an intervening remote edit. Self references, unrelated
+members and dependency fields on clipboard/destructive/history commands reject.
+Retries retain the exact operation identity and body. Each accepted command
+keeps its own transaction, receipt and undo step. No database migration is
+required; the existing journal stores the predecessor state.
+
+Regression owners: `tests/unit/test_canvas_pipeline.py` in `apps/server` and
+`packages/core-table/tests/test_canvas_protocol_schema.py`.

@@ -1906,7 +1906,8 @@
           "properties": {
             "kind": {"const": "paint"},
             "id": {"$ref": "#/$defs/canvasUuid"},
-            "version": {"type": "integer", "minimum": 1}
+            "version": {"type": "integer", "minimum": 1},
+            "after_operation_id": {"$ref": "#/$defs/canvasUuid"}
           },
           "additionalProperties": false
         },
@@ -1916,6 +1917,7 @@
           "properties": {
             "kind": {"const": "sprite"},
             "id": {"type": "string", "minLength": 1, "maxLength": 128},
+            "after_operation_id": {"$ref": "#/$defs/canvasUuid"},
             "expected": {
               "type": "object",
               "required": ["x", "y", "width", "height", "scale_x", "scale_y", "rotation"],
@@ -2000,7 +2002,10 @@
         {"properties": {"mode": {"const": "paste"}}, "required": ["clipboard_id", "ids", "transform"], "not": {"anyOf": [{"required": ["members"]}, {"required": ["style"]}]}},
         {"properties": {"mode": {"enum": ["undo", "redo"]}}, "not": {"anyOf": [{"required": ["members"]}, {"required": ["transform"]}, {"required": ["ids"]}, {"required": ["clipboard_id"]}, {"required": ["style"]}]}}
       ],
-      "allOf": [{"if": {"required": ["edit"]}, "then": {"properties": {"mode": {"const": "sprite_edit"}}}}],
+      "allOf": [
+        {"if": {"required": ["edit"]}, "then": {"properties": {"mode": {"const": "sprite_edit"}}}},
+        {"if": {"properties": {"members": {"type": "array", "contains": {"type": "object", "required": ["after_operation_id"]}}}, "required": ["members"]}, "then": {"properties": {"mode": {"enum": ["transform", "sprite_edit", "restyle"]}}}}
+      ],
       "additionalProperties": false
     },
     "canvasCommandResult": {

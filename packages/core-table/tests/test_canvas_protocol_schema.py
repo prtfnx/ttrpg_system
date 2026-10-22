@@ -28,6 +28,23 @@ def test_canvas_modes_validate(mode, extras):
     assert parsed.data["mode"] == mode
 
 
+@pytest.mark.parametrize("mode", ["transform", "restyle", "sprite_edit"])
+def test_canvas_pipeline_member_fences_validate(mode):
+    member = SPRITES[0] if mode == "sprite_edit" else MEMBERS[0]
+    extra = {"transform": TRANSFORM} if mode == "transform" else (
+        {"style": STYLE} if mode == "restyle" else {"edit": {"rotation": 10}})
+    message = {"type": "canvas_command", "data": {**BASE, "mode": mode,
+        "members": [{**member, "after_operation_id": UUID}], **extra}}
+    assert Message.from_json(json.dumps(message)).data["members"][0]["after_operation_id"] == UUID
+
+
+@pytest.mark.parametrize("mode", ["delete", "cut", "copy"])
+def test_canvas_pipeline_fences_reject_barrier_modes(mode):
+    with pytest.raises(ValueError, match="Invalid protocol message"):
+        Message.from_json(json.dumps({"type": "canvas_command", "data": {**BASE, "mode": mode,
+            "members": [{**MEMBERS[0], "after_operation_id": UUID}]}}))
+
+
 @pytest.mark.parametrize("data", [
     {**BASE, "mode": "undo", "members": MEMBERS},
     {**BASE, "mode": "transform", "members": MEMBERS},

@@ -255,7 +255,7 @@ class CanvasCommandService:
                 members = command.get("members")
                 if not isinstance(members, list) or not 1 <= len(members) <= MAX_MEMBERS:
                     raise CanvasRejected("limit_exceeded", "Select between 1 and 100 canvas objects")
-                seen = set()
+                seen, predecessors = set(), {}
                 for member in members:
                     if not isinstance(member, dict) or member.get("kind") not in {"paint", "sprite"}:
                         raise CanvasRejected("invalid_payload", "Invalid canvas selection reference")
@@ -270,25 +270,50 @@ class CanvasCommandService:
                     before = self._current(db, table, kind, target)
                     if before is None:
                         raise CanvasRejected("conflict", "A selected object was removed")
+                    predecessor = member.get("after_operation_id")
+                    member_fields = set(member) - {"after_operation_id"}
+                    if "after_operation_id" in member:
+                        if mode not in {"transform", "sprite_edit", "restyle"}:
+                            raise CanvasRejected("invalid_payload", "This command cannot be pipelined")
+                        predecessor = _uuid(predecessor)
+                        if predecessor == operation_id:
+                            raise CanvasRejected("invalid_payload", "A command cannot depend on itself")
+                        if predecessor not in predecessors:
+                            predecessors[predecessor] = self._entries(db, table_id, actor_id).filter_by(
+                                operation_id=predecessor).one_or_none()
+                        root_entry = predecessors[predecessor]
+                        if (root_entry is None or root_entry.state != "applied"
+                                or root_entry.kind not in {"transform", "sprite_edit", "restyle"}
+                                or not root_entry.changes):
+                            raise CanvasRejected("dependency_failed", "The preceding edit was not applied")
+                        saved = next((change for change in root_entry.changes
+                            if change["kind"] == kind and change["id"] == target), None)
+                        if saved is None or saved["after"] is None:
+                            raise CanvasRejected("invalid_payload", "The preceding edit did not change this object")
+                        # A predecessor is a version fence, not permission to
+                        # overwrite another actor's intervening mutation.
+                        if before != saved["after"]:
+                            raise CanvasRejected("conflict", "A pipelined object changed after its preceding edit")
                     if kind == "paint":
                         if (
-                            set(member) != {"kind", "id", "version"}
+                            member_fields != {"kind", "id", "version"}
                             or isinstance(member["version"], bool)
-                            or member["version"] != before["version"]
+                            or not isinstance(member["version"], int) or member["version"] < 1
+                            or (predecessor is None and member["version"] != before["version"])
                         ):
                             raise CanvasRejected("conflict", "A selected paint object changed")
                     else:
                         expected = member.get("expected")
                         actual = sprite_transform(Entity.from_dict(before))
                         if (
-                            set(member) != {"kind", "id", "expected"}
+                            member_fields != {"kind", "id", "expected"}
                             or not isinstance(expected, dict)
                             or set(expected) != set(actual)
                         ):
                             raise CanvasRejected("invalid_payload", "A complete expected sprite transform is required")
                         for value in expected.values():
                             _number(value)
-                        if expected != actual:
+                        if predecessor is None and expected != actual:
                             raise CanvasRejected("conflict", "A selected sprite changed")
                     after = copy.deepcopy(before) if mode in {"copy", "transform", "restyle"} else None
                     if mode == "transform":

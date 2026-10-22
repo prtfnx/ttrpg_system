@@ -3,10 +3,12 @@
 from typing import Literal
 
 from config import Settings
+from core_table.protocol import MessageType
 from database.database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from routers.users import get_current_user_optional
+from service.command_policy import MUTATING_MESSAGE_TYPES
 from sqlalchemy.orm import Session
 from utils.logger import setup_logger
 from utils.observability import BROWSER_ERRORS
@@ -24,6 +26,28 @@ class BrowserErrorReport(BaseModel):
     stack: str | None = Field(default=None, max_length=4096)
     path: str = Field(min_length=1, max_length=256, pattern=r"^/")
     release: str = Field(min_length=1, max_length=128)
+
+
+class CommandTimingReport(BaseModel):
+    model_config = {"extra": "forbid"}
+    message_type: MessageType
+    message_id: str = Field(min_length=1, max_length=128)
+    queue_ms: float = Field(ge=0, le=300000, allow_inf_nan=False)
+    acknowledgement_ms: float = Field(ge=0, le=300000, allow_inf_nan=False)
+    release: str = Field(min_length=1, max_length=128)
+
+
+@router.post("/command-timing", status_code=204)
+def command_timing(report: CommandTimingReport, request: Request):
+    if not settings.BROWSER_TELEMETRY_ENABLED:
+        raise HTTPException(status_code=404, detail="Not found")
+    if report.message_type not in MUTATING_MESSAGE_TYPES or report.message_type == MessageType.BATCH_REQUEST:
+        raise HTTPException(status_code=422, detail="Expected a mutation outcome")
+    if not telemetry_limiter.is_allowed(get_client_ip(request), max_requests=30, window_minutes=1):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    logger.info("Browser command timing received", extra={"event_name": "browser.command.timing",
+        **report.model_dump(mode="json")})
+    return Response(status_code=204)
 
 
 @router.post("/browser-error", status_code=204)

@@ -370,20 +370,40 @@ describe('PaintController', () => {
     expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(3);
   });
 
-  it('measures the snapshot deadline from the request, not the first chunk', () => {
+  it('allows slow unique snapshot progress while bounding the total recovery lifetime', () => {
+    const { controller, transport, advance, errors } = harness(0);
+    controller.selectTable(TABLE);
+    for (let index = 0; index < 6; index++) {
+      advance(9000); controller.acceptSnapshotChunk(chunk(index, 20, [])); controller.tick();
+      expect(errors).toEqual([]);
+    }
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledOnce();
+    advance(6000); controller.tick();
+    expect(errors).toEqual(['Paint snapshot timed out']);
+  });
+
+  it('does not extend snapshot recovery for duplicate chunks', () => {
+    const { controller, advance, errors } = harness(0);
+    controller.selectTable(TABLE); controller.acceptSnapshotChunk(chunk(0, 2, []));
+    advance(9000); controller.acceptSnapshotChunk(chunk(0, 2, []));
+    advance(1000); controller.tick();
+    expect(errors).toEqual(['Paint snapshot timed out']);
+  });
+
+  it('refreshes the idle deadline for new chunks and cancels it after hydration', () => {
     const { controller, transport, advance } = harness();
     controller.selectTable(TABLE);
     advance(9_999);
     controller.acceptSnapshotChunk(chunk(0, 2, [object()]));
     advance(1);
     controller.tick();
-    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledOnce();
     expect(controller.getState().committed).toEqual([]);
 
-    controller.acceptSnapshotChunk(chunk(0, 1, [object()]));
+    controller.acceptSnapshotChunk(chunk(1, 2, []));
     advance(20_000);
     controller.tick();
-    expect(transport.requestPaintSnapshot).toHaveBeenCalledTimes(2);
+    expect(transport.requestPaintSnapshot).toHaveBeenCalledOnce();
     expect(controller.getState().hydrating).toBe(false);
   });
 

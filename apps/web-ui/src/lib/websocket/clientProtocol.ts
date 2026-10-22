@@ -115,9 +115,11 @@ export class WebClientProtocol {
   private readonly MAX_BATCH_SIZE = 15;
   private readonly MAX_OUTBOUND_FRAME_BYTES = 64 * 1024;
   private incomingChain: Promise<void> = Promise.resolve();
-  private readonly resyncs = new Map<string, { requestId: string; watermark: string[]; received?: boolean; timer: ReturnType<typeof setTimeout> }>();
+  private readonly resyncs = new Map<string, { requestId: string; watermark: string[]; received?: boolean;
+    startedAt: number; timer?: ReturnType<typeof setTimeout> }>();
   private readonly commandTracking = new CommandTracking();
   private readonly optimisticSpriteRequests = new Set<string>();
+  private readonly spritePreviewScopes = new Map<string, { id: string; sequence: number }>();
   private readonly pendingWallCreates = new Map<string, { tableId: string; commands: Message[] }>();
   private readonly wallSync = new WallCommandSync({
     read: () => useGameStore.getState().walls ?? [], active: () => useGameStore.getState().activeTableId,
@@ -237,6 +239,7 @@ export class WebClientProtocol {
 
   /** Override sendMessage to use batching for non-critical messages */
   sendMessage(message: Message): boolean {
+    this.prepareSpritePreviewScope(message);
     if (new TextEncoder().encode(JSON.stringify(message)).length > this.MAX_OUTBOUND_FRAME_BYTES) {
       logger.error('Protocol message exceeds the 64 KiB frame limit', message.type);
       return false;
@@ -377,7 +380,11 @@ export class WebClientProtocol {
       this.settingsBuffer.reapply(table_id);
     });
     const removeUncertain = onProtocolEvent('sprite-confirmation-uncertain', ({ tableId }) => this.resynchronizeTable(tableId));
-    this.cleanupProtocolMessageSender = () => { removeSender(); removeHydrated(); removeUncertain(); };
+    const removeProgress = onProtocolEvent('table-command-progress', ({ tableId }) => this.advanceTableRecovery(tableId));
+    const removeRecoveryProgress = onProtocolEvent('table-recovery-progress', ({ tableId }) => this.advanceTableRecovery(tableId));
+    this.cleanupProtocolMessageSender = () => {
+      removeSender(); removeHydrated(); removeUncertain(); removeProgress(); removeRecoveryProgress();
+    };
     logger.debug('Protocol: Registered protocol-send-message event listener');
   }
 
@@ -878,6 +885,36 @@ export class WebClientProtocol {
       MessageType.PAINT_OBJECT_UPDATE, MessageType.PAINT_OBJECT_DELETE]);
     if (!optimistic && !wallReverted && !owned.has(request.type) && typeof payload.table_id === 'string') {
       this.resynchronizeTable(payload.table_id);
+    }
+  }
+
+  private prepareSpritePreviewScope(message: Message): void {
+    const previewKinds = new Map<MessageType, string>([
+      [MessageType.SPRITE_DRAG_PREVIEW, 'move'], [MessageType.SPRITE_RESIZE_PREVIEW, 'resize'],
+      [MessageType.SPRITE_ROTATE_PREVIEW, 'rotate'],
+    ]);
+    const commitKinds = new Map<MessageType, string>([
+      [MessageType.SPRITE_MOVE, 'move'], [MessageType.SPRITE_SCALE, 'resize'], [MessageType.SPRITE_ROTATE, 'rotate'],
+    ]);
+    const preview = previewKinds.get(message.type), kind = preview ?? commitKinds.get(message.type);
+    const data = message.data;
+    if (!kind || !data || typeof data.table_id !== 'string') return;
+    const id = preview ? data.id ?? data.sprite_id : data.sprite_id;
+    if (typeof id !== 'string') return;
+    const key = JSON.stringify([data.table_id, id, kind]);
+    const existing = this.spritePreviewScopes.get(key);
+    if (preview) {
+      const sequence = typeof data.sequence === 'number' ? data.sequence : 0;
+      const scope = existing && sequence > existing.sequence ? existing : { id: crypto.randomUUID(), sequence };
+      scope.sequence = sequence;
+      this.spritePreviewScopes.set(key, scope);
+      if (this.spritePreviewScopes.size > 512) this.spritePreviewScopes.delete(this.spritePreviewScopes.keys().next().value!);
+      data.preview_id = scope.id;
+      data.ttl_ms = 1500;
+      data.sequence ??= sequence;
+    } else if (existing) {
+      data.preview_id ??= existing.id;
+      if (data.preview_id === existing.id) this.spritePreviewScopes.delete(key);
     }
   }
 
@@ -1973,13 +2010,29 @@ export class WebClientProtocol {
     this.settingsBuffer.flush();
     if (!this.sendBatch()) return;
     const request = createMessage(MessageType.TABLE_REQUEST, { table_id: tableId }, 2);
-    const timer = setTimeout(() => {
+    this.resyncs.set(tableId, { requestId: request.message_id!, watermark: this.commandTracking.watermark(tableId),
+      startedAt: Date.now() });
+    this.advanceTableRecovery(tableId);
+    // Request the table before resync listeners request paint. A large paint
+    // stream must not be put ahead of the table response by our own ordering.
+    if (this.sendMessage(request)) emitProtocolEvent('table-resync-started', { tableId });
+    else {
+      const recovery = this.resyncs.get(tableId);
+      if (recovery) clearTimeout(recovery.timer);
       this.resyncs.delete(tableId);
-      this.websocket?.close(4000, 'Table synchronization timed out');
-    }, 10_000);
-    this.resyncs.set(tableId, { requestId: request.message_id!, watermark: this.commandTracking.watermark(tableId), timer });
-    emitProtocolEvent('table-resync-started', { tableId });
-    this.sendMessage(request);
+    }
+  }
+
+  private advanceTableRecovery(tableId: string): void {
+    const recovery = this.resyncs.get(tableId);
+    if (!recovery) return;
+    clearTimeout(recovery.timer);
+    const socket = this.websocket;
+    recovery.timer = setTimeout(() => {
+      if (this.resyncs.get(tableId) !== recovery || this.websocket !== socket) return;
+      this.resyncs.delete(tableId);
+      socket?.close(4000, 'Table synchronization timed out');
+    }, Math.max(0, Math.min(10_000, 60_000 - (Date.now() - recovery.startedAt))));
   }
 
   private completeTableResync(message: Message): void {
@@ -1990,6 +2043,7 @@ export class WebClientProtocol {
     if (!request || (message.causation_id ?? message.correlation_id) !== request.requestId) return;
     // Only validated renderer/store hydration resolves uncertain commands.
     request.received = true;
+    this.advanceTableRecovery(tableId);
   }
 
   // Active table persistence methods
@@ -2579,6 +2633,7 @@ export class WebClientProtocol {
     this.messageQueue = [];
     this.wallSync.dispose();
     this.pendingWallCreates.clear();
+    this.spritePreviewScopes.clear();
     this.commandTracking.dispose();
     this.settingsBuffer.dispose();
     for (const request of this.resyncs.values()) clearTimeout(request.timer);

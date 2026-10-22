@@ -136,6 +136,50 @@ function makeOpenWs(protocol: WebClientProtocol) {
 // ---------------------------------------------------------------------------
 
 describe('WebClientProtocol', () => {
+  it('fences the committed preview gesture without delaying the next gesture', () => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    const preview = (sequence: number) => createMessage(MessageType.SPRITE_DRAG_PREVIEW,
+      { id: 'sprite', table_id: 'table-abc', x: 1, y: 2, sequence });
+    try {
+      const first = preview(1); protocol.sendMessage(first);
+      const last = preview(2); protocol.sendMessage(last);
+      const commit = createMessage(MessageType.SPRITE_MOVE, { table_id: 'table-abc', sprite_id: 'sprite',
+        from: { x: 0, y: 0 }, to: { x: 1, y: 2 } });
+      protocol.sendMessage(commit);
+      const next = preview(3); protocol.sendMessage(next); protocol.sendBatch();
+      expect(first.data?.preview_id).toBe(last.data?.preview_id);
+      expect(commit.data?.preview_id).toBe(last.data?.preview_id);
+      expect(next.data?.preview_id).not.toBe(commit.data?.preview_id);
+      expect(next.data?.ttl_ms).toBe(1500);
+      expect(ws.send).toHaveBeenCalled();
+    } finally { protocol.disconnect(); }
+  });
+  it('allows recovery progress but never extends its sixty-second hard deadline', () => {
+    vi.useFakeTimers();
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      protocol.resynchronizeTable('table-abc');
+      for (let index = 0; index < 6; index++) {
+        vi.advanceTimersByTime(9000);
+        window.dispatchEvent(new CustomEvent('table-recovery-progress', { detail: { tableId: 'table-abc' } }));
+        expect(ws.close).not.toHaveBeenCalled();
+      }
+      vi.advanceTimersByTime(6000);
+      expect(ws.close).toHaveBeenCalledWith(4000, 'Table synchronization timed out');
+    } finally { protocol.disconnect(); }
+  });
+
+  it('sends the table recovery request before paint requested by recovery listeners', () => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    const paint = () => protocol.requestPaintSnapshot('table-abc', crypto.randomUUID());
+    window.addEventListener('table-resync-started', paint);
+    try {
+      protocol.resynchronizeTable('table-abc');
+      expect(JSON.parse(ws.send.mock.calls[0][0]).type).toBe('table_request');
+      expect(JSON.parse(ws.send.mock.calls[1][0]).type).toBe('paint_snapshot_request');
+    } finally { window.removeEventListener('table-resync-started', paint); protocol.disconnect(); }
+  });
+
   it('defers provisional-wall commands and remaps them after creation confirmation', async () => {
     const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
     try {

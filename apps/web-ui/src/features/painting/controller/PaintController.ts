@@ -1,4 +1,4 @@
-import { onProtocolEvent } from '@lib/websocket/protocolEvents';
+import { emitProtocolEvent, onProtocolEvent } from '@lib/websocket/protocolEvents';
 import {
   assertPaintObjectInput,
   assertPaintTableBudget,
@@ -20,6 +20,7 @@ const DEFAULT_RETRY_WINDOW_MS = 24 * 60 * 60 * 1_000;
 const ACK_TIMEOUT_MS = 10_000;
 const MAX_ACK_RETRIES_PER_INTERVAL = 16;
 const SNAPSHOT_TIMEOUT_MS = 10_000;
+const SNAPSHOT_MAX_LIFETIME_MS = 60_000;
 const SNAPSHOT_BYTE_LIMIT = 32 * 1024 * 1024;
 const PREVIEW_INTERVAL_MS = 50;
 const PREVIEW_TTL_MS = 2_000;
@@ -130,6 +131,7 @@ export class PaintController {
   private revision = 0;
   private hydrating = false;
   private snapshotRequestedAt: number | null = null;
+  private snapshotProgressAt: number | null = null;
   private activeSnapshotRequestId: string | null = null;
   private committed = new Map<string, PaintObject>();
   private pending = new Map<string, RetainedPaintOperation>();
@@ -238,6 +240,7 @@ export class PaintController {
     this.revision = 0;
     this.hydrating = tableId !== null;
     this.snapshotRequestedAt = tableId !== null ? this.now() : null;
+    this.snapshotProgressAt = this.snapshotRequestedAt;
     this.activeSnapshotRequestId = tableId !== null ? this.snapshotRequestId() : null;
     this.committed.clear();
     this.editorProjection.clear();
@@ -263,6 +266,7 @@ export class PaintController {
     if (!this.tableId) return;
     this.hydrating = true;
     this.snapshotRequestedAt = this.now();
+    this.snapshotProgressAt = this.snapshotRequestedAt;
     this.activeSnapshotRequestId = this.snapshotRequestId();
     this.snapshots.clear();
     this.transport.requestPaintSnapshot(this.tableId, this.activeSnapshotRequestId);
@@ -398,6 +402,8 @@ export class PaintController {
       return;
     }
     assembly.chunks.set(chunk.chunk_index, chunk.objects);
+    this.snapshotProgressAt = this.now();
+    emitProtocolEvent('table-recovery-progress', { tableId: this.tableId });
     if (assembly.chunks.size !== assembly.chunkCount) return;
     const objects = Array.from(
       { length: assembly.chunkCount },
@@ -433,6 +439,7 @@ export class PaintController {
     this.revision = assembly.revision;
     this.hydrating = false;
     this.snapshotRequestedAt = null;
+    this.snapshotProgressAt = null;
     this.activeSnapshotRequestId = null;
     this.snapshots.clear();
     this.replayQueuedEvents();
@@ -629,7 +636,8 @@ export class PaintController {
     if (
       this.hydrating
       && this.snapshotRequestedAt !== null
-      && now - this.snapshotRequestedAt >= SNAPSHOT_TIMEOUT_MS
+      && (now - (this.snapshotProgressAt ?? this.snapshotRequestedAt) >= SNAPSHOT_TIMEOUT_MS
+        || now - this.snapshotRequestedAt >= SNAPSHOT_MAX_LIFETIME_MS)
     ) {
       this.failAndResync('Paint snapshot timed out');
       return;

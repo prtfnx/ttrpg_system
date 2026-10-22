@@ -40,7 +40,7 @@ the ledger does not turn them into speculative table edits or sprite batches.
 | Browser transport | Flush after 30 ms or 15 members; split by complete UTF-8 envelope size at 64 KiB. Send a valid near-limit member directly if only its batch wrapper would overflow. |
 | Table settings | Preview immediately; merge only unsent patches for the same table. Flush after 150 ms idle, within 500 ms of continuous input, or before a following dependent command. |
 | Server admission | `service/websocket_inbox.py` keeps at most 64 waiting frames and 2 MiB per connection. Pings bypass mutation work. Disposable previews cannot grow a busy queue. Durable overflow closes the connection for recovery. |
-| Compatible sprite run | Merge already-queued, adjacent compatible sprite frames into at most 50 commands. Do not add a debounce delay or cross query/other-domain barriers. `sprite_command_batch.py` privately stages the run. |
+| Compatible sprite run | Merge already-queued, adjacent compatible sprite frames into at most 50 transport members, processed as durable sub-runs of at most ten commands. Stream outcomes after each sub-run commits. Do not add a debounce delay or cross query/other-domain barriers. `sprite_command_batch.py` privately stages the run. |
 | Database | Commit final affected sprite rows, individual journal entries and receipts together. Coalesce repeated writes to the same sprite within the run while preserving every gesture's history boundary. Other domains retain their own transactions. |
 
 `service/sprite_delta_persistence.py` writes affected sprites and the table
@@ -50,8 +50,11 @@ in their worker and replace affected entities. Unrelated entity metadata is not
 serialized to stage these edits. External snapshot-based service callers retain
 their full-snapshot fallback. Index-container copying still scales with table size.
 
-Batch replay preflight groups lookups by actor/table. Each write still checks
-authorization inside its transaction. Validation denials are independent within
+Batch replay preflight groups lookups by actor/table. Within each write run,
+duplicate, active-combat and movement-policy facts are read once per scope.
+Journal rows use a bulk insert and retention runs once per actor/table. Each
+gesture still checks database authorization inside the transaction. Receipts
+report final committed history availability while retaining separate undo steps. Validation denials are independent within
 a run. A failed shared transaction publishes none of that run's provisional state.
 Identical table settings confirm without another write or redundant broadcast.
 Wall writes use worker-owned transactions before replacing live state.
@@ -79,9 +82,11 @@ Failure of the optional in-memory sprite history cache after commit keeps the
 accepted result and canonical peer publication; the transactional journal owns
 undo. Batched cache failures can additionally request a fresh snapshot.
 
-Raw sprite recovery uses a five-second idle confirmation watchdog. The common
-ledger uses ten seconds idle. Correlated table outcomes restart remaining idle
-watchdogs, bounded by a sixty-second lifetime for each pending command. This
+Unsent command residence is bounded to thirty seconds. First successful local
+transmission starts a fresh five-second raw-sprite or ten-second common-ledger
+idle acknowledgement watchdog. Correlated table outcomes restart only transmitted
+commands' idle watchdogs, bounded by sixty seconds from their first send. The
+`command-transmitted` event binds the raw bridge timer to actual transmission. This
 does not turn a timeout into denial. Paint/canvas acknowledgement retries use
 ten seconds and retain operation/envelope identity, body and intent timestamp.
 Other non-idempotent writes are not blindly replayed on reconnect.
@@ -90,8 +95,12 @@ Recovery requests the complete active table plus a separate revisioned paint
 snapshot. Only validated store/renderer hydration resolves commands in the
 request watermark; newer pending intent is replayed over the new baseline.
 Canvas transmission and retry pause during recovery, including a version
-conflict, until the validated snapshot rebases queued intent. Recovery that does
-not complete within ten seconds replaces the socket. Old recovery timers and
+conflict, until the validated snapshot rebases queued intent. Table and paint recovery use a ten-second idle deadline and a sixty-second
+hard lifetime. New validated paint chunks and correlated table command outcomes
+can advance table recovery; duplicate chunks and unrelated pongs cannot. Paint
+chunk progress advances its own idle deadline. The table request is sent before
+resync listeners request paint, so the client does not put a large paint stream
+ahead of its own table response. Expired table recovery replaces the socket. Old recovery timers and
 socket callbacks cannot close or mutate the replacement connection.
 
 Wall edits targeting a provisional creation remain local until its correlated
@@ -125,17 +134,22 @@ the server reader handles them while mutation dispatch is waiting. Any valid
 incoming message also establishes browser liveness while a pong is delayed.
 
 Sprite samples capture their table before throttling. Commit and cleanup cancel
-trailing timers. The server validates bounded expiry/sequence metadata and
-supplies source identity. Remote previews reject older sequences, wrong tables,
-invalid data and expired samples. A bounded lease restores the current store
-projection if no canonical event arrives. A two-second grace after a canonical
-transform blocks delayed first samples; it can suppress peer previews during a
-rapid next gesture. Expiry still depends on client wall clocks. These preview
-limitations do not delay durable commands.
+trailing timers. New clients attach a bounded `preview_id`, sequence and relative
+`ttl_ms`. The server normalizes the lifetime and supplies source identity. A
+canonical move/resize/rotation echoes the completed preview identity. Receivers
+reject that gesture thereafter and can immediately display the next gesture;
+leases use receiver-relative time rather than synchronized clocks. Legacy peers
+without an identity retain the absolute-expiry/two-second-grace compatibility
+path. Disposable samples waiting in the server outbox expire after two seconds.
+Neither path delays durable commands.
 
 The client drops previews above 64 KiB socket buffering. The common ledger caps
 outstanding mutations at 256; shared canvas intent is capped at 100. Existing
-server rate accounting still applies per member, including queries.
+server rate accounting applies per member: mutation refill defaults to 600
+per minute with a sixty-command burst; queries use 120 per minute with a thirty-
+query burst; pings use sixty per minute with a ten-ping burst. Previews retain
+their separate budget and all frames retain a global cap. Explicit mutation
+rate configuration overrides the default.
 
 ## Verification and limits
 
@@ -145,14 +159,19 @@ Browser regression owners include `clientProtocol.test.ts`,
 `test_websocket_inbox.py`, `test_sprite_editor_protocol.py`,
 `test_sprite_command_persistence.py`, `test_canvas_protocol.py`,
 `test_websocket_rate_limit.py`, `test_connection_shutdown.py` and
-`test_game_session_protocol.py`. `test_command_policy.py` compares client/server
+`test_game_session_protocol.py`. `test_sprite_run_latency.py` covers bounded
+committed progress under injected SQL delay, partial run failure and ordered undo.
+`test_command_policy.py` compares client/server
 mutation sets. SQL probes measure isolated SQLite work, not deployed PostgreSQL.
 
 One session mutation lock remains. Authorization and history reads remain per
 command. Same-object canvas edits still require predecessor confirmation before
 transmission. A large ordered snapshot can delay later frames on its own socket;
-the server send timeout applies per frame, while browser recovery has a total
-ten-second watchdog. Tests do not establish a production latency bound.
+the server send timeout applies per frame, while browser recovery has idle
+and total bounds. The opt-in `tests/integration/test_sprite_runs_postgresql.py`
+checks bulk journal inserts, retry, undo after reload and commit rollback against
+a disposable PostgreSQL database. Local SQLite tests do not establish a
+production latency bound.
 Use the timings in [Observability and logging](../operations/OBSERVABILITY_AND_LOGGING.md)
 to separate queue, lock, worker, SQL and delivery delays.
 

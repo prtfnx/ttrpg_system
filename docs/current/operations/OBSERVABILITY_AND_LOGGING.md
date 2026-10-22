@@ -37,7 +37,7 @@ payloads. Operation identities belong in logs, not metric labels.
 
 | Event | Meaning |
 | --- | --- |
-| `websocket.command.completed` | Dispatch duration plus `lock_wait_ms`, `worker_wait_ms`, `worker_ms`, `sql_count` and `sql_ms`. INFO at 250 ms, DEBUG otherwise. SQL timings come from the instrumented SQLAlchemy engine. |
+| `websocket.command.completed` | Dispatch duration plus `lock_wait_ms`, `worker_wait_ms`, `worker_ms`, `sql_count`, `sql_ms`, `commit_count` and `commit_ms`. Sprite write/replay transactions measure successful commit completion separately; `commit_ms` is null when no instrumented commit completed. INFO at 250 ms, DEBUG otherwise. SQL timings come from the instrumented SQLAlchemy engine. |
 | `websocket.command.lock_wait` | Session mutation ownership took at least 250 ms. |
 | `websocket.inbox.dispatched` | Admission wait was at least 250 ms or adjacent sprite frames merged. Includes `inbox_wait_ms`, `merged_frames`, `member_count`, `queued_frames` and `queued_bytes`. |
 | `websocket.inbox.overflow` | The durable inbound limit was exceeded or dispatch failed; the socket closes for recovery. |
@@ -49,6 +49,33 @@ Browser development logs emit `Command outcome received` with `queue_ms`,
 the first successful local send; acknowledgement time ends at the correlated
 outcome. An unknown send time produces null timings. These durations do not
 require synchronized browser/server clocks.
+
+Production command timing is opt-in at build time: set
+`VITE_COMMAND_TIMING_SAMPLE_RATE` to a finite fraction in `(0, 1]`; it defaults
+to zero. The browser sends at most sixteen samples per minute to
+`POST /api/telemetry/command-timing`. Intake honors `BROWSER_TELEMETRY_ENABLED`,
+validates mutation type and bounded numeric durations, and shares the thirty-
+request-per-minute IP telemetry cap. `browser.command.timing` records message
+identity/type, queue and acknowledgement durations, and release. It contains no
+command payload, table name or user text. Collection failures cannot interrupt
+settlement. Join these sampled records to server command logs by message ID.
+
+From `apps/server`, with the project Python environment and a disposable
+PostgreSQL target in `TEST_POSTGRESQL_DATABASE_URL` (database name must contain
+`test`), run:
+
+```powershell
+python -m pytest tests/integration/test_sprite_runs_postgresql.py -q --no-cov
+```
+
+The tests create and remove a unique schema using the existing migration/test
+fixture. They exercise real transactions with an injected cursor delay; that
+delay is a sensitivity check, not measured WAN latency. Without the test URL
+they skip. For the local slow-database receipt probe, run:
+
+```powershell
+python -m pytest tests/unit/test_sprite_run_latency.py -k slow_database -s --no-cov
+```
 
 High SQL time points to database cursor work; high worker wait points to admission
 or executor contention. Worker duration also includes Python work and database

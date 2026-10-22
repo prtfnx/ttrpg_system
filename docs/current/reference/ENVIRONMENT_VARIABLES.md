@@ -4,7 +4,7 @@ Audience: contributors and operators configuring the FastAPI server.
 
 Status: partial. This lists deployment-critical settings, not every field in `Settings`.
 
-Last source audit: 2026-10-02
+Last source audit: 2026-10-20
 
 Server settings are defined in `apps/server/config.py`; ignored `.env` files
 are loaded by Pydantic settings.
@@ -37,12 +37,21 @@ PostgreSQL and Alembic.
 | `SESSION_SECRET` | development placeholder | Must be at least 32 characters in production. |
 | `METRICS_TOKEN` | empty | Required when production metrics are enabled. |
 | `WS_MAX_MESSAGE_BYTES` | `65536` | Maximum inbound frame bytes; valid range 1024-1048576. |
-| `WS_MESSAGES_PER_MINUTE` | `120` | Non-preview messages per socket, including each batch member; valid range 1-6000. |
+| `WS_MESSAGES_PER_MINUTE` | `600` | Mutation token refill per minute per socket, counting each batch member; burst capacity is the smaller of this value and 60. Valid range 1-6000. Queries and pings use independent fixed budgets. Existing environment overrides remain effective. |
 | `WS_PREVIEWS_PER_MINUTE` | `1800` | Disposable drag/resize/rotate previews per socket; valid range 1-12000. |
 | `WS_SEND_TIMEOUT_SECONDS` | `5.0` | Per-message protocol send deadline. Valid range is 0.1-60 seconds; tune only with production load evidence. |
 | `PAINT_OPERATION_RETRY_WINDOW_SECONDS` | `86400` | Maximum age for replaying an accepted durable paint operation ID; valid range 60-604800 seconds. Older pending client work must resync. |
 | `PAINT_OPERATION_RETENTION_SECONDS` | `172800` | Operation-ledger retention before cleanup. It must exceed the retry window and be at most 2592000 seconds. |
 | `PAINT_OBJECT_WRITES_ENABLED` | `false` in production; `true` otherwise | Explicit rollout/maintenance gate for create/update/delete and new previews. Snapshots and preview cancellations remain available. Restart the process after changing it; enable production writes only after verified legacy cutover. |
+
+Queries use a 120/minute refill and thirty-request burst; pings use a 60/minute
+refill and ten-request burst. Preview and global frame limits remain separate.
+
+`VITE_COMMAND_TIMING_SAMPLE_RATE` is a browser **build-time** setting. It defaults
+to `0`; a finite value in `(0, 1]` enables sampled production queue/ack timings.
+The browser caps these at sixteen reports per minute. Server intake honors
+`BROWSER_TELEMETRY_ENABLED`. See
+[Observability and logging](../operations/OBSERVABILITY_AND_LOGGING.md).
 
 ## Asset resource limits
 

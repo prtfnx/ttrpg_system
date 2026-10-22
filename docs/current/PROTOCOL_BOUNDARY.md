@@ -25,7 +25,8 @@ It is message-based and should stay explicit.
 - `service/websocket_inbox.py` owns bounded per-connection FIFO dispatch. The
   reader processes pings without waiting for database-backed mutations. Other
   commands and queries preserve order; adjacent compatible queued sprite frames
-  can merge within the 50-member batch limit.
+  can merge within the 50-member transport limit. Durable sprite runs are
+  capped at ten members so each commit can release outcomes before later work.
 - `ConnectionManager` groups sockets by session and attaches user metadata.
 - `GameSessionProtocolService` owns per-session protocol state and client
   registration.
@@ -104,8 +105,9 @@ Code that already has a decoded object must use `Message.from_dict()` so nested
 messages cannot bypass the server boundary validator.
 
 The server serializes authoritative mutations with one fair lock per live
-session. `MUTATING_MESSAGE_TYPES` in `service/protocol/base.py` is the explicit
-write classification boundary. Reads of shared table, player, sprite, session,
+session. `service/command_policy.py` owns the explicit mutation and read classification
+used by dispatch and rate accounting; `service/protocol/base.py` re-exports the
+mutation set for existing callers. Reads of shared table, player, sprite, session,
 and combat state use the same lock so they cannot observe a mutation that later
 rolls back. Transport-only ping, ephemeral drag previews, and independent
 durable-store queries remain concurrent. A batch holds the mutation lock for
@@ -115,12 +117,19 @@ messages to that set and to the serialization tests.
 The browser's `commandTracking.ts` mirrors every mutation classification; the
 outer transport batch tracks its members. Schema errors preserve bounded request
 identities, including bounded non-UUID operation IDs from malformed input. Error
-codes remain an explicit schema enum; uncertain handler outcomes use
+codes remain an explicit schema enum, including text revision conflicts and
+uncertain table creation failures. Their bounded recovery/revision fields are
+validated alongside the code. Uncertain handler outcomes use
 `outcome_unknown` with `resync_required`. Ordered per-socket writers isolate network delivery from the mutation
 lock. Receipts stream after a member/run commits; snapshots use separate bounded
 ordered streams. Incoming browser frames are serialized and fenced by socket
 identity. See [Action confirmation and continuous editing](reference/ACTION_CONFIRMATION.md)
 for optimistic ownership, buffering, rollback and full-table recovery.
+
+Sprite previews carry optional `preview_id` and bounded relative `ttl_ms`
+metadata. New raw transform commands retain that identity, and canonical events
+close it with server-supplied source identity. Legacy preview expiry remains a
+compatibility path. Unknown preview fields and invalid bounds still reject.
 
 ## Message flow
 

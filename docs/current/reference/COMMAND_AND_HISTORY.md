@@ -259,9 +259,14 @@ separate wall operations, not members of sprite/paint history. Regression owner:
 `batch_request` is transport aggregation, not an atomic domain command or one
 undo step. The dispatcher preflights 1–50 messages and rejects nested batches.
 Contiguous compatible sprite members can share a write transaction, including
-already-queued frames accumulated by the connection inbox. Final row writes for
+already-queued frames accumulated by the connection inbox. Each durable run
+contains at most ten commands; receipts stream after its commit before the next
+run starts. Final row writes for
 repeated targets coalesce while each gesture keeps its own journal entry. Replay
-preflight groups actor/table lookups; writes still recheck authorization. Other
+preflight groups actor/table lookups; writes still recheck authorization for
+every command. Retry/combat/policy reads are transaction-local, journal rows
+insert in bulk, and retention is computed once per actor/table after the run.
+Each receipt reports final committed history availability. Other
 members retain their domain transaction boundaries. Validation denials remain
 independent, while storage failure rolls back the provisional sprite run.
 

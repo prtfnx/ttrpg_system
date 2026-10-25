@@ -60,6 +60,15 @@ def sprite_transform(entity: Entity) -> dict:
     }
 
 
+def _pipeline_fence(kind: str, value: dict) -> dict:
+    if kind == "paint":
+        return {"version": value["version"]}
+    # Transform/property commands retain unrelated current stats and metadata.
+    # Fence geometry and layer fields they can overwrite, not the whole entity.
+    return {**sprite_transform(Entity.from_dict(value)),
+        **{key: value.get(key) for key in ("layer", "obstacle_type", "obstacle_data")}}
+
+
 def editable_paint(value: dict) -> dict:
     return copy.deepcopy({key: value[key] for key in ("id", "kind", "geometry", "transform", "style")})
 
@@ -292,7 +301,7 @@ class CanvasCommandService:
                             raise CanvasRejected("invalid_payload", "The preceding edit did not change this object")
                         # A predecessor is a version fence, not permission to
                         # overwrite another actor's intervening mutation.
-                        if before != saved["after"]:
+                        if _pipeline_fence(kind, before) != _pipeline_fence(kind, saved["after"]):
                             raise CanvasRejected("conflict", "A pipelined object changed after its preceding edit")
                     if kind == "paint":
                         if (

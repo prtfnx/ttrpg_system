@@ -91,6 +91,35 @@ def test_predecessor_fence_survives_reload_and_numeric_storage_normalization(sce
     assert scene["execute"](child).receipt["success"]
 
 
+@pytest.mark.parametrize("field,value", [("hp", 9), ("metadata", '{"note":"remote"}')])
+def test_unrelated_remote_stats_are_preserved_without_false_pipeline_conflicts(scene, field, value):
+    first = scene["command"]()
+    scene["execute"](first)
+    child = after(scene["command"](), first["operation_id"])
+    table = scene["table"]["table"]
+    setattr(table.find_entity_by_sprite_id("sprite"), field, value)
+    with scene["factory"]() as db:
+        crud.save_table_to_db(db, table, scene["session"])
+    result = scene["execute"](child)
+    assert getattr(result.table.find_entity_by_sprite_id("sprite"), field) == value
+    assert result.table.find_entity_by_sprite_id("sprite").position == (30, 60)
+    with scene["factory"]() as db:
+        loaded, ok = crud.load_table_from_db(db, first["table_id"])
+        assert ok and getattr(loaded.find_entity_by_sprite_id("sprite"), field) == value
+
+
+@pytest.mark.parametrize("field,value", [("layer", "map"), ("obstacle_type", "polygon"),
+    ("obstacle_data", {"vertices": [[0, 0], [5, 0], [0, 5]]})])
+def test_intervening_layer_or_shape_changes_still_conflict(scene, field, value):
+    first = scene["command"]()
+    scene["execute"](first)
+    child = after(scene["command"](), first["operation_id"])
+    setattr(scene["table"]["table"].find_entity_by_sprite_id("sprite"), field, value)
+    with pytest.raises(CanvasRejected) as error:
+        scene["execute"](child)
+    assert error.value.code == "conflict"
+
+
 @pytest.mark.parametrize("mode", ["copy", "delete", "cut"])
 def test_destructive_and_clipboard_commands_cannot_supply_dependencies(scene, mode):
     command = after(scene["command"](mode), str(uuid.uuid4()))

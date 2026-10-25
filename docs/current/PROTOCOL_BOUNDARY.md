@@ -231,13 +231,15 @@ For `transform`, `sprite_edit` and `restyle`, each canvas member may carry an
 `after_operation_id` UUID. The server resolves it only in the authenticated
 actor's journal for that table, inside the normal table transaction. The
 predecessor must be an applied transform/property/style edit with retained
-after-state for that exact member. Current authoritative content must still
-match that after-state. The server then uses that committed state instead of
-the member's earlier expected transform/version. Authorization, movement,
+after-state for that exact member. Paint uses its current object version as
+the fence. Sprites compare transform, layer and obstacle geometry with that
+after-state; unrelated current stats and metadata are retained. The server uses
+the committed fence instead of the member's earlier expected transform/version.
+Authorization, movement,
 combat, quotas and history checks still apply to every command.
 
 An unavailable or unapplied predecessor returns `dependency_failed` before
-applying any part of the command. A changed object returns `conflict`; it cannot
+applying any part of the command. A changed fence returns `conflict`; it cannot
 silently overwrite an intervening remote edit. Self references, unrelated
 members and dependency fields on clipboard/destructive/history commands reject.
 Retries retain the exact operation identity and body. Each accepted command

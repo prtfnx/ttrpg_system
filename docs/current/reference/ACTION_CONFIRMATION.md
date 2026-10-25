@@ -25,8 +25,10 @@ Canvas edits preview immediately and permit at most eight in-flight commands.
 On servers advertising welcome envelope version `0.2`, transform, sprite property
 and paint restyle commands can pipeline on the same objects. Each affected member
 links to its latest unconfirmed local predecessor. The server checks that
-predecessor's committed after-state, so an intervening remote edit still conflicts.
-Legacy or unknown servers retain sequential overlapping edits. Clipboard,
+predecessor's paint version or sprite transform, layer and obstacle geometry.
+An intervening change to those fields conflicts; unrelated current sprite stats
+and metadata survive the edit. Legacy or unknown servers retain sequential
+overlapping edits. Clipboard,
 destructive and history operations keep their ordering barriers. Standalone paint
 lifecycle/versioned writes and outstanding raw sprite commands also remain
 barriers for shared edits on that object. Actor/table replacement clears the

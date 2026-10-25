@@ -18,6 +18,7 @@ from service.canvas_command_service import sprite_transform
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
+from tests.integration.latency_proxy import delayed_websocket_proxy
 from tests.integration.test_writer_fencing_postgresql import (
     _await_ready,
     _request,
@@ -65,15 +66,18 @@ def live_scene(request, tmp_path):
     port = _unused_port()
     process = _start_server(url, port, tmp_path / "multiclient-server.log")
 
+    proxy_port = port
+
     def socket(actor):
         token = jwt.encode({"sub": actor, "sv": 0, "exp": datetime.now(UTC) + timedelta(minutes=5)},
             "isolated-writer-test-signing-key-32-bytes", algorithm="HS256")
-        return connect(f"ws://127.0.0.1:{port}/ws/game/FENCED", proxy=None,
+        return connect(f"ws://127.0.0.1:{proxy_port}/ws/game/FENCED", proxy=None,
             additional_headers={"Cookie": f"token={token}"}, origin=Origin(f"http://127.0.0.1:{port}"))
 
     try:
         _await_ready(process, port)
-        yield engine, table_id, socket
+        with delayed_websocket_proxy(f"ws://127.0.0.1:{port}/ws/game/FENCED") as proxy_port:
+            yield engine, table_id, socket
     finally:
         process.terminate()
         try:
@@ -178,9 +182,115 @@ def test_conflicting_actors_retry_and_permission_denial_preserve_accepted_state(
             assert db.query(models.Entity).one().position_x == 110
         # A new command based on recovered authoritative state is accepted.
         assert result(editor, command())["success"]
+        dependent = command()
+        dependent.data["members"][0]["after_operation_id"] = first.data["operation_id"]
+        assert result(owner, dependent)["code"] == "conflict"
         # Actor-scoped undo cannot overwrite the other actor's later edit.
         assert result(owner, command("undo"))["code"] == "history_conflict"
         assert result(editor, command("undo"))["success"]
         assert result(owner, command("undo"))["success"]
         with Session(engine) as db:
             assert db.query(models.Entity).one().position_x == 100
+
+
+def test_pipeline_and_sequential_edits_converge_through_delayed_real_sockets(live_scene):
+    engine, table_id, socket = live_scene
+    with Session(engine) as db:
+        table, ok = crud.load_table_from_db(db, table_id)
+        assert ok
+        expected = sprite_transform(table.find_entity_by_sprite_id("original"))
+
+    def move(previous=None, x=100):
+        member = {"kind": "sprite", "id": "original", "expected": {**expected, "x": x}}
+        if previous:
+            member["after_operation_id"] = previous
+        return Message(MessageType.CANVAS_COMMAND, {"operation_id": str(uuid.uuid4()), "table_id": table_id,
+            "issued_at": time.time() * 1000, "mode": "transform", "members": [member],
+            "transform": {"dx": 5, "dy": 0, "scale": 1, "rotation": 0, "pivot_x": 0, "pivot_y": 0}})
+
+    def receipt(client, message):
+        frames = receive_until(client, lambda frames: any(item.get("causation_id") == message.message_id for item in frames))
+        return next(item["data"] for item in frames if item.get("causation_id") == message.message_id)
+
+    with socket("owner") as owner, socket("observer") as observer:
+        _request(observer, "table_request", {"table_id": table_id})
+        commands, previous = [], None
+        for _ in range(8):
+            message = move(previous)
+            commands.append(message)
+            previous = message.data["operation_id"]
+        identifiers = {message.message_id for message in commands}
+        started = time.monotonic()
+        for message in commands:
+            owner.send(message.to_json())
+        frames = receive_until(owner, lambda frames: identifiers <= {item.get("causation_id") for item in frames})
+        pipeline_ms = (time.monotonic() - started) * 1000
+        results = [item for item in frames if item.get("causation_id") in identifiers]
+        assert len(results) == 8 and all(item["data"]["success"] for item in results)
+        assert [item["causation_id"] for item in results] == [message.message_id for message in commands]
+        peer_events = receive_until(observer, lambda frames: sum(item["type"] == "sprite_update" for item in frames) == 8)
+        peer = [item for item in peer_events if item["type"] == "sprite_update"][-1]
+        assert peer["data"]["sprite_data"]["position"][0] == 140
+        with Session(engine) as db:
+            assert db.query(models.Entity).one().position_x == 140
+            assert db.query(models.CanvasCommandJournal).count() == 8
+        for _ in range(8):
+            message = Message(MessageType.CANVAS_COMMAND, {"operation_id": str(uuid.uuid4()), "table_id": table_id,
+                "issued_at": time.time() * 1000, "mode": "undo"})
+            owner.send(message.to_json())
+            assert receipt(owner, message)["success"]
+        started = time.monotonic()
+        for index in range(8):
+            message = move(x=100 + index * 5)
+            owner.send(message.to_json())
+            assert receipt(owner, message)["success"]
+        sequential_ms = (time.monotonic() - started) * 1000
+        snapshot = _request(observer, "table_request", {"table_id": table_id})
+        table = VirtualTable("Snapshot", 1000, 1000)
+        table.from_dict(snapshot["data"]["table_data"])
+        assert table.find_entity_by_sprite_id("original").position == (140, 100)
+        with Session(engine) as db:
+            assert db.query(models.Entity).one().position_x == 140
+        # Report measured timings; correctness does not depend on a fragile
+        # wall-clock performance assertion on a loaded CI machine.
+        print(f"PIPELINE backend={engine.dialect.name} one_way_delay_ms=50 commands=8 "
+            f"pipeline_ms={pipeline_ms:.1f} sequential_ms={sequential_ms:.1f}")
+
+
+def test_retry_after_lost_receipt_does_not_repeat_the_peer_edit(live_scene):
+    engine, table_id, socket = live_scene
+    with Session(engine) as db:
+        table, ok = crud.load_table_from_db(db, table_id)
+        assert ok
+        expected = sprite_transform(table.find_entity_by_sprite_id("original"))
+    message = Message(MessageType.CANVAS_COMMAND, {"operation_id": str(uuid.uuid4()), "table_id": table_id,
+        "issued_at": time.time() * 1000, "mode": "transform", "members": [
+            {"kind": "sprite", "id": "original", "expected": expected}],
+        "transform": {"dx": 5, "dy": 0, "scale": 1, "rotation": 0, "pivot_x": 0, "pivot_y": 0}})
+    with socket("observer") as observer:
+        _request(observer, "table_request", {"table_id": table_id})
+        with socket("owner") as owner:
+            owner.send(message.to_json())
+            deadline = time.monotonic() + 5
+            while True:
+                with Session(engine) as db:
+                    committed = db.query(models.CanvasCommandJournal).filter_by(
+                        operation_id=message.data["operation_id"]).count() == 1
+                if committed:
+                    break
+                assert time.monotonic() < deadline, "Command did not commit"
+                time.sleep(0.02)
+            # Close without ever consuming this command's outcome.
+        with socket("owner") as reconnected:
+            reconnected.send(message.to_json())
+            frames = receive_until(reconnected, lambda frames: any(
+                item.get("causation_id") == message.message_id for item in frames))
+            receipt = next(item["data"] for item in frames if item.get("causation_id") == message.message_id)
+            assert receipt["success"] and receipt["resync_required"]
+        request = Message(MessageType.TABLE_REQUEST, {"table_id": table_id})
+        observer.send(request.to_json())
+        frames = receive_until(observer, lambda frames: any(item.get("causation_id") == request.message_id for item in frames))
+        assert sum(item["type"] == "sprite_update" for item in frames) == 1
+        with Session(engine) as db:
+            assert db.query(models.CanvasCommandJournal).count() == 1
+            assert db.query(models.Entity).one().position_x == 105

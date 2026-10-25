@@ -4,7 +4,7 @@ Status: usable. Structured logs, request correlation, protected Prometheus
 metrics, audit retention, and optional OTLP traces are implemented. External
 dashboards and alert delivery remain operator work.
 
-Last source audit: 2026-10-20
+Last source audit: 2026-10-21
 
 ## Logging
 
@@ -192,3 +192,34 @@ that still has unsaved sessions logs an unconfirmed-persistence failure;
 superseded cache retirement is a different condition. Do not claim recovery of
 unacknowledged memory-only edits after process loss. See
 [Persistence and application ownership](../explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md).
+
+## Multi-client latency validation
+
+From `apps/server`, run:
+
+```powershell
+python -m pytest tests/integration/test_multiclient_sync.py -q -s --no-cov
+```
+
+The default cases launch a real local Uvicorn process against a disposable,
+migrated SQLite database. Two authenticated editors and a spectator use separate
+WebSocket connections. The cases check concurrent edits, ordered receipts,
+observer convergence, reconnect snapshots, conflicting actors, permissions,
+actor-scoped undo, predecessor fences and retry after a committed but unread
+receipt. Database reads verify durable state independently of client events.
+
+`tests/integration/latency_proxy.py` relays ordered messages with fifty
+milliseconds of injected delay in each direction. Each direction has a bounded
+queue and timestamps arrival before delivery, so queued messages share the
+propagation delay rather than paying one extra delay per message. The pipeline
+probe reports eight dependent edits sent before receipts and compares them with
+eight sequential edits, checking the same final state and individual undo steps.
+Timing output is diagnostic; correctness checks do not depend on wall-clock
+performance thresholds on a loaded test machine. Browser window, rebase and
+rejection regressions live in `CanvasPipeline.test.ts`.
+
+Setting `TEST_POSTGRESQL_DATABASE_URL` adds the same live cases against a unique
+schema in that test database; its name must contain `test`. The fixture removes
+only its own schema and explicitly configures the child server database URL.
+Without that URL the PostgreSQL cases skip. A local delay relay and SQLite do
+not establish production PostgreSQL, Internet jitter or deployment latency.

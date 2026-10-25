@@ -33,6 +33,7 @@ async def request(service, socket, message_type, data, expected):
     message = Message(message_type, data)
     offset = len(socket.messages)
     await service.handle_protocol_message(socket, message.to_json())
+    await service.drain_outbound()
     responses = [item for item in socket.messages[offset:] if item.causation_id == message.message_id]
     assert len(responses) == 1, socket.messages[offset:]
     response = responses[0]

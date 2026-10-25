@@ -1118,7 +1118,7 @@ describe('WebClientProtocol', () => {
       expect(useEncounterStore.getState().encounter?.choices[0].choice_id).toBe('left');
     });
 
-    it('WELCOME restores the active choice encounter', async () => {
+    it.each(['0.1', '0.2', '0.3'])('WELCOME restores the encounter and negotiates pipeline version %s', async version => {
       const p = makeProtocol();
       useEncounterStore.setState({ encounter: null });
 
@@ -1142,8 +1142,9 @@ describe('WebClientProtocol', () => {
           phase: 'presenting',
           choices: [{ choice_id: 'continue', text: 'Continue' }],
         },
-      });
+      }, { version });
 
+      expect(p.supportsCanvasPipelining()).toBe(version === '0.2');
       expect(useEncounterStore.getState().encounter?.encounter_id).toBe('enc-restored');
     });
 

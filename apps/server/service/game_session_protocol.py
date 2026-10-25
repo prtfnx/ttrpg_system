@@ -211,7 +211,8 @@ class GameSessionProtocolService:
                 "game_mode": game_mode,
                 "session_rules": rules_dict,
                 "choice_encounter": choice_encounter,
-            }
+            },
+            version="0.2",
         ))
 
     async def remove_client(self, websocket: WebSocket):

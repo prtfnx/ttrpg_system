@@ -107,6 +107,7 @@ class TestClientLifecycle:
         ws.send_text.assert_awaited_once()
         payload = json.loads(ws.send_text.call_args[0][0])
         assert payload["type"] == MessageType.WELCOME.value
+        assert payload["version"] == "0.2"
 
     async def test_add_client_restores_active_choice_encounter(self):
         svc = _make_service()

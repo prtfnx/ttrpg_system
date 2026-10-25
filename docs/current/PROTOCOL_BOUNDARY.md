@@ -246,3 +246,12 @@ required; the existing journal stores the predecessor state.
 
 Regression owners: `tests/unit/test_canvas_pipeline.py` in `apps/server` and
 `packages/core-table/tests/test_canvas_protocol_schema.py`.
+
+The server advertises predecessor-fence support with `version: "0.2"` on its
+`welcome` envelope. The welcome data shape stays compatible with older clients.
+`WebClientProtocol.supportsCanvasPipelining()` enables the browser feature only
+for that advertised version; absent, legacy and unknown versions use sequential
+overlapping edits. Capability resets when replacing or disconnecting the socket.
+A reconnect to a server without support recovers existing in-flight dependency
+commands from authoritative snapshots instead of replaying unsupported bodies.
+Other message envelopes retain their existing version defaults.

@@ -76,6 +76,7 @@ export class WebClientProtocol {
   private pingEnabled: boolean = false;
   private sessionCode: string;
   private userId: number | null = null;
+  private canvasPipelining = false;
 
   // Reconnection with exponential backoff
   private reconnectAttempts = 0;
@@ -717,6 +718,7 @@ export class WebClientProtocol {
           return resolve();
         }
 
+        this.canvasPipelining = false;
         const socket = new WebSocket(wsUrl);
         this.websocket = socket;
         let settled = false;
@@ -1121,6 +1123,7 @@ export class WebClientProtocol {
     protocolLogger.message('received', { type: 'welcome', data: message.data });
 
     const data = message.data as Record<string, unknown>;
+    this.canvasPipelining = message.version === '0.2';
     if (data.user_id) {
       this.userId = data.user_id as number;
       useGameStore.getState().setUserId(this.userId);
@@ -1980,6 +1983,8 @@ export class WebClientProtocol {
   }
 
   // Public API methods for sending requests
+  supportsCanvasPipelining(): boolean { return this.canvasPipelining; }
+
   requestTableList(): void {
     this.sendMessage(createMessage(MessageType.TABLE_LIST_REQUEST));
   }
@@ -2627,6 +2632,7 @@ export class WebClientProtocol {
   }
 
   disconnect(): void {
+    this.canvasPipelining = false;
     if (this.batchTimer) clearTimeout(this.batchTimer);
     this.batchTimer = null;
     this.batchQueue = [];

@@ -4,7 +4,7 @@ Audience: contributors changing optimistic table edits, command transport, or re
 
 Status: usable.
 
-Last source audit: 2026-10-20
+Last source audit: 2026-10-21
 
 ## Ownership
 
@@ -21,12 +21,24 @@ restore an old whole-table snapshot over another client's accepted changes.
 | Table settings | `apps/web-ui/src/lib/websocket/tableSettingsBuffer.ts`: authoritative settings plus pending patches. |
 | Walls and doors | `apps/web-ui/src/lib/websocket/wallCommandSync.ts`: confirmed walls, pending patches/toggles and temporary creation identities. |
 
-Canvas edits on disjoint objects can proceed independently. Same-object canvas
-and paint edits preview immediately but wait at the wire boundary for their
-predecessor so expected state/version can be rebased. Shared sprite edits also
-wait for an outstanding raw sprite command on that object. Clipboard and history
-operations retain their ordering barriers. Actor/table replacement clears the
+Canvas edits preview immediately and permit at most eight in-flight commands.
+On servers advertising welcome envelope version `0.2`, transform, sprite property
+and paint restyle commands can pipeline on the same objects. Each affected member
+links to its latest unconfirmed local predecessor. The server checks that
+predecessor's committed after-state, so an intervening remote edit still conflicts.
+Legacy or unknown servers retain sequential overlapping edits. Clipboard,
+destructive and history operations keep their ordering barriers. Standalone paint
+lifecycle/versioned writes and outstanding raw sprite commands also remain
+barriers for shared edits on that object. Actor/table replacement clears the
 shared editor scope. Combat retains its separate command/sequence authority.
+
+`dependency_failed` guarantees the attempted child command did not execute. The
+browser keeps its optimistic intent and queue position, assigns a fresh operation
+identity, and rebases before sending again. Later descendants follow the new
+identity. A recovery watermark resolves the old attempt without discarding its
+reissued intent. Actual conflicts and uncertain persistence outcomes pause
+transmission until validated snapshots hydrate the baseline. Retries of an
+unresolved attempt retain its original identity, dependency fields and body.
 
 The common mutation ledger in `commandTracking.ts` covers every server mutation
 type. It excludes queries, previews and the outer batch envelope. Characters,
@@ -155,7 +167,7 @@ rate configuration overrides the default.
 
 Browser regression owners include `clientProtocol.test.ts`,
 `commandTracking.test.ts`, `wallCommandSync.test.ts`, `tableSync.service.test.ts`,
-`wasmBridge.test.ts` and painting controller tests. Server owners include
+`wasmBridge.test.ts`, `CanvasPipeline.test.ts` and painting controller tests. Server owners include
 `test_websocket_inbox.py`, `test_sprite_editor_protocol.py`,
 `test_sprite_command_persistence.py`, `test_canvas_protocol.py`,
 `test_websocket_rate_limit.py`, `test_connection_shutdown.py` and
@@ -165,8 +177,9 @@ committed progress under injected SQL delay, partial run failure and ordered und
 mutation sets. SQL probes measure isolated SQLite work, not deployed PostgreSQL.
 
 One session mutation lock remains. Authorization and history reads remain per
-command. Same-object canvas edits still require predecessor confirmation before
-transmission. A large ordered snapshot can delay later frames on its own socket;
+command. Canvas pipelining removes per-edit network confirmation waits for its
+supported modes; it does not parallelize database transactions or bypass barriers.
+A large ordered snapshot can delay later frames on its own socket;
 the server send timeout applies per frame, while browser recovery has idle
 and total bounds. The opt-in `tests/integration/test_sprite_runs_postgresql.py`
 checks bulk journal inserts, retry, undo after reload and commit rollback against

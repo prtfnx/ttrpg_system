@@ -26,8 +26,8 @@ export interface SpriteExpectedTransform {
 }
 
 export type CanvasMember =
-  | { kind: 'paint'; id: string; version: number }
-  | { kind: 'sprite'; id: string; expected: SpriteExpectedTransform };
+  | { kind: 'paint'; id: string; version: number; after_operation_id?: string }
+  | { kind: 'sprite'; id: string; expected: SpriteExpectedTransform; after_operation_id?: string };
 
 export interface SpriteEdit {
   width?: number;
@@ -47,6 +47,7 @@ export type CanvasIntent =
 export interface CanvasCommandTransport {
   sendCanvasCommand(command: Record<string, unknown>): boolean;
   requestCanvasHistory(tableId: string): boolean;
+  supportsCanvasPipelining?(): boolean;
 }
 
 export interface CanvasCommandState {
@@ -66,6 +67,7 @@ interface Options {
   onSelection: (selection: readonly SelectionRef[]) => void;
   onOptimistic?: (operationId: string, intent: CanvasIntent) => void;
   onSettled?: (operationId: string, accepted: boolean) => void;
+  onReissued?: (previousId: string, nextId: string) => void;
   beforeSend?: (intent: CanvasIntent) => CanvasIntent;
   readyToSend?: (intent: CanvasIntent) => boolean;
   onReset?: () => void;
@@ -74,11 +76,21 @@ interface Options {
 
 const RETRY_WINDOW_MS = 24 * 60 * 60 * 1000;
 const ACK_TIMEOUT_MS = 10_000;
+export const MAX_CANVAS_IN_FLIGHT = 8;
 
 type PendingCommand = { command: CanvasIntent & { operation_id: string; table_id: string; issued_at: number };
-  sentAt: number; duplicate: boolean };
+  intent: CanvasIntent; sentAt: number; duplicate: boolean };
 
-/** Preview every intent; only genuinely dependent commands wait for a receipt. */
+function pipelineable(intent: CanvasIntent): boolean {
+  return ['transform', 'sprite_edit', 'restyle'].includes(intent.mode);
+}
+
+function overlaps(first: CanvasIntent, second: CanvasIntent): boolean {
+  return !('members' in first) || !('members' in second)
+    || first.members.some(member => second.members.some(item => item.kind === member.kind && item.id === member.id));
+}
+
+/** Preview every intent and pipeline fenced edits within a bounded window. */
 export class CanvasCommandController {
   private tableId: string | null = null;
   private actorId: number | null = null;
@@ -136,6 +148,10 @@ export class CanvasCommandController {
         }
       })),
       onProtocolEvent('protocol-connected', () => {
+        if (this.transport.supportsCanvasPipelining?.() !== true && [...this.pending.values()].some(item =>
+          'members' in item.command && item.command.members.some(member => member.after_operation_id))) {
+          this.recovering = true;
+        }
         if (this.recovering && this.tableId) { this.options.onResync(this.tableId); return; }
         this.retry();
         this.refreshHistory();
@@ -199,7 +215,7 @@ export class CanvasCommandController {
       return this.fail('Canvas command exceeds the 60 KiB limit.');
     }
     // Register before send: tests and adapters may confirm synchronously.
-    const pending = { command, sentAt: Number.NEGATIVE_INFINITY, duplicate };
+    const pending = { command, intent: structuredClone(intent), sentAt: Number.NEGATIVE_INFINITY, duplicate };
     this.pending.set(command.operation_id, pending);
     this.lastError = null;
     try {
@@ -264,12 +280,21 @@ export class CanvasCommandController {
     try {
       const previous: PendingCommand[] = [];
       for (const pending of this.pending.values()) {
-        const members = 'members' in pending.command ? pending.command.members : null;
-        const blocked = previous.some(earlier => !members || !('members' in earlier.command)
-          || members.some(member => 'members' in earlier.command
-            && earlier.command.members.some(item => item.kind === member.kind && item.id === member.id)));
-        if (!Number.isFinite(pending.sentAt) && !blocked && this.options.readyToSend?.(pending.command) !== false) {
-          pending.command = { ...pending.command, ...this.options.beforeSend?.(pending.command) };
+        const blocked = previous.some(earlier => overlaps(earlier.command, pending.command)
+          && (this.transport.supportsCanvasPipelining?.() !== true || !pipelineable(earlier.command)
+            || !pipelineable(pending.command) || !Number.isFinite(earlier.sentAt)));
+        const inFlight = [...this.pending.values()].filter(item => Number.isFinite(item.sentAt)).length;
+        if (!Number.isFinite(pending.sentAt) && !blocked && inFlight < MAX_CANVAS_IN_FLIGHT
+          && this.options.readyToSend?.(pending.command) !== false) {
+          const rebased = this.options.beforeSend?.(pending.intent) ?? pending.intent;
+          pending.command = { ...pending.command, ...rebased };
+          if (pipelineable(pending.command) && 'members' in pending.command) {
+            pending.command = { ...pending.command, members: pending.command.members.map(member => {
+              const predecessor = [...previous].reverse().find(earlier => 'members' in earlier.command
+                && earlier.command.members.some(item => item.kind === member.kind && item.id === member.id));
+              return predecessor ? { ...member, after_operation_id: predecessor.command.operation_id } : member;
+            }) } as PendingCommand['command'];
+          }
           pending.sentAt = this.now();
           try {
             if (!this.transport.sendCanvasCommand(pending.command)) throw new Error('Disconnected');
@@ -288,11 +313,24 @@ export class CanvasCommandController {
     if (typeof data?.operation_id !== 'string' || data.table_id !== this.tableId) return;
     const pending = this.pending.get(data.operation_id);
     if (!pending) return;
+    if (data.success !== true && data.code === 'dependency_failed') {
+      // The server guarantees this attempt did not execute. Retain logical
+      // intent, replace its wire identity, and rebase before transmitting again.
+      const nextId = this.operationId();
+      const replacement = { ...pending, command: { ...pending.intent, operation_id: nextId,
+        table_id: pending.command.table_id, issued_at: pending.command.issued_at }, sentAt: Number.NEGATIVE_INFINITY };
+      this.pending = new Map([...this.pending].map(([id, item]) => id === data.operation_id ? [nextId, replacement] : [id, item]));
+      this.options.onReissued?.(data.operation_id, nextId);
+      this.flushQueued();
+      this.emit();
+      return;
+    }
     this.pending.delete(data.operation_id);
     this.options.onSettled?.(data.operation_id, data.success === true);
     if (data.success !== true) {
       this.fail(typeof data.error === 'string' ? data.error : 'Canvas command was rejected.');
-      if (data.resync_required === true || ['conflict', 'history_conflict', 'retry_window_expired'].includes(String(data.code))) {
+      if (data.resync_required === true || ['conflict', 'history_conflict', 'retry_window_expired',
+        'persistence_failed', 'outcome_unknown'].includes(String(data.code))) {
         this.recovering = true;
         this.options.onResync(pending.command.table_id);
       }

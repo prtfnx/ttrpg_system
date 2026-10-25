@@ -42,10 +42,11 @@ describe('optimistic canvas state', () => {
     expect(h.visible()?.x).toBe(10);
   });
 
-  it('previews dependent edits immediately while rebasing their wire commands after acknowledgement', () => {
+  it('pipelines dependent edits immediately with committed predecessor fences', () => {
     const h = harness();
     const send = vi.fn((_message: Record<string, unknown>) => true);
-    const owner = new CanvasCommandController({ sendCanvasCommand: send, requestCanvasHistory: () => true }, {
+    const owner = new CanvasCommandController({ sendCanvasCommand: send, requestCanvasHistory: () => true,
+      supportsCanvasPipelining: () => true }, {
       onResync: vi.fn(), onSelection: vi.fn(),
       onOptimistic: (id, intent) => h.state.stage(id, intent),
       beforeSend: intent => h.state.rebase(intent), onSettled: (id, accepted) => h.state.settle(id, accepted),
@@ -55,11 +56,12 @@ describe('optimistic canvas state', () => {
     const first = send.mock.calls[0][0];
     owner.submit(h.move(20));
     expect(h.visible()?.x).toBe(30);
-    expect(send).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls[1][0]).toMatchObject({ members: [{ after_operation_id: first.operation_id }] });
     h.state.canonical(String(first.operation_id), 'sprite', 'sprite', { ...h.original, x: 10 });
     owner.acceptResult({ operation_id: first.operation_id, table_id: 'table', success: true });
     expect(send).toHaveBeenCalledTimes(2);
-    expect(send.mock.calls[1][0]).toMatchObject({ members: [{ expected: { x: 10 } }] });
+    expect(h.visible()?.x).toBe(30);
     owner.dispose();
   });
 });

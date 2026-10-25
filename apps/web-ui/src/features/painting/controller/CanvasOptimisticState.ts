@@ -56,6 +56,10 @@ export class CanvasOptimisticState {
       && intent.members.some(member => member.kind === 'paint' && member.id === id));
   }
 
+  reissue(previousId: string, nextId: string): void {
+    this.pending = new Map([...this.pending].map(([id, entry]) => [id === previousId ? nextId : id, entry]));
+  }
+
   canonical(operationId: string | undefined, kind: 'sprite' | 'paint', id: string, object: Sprite | PaintObject | null): void {
     const bases = kind === 'sprite' ? this.sprites : this.paints;
     if (!bases.has(id)) return;

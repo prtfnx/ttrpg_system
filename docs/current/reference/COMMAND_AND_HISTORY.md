@@ -5,7 +5,7 @@ Audience: contributors changing canvas mutations, selection, or undo/redo.
 Status: usable. Mixed-domain transactions, shared transform handles and durable
 paint/sprite editor history use one authoritative canvas command service.
 
-Last source audit: 2026-10-20
+Last source audit: 2026-10-21
 
 ## Ownership and current flow
 
@@ -202,8 +202,9 @@ Regression owner: `apps/server/tests/unit/test_canvas_protocol.py`.
 `CanvasCommandController.ts` owns correlated command outcomes and clipboard
 tokens. `CanvasOptimisticState.ts` and `createCanvasOptimism.ts` project pending
 intent over canonical per-object state. Repeated edits preview immediately;
-only dependent objects wait at the transport boundary for rebase. Disjoint
-commands can proceed independently. Exact operation identities and original
+supported overlapping edits pipeline with committed predecessor fences in an
+eight-command window. Destructive, clipboard and history operations retain
+ordering barriers; legacy servers use sequential overlapping edits. Exact operation identities and original
 intent times survive retry; actor/table changes clear the local editor scope.
 See [Action confirmation and continuous editing](ACTION_CONFIRMATION.md) for
 buffering, denial reconciliation, timeout recovery and resource bounds.
@@ -217,7 +218,8 @@ one expected-state command instead of per-member writes. Selection clipboard,
 duplicate, shared-pivot uniform scale/rotation, one-unit arrow nudging (ten with
 Shift), and Ctrl/Cmd undo/redo route through the same owner. Text-entry targets
 retain their native shortcuts. Pending paint/canvas intent remains visible;
-only dependent wire submissions wait for the preceding object outcome. Locked
+supported transforms and property/style edits can transmit before preceding
+receipts, while server-side version fences preserve conflict checks. Locked
 members are excluded from the editable command, and the server validates every included
 member atomically. The sprite selection adapter captures the authoritative
 transform projection rather than renderer preview coordinates. Regression owner:
@@ -226,7 +228,8 @@ Explicit sprite commands use that same projection even while default pointer
 selection is active. They reject missing or ineligible requested members instead
 of silently editing a subset. Absolute edits and keyboard transforms send intent
 with immediate optimistic scene projection. Detached renderers and incomplete
-hydration block these calls; pending same-object intent waits only on the wire.
+hydration block these calls. Queued intent remains visible when the pipeline
+window or a required lifecycle/history barrier blocks transmission.
 Paste uses the active actor/table clipboard and the same guards; a scope change cannot reuse an old clipboard.
 Accepted command receipts publish their resulting sprite selection to the default
 renderer too, without enabling mixed pointer selection. Default context-menu

@@ -88,6 +88,7 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
     onSelection: refs => interaction.replaceSelection(refs),
     onOptimistic: (id, intent) => optimism?.state.stage(id, intent),
     onSettled: (id, accepted) => optimism?.state.settle(id, accepted),
+    onReissued: (previousId, nextId) => optimism?.state.reissue(previousId, nextId),
     beforeSend: intent => optimism?.state.rebase(intent) ?? intent,
     readyToSend: intent => !('members' in intent) || !intent.members.some(member => member.kind === 'paint'
       ? controller.getState().pending.some(item => (item.command.kind === 'create'

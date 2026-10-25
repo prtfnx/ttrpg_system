@@ -229,8 +229,10 @@ specified in [WebSocket messages](reference/WEBSOCKET_MESSAGES.md).
 
 For `transform`, `sprite_edit` and `restyle`, each canvas member may carry an
 `after_operation_id` UUID. The server resolves it only in the authenticated
-actor's journal for that table, inside the normal table transaction. The
-predecessor must be an applied transform/property/style edit with retained
+actor's journal for that table, inside the normal table transaction. Distinct
+predecessor IDs share one bounded query per command. That query selects only
+operation identity, kind, state and delta; authorization remains per command.
+The predecessor must be an applied transform/property/style edit with retained
 after-state for that exact member. Paint uses its current object version as
 the fence. Sprites compare transform, layer and obstacle geometry with that
 after-state; unrelated current stats and metadata are retained. The server uses

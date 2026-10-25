@@ -264,7 +264,18 @@ class CanvasCommandService:
                 members = command.get("members")
                 if not isinstance(members, list) or not 1 <= len(members) <= MAX_MEMBERS:
                     raise CanvasRejected("limit_exceeded", "Select between 1 and 100 canvas objects")
-                seen, predecessors = set(), {}
+                predecessor_ids = {_uuid(member["after_operation_id"]) for member in members
+                    if isinstance(member, dict) and "after_operation_id" in member}
+                if predecessor_ids and mode not in {"transform", "sprite_edit", "restyle"}:
+                    raise CanvasRejected("invalid_payload", "This command cannot be pipelined")
+                if operation_id in predecessor_ids:
+                    raise CanvasRejected("invalid_payload", "A command cannot depend on itself")
+                predecessor_fields = (models.CanvasCommandJournal.operation_id, models.CanvasCommandJournal.kind,
+                    models.CanvasCommandJournal.state, models.CanvasCommandJournal.changes)
+                predecessors = {entry.operation_id: entry for entry in self._entries(db, table_id, actor_id).with_entities(
+                    *predecessor_fields).filter(
+                    models.CanvasCommandJournal.operation_id.in_(predecessor_ids)).all()} if predecessor_ids else {}
+                seen = set()
                 for member in members:
                     if not isinstance(member, dict) or member.get("kind") not in {"paint", "sprite"}:
                         raise CanvasRejected("invalid_payload", "Invalid canvas selection reference")
@@ -282,15 +293,7 @@ class CanvasCommandService:
                     predecessor = member.get("after_operation_id")
                     member_fields = set(member) - {"after_operation_id"}
                     if "after_operation_id" in member:
-                        if mode not in {"transform", "sprite_edit", "restyle"}:
-                            raise CanvasRejected("invalid_payload", "This command cannot be pipelined")
-                        predecessor = _uuid(predecessor)
-                        if predecessor == operation_id:
-                            raise CanvasRejected("invalid_payload", "A command cannot depend on itself")
-                        if predecessor not in predecessors:
-                            predecessors[predecessor] = self._entries(db, table_id, actor_id).filter_by(
-                                operation_id=predecessor).one_or_none()
-                        root_entry = predecessors[predecessor]
+                        root_entry = predecessors.get(predecessor)
                         if (root_entry is None or root_entry.state != "applied"
                                 or root_entry.kind not in {"transform", "sprite_edit", "restyle"}
                                 or not root_entry.changes):

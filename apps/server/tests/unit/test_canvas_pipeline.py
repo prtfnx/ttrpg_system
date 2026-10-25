@@ -1,10 +1,12 @@
 """Pipelined intent uses committed actor-scoped predecessors as version fences."""
 import copy
+import re
 import uuid
 
 import pytest
 from database import crud, models
-from service.canvas_command_service import CanvasRejected
+from service.canvas_command_service import CanvasRejected, sprite_transform
+from sqlalchemy import event
 from tests.unit.test_canvas_command_service import PAINT
 from tests.unit.test_canvas_command_service import scene as scene
 
@@ -78,6 +80,46 @@ def test_different_members_can_depend_on_different_committed_commands(scene):
     combined["members"][0]["after_operation_id"] = paint["operation_id"]
     combined["members"][1]["after_operation_id"] = sprite["operation_id"]
     assert scene["execute"](combined).receipt["success"]
+
+
+def test_disjoint_predecessors_share_one_journal_read(scene, test_db_engine):
+    table = scene["table"]["table"]
+    identifiers = [f"branch-{index}" for index in range(8)]
+    for index, identifier in enumerate(identifiers):
+        table.add_entity({"sprite_id": identifier, "x": 100 + index * 50, "y": 300})
+    with scene["factory"]() as db:
+        crud.save_table_to_db(db, table, scene["session"])
+    parents = []
+    for identifier in identifiers:
+        target = scene["table"]["table"].find_entity_by_sprite_id(identifier)
+        command = scene["command"]("sprite_edit", members=[{"kind": "sprite", "id": identifier,
+            "expected": sprite_transform(target)}], edit={"rotation": 10})
+        scene["execute"](command)
+        parents.append(command["operation_id"])
+    combined = scene["command"]("transform", members=[{"kind": "sprite", "id": identifier,
+        "expected": sprite_transform(scene["table"]["table"].find_entity_by_sprite_id(identifier)),
+        "after_operation_id": parent} for identifier, parent in zip(identifiers, parents, strict=True)])
+    reads = []
+
+    def capture(_connection, _cursor, statement, _parameters, _context, _many):
+        if statement.lstrip().upper().startswith("SELECT") and re.search(
+                r"\bcanvas_command_journal\.changes\b", statement.partition("FROM")[0]):
+            reads.append(statement)
+
+    event.listen(test_db_engine, "before_cursor_execute", capture)
+    try:
+        result = scene["execute"](combined)
+    finally:
+        event.remove(test_db_engine, "before_cursor_execute", capture)
+    assert result.receipt["success"]
+    # One lookup for this operation's retry identity plus one bounded query for
+    # all eight predecessor deltas, independent of the number of branches.
+    assert len(reads) == 2
+    with scene["factory"]() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 9
+        loaded, ok = crud.load_table_from_db(db, combined["table_id"])
+        for index, identifier in enumerate(identifiers):
+            assert ok and loaded.find_entity_by_sprite_id(identifier).position == (110 + index * 50, 320)
 
 
 def test_predecessor_fence_survives_reload_and_numeric_storage_normalization(scene):

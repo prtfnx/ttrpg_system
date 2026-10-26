@@ -9,7 +9,7 @@ from core_table.table import VirtualTable
 from database import crud, models
 from service import canvas_command_service as module
 from service.canvas_command_service import CanvasCommandService, CanvasRejected, sprite_transform
-from service.paint_object_service import PaintObjectService
+from service.paint_object_service import PaintCommandResult, PaintObjectService
 from sqlalchemy import event
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -56,13 +56,17 @@ def scene(test_db, test_db_engine, test_game_session, test_user):
 
     def members():
         with factory() as db:
-            version = db.get(models.PaintObject, PAINT).version
+            paint_object = db.get(models.PaintObject, PAINT)
+            assert paint_object is not None
+            version = paint_object.version
+        entity = current["table"].find_entity_by_sprite_id("sprite")
+        assert entity is not None
         return [
             {"kind": "paint", "id": PAINT, "version": version},
             {
                 "kind": "sprite",
                 "id": "sprite",
-                "expected": sprite_transform(current["table"].find_entity_by_sprite_id("sprite")),
+                "expected": sprite_transform(entity),
             },
         ]
 
@@ -110,7 +114,9 @@ def test_mixed_transform_is_one_durable_history_step_across_service_restart(scen
     with scene["factory"]() as db:
         assert db.get(models.PaintObject, PAINT).transform["x"] == 60
         loaded, ok = crud.load_table_from_db(db, TABLE)
-        assert ok and loaded.find_entity_by_sprite_id("sprite").position == (20, 40)
+        assert ok and loaded is not None
+        entity = loaded.find_entity_by_sprite_id("sprite")
+        assert entity is not None and entity.position == (20, 40)
     restarted = CanvasCommandService(scene["factory"], writes_enabled=True)
     undo = restarted.execute(
         session_id=scene["session"],
@@ -118,7 +124,9 @@ def test_mixed_transform_is_one_durable_history_step_across_service_restart(scen
         command=scene["command"]("undo"),
         table_snapshot=loaded.to_dict(),
     )
-    assert undo.table.find_entity_by_sprite_id("sprite").position == (10, 20)
+    assert undo.table is not None
+    entity = undo.table.find_entity_by_sprite_id("sprite")
+    assert entity is not None and entity.position == (10, 20)
     assert undo.receipt["can_redo"] and not undo.receipt["can_undo"]
     redo = restarted.execute(
         session_id=scene["session"],
@@ -126,7 +134,9 @@ def test_mixed_transform_is_one_durable_history_step_across_service_restart(scen
         command=scene["command"]("redo"),
         table_snapshot=undo.table.to_dict(),
     )
-    assert redo.table.find_entity_by_sprite_id("sprite").position == (20, 40)
+    assert redo.table is not None
+    entity = redo.table.find_entity_by_sprite_id("sprite")
+    assert entity is not None and entity.position == (20, 40)
     with scene["factory"]() as db:
         assert db.get(models.PaintObject, PAINT).version == 4
 
@@ -143,6 +153,28 @@ def test_identical_retry_returns_receipt_and_requests_fresh_state_without_old_ev
         assert db.query(models.CanvasCommandJournal).count() == 1
     with pytest.raises(CanvasRejected, match="different canvas command"):
         scene["execute"]({**command, "transform": {**IDENTITY, "dx": 100}})
+
+
+def test_missing_canonical_paint_event_rolls_back_the_composed_command(scene, monkeypatch):
+    paint_service = scene["service"].paint
+    apply = paint_service.apply_in_transaction
+    before = copy.deepcopy(scene["table"]["table"].to_dict())
+
+    def omit_event(*args, **kwargs):
+        result = apply(*args, **kwargs)
+        assert result.error is None
+        return PaintCommandResult()
+
+    monkeypatch.setattr(paint_service, "apply_in_transaction", omit_event)
+    with pytest.raises(RuntimeError, match="without a canonical event"):
+        scene["execute"]()
+    assert scene["table"]["table"].to_dict() == before
+    with scene["factory"]() as db:
+        paint = db.get(models.PaintObject, PAINT)
+        assert paint is not None and paint.version == 1
+        assert db.query(models.CanvasCommandJournal).count() == 0
+        loaded, ok = crud.load_table_from_db(db, TABLE)
+        assert ok and loaded is not None and loaded.to_dict() == before
 
 
 def sprite_edit_command(scene, edit):
@@ -404,7 +436,9 @@ def test_commit_failure_leaves_live_scene_and_all_durable_domains_unchanged(scen
         assert db.get(models.PaintState, TABLE).revision == 1
         assert db.query(models.CanvasCommandJournal).count() == 0
         loaded, ok = crud.load_table_from_db(db, TABLE)
-        assert ok and loaded.find_entity_by_sprite_id("sprite").position == (10, 20)
+        assert ok and loaded is not None
+        entity = loaded.find_entity_by_sprite_id("sprite")
+        assert entity is not None and entity.position == (10, 20)
 
 
 def test_transform_delete_restore_then_undo_earlier_step_preserves_paint_creation_time(scene):
@@ -468,7 +502,9 @@ def test_sprite_boundary_policy_persists_and_reloads_off_table_positions(scene, 
     assert result.table.find_entity_by_sprite_id("sprite").position == (-490, 20)
     with scene["factory"]() as db:
         loaded, ok = crud.load_table_from_db(db, TABLE)
-        assert ok and loaded.find_entity_by_sprite_id("sprite").position == (-490, 20)
+        assert ok and loaded is not None
+        entity = loaded.find_entity_by_sprite_id("sprite")
+        assert entity is not None and entity.position == (-490, 20)
     scene["execute"](scene["command"]("undo"), actor_id=actor)
     assert scene["table"]["table"].find_entity_by_sprite_id("sprite").position == (10, 20)
 

@@ -118,8 +118,10 @@ def test_disjoint_predecessors_share_one_journal_read(scene, test_db_engine):
     with scene["factory"]() as db:
         assert db.query(models.CanvasCommandJournal).count() == 9
         loaded, ok = crud.load_table_from_db(db, combined["table_id"])
+        assert ok and loaded is not None
         for index, identifier in enumerate(identifiers):
-            assert ok and loaded.find_entity_by_sprite_id(identifier).position == (110 + index * 50, 320)
+            entity = loaded.find_entity_by_sprite_id(identifier)
+            assert entity is not None and entity.position == (110 + index * 50, 320)
 
 
 def test_predecessor_fence_survives_reload_and_numeric_storage_normalization(scene):
@@ -128,7 +130,7 @@ def test_predecessor_fence_survives_reload_and_numeric_storage_normalization(sce
     child = after(scene["command"](), first["operation_id"])
     with scene["factory"]() as db:
         loaded, ok = crud.load_table_from_db(db, first["table_id"])
-        assert ok
+        assert ok and loaded is not None
     scene["table"]["table"] = loaded
     assert scene["execute"](child).receipt["success"]
 
@@ -147,7 +149,7 @@ def test_unrelated_remote_stats_are_preserved_without_false_pipeline_conflicts(s
     assert result.table.find_entity_by_sprite_id("sprite").position == (30, 60)
     with scene["factory"]() as db:
         loaded, ok = crud.load_table_from_db(db, first["table_id"])
-        assert ok and getattr(loaded.find_entity_by_sprite_id("sprite"), field) == value
+        assert ok and loaded is not None and getattr(loaded.find_entity_by_sprite_id("sprite"), field) == value
 
 
 @pytest.mark.parametrize("field,value", [("layer", "map"), ("obstacle_type", "polygon"),

@@ -250,6 +250,8 @@ class CanvasCommandService:
             if table_source is not None:
                 table = table_source.fork_for_sprite_edit()
             else:
+                if table_snapshot is None:
+                    raise CanvasRejected("not_found", "Table is not loaded")
                 table = VirtualTable(db_table.name, db_table.width, db_table.height, table_id=table_id)
                 table.from_dict(copy.deepcopy(table_snapshot))
             # Paint locks follow the same virtual-table -> paint-state order as
@@ -599,6 +601,8 @@ class CanvasCommandService:
                 if result.error:
                     raise CanvasRejected(result.error.code, result.error.message)
                 event = result.event
+                if event is None:
+                    raise RuntimeError("Paint command completed without a canonical event")
                 if before is None and after is not None and after.get("created_by") is not None:
                     # Restoring a deleted object preserves its provenance/order.
                     # Fresh clipboard IDs receive normal server-owned provenance.

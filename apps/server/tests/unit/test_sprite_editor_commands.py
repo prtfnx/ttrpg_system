@@ -35,6 +35,7 @@ def editor(test_db, test_db_engine, test_game_session, test_user):
     def edit(text, revision):
         staged = copy.deepcopy(table)
         entity = staged.find_entity_by_sprite_id("text")
+        assert entity is not None and entity.metadata is not None
         metadata = json.loads(entity.metadata)
         metadata["text_sprite"]["text"], metadata["text_revision"] = text, revision
         entity.metadata = json.dumps(metadata)
@@ -64,7 +65,7 @@ def test_text_edits_undo_redo_across_service_restart_keep_revision_monotonic(edi
         assert metadata["text_sprite"]["text"] == text and metadata["text_revision"] == revision
         with factory() as db:
             loaded, ok = crud.load_table_from_db(db, str(table.table_id))
-            assert ok and loaded.to_dict() == table.to_dict()
+            assert ok and loaded is not None and loaded.to_dict() == table.to_dict()
 
 
 def test_retry_returns_fresh_history_not_old_sprite_data_and_checks_identity(editor):
@@ -73,6 +74,7 @@ def test_retry_returns_fresh_history_not_old_sprite_data_and_checks_identity(edi
     assert receipt["can_undo"]
     history("undo")
     replay = SpriteEditorCommandService(factory, writes_enabled=True).replay(context)
+    assert replay is not None
     assert replay["resync_required"] and replay["can_redo"] and "sprite_data" not in replay
     changed = SpriteCommandScope(context.session_id, context.actor_id, context.table_id,
         context.operation_id, "different", True, context.issued_at_seconds)
@@ -151,7 +153,7 @@ def test_commit_failure_rolls_back_sprite_and_journal_together(editor):
     with factory() as db:
         assert not db.query(models.CanvasCommandJournal).count()
         loaded, ok = crud.load_table_from_db(db, str(table.table_id))
-        assert ok and loaded.to_dict() == table.to_dict()
+        assert ok and loaded is not None and loaded.to_dict() == table.to_dict()
 
 
 @pytest.mark.parametrize("metadata", ["a" * 61_440, "😀" * 16000, '"' * 32000], ids=["ascii", "utf8-unicode", "escaped-quotes"])
@@ -165,7 +167,7 @@ def test_oversized_wire_publication_rejects_before_snapshot_and_history_writes(e
     with factory() as db:
         assert db.query(models.CanvasCommandJournal).count() == 0
         loaded, ok = crud.load_table_from_db(db, str(table.table_id))
-        assert ok and loaded.to_dict() == table.to_dict()
+        assert ok and loaded is not None and loaded.to_dict() == table.to_dict()
 
 
 @pytest.mark.parametrize("combat", [False, True])
@@ -296,4 +298,4 @@ def test_sprite_edit_only_updates_affected_rows(editor, unrelated_count):
         assert all(row.updated_at == timestamps[row.sprite_id]
             for row in db.query(models.Entity).all() if row.sprite_id != "text")
         loaded, ok = crud.load_table_from_db(db, str(table.table_id))
-        assert ok and loaded.to_dict() == staged.to_dict()
+        assert ok and loaded is not None and loaded.to_dict() == staged.to_dict()

@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from functools import lru_cache
 from importlib.resources import files
-from typing import Any
+from typing import Any, Literal, overload
 
 from jsonschema import Draft202012Validator
 
@@ -21,6 +21,14 @@ def _schema() -> dict[str, Any]:
 @lru_cache(maxsize=1)
 def _validator() -> Draft202012Validator:
     return Draft202012Validator(_schema())
+
+
+@overload
+def text_metadata(value: object, *, required: Literal[True]) -> dict[str, Any]: ...
+
+
+@overload
+def text_metadata(value: object, *, required: bool = False) -> dict[str, Any] | None: ...
 
 
 def text_metadata(value: object, *, required: bool = False) -> dict[str, Any] | None:

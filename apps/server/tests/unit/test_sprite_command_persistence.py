@@ -73,7 +73,7 @@ async def test_success_is_published_only_after_storage_and_reloads_identically(s
     assert (await command(actions, table, session_id, kind)).success
     test_db.expire_all()
     loaded, success = crud.load_table_from_db(test_db, str(table.table_id))
-    assert success and loaded.to_dict() == table.to_dict()
+    assert success and loaded is not None and loaded.to_dict() == table.to_dict()
     assert len(actions.action_history) == 1
 
 

@@ -26,7 +26,9 @@ def test_text_descriptor_validation(changes):
 
 def test_non_text_metadata_remains_opaque():
     assert text_metadata('{"radius":50}') is None
-    assert text_metadata({"text_sprite": descriptor()})["text_sprite"]["text"] == "Привіт\nمرحبا"
+    metadata = text_metadata({"text_sprite": descriptor()})
+    assert metadata is not None
+    assert metadata["text_sprite"]["text"] == "Привіт\nمرحبا"
 
 
 def test_legacy_text_is_normalized_without_losing_metadata():
@@ -65,6 +67,7 @@ async def test_text_create_edit_reload_is_database_persistent(text_protocol, tes
     assert created.type == MessageType.SPRITE_RESPONSE
     row = crud.get_entity_by_sprite_id(test_db, "text-persist")
     assert row is not None and row.texture_path == "__TEXT__"
+    assert row.entity_metadata is not None
     assert json.loads(row.entity_metadata)["text_revision"] == 1
     updated = await proto.handle_sprite_update(Message(MessageType.SPRITE_UPDATE, {
         "table_id": str(table.table_id), "sprite_id": "text-persist", "expected_text_revision": 1,
@@ -74,8 +77,9 @@ async def test_text_create_edit_reload_is_database_persistent(text_protocol, tes
     assert json.loads(updated.data["updates"]["metadata"])["text_revision"] == 2
     test_db.expire_all()
     restored, ok = crud.load_table_from_db(test_db, str(table.table_id))
-    assert ok
+    assert ok and restored is not None
     entity = restored.find_entity_by_sprite_id("text-persist")
+    assert entity is not None and entity.metadata is not None
     assert json.loads(entity.metadata)["text_sprite"]["text"] == "Edited українською"
     assert entity.width == 180 and entity.height == 75
     assert proto.broadcast_filtered.await_count == 2

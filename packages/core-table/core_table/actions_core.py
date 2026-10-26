@@ -28,6 +28,7 @@ class ActionsCore(AsyncActionsProtocol):
         self.redo_stack: List[Dict[str, Any]] = []
         self.max_history = 100
         self.persist_sprite_command: Optional[typing.Callable[[VirtualTable, dict, ActionResult, int], typing.Awaitable[bool]]] = None
+        self.sprite_delta_snapshots = False
 
         # Persistence optimization: batch and debounce saves
         self._dirty_tables: Dict[str, int] = {}  # table_id -> session_id
@@ -497,7 +498,9 @@ class ActionsCore(AsyncActionsProtocol):
             logger.debug(f"Entity found: {entity} with position {entity.position}")
             old_position_entity = Position(entity.position[0], entity.position[1])
             if isinstance(old_position, dict):
-                old_position = Position(old_position.get('x'), old_position.get('y'))
+                old_x, old_y = old_position.get('x'), old_position.get('y')
+                if old_x is not None and old_y is not None:
+                    old_position = Position(old_x, old_y)
             if old_position_entity != old_position:
                 logger.debug(f"Sprite position differs for {sprite_id}. Client expected {old_position}, server has {old_position_entity}. Using server position.")
                 # Server-authoritative: ignore client's old_position, move from where we actually are

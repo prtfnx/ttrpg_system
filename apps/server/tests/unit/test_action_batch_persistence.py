@@ -31,11 +31,13 @@ async def test_batch_and_inverse_survive_database_reload(batch_scene, test_db):
     assert (await actions.batch_actions(changes(sprite_id), expected_state=state_hash(before)[0], **context)).success
     test_db.expire_all()
     loaded, success = crud.load_table_from_db(test_db, context["table_id"])
-    assert success and loaded.find_entity_by_sprite_id(sprite_id).rotation == 90
+    assert success and loaded is not None
+    entity = loaded.find_entity_by_sprite_id(sprite_id)
+    assert entity is not None and entity.rotation == 90
     assert (await actions.undo_action(**context)).success
     test_db.expire_all()
     loaded, success = crud.load_table_from_db(test_db, context["table_id"])
-    assert success and loaded.to_dict() == before
+    assert success and loaded is not None and loaded.to_dict() == before
     assert (await actions.redo_action(**context)).success
     assert table.find_entity_by_sprite_id(sprite_id).scale_x == 2
 

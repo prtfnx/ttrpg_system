@@ -40,11 +40,12 @@ async def test_shape_creation_reloads_from_database(shape, monkeypatch, test_db,
     assert result.type == MessageType.SPRITE_RESPONSE
     test_db.expire_all()
     restored, ok = crud.load_table_from_db(test_db, str(table.table_id))
-    assert ok
+    assert ok and restored is not None
     entity = restored.find_entity_by_sprite_id(f"object-{shape}")
     assert entity is not None and entity.obstacle_type == shape
     assert entity.layer == "obstacles" and entity.width == 80
     assert entity.obstacle_data == geometry
+    assert entity.metadata is not None
     assert json.loads(entity.metadata) == metadata
     proto.broadcast_filtered.assert_awaited_once()
     if shape == "line":
@@ -53,8 +54,10 @@ async def test_shape_creation_reloads_from_database(shape, monkeypatch, test_db,
         assert moved.success
         test_db.expire_all()
         loaded, ok = crud.load_table_from_db(test_db, str(table.table_id))
-        assert ok
-        assert loaded.find_entity_by_sprite_id("object-line").obstacle_data == {"x1": 30, "y1": 50, "x2": 110, "y2": 90}
+        assert ok and loaded is not None
+        moved_entity = loaded.find_entity_by_sprite_id("object-line")
+        assert moved_entity is not None
+        assert moved_entity.obstacle_data == {"x1": 30, "y1": 50, "x2": 110, "y2": 90}
 
 
 @pytest.mark.parametrize("legacy", [False, True])
@@ -78,11 +81,13 @@ async def test_polygon_creation_derives_authoritative_bounds_and_normalizes_lega
     assert result.type == MessageType.SPRITE_RESPONSE
     test_db.expire_all()
     restored, ok = crud.load_table_from_db(test_db, str(table.table_id))
-    assert ok
+    assert ok and restored is not None
     entity = restored.find_entity_by_sprite_id("poly")
+    assert entity is not None
     assert entity.position == (10, 20) and entity.width == 80 and entity.height == 40 and entity.name == "Wall"
     assert entity.obstacle_data == {"vertices": [[10, 20], [90, 20], [50, 60]]}
     assert result.data["sprite_data"]["obstacle_data"] == entity.obstacle_data
+    assert proto.broadcast_filtered.await_args is not None
     assert proto.broadcast_filtered.await_args.args[0].data["sprite_data"]["obstacle_data"] == entity.obstacle_data
 
 
@@ -123,8 +128,11 @@ async def test_legacy_shape_rotation_and_resize_persist_world_geometry_and_publi
         assert result.type == MessageType.SPRITE_RESPONSE
         test_db.expire_all()
         loaded, ok = crud.load_table_from_db(test_db, str(table.table_id))
-        assert ok
-        saved = loaded.find_entity_by_sprite_id("shape").obstacle_data
+        assert ok and loaded is not None
+        entity = loaded.find_entity_by_sprite_id("shape")
+        assert entity is not None
+        saved = entity.obstacle_data
+        assert saved is not None
         points = saved["vertices"] if shape == "polygon" else [[saved["x1"], saved["y1"]], [saved["x2"], saved["y2"]]]
         for actual, target in zip(points, expected, strict=True):
             assert actual == pytest.approx(target)

@@ -419,7 +419,8 @@ class ConnectionManager:
                         "retryable": True,
                     },
                 }
-                service = self.sessions_protocols.get(self.connection_info.get(websocket, {}).get("session_code"))
+                session_code = self.connection_info.get(websocket, {}).get("session_code")
+                service = self.sessions_protocols.get(session_code) if isinstance(session_code, str) else None
                 if isinstance(service, GameSessionProtocolService):
                     service.enqueue_wire(websocket, json.dumps(notice))
                     await service._outbox(websocket).drain()
@@ -482,7 +483,8 @@ class ConnectionManager:
         """Send message to specific websocket"""
         try:
             info = self.connection_info.get(websocket, {})
-            service = self.sessions_protocols.get(info.get("session_code"))
+            session_code = info.get("session_code")
+            service = self.sessions_protocols.get(session_code) if isinstance(session_code, str) else None
             if isinstance(service, GameSessionProtocolService):
                 service.enqueue_wire(websocket, json.dumps(message))
                 return

@@ -406,14 +406,16 @@ class GameSessionProtocolService:
 
             async def failed():
                 logger.warning("Slow or disconnected WebSocket requires fresh synchronization", extra={
-                    "event_name": "websocket.delivery.failed", **outbox.failure_details})
+                    "event_name": "websocket.delivery.failed", **created_outbox.failure_details})
                 await self.remove_client(websocket)
                 try:
                     await asyncio.wait_for(websocket.close(code=1013, reason="Resynchronize session"), timeout=1)
                 except Exception:
                     logger.debug("WebSocket already closed")
 
-            outbox = self._outboxes[websocket] = WebSocketOutbox(send, failed)
+            created_outbox = WebSocketOutbox(send, failed)
+            self._outboxes[websocket] = created_outbox
+            return created_outbox
         return outbox
 
     async def drain_outbound(self):

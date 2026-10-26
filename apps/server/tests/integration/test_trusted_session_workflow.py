@@ -13,20 +13,27 @@ import pytest
 from core_table.dice import DiceEngine, DiceRollResult
 from core_table.protocol import Message, MessageType
 from database import database, models
+from fastapi import WebSocket
 from service import canvas_persistence_service, game_session_protocol
 from service.choice_encounter_persistence_service import ChoiceEncounterPersistenceService
 from service.combat_engine import CombatEngine
 from service.combat_persistence_service import CombatPersistenceService
 from service.protocol import assets, base, canvas, combat, session
 from sqlalchemy.orm import sessionmaker
+from starlette.websockets import WebSocketState
 
 
-class RecordedSocket:
+class RecordedSocket(WebSocket):
     def __init__(self):
-        self.messages = []
+        self.messages: list[Message] = []
+        super().__init__({"type": "websocket"}, AsyncMock(), self._record)
+        # The endpoint accepts real connections before handing them to the
+        # session service. Keep Starlette's send/close state checks in this test.
+        self.client_state = self.application_state = WebSocketState.CONNECTED
 
-    async def send_text(self, payload):
-        self.messages.append(Message.from_json(payload))
+    async def _record(self, message):
+        if message["type"] == "websocket.send":
+            self.messages.append(Message.from_json(message["text"]))
 
 
 async def request(service, socket, message_type, data, expected):
@@ -130,9 +137,11 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         for sequence, actor, value in ((3, hero_id, 20), (4, enemy_id, 10)):
             await command(dm, sequence, [{"type": "set_initiative", "actor_id": actor, "initiative": value}])
         state = CombatEngine.get_state(code)
+        assert state is not None
         actor = next(item for item in state.combatants if item.entity_id == hero_id)
         assert (actor.hp, actor.max_hp, actor.armor_class) == (20, 20, 12)
-        assert state.get_current_combatant().entity_id == hero_id
+        current = state.get_current_combatant()
+        assert current is not None and current.entity_id == hero_id
         planned = [
             {"type": "move", "actor_id": hero_id, "table_id": table_id, "from_x": 150, "from_y": 100,
              "target_x": 200, "target_y": 100, "cost_ft": 5},
@@ -143,7 +152,10 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
             **planned[1], "target_id": str(uuid.uuid4()),
         }], MessageType.ACTION_REJECTED)
         assert rejected["failed_index"] == 1
-        assert service.table_manager.get_table(table_id).find_entity_by_sprite_id(hero_id).position == (150, 100)
+        table = service.table_manager.get_table(table_id)
+        assert table is not None
+        entity = table.find_entity_by_sprite_id(hero_id)
+        assert entity is not None and entity.position == (150, 100)
         with factory() as db:
             assert db.query(models.Entity).filter_by(sprite_id=hero_id).one().position_x == 150
         result = await command(player, 5, planned)
@@ -153,7 +165,9 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         assert replay["duplicate"] is True
         assert replay["state_version"] == result["state_version"]
         await command(player, 6, [{"type": "end_turn", "actor_id": hero_id}])
-        state_before_reload = CombatEngine.get_state(code).to_dict()
+        state = CombatEngine.get_state(code)
+        assert state is not None
+        state_before_reload = state.to_dict()
         await service.remove_client(player)
         player = RecordedSocket()
         await service.add_client(player, "reconnected", player_info)
@@ -179,7 +193,9 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         assert loaded["walls"][0]["wall_id"] == wall["wall"]["wall_id"]
         assert "dungeon_master" not in snapshot["layers"]
         restored_table = service.table_manager.get_table(table_id)
+        assert restored_table is not None
         restored_hero = restored_table.find_entity_by_sprite_id(hero_id)
+        assert restored_hero is not None
         assert restored_hero.position == (200, 100)
         assert (restored_hero.hp, restored_hero.max_hp, restored_hero.ac, restored_hero.character_id) == (20, 20, 12, character_id)
         assert restored_table.difficult_terrain_cells == {(10, 10)}

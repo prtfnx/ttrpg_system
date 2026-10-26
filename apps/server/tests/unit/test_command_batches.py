@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+from uuid import uuid4
 
 import pytest
 from core_table.protocol import Message, MessageType
@@ -63,6 +64,51 @@ async def test_batch_errors_do_not_echo_sensitive_payloads():
     assert child["data"] == {"error": "Batch message processing failed", "code": "invalid_payload"}
     assert child["correlation_id"] == "request"
     assert response.data["failed_count"] == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("response_type", [MessageType.CANVAS_COMMAND_RESULT,
+    MessageType.CHARACTER_UPDATE_RESPONSE, MessageType.ASSET_DOWNLOAD_RESPONSE])
+@pytest.mark.parametrize("success", [False, True])
+async def test_batch_summary_counts_explicit_domain_denials(response_type, success):
+    server = protocol()
+    server.send_to_client = AsyncMock()
+    server.handlers[MessageType.CANVAS_COMMAND] = AsyncMock(return_value=Message(response_type, {
+        "success": success, "code": "history_empty", "error": "No history",
+    }))
+    request = Message(MessageType.CANVAS_COMMAND, {
+        "operation_id": str(uuid4()), "table_id": str(uuid4()),
+        "issued_at": 1792627200000, "mode": "undo",
+    })
+    response = await server.handle_batch_request(Message(MessageType.BATCH_REQUEST, {
+        "messages": [request.to_dict()],
+    }), "client")
+    assert response.data["failed_count"] == int(not success)
+    assert response.data["response_count"] == 1
+    assert response.data["messages"] == []
+    server.send_to_client.assert_awaited_once()
+    assert server.send_to_client.await_args is not None
+    streamed = server.send_to_client.await_args.args[0]
+    assert streamed.causation_id == request.message_id
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("response_type,data,failures", [
+    (MessageType.CANVAS_HISTORY_STATE, {"error": "History unavailable"}, 1),
+    (MessageType.CANVAS_HISTORY_STATE, {"can_undo": False, "can_redo": False}, 0),
+    (MessageType.ENCOUNTER_RESULT, {"success": False}, 0),
+    (MessageType.CHARACTER_ROLL_RESULT, {"success": False}, 0),
+    (MessageType.PAINT_OBJECT_EVENT, {"operation": "delete"}, 0),
+    (MessageType.ERROR, {"error": "Paint version conflict"}, 1),
+    (MessageType.ACTION_REJECTED, {"accepted": False}, 1),
+])
+async def test_batch_summary_distinguishes_denials_from_game_outcomes(response_type, data, failures):
+    server = protocol()
+    server.handlers[MessageType.PING].return_value = Message(response_type, data)
+    response = await server.handle_batch_request(Message(MessageType.BATCH_REQUEST, {
+        "messages": [Message(MessageType.PING, {}).to_dict()],
+    }), "client")
+    assert response.data["failed_count"] == failures
 
 
 @pytest.mark.asyncio

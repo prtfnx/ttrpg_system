@@ -104,6 +104,13 @@ message, nested batches are rejected, and a batch contains at most 50 entries.
 Code that already has a decoded object must use `Message.from_dict()` so nested
 messages cannot bypass the server boundary validator.
 
+Batch summaries count explicit command/query denials, including streamed canvas
+results with `success: false` and unavailable history responses. Failed encounter
+or dice rolls are game outcomes and do not count as protocol failures. Receipts
+already streamed to the sender contribute to the counts without being repeated
+in the summary. A batch remains non-atomic; its summary does not roll back
+earlier accepted members.
+
 The server serializes authoritative mutations with one fair lock per live
 session. `service/command_policy.py` owns the explicit mutation and read classification
 used by dispatch and rate accounting; `service/protocol/base.py` re-exports the

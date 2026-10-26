@@ -45,6 +45,27 @@ MAX_SPRITE_RUN_COMMANDS = 10
 
 SERIALIZED_MESSAGE_TYPES = MUTATING_MESSAGE_TYPES | SESSION_STATE_READ_MESSAGE_TYPES
 
+# These payloads use success for command/query acceptance. Encounter and dice
+# results use it for game outcomes, so a failed roll must not count as a denial.
+SUCCESS_FLAG_RESPONSES = frozenset({
+    MessageType.CANVAS_COMMAND_RESULT,
+    MessageType.ASSET_UPLOAD_RESPONSE, MessageType.ASSET_DOWNLOAD_RESPONSE,
+    MessageType.ASSET_DELETE_RESPONSE, MessageType.TABLE_ACTIVE_SET_ALL_RESPONSE,
+    MessageType.CHARACTER_SAVE_RESPONSE, MessageType.CHARACTER_LOAD_RESPONSE,
+    MessageType.CHARACTER_LIST_RESPONSE, MessageType.CHARACTER_DELETE_RESPONSE,
+    MessageType.CHARACTER_UPDATE_RESPONSE, MessageType.CHARACTER_LOG_RESPONSE,
+    MessageType.CHARACTER_DRAFT_CREATE_RESPONSE, MessageType.CHARACTER_DRAFT_LIST_RESPONSE,
+    MessageType.CHARACTER_DRAFT_LOAD_RESPONSE, MessageType.CHARACTER_DRAFT_UPDATE_RESPONSE,
+    MessageType.CHARACTER_DRAFT_FINALIZE_RESPONSE, MessageType.CHARACTER_DRAFT_ABANDON_RESPONSE,
+    MessageType.XP_AWARD_RESPONSE, MessageType.MULTICLASS_RESPONSE,
+})
+
+
+def _response_failed(response: Message) -> bool:
+    return (response.type in {MessageType.ERROR, MessageType.ACTION_REJECTED}
+            or response.type in SUCCESS_FLAG_RESPONSES and response.data.get('success') is False
+            or response.type == MessageType.CANVAS_HISTORY_STATE and 'error' in response.data)
+
 
 class ServerProtocol(
     _CanvasMixin,
@@ -441,7 +462,7 @@ class ServerProtocol(
                     responses.append(response)
             except Exception:
                 logger.exception("Batch message processing failed")
-                error = {'error': 'Batch message processing failed',
+                error: dict[str, Any] = {'error': 'Batch message processing failed',
                     'code': 'invalid_payload' if individual_msg is None else 'outcome_unknown'}
                 if individual_msg is not None:
                     error['resync_required'] = True
@@ -457,7 +478,6 @@ class ServerProtocol(
             'seq': sequence_id,
             'processed_count': len(messages_data),
             'response_count': len(responses),
-            'failed_count': sum(response.type in {MessageType.ERROR, MessageType.ACTION_REJECTED}
-                                for response in responses),
+            'failed_count': sum(_response_failed(response) for response in responses),
             'atomic': False,
         })

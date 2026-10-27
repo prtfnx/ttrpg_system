@@ -7,8 +7,11 @@ from core_table.actions_core import ActionsCore
 from core_table.protocol import Message, MessageType
 from core_table.server import TableManager
 from core_table.session_rules import SessionRules
+from service.character_protocol_persistence_service import TokenStatUpdate
 from service.game_session_protocol import GameSessionProtocolService
+from service.protocol.base import ServerProtocol
 from service.protocol.sprites import _SpritesMixin
+from utils.roles import get_visible_layers, is_dm
 
 
 class SpriteProtocol(_SpritesMixin):
@@ -105,3 +108,47 @@ async def test_preview_for_unknown_entity_is_not_broadcast():
         Message(MessageType.SPRITE_DRAG_PREVIEW, {"id": "missing", "x": 1, "y": 2}), "sender",
     )
     proto.broadcast_filtered.assert_not_awaited()
+
+
+@pytest.mark.parametrize("loaded", [False, True])
+@pytest.mark.parametrize("layer", ["map", "tokens", "dungeon_master", "light", "height", "obstacles", "fog_of_war"])
+async def test_character_stat_sync_respects_recipient_visibility(monkeypatch, loaded, layer):
+    manager = TableManager()
+    table = manager.create_table("Linked character", 100, 100)
+    table_id = str(table.table_id)
+    table.add_entity({"sprite_id": "linked-token", "layer": layer, "x": 10, "y": 10})
+    if not loaded:
+        manager.tables.clear()
+        manager.tables_id.clear()
+
+    service = GameSessionProtocolService.__new__(GameSessionProtocolService)
+    sockets = {role: AsyncMock() for role in ("owner", "co_dm", "trusted_player", "player", "spectator")}
+    service.clients = sockets
+    service.client_info = {role: {"role": role} for role in sockets}
+    proto = ServerProtocol(manager, session_manager=service)
+    proto.broadcast_to_session = AsyncMock()
+    # A loaded token's current layer wins over an older persisted projection.
+    persisted_layer = "tokens" if loaded else layer
+    monkeypatch.setattr("service.protocol.characters.persist_character_token_stats",
+                        lambda *_args: [TokenStatUpdate("linked-token", table_id, persisted_layer)])
+
+    await proto._sync_character_stats_to_tokens(1, "linked-character", {"hp": 7, "max_hp": 12, "ac": 15})
+    await service.drain_outbound()
+
+    proto.broadcast_to_session.assert_not_awaited()
+    for role, socket in sockets.items():
+        if is_dm(role) or layer in get_visible_layers(role):
+            socket.send_text.assert_awaited_once()
+            message = json.loads(socket.send_text.call_args.args[0])
+            assert message["type"] == MessageType.SPRITE_UPDATE.value
+            assert message["data"] == {
+                "sprite_id": "linked-token", "table_id": table_id,
+                "updates": {"hp": 7, "max_hp": 12, "ac": 15},
+                "operation": "update", "source": "character_sync",
+            }
+        else:
+            socket.send_text.assert_not_awaited()
+    if loaded:
+        entity = table.find_entity_by_sprite_id("linked-token")
+        assert entity is not None
+        assert (entity.hp, entity.max_hp, entity.ac) == (7, 12, 15)

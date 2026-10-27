@@ -12,6 +12,7 @@ from database.models import CharacterLog, Entity, VirtualTable
 class TokenStatUpdate:
     sprite_id: str
     table_id: str
+    layer: str
 
 
 def record_xp_award(
@@ -41,7 +42,7 @@ def persist_character_token_stats(
     character_id: str,
     updated_stats: dict[str, object],
 ) -> list[TokenStatUpdate]:
-    """Persist linked-token stats and return detached broadcast coordinates."""
+    """Persist linked-token stats and return detached identities and visibility."""
     with SessionLocal() as db:
         rows = (
             db.query(Entity, VirtualTable.table_id)
@@ -59,6 +60,7 @@ def persist_character_token_stats(
             updates.append(TokenStatUpdate(
                 sprite_id=str(entity.sprite_id),
                 table_id=str(public_table_id),
+                layer=entity.layer,
             ))
         db.commit()
     return updates

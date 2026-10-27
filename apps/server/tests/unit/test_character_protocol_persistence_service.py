@@ -84,10 +84,15 @@ def persistence_context(monkeypatch):
 
 
 @pytest.mark.unit
-def test_token_stats_are_persisted_only_in_authoritative_session(persistence_context):
+@pytest.mark.parametrize("layer", ["tokens", "dungeon_master", "light"])
+def test_token_stats_are_persisted_only_in_authoritative_session(persistence_context, layer):
     from database.models import Entity
 
     persistence, session_factory, (session_id, _) = persistence_context
+    with session_factory() as db:
+        first = db.query(Entity).filter(Entity.sprite_id == "sprite-one").one()
+        first.layer = layer
+        db.commit()
 
     updates = persistence.persist_character_token_stats(
         session_id,
@@ -96,7 +101,7 @@ def test_token_stats_are_persisted_only_in_authoritative_session(persistence_con
     )
 
     assert updates == [
-        persistence.TokenStatUpdate(sprite_id="sprite-one", table_id="table-one")
+        persistence.TokenStatUpdate(sprite_id="sprite-one", table_id="table-one", layer=layer)
     ]
     with session_factory() as db:
         first = db.query(Entity).filter(Entity.sprite_id == "sprite-one").one()

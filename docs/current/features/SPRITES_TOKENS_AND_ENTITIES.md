@@ -177,6 +177,13 @@ character when a token stat changes and a character id can be resolved.
 This is a best-effort separate write: failures are logged, and character, token,
 and combat persistence are not one transaction. TODO: define stat authority
 and add transactional synchronization or durable repair.
+
+Character-to-token stat events use the same role/layer-filtered delivery as
+other sprite events. Loaded tokens use their current authoritative live layer;
+unloaded tokens use the detached layer returned by the persistence transaction.
+Private-layer token identities and stats are not sent to roles that cannot see
+that layer. Synchronization still updates every linked token in the session.
+
 Sprite-limit counts, uncached movement rules, and durable character-link
 fallbacks run in worker threads. Each helper creates and closes its own ORM
 session and returns only plain values to the async protocol handler.

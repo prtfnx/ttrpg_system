@@ -908,21 +908,25 @@ class _CharactersMixin(_ProtocolBase):
                 updated_stats,
             )
             for token_update in token_updates:
+                layer = token_update.layer
                 table = self.table_manager.tables.get(token_update.table_id)
                 if table:
                     entity_id = table.sprite_to_entity.get(token_update.sprite_id)
                     in_memory_entity = table.entities.get(entity_id)
                     if in_memory_entity:
+                        layer = in_memory_entity.layer
                         for field, value in updated_stats.items():
                             setattr(in_memory_entity, field, value)
 
-                await self.broadcast_to_session(Message(MessageType.SPRITE_UPDATE, {
+                # Unloaded tables retain the transaction's authoritative layer;
+                # loaded tokens use their current live layer under session ownership.
+                await self.broadcast_filtered(Message(MessageType.SPRITE_UPDATE, {
                     'sprite_id': token_update.sprite_id,
                     'table_id': token_update.table_id,
                     'updates': updated_stats,
                     'operation': 'update',
                     'source': 'character_sync',
-                }), '')
+                }), layer, '')
 
             logger.info(
                 "Synchronized character stats to linked tokens",

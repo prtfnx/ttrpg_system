@@ -928,7 +928,8 @@ async def test_character_token_sync_updates_memory_without_blocking(monkeypatch)
     from service.character_protocol_persistence_service import TokenStatUpdate
 
     proto = _make_proto()
-    in_memory_entity = MagicMock(hp=1, max_hp=2, ac=3)
+    proto.broadcast_filtered = AsyncMock()
+    in_memory_entity = MagicMock(hp=1, max_hp=2, ac=3, layer="tokens")
     table = MagicMock()
     table.sprite_to_entity = {"sprite-one": 7}
     table.entities = {7: in_memory_entity}
@@ -936,7 +937,7 @@ async def test_character_token_sync_updates_memory_without_blocking(monkeypatch)
 
     def slow_persist(*_args, **_kwargs):
         time.sleep(0.05)
-        return [TokenStatUpdate(sprite_id="sprite-one", table_id="table-one")]
+        return [TokenStatUpdate(sprite_id="sprite-one", table_id="table-one", layer="tokens")]
 
     monkeypatch.setattr(
         "service.protocol.characters.persist_character_token_stats",
@@ -957,9 +958,11 @@ async def test_character_token_sync_updates_memory_without_blocking(monkeypatch)
         12,
         17,
     )
-    message = proto.broadcast_to_session.await_args.args[0]
+    message, layer, excluded = proto.broadcast_filtered.await_args.args
     assert message.type == MessageType.SPRITE_UPDATE
     assert message.data["table_id"] == "table-one"
+    assert layer == "tokens" and excluded == ""
+    proto.broadcast_to_session.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------

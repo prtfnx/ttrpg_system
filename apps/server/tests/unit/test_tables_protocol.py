@@ -294,7 +294,7 @@ class TestNewTableRequest:
             "Dungeon",
             2000,
             2000,
-            session_id=proto._get_session_id(None),
+            session_id=1,
         )
 
     async def test_successful_create_returns_table_response(self):
@@ -354,6 +354,7 @@ class TestNewTableRequest:
             "c1",
         )
 
+        assert proto.broadcast_to_session.await_args is not None
         broadcast = proto.broadcast_to_session.await_args.args[0]
         assert broadcast.type == MessageType.TABLE_UPDATE
         assert broadcast.data["table_id"] == "t-new"
@@ -372,6 +373,7 @@ class TestNewTableRequest:
         response = await proto.handle_new_table_request(Message(MessageType.NEW_TABLE_REQUEST, {
             "table_name": "Dungeon", "table_data": scene,
         }), "c1")
+        assert proto.broadcast_to_session.await_args is not None
         broadcast = proto.broadcast_to_session.await_args.args[0]
         assert broadcast.data["table_data"] == {
             "table_id": "t-new", "table_name": "Dungeon", "width": 2000, "height": 2000,
@@ -407,6 +409,7 @@ class TestNewTableRequest:
         )
 
         assert resp.type == MessageType.NEW_TABLE_RESPONSE
+        assert proto.actions.create_table.await_args is not None
         copied = proto.actions.create_table.await_args.kwargs["initial_data"]
         assert "table_id" not in copied
         assert copied["layers"]["tokens"]["1"]["entity_id"] == 1
@@ -648,8 +651,8 @@ class TestTableSettingsUpdate:
         proto = self._proto()
         proto.broadcast_to_session = AsyncMock()
         table = proto.table_manager.tables_id["t1"]
-        kwargs = {"side_effect": outcome} if isinstance(outcome, Exception) else {"return_value": outcome}
-        with patch("service.protocol.tables.persist_table_settings", **kwargs):
+        save = MagicMock(side_effect=outcome) if isinstance(outcome, Exception) else MagicMock(return_value=outcome)
+        with patch("service.protocol.tables.persist_table_settings", new=save):
             response = await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_CHANGED, {
                 "table_id": "t1", "dynamic_lighting_enabled": True,
                 "ambient_light_level": 0.25, "grid_enabled": False,
@@ -771,6 +774,7 @@ class TestTableUpdate:
             session_id=1,
         )
         proto.broadcast_to_session.assert_awaited_once()
+        assert proto.broadcast_to_session.await_args is not None
         broadcast = proto.broadcast_to_session.await_args.kwargs["message"]
         assert broadcast.type == MessageType.TABLE_UPDATE
         assert broadcast.data == msg.data

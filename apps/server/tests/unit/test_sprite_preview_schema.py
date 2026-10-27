@@ -21,6 +21,7 @@ def test_relative_preview_lifetime_does_not_depend_on_sender_clock(monkeypatch, 
     monkeypatch.setattr(sprites.time, "time", lambda: 1000)
     incoming = {"preview_id": "gesture", "sequence": 1, "ttl_ms": 1500, "expires_at": 1000000 + offset}
     fields = sprites._preview_fields(incoming, "trusted-client")
+    assert fields is not None
     assert fields == {"preview_id": "gesture", "sequence": 1, "ttl_ms": 1500,
         "expires_at": 1001500, "source_client_id": "trusted-client"}
     assert sprites._preview_fields({**incoming, "ttl_ms": 2001}, "trusted-client") is None

@@ -142,7 +142,7 @@ async def test_paint_recovery_queues_one_ordered_stream_without_awaiting_network
     table_id = str(uuid.uuid4())
     monkeypatch.setattr(paint_module, "_paint_snapshot", lambda **_kwargs: PaintSnapshot(table_id, 0, []))
     protocol = object.__new__(ServerProtocol)
-    protocol._paint_context = lambda _msg, _client: (1, 1)
+    protocol._paint_context = lambda msg, client_id: (1, 1)
     protocol._snapshot_send = AsyncMock()
     protocol.send_to_client = AsyncMock()
     request = Message(MessageType.PAINT_SNAPSHOT_REQUEST, {"table_id": table_id})

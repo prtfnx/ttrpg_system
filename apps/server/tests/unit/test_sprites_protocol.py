@@ -611,6 +611,7 @@ class TestSpriteUpdate:
         )
 
         assert resp.type == MessageType.SUCCESS
+        assert proto.actions.update_sprite.await_args is not None
         assert proto.actions.update_sprite.await_args.kwargs["controlled_by"] == [7, 9]
 
 

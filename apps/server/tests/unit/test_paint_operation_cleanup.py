@@ -99,6 +99,7 @@ def test_cleanup_keeps_canvas_receipts_through_the_full_retry_horizon():
     try:
         with factory.begin() as db:
             paint = db.query(models.PaintOperationResult).first()
+            assert paint is not None
             for age in (47, 48, 49):
                 db.add(
                     models.CanvasCommandJournal(

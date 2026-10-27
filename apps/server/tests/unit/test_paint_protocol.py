@@ -225,6 +225,7 @@ async def test_snapshot_returns_authoritative_objects_and_revision(paint_db):
         "player",
     )
 
+    assert response is not None
     assert response.type == MessageType.PAINT_SNAPSHOT_CHUNK
     assert response.data["revision"] == 1
     assert response.data["chunk_index"] == 0
@@ -488,6 +489,7 @@ async def test_disabled_paint_gate_denies_writes_and_drops_previews_but_keeps_sn
     snapshot = await harness.handle_paint_snapshot_request(
         Message(MessageType.PAINT_SNAPSHOT_REQUEST, {"table_id": TABLE_ID}), "player"
     )
+    assert snapshot is not None
     assert snapshot.type == MessageType.PAINT_SNAPSHOT_CHUNK
     assert snapshot.data["revision"] == 0
     assert snapshot.data["objects"] == []

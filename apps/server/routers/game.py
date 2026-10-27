@@ -63,7 +63,7 @@ def get_selection_preference(
 ):
     member = _selection_member(db, session_code, current_user.id)
     response.headers["Cache-Control"] = "private, no-store"
-    return SelectionPreference(selection_mode=member.selection_mode)
+    return SelectionPreference.model_validate({"selection_mode": member.selection_mode})
 
 
 @router.put("/api/sessions/{session_code}/selection-preference", response_model=SelectionPreference)
@@ -127,9 +127,10 @@ def upload_table_preview(
     etag = sha256(payload).hexdigest()
     table.preview_image = payload
     table.preview_etag = etag
-    table.preview_updated_at = utc_now()
+    updated_at = utc_now()
+    table.preview_updated_at = updated_at
     db.commit()
-    return {"etag": etag, "updated_at": table.preview_updated_at.isoformat()}
+    return {"etag": etag, "updated_at": updated_at.isoformat()}
 
 
 @router.get("/api/sessions/{session_code}/tables/{table_id}/preview")

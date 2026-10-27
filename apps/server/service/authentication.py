@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import math
+from dataclasses import dataclass
+
 import jwt
 from config import Settings
 from database import crud, models
@@ -20,18 +23,34 @@ class AccessTokenRejected(Exception):
         self.reason = reason
 
 
-def resolve_active_user_from_token(token: str, db: Session) -> models.User:
-    """Return the active user represented by a valid, non-revoked access token.
+@dataclass(frozen=True)
+class AuthenticatedAccount:
+    user: models.User
+    expires_at: float
+
+
+def resolve_active_account_from_token(token: str, db: Session) -> AuthenticatedAccount:
+    """Return account authority and its validated credential deadline.
 
     Callers may log ``AccessTokenRejected.reason`` but must never log ``token``.
     Tokens without an ``sv`` claim retain the legacy version-zero behavior.
     """
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], options={"require": ["exp"]})
     except jwt.ExpiredSignatureError as exc:
         raise AccessTokenRejected("expired") from exc
-    except jwt.InvalidTokenError as exc:
+    except (jwt.InvalidTokenError, ValueError, OverflowError, TypeError) as exc:
         raise AccessTokenRejected("invalid") from exc
+
+    expiration = payload["exp"]
+    if isinstance(expiration, bool) or not isinstance(expiration, (int, float)):
+        raise AccessTokenRejected("invalid_expiration")
+    try:
+        expires_at = float(expiration)
+    except OverflowError as exc:
+        raise AccessTokenRejected("invalid_expiration") from exc
+    if not math.isfinite(expires_at):
+        raise AccessTokenRejected("invalid_expiration")
 
     username = payload.get("sub")
     if not isinstance(username, str) or not username:
@@ -50,4 +69,9 @@ def resolve_active_user_from_token(token: str, db: Session) -> models.User:
     if user.disabled:
         raise AccessTokenRejected("inactive")
 
-    return user
+    return AuthenticatedAccount(user=user, expires_at=expires_at)
+
+
+def resolve_active_user_from_token(token: str, db: Session) -> models.User:
+    """Preserve the HTTP user contract while sharing credential validation."""
+    return resolve_active_account_from_token(token, db).user

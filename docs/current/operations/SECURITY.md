@@ -80,6 +80,16 @@ tokens, missing users, mismatched session versions, and disabled accounts. The
 game WebSocket performs this check before accepting a connection and closes a
 rejected handshake with policy-violation code `1008`.
 
+Account credentials require a finite numeric `exp` claim. Handshake validation
+returns that signed expiration together with the active user, without retaining
+an ORM session in connection context. Established account sockets close with
+`1008` and `Authentication expired` when the credential expires, including
+while idle or receiving traffic. Queued frames cannot begin dispatch after the
+deadline. Already-running accepted work settles through normal inbox cleanup;
+closing transport does not roll back a committed command. The browser must
+sign in again before opening a new authenticated socket. Guest connections keep
+their separate guest deadline and `Demo expired` reason.
+
 The WebSocket handshake closes its authentication database session before
 accepting the long-lived message loop. Protocol persistence uses one
 synchronous SQLAlchemy session per async task and removes it after each logical

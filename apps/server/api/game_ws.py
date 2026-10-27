@@ -15,7 +15,7 @@ from database import crud, models
 from database.database import SessionLocal
 from database.writer import WriterOwnershipLost
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
-from service.authentication import AccessTokenRejected, resolve_active_user_from_token
+from service.authentication import AccessTokenRejected, AuthenticatedAccount, resolve_active_account_from_token
 from service.demo_guests import DEMO_COOKIE, demo_message_allowed, resolve_demo_guest
 from service.game_session import ConnectionManager, get_connection_manager
 from service.protocol_rejection import rejection_messages
@@ -43,6 +43,7 @@ class WebSocketSessionContext:
     username: str
     role: str
     guest_expires_at: float | None = None
+    token_expires_at: float | None = None
 
 
 def _session_reference(session_code: str) -> str:
@@ -58,10 +59,10 @@ def _origin_is_allowed(origin: str | None) -> bool:
     return bool(origin and origin in allowed)
 
 
-def get_user_from_token(token: str, db: Session):
-    """Resolve a user without ever recording token material."""
+def _account_from_token(token: str, db: Session) -> AuthenticatedAccount | None:
+    """Resolve account authority without ever recording token material."""
     try:
-        return resolve_active_user_from_token(token, db)
+        return resolve_active_account_from_token(token, db)
     except AccessTokenRejected as error:
         log = logger.info if error.reason == "expired" else logger.warning
         log(
@@ -74,6 +75,11 @@ def get_user_from_token(token: str, db: Session):
         return None
 
 
+def get_user_from_token(token: str, db: Session):
+    account = _account_from_token(token, db)
+    return account.user if account is not None else None
+
+
 def _load_websocket_session_context(
     token: str,
     session_code: str,
@@ -82,13 +88,16 @@ def _load_websocket_session_context(
     """Resolve handshake authority with a worker-owned ORM session."""
     db = SessionLocal()
     try:
+        token_expires_at = None
         if demo:
             try:
                 user = resolve_demo_guest(token, db, session_code)
             except AccessTokenRejected:
                 return None, "authentication"
         else:
-            user = get_user_from_token(token, db)
+            account = _account_from_token(token, db)
+            user = account.user if account is not None else None
+            token_expires_at = account.expires_at if account is not None else None
         if not user:
             return None, "authentication"
 
@@ -109,6 +118,7 @@ def _load_websocket_session_context(
             role=db_player.role or "player",
             guest_expires_at=(user.guest_expires_at.replace(tzinfo=UTC).timestamp()
                               if demo and user.guest_expires_at else None),
+            token_expires_at=token_expires_at,
         ), None
     finally:
         db.close()
@@ -221,8 +231,14 @@ async def websocket_game_endpoint(
                 },
             )
 
+            expires_at = context.guest_expires_at if demo else context.token_expires_at
+            expiry_reason = "Demo expired" if demo else "Authentication expired"
             limiter = WebSocketMessageLimiter(settings.WS_MESSAGES_PER_MINUTE, settings.WS_PREVIEWS_PER_MINUTE)
             async def dispatch_message(message_data):
+                # Frames queued while authorized must not begin work after
+                # credential expiry. The receive loop closes and drains below.
+                if expires_at is not None and time.time() >= expires_at:
+                    return
                 started = time.perf_counter()
                 outcome = "success"
                 with log_context(message_id=message_data.get("message_id")):
@@ -238,20 +254,20 @@ async def websocket_game_endpoint(
 
             inbox = WebSocketInbox(dispatch_message)
             while True:
-                if context.guest_expires_at is None:
+                if expires_at is None:
                     raw_message = await websocket.receive_text()
                 else:
-                    remaining = context.guest_expires_at - time.time()
+                    remaining = expires_at - time.time()
                     if remaining <= 0:
-                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Demo expired")
+                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=expiry_reason)
                         return
                     try:
                         raw_message = await asyncio.wait_for(websocket.receive_text(), timeout=remaining)
                     except TimeoutError:
-                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Demo expired")
+                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=expiry_reason)
                         return
-                    if time.time() >= context.guest_expires_at:
-                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Demo expired")
+                    if time.time() >= expires_at:
+                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=expiry_reason)
                         return
                 message_started = time.perf_counter()
                 payload_bytes = len(raw_message.encode("utf-8"))

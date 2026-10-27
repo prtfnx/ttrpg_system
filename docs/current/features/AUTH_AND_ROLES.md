@@ -96,6 +96,12 @@ the persisted `GamePlayer.role`; subsequent role-change messages refresh the
 same session authority in the game store. An expired cookie becomes an
 unauthenticated browser session; there is no refresh-route dependency.
 
+An established account game socket is bounded by its validated JWT expiration,
+not just handshake authentication. The server closes idle and active sockets
+at that deadline with code `1008` and reason `Authentication expired`, and
+refuses to start queued work afterward. Reauthenticate before reconnecting.
+The separate demo guest expiration contract is unchanged.
+
 ## Google OAuth
 
 Google OAuth is optional and lives in `apps/server/routers/auth.py`.

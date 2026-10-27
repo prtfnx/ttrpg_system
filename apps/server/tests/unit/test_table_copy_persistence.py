@@ -62,7 +62,7 @@ async def test_populated_table_copy_persists_reloads_and_deletes_independently(t
     assert copy_id != str(source.table_id)
     test_db.expire_all()
     loaded, success = crud.load_table_from_db(test_db, copy_id)
-    assert success
+    assert success and loaded is not None
     assert {entity.name for entity in loaded.entities.values()} == {"Hero", "DM note"}
     assert {entity.sprite_id for entity in loaded.entities.values()}.isdisjoint(
         {entity.sprite_id for entity in source.entities.values()})

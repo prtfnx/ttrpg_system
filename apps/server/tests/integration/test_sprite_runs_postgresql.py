@@ -51,7 +51,8 @@ def test_bulk_journal_uses_one_insert_and_retains_restart_undo_and_retry(scene):
     finally:
         event.remove(engine, "before_cursor_execute", cursor)
     assert len(inserts) == 1 and all(receipt["can_undo"] for receipt in receipts)
-    assert SpriteEditorCommandService(factory).replay(batch[-1]["scope"])["resync_required"]
+    replay = SpriteEditorCommandService(factory).replay(batch[-1]["scope"])
+    assert replay is not None and replay["resync_required"]
     for expected in range(9, -1, -1):
         scene["execute"](scene["command"]("undo"))
         assert scene["load"]().find_entity_by_sprite_id("original").rotation == expected

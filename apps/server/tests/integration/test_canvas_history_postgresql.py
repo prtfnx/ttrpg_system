@@ -37,7 +37,9 @@ def scene(database):  # noqa: F811 - imported, shared temporary-schema fixture
     factory = sessionmaker(bind=engine)
     paint_id = str(uuid.uuid4())
     with factory() as db:
-        actor_id = db.get(models.GameSession, session_id).owner_id
+        session = db.get(models.GameSession, session_id)
+        assert session is not None
+        actor_id = session.owner_id
         table = VirtualTable("Canvas", 1000, 1000, table_id=table_id)
         table.snap_to_grid = False
         table.add_entity({"sprite_id": "original", "x": 10, "y": 20, "width": 20, "height": 10})
@@ -58,7 +60,7 @@ def scene(database):  # noqa: F811 - imported, shared temporary-schema fixture
     def load():
         with factory() as db:
             loaded, ok = crud.load_table_from_db(db, table_id)
-            assert ok
+            assert ok and loaded is not None
             return loaded
 
     def command(mode="transform"):
@@ -66,11 +68,15 @@ def scene(database):  # noqa: F811 - imported, shared temporary-schema fixture
                   "issued_at": datetime.now(UTC).timestamp() * 1000, "mode": mode}
         if mode in {"transform", "delete"}:
             with factory() as db:
-                version = db.get(models.PaintObject, paint_id).version
+                paint_object = db.get(models.PaintObject, paint_id)
+                assert paint_object is not None
+                version = paint_object.version
+            entity = load().find_entity_by_sprite_id("original")
+            assert entity is not None
             result["members"] = [
                 {"kind": "paint", "id": paint_id, "version": version},
                 {"kind": "sprite", "id": "original",
-                 "expected": sprite_transform(load().find_entity_by_sprite_id("original"))},
+                 "expected": sprite_transform(entity)},
             ]
         if mode == "transform":
             result["transform"] = {**IDENTITY, "dx": 10, "dy": 20}

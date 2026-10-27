@@ -103,7 +103,9 @@ def receive_until(socket, predicate, timeout=15):
 def snapshot_rotation(message):
     table = VirtualTable("Snapshot", 1000, 1000)
     table.from_dict(message["data"]["table_data"])
-    return table.find_entity_by_sprite_id("original").rotation
+    entity = table.find_entity_by_sprite_id("original")
+    assert entity is not None
+    return entity.rotation
 
 
 def test_two_editors_commit_without_waiting_for_receipts_and_observer_recovers(live_scene):
@@ -155,12 +157,14 @@ def test_conflicting_actors_retry_and_permission_denial_preserve_accepted_state(
     def command(mode="transform"):
         with Session(engine) as db:
             table, ok = crud.load_table_from_db(db, table_id)
-            assert ok
+            assert ok and table is not None
         data = {"operation_id": str(uuid.uuid4()), "table_id": table_id,
             "issued_at": time.time() * 1000, "mode": mode}
         if mode == "transform":
+            entity = table.find_entity_by_sprite_id("original")
+            assert entity is not None
             data.update(members=[{"kind": "sprite", "id": "original",
-                "expected": sprite_transform(table.find_entity_by_sprite_id("original"))}],
+                "expected": sprite_transform(entity)}],
                 transform={"dx": 10, "dy": 0, "scale": 1, "rotation": 0, "pivot_x": 0, "pivot_y": 0})
         return Message(MessageType.CANVAS_COMMAND, data)
 
@@ -197,8 +201,10 @@ def test_pipeline_and_sequential_edits_converge_through_delayed_real_sockets(liv
     engine, table_id, socket = live_scene
     with Session(engine) as db:
         table, ok = crud.load_table_from_db(db, table_id)
-        assert ok
-        expected = sprite_transform(table.find_entity_by_sprite_id("original"))
+        assert ok and table is not None
+        entity = table.find_entity_by_sprite_id("original")
+        assert entity is not None
+        expected = sprite_transform(entity)
 
     def move(previous=None, x=100):
         member = {"kind": "sprite", "id": "original", "expected": {**expected, "x": x}}
@@ -248,7 +254,8 @@ def test_pipeline_and_sequential_edits_converge_through_delayed_real_sockets(liv
         snapshot = _request(observer, "table_request", {"table_id": table_id})
         table = VirtualTable("Snapshot", 1000, 1000)
         table.from_dict(snapshot["data"]["table_data"])
-        assert table.find_entity_by_sprite_id("original").position == (140, 100)
+        entity = table.find_entity_by_sprite_id("original")
+        assert entity is not None and entity.position == (140, 100)
         with Session(engine) as db:
             assert db.query(models.Entity).one().position_x == 140
         # Report measured timings; correctness does not depend on a fragile
@@ -261,8 +268,10 @@ def test_retry_after_lost_receipt_does_not_repeat_the_peer_edit(live_scene):
     engine, table_id, socket = live_scene
     with Session(engine) as db:
         table, ok = crud.load_table_from_db(db, table_id)
-        assert ok
-        expected = sprite_transform(table.find_entity_by_sprite_id("original"))
+        assert ok and table is not None
+        entity = table.find_entity_by_sprite_id("original")
+        assert entity is not None
+        expected = sprite_transform(entity)
     message = Message(MessageType.CANVAS_COMMAND, {"operation_id": str(uuid.uuid4()), "table_id": table_id,
         "issued_at": time.time() * 1000, "mode": "transform", "members": [
             {"kind": "sprite", "id": "original", "expected": expected}],

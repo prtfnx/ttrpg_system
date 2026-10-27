@@ -958,7 +958,9 @@ async def test_character_token_sync_updates_memory_without_blocking(monkeypatch)
         12,
         17,
     )
-    message, layer, excluded = proto.broadcast_filtered.await_args.args
+    call = proto.broadcast_filtered.await_args
+    assert call is not None
+    message, layer, excluded = call.args
     assert message.type == MessageType.SPRITE_UPDATE
     assert message.data["table_id"] == "table-one"
     assert layer == "tokens" and excluded == ""

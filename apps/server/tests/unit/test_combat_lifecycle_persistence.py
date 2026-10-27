@@ -59,8 +59,10 @@ async def test_rejected_end_or_round_preserves_committed_combat(lifecycle, monke
         current = state.get_current_combatant()
         assert current is not None
         assert (await service.apply_async(command(2, "end_turn", actor_id=current.combatant_id), context)).accepted
-    before = copy.deepcopy(CombatEngine.get_state(code).to_dict())
-    actor = CombatEngine.get_state(code).get_current_combatant()
+    state = CombatEngine.get_state(code)
+    assert state is not None
+    before = copy.deepcopy(state.to_dict())
+    actor = state.get_current_combatant()
     assert actor is not None
     envelope = command(3, transition, actor_id=actor.combatant_id if transition == "end_turn" else "__dm__")
     monkeypatch.setattr(persistence, "persist_accepted", fail_journal)
@@ -68,7 +70,9 @@ async def test_rejected_end_or_round_preserves_committed_combat(lifecycle, monke
     result = await service.apply_async(envelope, context)
 
     assert not result.accepted
-    assert CombatEngine.get_state(code).to_dict() == before
+    state = CombatEngine.get_state(code)
+    assert state is not None
+    assert state.to_dict() == before
     CombatEngine._active.pop(code)
     restored = CombatEngine.restore(code)
     assert restored is not None

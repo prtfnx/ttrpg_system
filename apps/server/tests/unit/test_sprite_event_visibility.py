@@ -1,5 +1,6 @@
 import json
 import time
+from typing import cast
 from unittest.mock import AsyncMock
 
 import pytest
@@ -7,6 +8,7 @@ from core_table.actions_core import ActionsCore
 from core_table.protocol import Message, MessageType
 from core_table.server import TableManager
 from core_table.session_rules import SessionRules
+from fastapi import WebSocket
 from service.character_protocol_persistence_service import TokenStatUpdate
 from service.game_session_protocol import GameSessionProtocolService
 from service.protocol.base import ServerProtocol
@@ -122,8 +124,8 @@ async def test_character_stat_sync_respects_recipient_visibility(monkeypatch, lo
         manager.tables_id.clear()
 
     service = GameSessionProtocolService.__new__(GameSessionProtocolService)
-    sockets = {role: AsyncMock() for role in ("owner", "co_dm", "trusted_player", "player", "spectator")}
-    service.clients = sockets
+    sockets = {role: AsyncMock(spec=WebSocket) for role in ("owner", "co_dm", "trusted_player", "player", "spectator")}
+    service.clients = {role: cast(WebSocket, socket) for role, socket in sockets.items()}
     service.client_info = {role: {"role": role} for role in sockets}
     proto = ServerProtocol(manager, session_manager=service)
     proto.broadcast_to_session = AsyncMock()

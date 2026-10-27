@@ -87,6 +87,16 @@ event-loop heartbeat still runs. The token-sync regression also verifies that
 detached sprite IDs resolve through the in-memory sprite-to-entity index before
 the broadcast is emitted.
 
+The recipient matrix covers all session roles across public, DM-only, light,
+and fog layers for both loaded and unloaded linked tokens. A loaded token's
+current layer overrides an older persisted projection.
+
+CI's PostgreSQL gate also runs `test_canvas_history_postgresql.py` and both
+backends of `test_multiclient_sync.py` against its disposable PostgreSQL service.
+The JUnit report is retained as an artifact. `scripts/check_postgresql_gate.py`
+requires every selected suite and a PostgreSQL multi-client case to execute,
+and rejects skips as well as failures; SQLite coverage alone cannot pass it.
+
 Combat command tests assert worker-thread execution for duplicate lookup,
 journal persistence, restore, combatant construction, movement validation,
 and table saves. A deliberately blocked persistence fake verifies that an

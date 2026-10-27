@@ -168,16 +168,24 @@ jobs:
       - name: Pinned Pyright type check
         run: npx --yes pyright@1.1.411
       - name: PostgreSQL migration and behavior gates
-        run: >-
-          pytest
-          tests/integration/test_alembic_baseline.py
-          tests/integration/test_postgresql_contract.py
-          tests/integration/test_writer_fencing_postgresql.py
-          --no-cov
+        run: |
+          pytest tests/integration/test_alembic_baseline.py \
+            tests/integration/test_postgresql_contract.py \
+            tests/integration/test_writer_fencing_postgresql.py \
+            tests/integration/test_canvas_history_postgresql.py \
+            tests/integration/test_multiclient_sync.py \
+            --no-cov --junitxml="$RUNNER_TEMP/postgresql-gates.xml"
+          python scripts/check_postgresql_gate.py "$RUNNER_TEMP/postgresql-gates.xml"
         working-directory: apps/server
         env:
           TEST_POSTGRESQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ttrpg_test
           PYTHONPATH: ${{ github.workspace }}/apps/server:${{ github.workspace }}/packages/core-table
+      - name: Upload PostgreSQL gate results
+        uses: actions/upload-artifact@v7
+        with:
+          name: postgresql-gates
+          path: ${{ runner.temp }}/postgresql-gates.xml
+        if: always()
       - name: Alembic head and drift gates
         run: |
           alembic current --check-heads

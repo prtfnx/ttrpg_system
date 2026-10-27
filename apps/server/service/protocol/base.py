@@ -310,10 +310,10 @@ class ServerProtocol(
             return await self._invoke_handler_in_scope(msg, client_id)
 
     async def _invoke_handler_in_scope(self, msg: Message, client_id: str):
-        if msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
+        if msg.type == MessageType.COMBAT_COMMAND or (msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
                 MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE,
                 MessageType.TABLE_SETTINGS_UPDATE} and getattr(
-                    getattr(self, "table_manager", None), "db_session", None):
+                    getattr(self, "table_manager", None), "db_session", None)):
             # Include post-commit broadcasts in cancellation shielding. The
             # session lock must not release between storage and publication.
             worker = asyncio.create_task(self._invoke_handler_body(msg, client_id))

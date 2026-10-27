@@ -81,7 +81,7 @@ without submitting work. Cancelling an already-submitted coroutine keeps its
 capacity reserved until the underlying thread finishes because Python cannot
 stop a running thread.
 
-TODO: migrate remaining synchronous wall writes, client-join database and
+TODO: migrate remaining synchronous client-join database and
 choice-encounter restoration, choice handlers, sprite-control permission
 fallbacks, and compendium token lookups to worker-owned sessions. These paths
 can still block the event loop. The worker limit covers submitted worker jobs;
@@ -192,11 +192,15 @@ The async command path offloads duplicate lookup, accepted-command
 persistence, restore, character lookup, movement rule loading/validation, and
 table saves. Normal completion applies state versions, restoration, and
 role-filtered delivery on the event loop. Cancelling `run_blocking` does not
-stop an already running thread; not every combat write waits for that worker
-to settle before releasing mutation ownership. Environment save callbacks
-still read a live table rather than a detached snapshot.
+stop an already running thread, so command ownership waits for that worker's
+settlement. Environment save callbacks still read a live table rather than a
+detached snapshot.
 
-TODO: cancellation-safe ordering and detached inputs across all combat writes.
+Combat command settlement finishes before propagating cancellation, and
+protocol dispatch keeps session ownership through peer publication. Repeated
+cancellation cannot release that lock while SQL, rollback, or publication is
+still pending. Focused regressions cover commit success/failure and a waiting
+state reader. TODO: detach the remaining environment-save inputs.
 Current terrain/cover commands require one DM command outside active combat;
 see [Battle flow](BATTLE_FLOW.md).
 

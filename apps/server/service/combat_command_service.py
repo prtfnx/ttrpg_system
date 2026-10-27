@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from copy import deepcopy
@@ -315,6 +316,18 @@ class CombatCommandService:
             )
 
     async def apply_async(
+        self,
+        envelope: CombatCommandEnvelope,
+        context: CombatCommandContext,
+    ) -> CombatCommandResult:
+        from core_table.action_batches import _finish_before_cancellation
+
+        # Worker threads cannot be cancelled. Finish cache installation or
+        # rollback before a cancelled application caller releases ownership.
+        worker = asyncio.create_task(self._apply_async(envelope, context))
+        return await _finish_before_cancellation(worker)
+
+    async def _apply_async(
         self,
         envelope: CombatCommandEnvelope,
         context: CombatCommandContext,

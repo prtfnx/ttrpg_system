@@ -275,9 +275,17 @@ ORM sessions. The environment save callback still reads a live table through
 State-version application, restoration, and broadcasts remain on the
 serialized event-loop task.
 
-TODO: detached environment-save inputs and cancellation-safe ordering across
-all combat writes. Other synchronous wall/join/choice-encounter and permission
-lookup paths can still block the event loop; worker coverage is not universal.
+Combat command cancellation waits for the submitted operation to settle,
+including cache installation or rollback. Protocol dispatch also retains the
+session mutation lock through recipient-filtered peer publication, even after
+repeated cancellation. A command cancelled before acquiring session ownership
+does not execute. Transport cancellation may still lose its requester receipt;
+reconciliation must inspect the durable outcome instead of assuming rejection.
+
+TODO: detached environment-save inputs and a shared table/combat transaction.
+Synchronous join/choice-encounter and permission lookup paths can still block
+the event loop; worker coverage is not universal. Wall writes already use
+worker-owned transactions before publication.
 
 ## Table environment
 

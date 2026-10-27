@@ -4,7 +4,7 @@ Audience: contributors changing durable mutations or live session state.
 
 Status: usable.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-10-26
 
 ## Three different ordering boundaries
 
@@ -43,15 +43,22 @@ whose final save failed so it can retry.
 The retained state is memory-resident. A failed command may later be saved by a
 retry; failure does not universally mean the in-memory mutation was reversed.
 Do not promise generic command idempotency or automatically resubmit creates.
-The database snapshot is atomic, but there is no durable command log for every
-canvas operation. Unconfirmed edits cannot survive abrupt process loss.
+Canvas commands, sprite actions, and paint operations have domain-specific
+durable journals/receipts; see [Command and history](../reference/COMMAND_AND_HISTORY.md).
+These do not cover every table/settings mutation. A retained dirty snapshot
+is not itself a crash-durable record of an unconfirmed edit.
 
 ## Deferred consistency work
 
-TODO: durable receipts and outcome reconciliation for ordinary canvas/settings
-commands; shared transactions or repair for linked character/token/combat
-writes; cancellation-safe ordering for combat workers; detached environment
-save callbacks; and complete worker migration for synchronous protocol paths.
+TODO: extend durable receipts and outcome reconciliation to table creation,
+XP awards, and settings; shared transactions or repair for linked
+character/token/combat writes; detached environment-save callbacks; and complete
+worker migration for synchronous protocol paths. Combat lifecycle transitions
+are calculated without implicit engine commits; accepted snapshot and journal
+share one transaction. Combat command cancellation retains ownership through
+settlement, cache installation, and protocol publication. Movement still saves
+separately from the combat journal, so lifecycle atomicity is not full combat/table
+atomicity.
 These are not current guarantees. Environment commands are limited to a single
 pre-combat edit to contain known partial-write cases.
 

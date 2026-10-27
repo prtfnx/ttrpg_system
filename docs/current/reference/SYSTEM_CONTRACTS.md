@@ -5,7 +5,7 @@ Audience: contributors locating the current behavior and its regression owner.
 Status: usable. This index covers the first codebase audit's implemented fixes;
 it is not a claim that every possible defect or operational risk is resolved.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-10-26
 
 Use the linked guide as the behavioral reference. Source and tests determine
 whether the contract still holds after a change. Test filenames below are in
@@ -27,6 +27,10 @@ whether the contract still holds after a change. Test filenames below are in
 | Settings publish only after confirmed save; failures require reload | [Settings](../features/SETTINGS_AND_CUSTOMIZATION.md) | `test_tables_protocol.py`, `test_table_settings_roundtrip.py` |
 | Creation announcements exclude scene layers/walls/metadata | [Tables](../features/TABLES_AND_CANVAS.md) | `test_tables_protocol.py` |
 | Populated copies receive independent sprite/wall identities | [Tables](../features/TABLES_AND_CANVAS.md) | `test_table_copy_persistence.py` |
+| Combat lifecycle snapshot and journal share acceptance; rejected lifecycle changes do not survive restart | [Combat](../BATTLE_FLOW.md) | `test_combat_lifecycle_persistence.py` |
+| Cancelled combat commands settle before releasing ordering/publication ownership | [Combat](../BATTLE_FLOW.md) | `test_combat_cancellation.py` |
+| Character stat events respect token layers, including unloaded tables | [Sprites](../features/SPRITES_TOKENS_AND_ENTITIES.md) | `test_character_protocol.py` |
+| Account WebSocket authority expires with its signed credential | [Auth and roles](../features/AUTH_AND_ROLES.md) | `apps/server/tests/integration/test_websocket_auth_expiry.py` |
 | Environment edits require one DM command outside combat | [Combat](../BATTLE_FLOW.md) | `test_combat_command_service.py`, browser `DMCombatPanel.test.tsx` |
 | Full runtime disposal removes table listeners and invalidates stale initialization | [WASM boundary](../WASM_REACT_BOUNDARY.md) | browser `WasmRuntime.test.ts`, `WasmRuntime.lifecycle.test.tsx` |
 | Table appearance settings survive save/load | [Settings](../features/SETTINGS_AND_CUSTOMIZATION.md) | `test_table_settings_roundtrip.py` |
@@ -46,7 +50,9 @@ whether the contract still holds after a change. Test filenames below are in
   all world data delivered to the browser. TODO: review every sensitive payload
   before supporting adversarial clients.
 - PostgreSQL ownership is single-active-process coordination, not horizontal scaling.
-- Pending failed canvas edits are not protected by a crash-durable command log.
+- Canvas/sprite/paint journals cover their supported commands, not every
+  table/settings mutation. Memory-resident dirty snapshots do not make
+  unconfirmed edits crash-durable.
 - CSP still allows inline scripts/styles; auth/demo rate limits are process-local.
 - A real deployed provider, capacity profile, independent backup, or restore drill
   cannot be verified from source alone.

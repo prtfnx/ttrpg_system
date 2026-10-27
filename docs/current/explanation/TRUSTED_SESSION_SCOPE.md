@@ -4,7 +4,7 @@ Audience: contributors deciding which reliability fixes are needed for play.
 
 Status: current implementation scope.
 
-Last source audit: 2026-10-06
+Last source audit: 2026-10-26
 
 The immediate target is one game session with a trusted DM and trusted
 players on one active server process. Existing authentication and role
@@ -39,14 +39,16 @@ See [Tables](../features/TABLES_AND_CANVAS.md),
 
 These are remaining limitations, not completed architecture guarantees:
 
-- Durable operation receipts and reconciliation for lost acknowledgements
-  and unknown commit outcomes. Reload before retrying an unconfirmed create.
+- Extend durable operation receipts beyond existing canvas/sprite/paint/chat
+  and combat mechanisms, especially table creation and XP awards. Reconcile
+  unknown commit outcomes; reload before retrying an unconfirmed create.
 - Transactions or durable repair across table/token/character/combat
   resources, including transactional terrain changes during combat.
-- Cancellation-safe settlement for every combat worker and detached
-  environment-save inputs.
-- Worker migration for remaining wall/join/choice/permission/compendium
-  paths. One session can still pause during synchronous database work.
+- Detached environment-save inputs and settlement review for remaining
+  worker migrations. Combat commands already retain ownership through SQL
+  settlement, cache installation, and protocol publication.
+- Worker migration for remaining join/choice/permission/compendium
+  paths. Wall command persistence already uses worker-owned sessions. One session can still pause during synchronous database work.
 - Independent core-table persistence adapters and browser dependency cycles.
 - Adversarial-client confidentiality, multi-session capacity measurement,
   and production backup/restore verification. Fog is a rendering feature.

@@ -7,6 +7,7 @@ from typing import Any, Callable
 from database.database import SessionLocal
 from database.models import CombatActionJournal, CombatEncounter, GameSession
 from sqlalchemy.exc import IntegrityError
+from utils.time import utc_now
 
 
 @dataclass(frozen=True)
@@ -186,6 +187,7 @@ class CombatPersistenceService:
         state_version: int,
     ) -> None:
         encounter.phase = state_after.get('phase', 'active')
+        encounter.ended_at = utc_now() if encounter.phase == 'ended' else None
         encounter.round_number = state_after.get('round_number', 1)
         encounter.current_turn_index = state_after.get('current_turn_index', 0)
         encounter.state_version = state_version

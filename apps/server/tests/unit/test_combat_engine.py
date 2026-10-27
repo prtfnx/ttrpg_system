@@ -396,21 +396,30 @@ def test_next_turn_resets_dodge_flags(two_combatant_state):
 
 # ── Persistence ───────────────────────────────────────────────────────────────
 
-def test_persist_called_on_start_combat():
-    with patch.object(CombatEngine, 'persist') as mock_persist:
+def test_start_combat_does_not_write_before_command_acceptance():
+    with patch('database.database.SessionLocal') as session_factory:
         CombatEngine.start_combat('ps1', 't1', ['e1'])
-        mock_persist.assert_called_once_with('ps1')
+        session_factory.assert_not_called()
 
 
-def test_persist_called_on_new_round():
+def test_new_round_does_not_write_before_command_acceptance():
     state = CombatEngine.start_combat('ps2', 't1', ['e1', 'e2'])
     cid0 = state.combatants[0].combatant_id
     cid1 = state.combatants[1].combatant_id
 
-    with patch.object(CombatEngine, 'persist') as mock_persist:
+    with patch('database.database.SessionLocal') as session_factory:
         CombatEngine.end_turn('ps2', cid0)  # turn 1→2, no new round
-        CombatEngine.end_turn('ps2', cid1)  # turn 2→0, new round → persist
-        mock_persist.assert_called_once_with('ps2')
+        CombatEngine.end_turn('ps2', cid1)  # new round stays provisional
+        assert state.round_number == 2
+        session_factory.assert_not_called()
+
+
+def test_end_combat_does_not_write_before_command_acceptance():
+    CombatEngine.start_combat('end', 't1', ['e1'])
+    with patch('database.database.SessionLocal') as session_factory:
+        ended = CombatEngine.end_combat('end')
+        assert ended is not None and ended.phase == CombatPhase.ENDED
+        session_factory.assert_not_called()
 
 
 def test_persist_silently_ignores_db_errors():

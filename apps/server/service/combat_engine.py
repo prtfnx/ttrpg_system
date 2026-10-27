@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class CombatEngine:
-    """Server-authoritative combat orchestrator. One per active combat."""
+    """Calculate live combat transitions; the command service owns persistence."""
 
     AI_BEHAVIORS = {
         'aggressive',
@@ -34,7 +34,7 @@ class CombatEngine:
         'tactical',
     }
 
-    # session_code → CombatState (in-memory; persisted to DB on round/end)
+    # session_code → CombatState (persisted explicitly by the application owner)
     _active: dict[str, CombatState] = {}
     _COMBATANT_PAYLOAD_FIELDS = {
         field.name
@@ -156,7 +156,6 @@ class CombatEngine:
         fsm = CombatFSM(state)
         fsm.transition(CombatPhase.ACTIVE, state.settings)
         state.round_number = 1
-        cls.persist(session_id)
         return state
 
     @classmethod
@@ -164,13 +163,6 @@ class CombatEngine:
         state = cls._active.pop(session_id, None)
         if state:
             state.phase = CombatPhase.ENDED
-            try:
-                from database.crud import mark_combat_encounter_ended
-                from database.database import SessionLocal
-                with SessionLocal() as db:
-                    mark_combat_encounter_ended(db, state.combat_id)
-            except Exception as exc:
-                logger.warning('Failed to mark combat ended: %s', exc)
         return state
 
     @classmethod
@@ -271,10 +263,6 @@ class CombatEngine:
         current.is_dodging = False
         current.is_disengaging = False
         current.attacks_used_this_action = 0
-
-        # Persist on every new round (not every single turn to reduce DB writes)
-        if state.current_turn_index == 0:
-            cls.persist(session_id)
 
         return {
             'combatant_id': current.combatant_id,

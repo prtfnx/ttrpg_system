@@ -239,6 +239,13 @@ combat view per recipient. Rejections are sent to the requester.
 
 Accepted combat commands are persisted through `CombatPersistenceService`.
 
+Combat start, end, and round transitions calculate live state without issuing
+SQL. The command service is the persistence owner: it commits the encounter
+snapshot (including the ended marker) and accepted journal result together.
+A rejected lifecycle transition therefore cannot reappear or disappear when
+the encounter is reconstructed from committed rows. `CombatEngine.persist`
+remains an explicit compatibility helper, not a lifecycle side effect.
+
 The server records:
 
 - command payload;

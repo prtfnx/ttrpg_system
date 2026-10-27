@@ -29,7 +29,8 @@ def test_paint_rollout_gate_defaults_and_explicit_overrides(monkeypatch, environ
     }
     if override is not None:
         values["PAINT_OBJECT_WRITES_ENABLED"] = override
-    settings = Settings(_env_file=None, **values)
+    # BaseSettings supports _env_file; Pydantic's generated signature omits it.
+    settings = Settings(_env_file=None, **values)  # pyright: ignore[reportCallIssue]
     assert settings.PAINT_OBJECT_WRITES_ENABLED is (default if override is None else override)
 
 

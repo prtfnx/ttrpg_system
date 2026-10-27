@@ -12,7 +12,8 @@ from storage.r2_manager import R2AssetManager
 
 
 def _manager():
-    manager = R2AssetManager(Settings(_env_file=None, r2_bucket_name="test-assets"))
+    # BaseSettings supports _env_file; Pydantic's generated signature omits it.
+    manager = R2AssetManager(Settings(_env_file=None, r2_bucket_name="test-assets"))  # pyright: ignore[reportCallIssue]
     manager._s3_client = MagicMock()
     manager._s3_client.generate_presigned_url.return_value = (
         "https://r2.example/test-assets/private-key?X-Amz-Signature=private-signature"
@@ -31,6 +32,7 @@ def _manager():
 ])
 def test_diagnosis_distinguishes_storage_rejection_from_cors(status, body, allow_origin, expected):
     manager = _manager()
+    assert manager._s3_client is not None
     if status != 200:
         manager._s3_client.head_object.side_effect = ClientError(
             {"Error": {"Code": str(status), "Message": "private-details"},
@@ -64,6 +66,7 @@ def test_success_does_not_download_or_buffer_the_image(allow_origin):
             raise AssertionError("Successful image bytes must not be read")
 
     manager = _manager()
+    assert manager._s3_client is not None
     transport = httpx.MockTransport(lambda _request: httpx.Response(
         200, headers={"access-control-allow-origin": allow_origin}, stream=UnreadBody(),
     ))
@@ -79,6 +82,7 @@ def test_success_does_not_download_or_buffer_the_image(allow_origin):
 
 def test_transport_errors_do_not_expose_credentials_or_bearer_urls():
     manager = _manager()
+    assert manager._s3_client is not None
     manager._s3_client.head_object.side_effect = RuntimeError("private-access-key")
 
     def handle(request):
@@ -122,7 +126,7 @@ def test_cli_suppresses_provider_logs_and_restores_logging(monkeypatch, capsys, 
     test_db.commit()
     monkeypatch.setattr(database, "SessionLocal", lambda: test_db)
     monkeypatch.setattr(diagnostic, "Settings", lambda: Settings(
-        _env_file=None, r2_enabled=True, r2_account_id="test-account",
+        _env_file=None, r2_enabled=True, r2_account_id="test-account",  # pyright: ignore[reportCallIssue]
         r2_access_key="private-key", r2_secret_key="private-secret", r2_bucket_name="test-assets",
         ASSET_LINK_MODE="presigned",
     ))

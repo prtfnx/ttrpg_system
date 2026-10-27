@@ -77,7 +77,8 @@ def test_security_headers_cover_embedding_content_and_transport():
     ("worker", "", "https://assets.example"),
 ])
 def test_csp_allows_wasm_and_only_selected_asset_transport(mode, endpoint, expected):
-    settings = Settings(_env_file=None, r2_enabled=True, r2_account_id="audit-account",
+    # BaseSettings supports _env_file; Pydantic's generated signature omits it.
+    settings = Settings(_env_file=None, r2_enabled=True, r2_account_id="audit-account",  # pyright: ignore[reportCallIssue]
                         r2_endpoint=endpoint, ASSET_LINK_MODE=mode,
                         ASSET_WORKER_BASE_URL="https://assets.example",
                         ASSET_WORKER_HMAC_SECRET="s" * 32)
@@ -95,10 +96,10 @@ def test_csp_allows_wasm_and_only_selected_asset_transport(mode, endpoint, expec
     "https://objects.example:99999", "https://objects.example/\npath",
 ])
 def test_asset_policy_rejects_invalid_or_injected_endpoint(endpoint):
-    settings = Settings(_env_file=None, r2_enabled=True, r2_endpoint=endpoint)
+    settings = Settings(_env_file=None, r2_enabled=True, r2_endpoint=endpoint)  # pyright: ignore[reportCallIssue]
     with pytest.raises(ValueError):
         asset_connect_origins(settings)
 
 
 def test_disabled_assets_do_not_expand_connect_policy():
-    assert asset_connect_origins(Settings(_env_file=None, r2_enabled=False)) == ()
+    assert asset_connect_origins(Settings(_env_file=None, r2_enabled=False)) == ()  # pyright: ignore[reportCallIssue]

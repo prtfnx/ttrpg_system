@@ -1,0 +1,29 @@
+{
+  "rejected_start_is_durable": {
+    "accepted": false,
+    "durable_encounters": 1,
+    "journal_rows": 0,
+    "cache_removed_on_rejection": true,
+    "rejected_combat_restored": true
+  },
+  "cancelled_combat_releases_session_lock": {
+    "lock_released_before_worker_settled": true,
+    "worker_finished": true,
+    "live_state_version_after_commit": 0,
+    "worker_returned_version": 1
+  },
+  "character_stats_reach_hidden_sprite_observers": {
+    "authoritative_layer": "dungeon_master",
+    "recipients": [
+      "owner",
+      "player",
+      "spectator"
+    ],
+    "hp_disclosed": 7
+  },
+  "choice_encounter_blocks_event_loop": {
+    "injected_storage_delay_ms": 120,
+    "ten_ms_heartbeat_observed_ms": 122.0,
+    "storage_ran_on_event_loop_thread": true
+  }
+}

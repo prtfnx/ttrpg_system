@@ -2,6 +2,12 @@
 
 The highest-priority work is to unify combat persistence ownership, repair cross-resource consistency, and apply authorization to every event producer. These problems affect correctness even with a single trusted group. The existing React/FastAPI/PostgreSQL/Rust split is suitable; the evidence supports improving its boundaries incrementally.
 
+This is a historical assessment of the October 23 source revision. Several
+findings have since been fixed. See the [functional release implementation
+plan](FUNCTIONAL_RELEASE_ARCHITECTURE_PLAN_2026-10-26.md) for reassessed status,
+implementation progress, and remaining release gates. The linked JSON evidence
+records the original audit, not the current application's behavior.
+
 ## Scope, evidence, and Git result
 
 - Date: October 23, 2026, Europe/Kiev.

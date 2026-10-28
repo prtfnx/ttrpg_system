@@ -153,6 +153,21 @@ async def test_movement_does_not_overwrite_durable_stats_from_another_owner(game
         assert (row.hp, row.position_x) == (17, 150)
 
 
+async def test_cell_movement_persists_the_validated_endpoint_and_cost(game):
+    game.proto._rules_cache[game.code][0].movement_mode = "cell"
+    response = await game.command([game.move(from_x=-100, from_y=-100)])
+    assert response.type == MessageType.ACTION_RESULT, response.data
+    move = response.data["applied"][0]["result"]
+    assert move["from"] == {"x": 100, "y": 100}
+    assert move["to"] == {"x": 175, "y": 125}
+    assert [list(point) for point in move["path"]] == [[100, 100], [175, 125]]
+    assert move["cost_ft"] == 7.5
+    assert game.hero.position == (175, 125)
+    with game.factory() as db:
+        row = db.query(models.Entity).filter_by(sprite_id="hero").one()
+        assert (row.position_x, row.position_y) == (175, 125)
+
+
 async def test_stale_durable_position_cannot_be_overwritten_by_combat(game):
     with game.factory() as db:
         db.query(models.Entity).filter_by(sprite_id="hero").one().position_x = 125

@@ -63,6 +63,9 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         modifier=20 if "d20" in formula else 0, formula=formula,
     )))
     code, session_id = game_session_with_players.session_code, game_session_with_players.id
+    # This workflow uses exact pixel coordinates with a hidden grid. Cell-mode
+    # snapping has a separate regression and must not silently alter this route.
+    game_session_with_players.session_rules_json = json.dumps({"session_id": code, "movement_mode": "free"})
     character_id = str(uuid.uuid4())
     test_db.add(models.SessionCharacter(
         character_id=character_id, session_id=session_id, owner_user_id=player_user.id,

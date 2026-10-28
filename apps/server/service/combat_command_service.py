@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 import uuid
 from copy import deepcopy
@@ -1041,12 +1042,13 @@ class CombatCommandService:
             from_pos,
             to_pos,
             command.path,
-            actor,
+            deepcopy(actor),
         )
         if not validation.get("success", False):
             return {"error": validation.get("message") or "Move validation failed"}
         movement_cost = validation.get("movement_cost")
-        if not isinstance(movement_cost, (int, float)) or movement_cost < 0:
+        if (not isinstance(movement_cost, (int, float)) or isinstance(movement_cost, bool)
+                or not math.isfinite(movement_cost) or movement_cost < 0):
             return {"error": "Movement validation did not return a valid cost"}
         if movement_cost > actor.movement_remaining:
             return {
@@ -1066,6 +1068,12 @@ class CombatCommandService:
                 },
             }
 
+        validated_path = validation.get("path") or command.path
+        if context.movement_draft is not None and validated_path:
+            # Validation may correct a stale start or snap the destination.
+            # Persist the route that was actually checked and charged.
+            from_pos = {"x": validated_path[0][0], "y": validated_path[0][1]}
+            to_pos = {"x": validated_path[-1][0], "y": validated_path[-1][1]}
         actor_before = actor.to_dict()
         move_result = await context.move_sprite(
             command.table_id,
@@ -1103,7 +1111,7 @@ class CombatCommandService:
             "cost_ft": movement_cost,
             "declared_cost_ft": command.cost_ft,
             "movement_remaining": actor.movement_remaining,
-            "path": command.path,
+            "path": validated_path,
         }
 
     def _resolve_combatant_id(self, state, identifier: str) -> str | None:

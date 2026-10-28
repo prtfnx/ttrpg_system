@@ -192,8 +192,10 @@ If movement would trigger an opportunity attack, the server rejects the move
 with warning details before moving the token. The client stores the pending
 command batch and can resend it with confirmation.
 
-Combat movement and its compensating moves bind persistence to the
-authenticated numeric game-session database ID. The public session code
+Combat movement stages only the validated route's final position and translated
+geometry, then commits them with acceptance in the authenticated session.
+The saved position and published route use the validator's canonical start and
+snapped endpoint, not unchecked requested coordinates. The public session code
 identifies combat state and journal lookup; it is not a table-persistence
 foreign key. Weapon-range checks convert pixel positions using the saved
 `grid_cell_px` and `cell_distance`, converting meters to feet when needed.
@@ -202,10 +204,12 @@ Grid visibility does not change physical range.
 `test_combat_range_units.py` checks adjacent and distant targets for feet,
 meters, custom cell scales, and hidden grids.
 `tests/integration/test_trusted_session_workflow.py` exercises production
-session dispatch, a move/attack envelope, successful compensating movement
-after a later command fails, duplicate replay, end turn, reconnect, and
-combat/table reconstruction from SQLite. This is not a claim that
-compensation always succeeds or that all writes share one transaction.
+session dispatch, a move/attack envelope, discarding staged movement after a
+later command fails, duplicate replay, end turn, reconnect, and combat/table
+reconstruction from SQLite. Its exact pixel route explicitly uses free movement.
+Cell-mode snapped endpoints and stale client route starts are covered by
+`tests/unit/test_combat_movement_transaction.py`. Character/token stat writes
+remain a separate consistency boundary.
 
 ## Planned turns
 

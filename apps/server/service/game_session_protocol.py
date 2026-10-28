@@ -99,6 +99,9 @@ class GameSessionProtocolService:
     async def save_to_database_async(self, *, dirty_only: bool = False) -> bool:
         if not self.db_session or self.game_session_db_id is None:
             return False
+        if not self.table_manager.persistence_allowed():
+            # Even an empty dirty queue must retain this session for recovery.
+            return False
         if dirty_only:
             return await self.server_protocol.actions.flush_all_pending_saves()
         return await self.table_manager.save_to_database_async(self.game_session_db_id)
@@ -513,7 +516,7 @@ class GameSessionProtocolService:
     def to_db(self) -> bool:
         """Save GameSessionProtocolService state to database"""
         try:
-            if not self.db_session or not self.game_session_db_id:
+            if not self.db_session or not self.game_session_db_id or not self.table_manager.persistence_allowed():
                 logger.warning(f"No database session for {self.session_code}")
                 return False
 

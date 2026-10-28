@@ -131,6 +131,10 @@ class ServerProtocol(
                 f"Initialized tables_id with {len(self.table_manager.tables_id)} tables"
             )
         self._rules_cache: Dict[str, Any] = {}
+        prior_guard = self.table_manager.persistence_guard
+        self.table_manager.persistence_guard = lambda: (
+            not self._has_pending_combat() and (prior_guard is None or bool(prior_guard()))
+        )
 
     def register_handler(self, msg_type: MessageType, handler: Callable):
         """Extension point for custom message handlers."""
@@ -310,14 +314,21 @@ class ServerProtocol(
             return await self._invoke_handler_in_scope(msg, client_id)
 
     async def _invoke_handler_in_scope(self, msg: Message, client_id: str):
-        if msg.type == MessageType.COMBAT_COMMAND or (msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
+        if self._has_pending_combat() or msg.type == MessageType.COMBAT_COMMAND or (msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
                 MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE,
                 MessageType.TABLE_SETTINGS_UPDATE} and getattr(
                     getattr(self, "table_manager", None), "db_session", None)):
             # Include post-commit broadcasts in cancellation shielding. The
             # session lock must not release between storage and publication.
-            worker = asyncio.create_task(self._invoke_handler_body(msg, client_id))
+            worker = asyncio.create_task(self._invoke_after_combat_recovery(msg, client_id))
             return await _finish_before_cancellation(worker)
+        return await self._invoke_after_combat_recovery(msg, client_id)
+
+    async def _invoke_after_combat_recovery(self, msg: Message, client_id: str):
+        if msg.type in SERIALIZED_MESSAGE_TYPES:
+            failure = await self._recover_pending_combat()
+            if failure is not None:
+                return failure
         return await self._invoke_handler_body(msg, client_id)
 
     async def _invoke_handler_body(self, msg: Message, client_id: str):
@@ -425,6 +436,7 @@ class ServerProtocol(
                     continue
                 individual_msg = Message.from_dict(msg_data)
                 if (can_buffer(individual_msg)
+                        and not self._has_pending_combat()
                         and getattr(getattr(self, "table_manager", None), "db_session", None)):
                     run = [individual_msg]
                     while index < len(messages_data) and len(run) < MAX_SPRITE_RUN_COMMANDS:

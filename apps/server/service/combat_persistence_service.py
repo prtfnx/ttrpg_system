@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Callable
 
 from database.database import SessionLocal
 from database.models import CombatActionJournal, CombatEncounter, GameSession
 from service.combat_movement import CombatSpriteMovement, stage_combat_movements
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from utils.time import utc_now
@@ -26,11 +28,68 @@ class CombatJournalEntry:
     state_version: int
 
 
+class CombatCommitOutcomeUnknown(RuntimeError):
+    """Commit was attempted, but its durable outcome cannot yet be established."""
+
+
+@dataclass(frozen=True)
+class PendingCombatCommit:
+    encounter_id: str
+    requester_key: str
+    sequence_id: int
+    state_before: dict[str, Any]
+    state_after: dict[str, Any]
+    movements: tuple[CombatSpriteMovement, ...]
+
+
+@dataclass(frozen=True)
+class ResolvedCombatCommit:
+    attempt: PendingCombatCommit
+    committed: PersistedCombatCommand | None
+
+
 class CombatPersistenceService:
     """Atomically append an accepted command and update its combat snapshot."""
 
     def __init__(self, session_factory: Callable = SessionLocal):
         self._session_factory = session_factory
+        # Access is ordered by the application's session mutation ownership.
+        self._pending: dict[str, PendingCombatCommit] = {}
+
+    def has_pending(self, session_code: str) -> bool:
+        return session_code in self._pending
+
+    def resolve_pending(self, session_code: str) -> ResolvedCombatCommit | None:
+        attempt = self._pending.get(session_code)
+        if attempt is None:
+            return None
+        return ResolvedCombatCommit(attempt, self._resolve_commit(session_code, attempt))
+
+    def complete_recovery(self, session_code: str, resolved: ResolvedCombatCommit) -> None:
+        """Clear quarantine only after the application has installed the outcome."""
+        if self._pending.get(session_code) is not resolved.attempt:
+            raise RuntimeError("Combat recovery ownership changed")
+        del self._pending[session_code]
+
+    def _resolve_commit(self, session_code: str, attempt: PendingCombatCommit) -> PersistedCombatCommand | None:
+        with self._session_factory() as db:
+            connection = db.connection()
+            if connection.dialect.name == "postgresql" and connection.get_isolation_level() != "READ COMMITTED":
+                raise RuntimeError("Combat outcome recovery requires READ COMMITTED")
+            if connection.dialect.name == "postgresql":
+                db.execute(text("SET LOCAL lock_timeout = '5s'"))
+            # Acceptance takes this stable row lock before any encounter write.
+            # Wait for that transaction to end, then read the receipt in a new
+            # READ COMMITTED statement snapshot. A plain SELECT miss is unsafe.
+            session = db.query(GameSession).filter_by(session_code=session_code).with_for_update().one_or_none()
+            if session is None:
+                raise RuntimeError("Combat session disappeared during recovery")
+            action = self._find_action(db, attempt.encounter_id, attempt.requester_key, attempt.sequence_id)
+            if action is not None:
+                encounter = db.query(CombatEncounter).filter_by(encounter_id=attempt.encounter_id).one()
+                if encounter.session_id != session.id:
+                    raise RuntimeError("Combat recovery session mismatch")
+            return self._stored_command(action, duplicate=False) if action is not None else None
 
     @staticmethod
     def requester_key(user_id: int | None, client_id: str) -> str:
@@ -85,9 +144,12 @@ class CombatPersistenceService:
         created_by: int | None,
         movements: tuple[CombatSpriteMovement, ...] = (),
     ) -> PersistedCombatCommand:
+        if self.has_pending(session_code):
+            raise CombatCommitOutcomeUnknown("Resolve the previous combat commit before accepting another command")
         encounter_id = str(state_after['combat_id'])
-        with self._session_factory() as db:
-            try:
+        attempt = None
+        try:
+            with self._session_factory() as db:
                 persisted = self.stage_accepted(
                     db, session_code=session_code, requester_key=requester_key,
                     sequence_id=sequence_id, actor_id=actor_id,
@@ -95,24 +157,37 @@ class CombatPersistenceService:
                     result_payload=result_payload, state_before=state_before,
                     state_after=state_after, created_by=created_by,
                 )
+                if persisted.duplicate:
+                    return persisted
                 if movements and not persisted.duplicate:
                     encounter = db.query(CombatEncounter).filter_by(encounter_id=encounter_id).one()
                     if any(move.table_id != encounter.table_id for move in movements):
                         raise ValueError("Movement must use the encounter table")
                     stage_combat_movements(db, encounter.session_id, movements)
-                db.commit()
-            except IntegrityError:
-                db.rollback()
-                existing = self._find_action(
-                    db,
-                    encounter_id,
-                    requester_key,
-                    sequence_id,
+                attempt = PendingCombatCommit(
+                    encounter_id, requester_key, sequence_id, deepcopy(state_before),
+                    {**deepcopy(state_after), 'state_version': persisted.state_version}, deepcopy(movements),
                 )
-                if existing:
-                    return self._stored_command(existing, duplicate=True)
-                raise
+                db.commit()
             return persisted
+        except Exception as error:
+            if attempt is None:
+                if isinstance(error, IntegrityError):
+                    existing = self.find_result(encounter_id, requester_key, sequence_id)
+                    if existing is not None:
+                        return existing
+                raise
+            # A failed commit response does not prove rollback. The original
+            # session is closed before resolving on a fresh connection.
+            self._pending[session_code] = attempt
+            try:
+                recovered = self._resolve_commit(session_code, attempt)
+            except Exception as recovery_error:
+                raise CombatCommitOutcomeUnknown("Combat outcome is uncertain; wait for recovery before retrying") from recovery_error
+            del self._pending[session_code]
+            if recovered is not None:
+                return recovered
+            raise
 
     def stage_accepted(
         self,

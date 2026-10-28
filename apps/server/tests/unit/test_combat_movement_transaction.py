@@ -16,7 +16,7 @@ from service import combat_persistence_service as persistence_module
 from service.combat_engine import CombatEngine
 from service.combat_persistence_service import CombatPersistenceService
 from service.protocol.base import ServerProtocol
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 
 @pytest.fixture
@@ -77,7 +77,7 @@ def game(test_db, test_db_engine, test_game_session, monkeypatch):
 
     try:
         yield SimpleNamespace(factory=factory, code=code, table=table, hero=hero, enemy=enemy,
-                              proto=proto, state=state, move=move, attack=attack, command=command)
+                              proto=proto, state=state, move=move, attack=attack, command=command, delivered=delivered)
     finally:
         CombatEngine._active.pop(code, None)
 
@@ -301,3 +301,160 @@ async def test_cancelled_environment_save_holds_ownership_until_snapshot_settles
     finally:
         release.set()
         await asyncio.gather(task, return_exceptions=True)
+
+
+def lose_commit_response(game, monkeypatch, *, committed, unavailable=False):
+    first = True
+
+    class LostResponseSession(Session):
+        def commit(self):
+            nonlocal first
+            if first:
+                first = False
+                if committed:
+                    super().commit()
+                else:
+                    super().rollback()
+                raise OSError("Lost commit response")
+            return super().commit()
+
+    persistence = game.proto.combat_persistence_service
+    monkeypatch.setattr(persistence, "_session_factory", sessionmaker(
+        bind=game.factory.kw["bind"], class_=LostResponseSession, expire_on_commit=False,
+    ))
+    resolve = persistence._resolve_commit
+    if unavailable:
+        def offline(*_args):
+            raise OSError("Receipt database unavailable")
+        monkeypatch.setattr(persistence, "_resolve_commit", offline)
+    return resolve
+
+
+@pytest.mark.parametrize("committed", [False, True])
+async def test_lost_commit_response_is_resolved_before_acceptance_or_rejection(game, monkeypatch, committed):
+    lose_commit_response(game, monkeypatch, committed=committed)
+    response = await game.command([game.move()])
+    assert response.type == (MessageType.ACTION_RESULT if committed else MessageType.ACTION_REJECTED)
+    assert game.hero.position == ((150, 100) if committed else (100, 100))
+    assert not game.proto._has_pending_combat()
+    state = CombatEngine.get_state(game.code)
+    assert state is not None and state.state_version == (2 if committed else 1)
+    with game.factory() as db:
+        assert db.query(models.CombatActionJournal).count() == (2 if committed else 1)
+        assert db.query(models.Entity).filter_by(sprite_id="hero").one().position_x == (150 if committed else 100)
+
+
+@pytest.mark.parametrize("committed", [False, True])
+async def test_unresolved_commit_quarantines_snapshots_and_recovers_on_next_request(
+    game, test_db, test_game_session, monkeypatch, committed,
+):
+    from service.game_session_protocol import GameSessionProtocolService
+
+    resolve = lose_commit_response(game, monkeypatch, committed=committed, unavailable=True)
+    commands = [game.move()]
+    response = await game.command(commands)
+    assert response.type == MessageType.ERROR and response.data["outcome"] == "unknown"
+    assert "accepted" not in response.data
+    assert game.proto._has_pending_combat() and game.hero.position == (100, 100)
+    assert not await game.proto.table_manager.save_table_async(str(game.table.table_id), test_game_session.id)
+    # A clean dirty queue must not let final-disconnect cleanup drop quarantine.
+    session = GameSessionProtocolService(game.code, test_db, test_game_session.id)
+    session.server_protocol = game.proto
+    session.table_manager = game.proto.table_manager
+    assert not await session.save_to_database_async(dirty_only=True)
+    assert not session.to_db()
+    denied = await game.command([game.move(target=200)], sequence=3)
+    assert denied.type == MessageType.ERROR and denied.data["outcome"] == "unknown"
+    await game.proto.handle_client(Message(MessageType.PING, {}), "dm")
+    assert game.delivered[-1][0].type == MessageType.PONG
+    with game.factory() as db:
+        assert db.query(models.CombatActionJournal).count() == (2 if committed else 1)
+        assert db.query(models.Entity).filter_by(sprite_id="hero").one().position_x == (150 if committed else 100)
+
+    monkeypatch.setattr(game.proto.combat_persistence_service, "_resolve_commit", resolve)
+    request = Message(MessageType.COMBAT_STATE_REQUEST, {})
+    await game.proto.handle_client(request, "dm")
+    assert not game.proto._has_pending_combat()
+    assert game.hero.position == ((150, 100) if committed else (100, 100))
+    expected_kind = MessageType.ACTION_RESULT if committed else MessageType.ACTION_REJECTED
+    assert any(message.type == expected_kind and message.data.get("sequence_id") == 2
+               for message, _ in game.delivered)
+    retry = await game.command(commands)
+    assert retry.type == MessageType.ACTION_RESULT
+    assert bool(retry.data.get("duplicate")) is committed
+    assert game.hero.position == (150, 100)
+    with game.factory() as db:
+        assert db.query(models.CombatActionJournal).count() == 2
+
+
+async def test_cancelled_recovery_retains_ownership_until_installation(game, monkeypatch):
+    resolve = lose_commit_response(game, monkeypatch, committed=True, unavailable=True)
+    assert (await game.command([game.move()])).type == MessageType.ERROR
+    started, release = threading.Event(), threading.Event()
+
+    def delayed(*args):
+        started.set()
+        assert release.wait(5)
+        return resolve(*args)
+
+    monkeypatch.setattr(game.proto.combat_persistence_service, "_resolve_commit", delayed)
+    task = asyncio.create_task(game.proto.handle_client(Message(MessageType.COMBAT_STATE_REQUEST, {}), "dm"))
+
+    async def admitted():
+        while not started.is_set():
+            await asyncio.sleep(.001)
+
+    try:
+        await asyncio.wait_for(admitted(), 2)
+        for _ in range(2):
+            task.cancel()
+            await asyncio.sleep(0)
+        assert not task.done() and game.proto._mutation_lock.locked()
+        assert game.hero.position == (100, 100)
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, 2)
+        assert game.hero.position == (150, 100) and not game.proto._has_pending_combat()
+    finally:
+        release.set()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.parametrize("unavailable", [False, True])
+async def test_ended_encounter_commit_can_be_recovered_without_an_active_cache(game, monkeypatch, unavailable):
+    resolve = lose_commit_response(game, monkeypatch, committed=True, unavailable=unavailable)
+    response = await game.command([{"type": "end_combat", "actor_id": "__dm__"}])
+    assert response.type == (MessageType.ERROR if unavailable else MessageType.ACTION_RESULT)
+    assert CombatEngine.get_state(game.code) is None
+    if unavailable:
+        monkeypatch.setattr(game.proto.combat_persistence_service, "_resolve_commit", resolve)
+        await game.proto.handle_client(Message(MessageType.COMBAT_STATE_REQUEST, {}), "dm")
+    assert not game.proto._has_pending_combat()
+    with game.factory() as db:
+        assert db.query(models.CombatEncounter).one().phase == "ended"
+        assert db.query(models.CombatActionJournal).count() == 2
+
+
+async def test_recovered_end_uses_current_recipient_visibility_and_tolerates_disconnect(game, monkeypatch):
+    game.proto.session_manager.client_info["watcher"] = {"user_id": 999, "role": "spectator"}
+    resolve = lose_commit_response(game, monkeypatch, committed=True, unavailable=True)
+    assert (await game.command([{"type": "end_combat", "actor_id": "__dm__"}])).type == MessageType.ERROR
+    monkeypatch.setattr(game.proto.combat_persistence_service, "_resolve_commit", resolve)
+    # Losing a former owner's authority during the outage must affect recovery.
+    game.proto.session_manager.client_info["dm"]["role"] = "player"
+    send = game.proto._transport_send
+
+    async def disconnecting(message, client):
+        if client == "watcher":
+            raise ConnectionError("Peer disconnected during recovery notification")
+        assert send is not None
+        await send(message, client)
+
+    game.proto._transport_send = disconnecting
+    await game.proto.handle_client(Message(MessageType.COMBAT_STATE_REQUEST, {}), "dm")
+    recovered = [message for message, client in game.delivered
+                 if client == "dm" and message.type == MessageType.ACTION_RESULT]
+    assert len(recovered) == 1
+    enemy = next(c for c in recovered[0].data["combat"]["combatants"] if c["entity_id"] == "enemy")
+    assert "hp" not in enemy and "armor_class" not in enemy
+    assert not game.proto._has_pending_combat() and CombatEngine.get_state(game.code) is None

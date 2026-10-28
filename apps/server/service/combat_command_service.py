@@ -13,7 +13,7 @@ from typing import Any, Awaitable, Callable, Optional
 from core_table.combat import CombatAction, CombatState
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from service.combat_movement import CombatMovementDraft
-from service.combat_persistence_service import CombatPersistenceService
+from service.combat_persistence_service import CombatCommitOutcomeUnknown, CombatPersistenceService
 from utils.blocking import run_blocking
 from utils.roles import can_interact, is_dm
 
@@ -311,6 +311,8 @@ class CombatCommandService:
                 current,
                 accepted_result,
             )
+        except CombatCommitOutcomeUnknown:
+            raise
         except Exception:
             self._restore(context.session_code, snapshot)
             return self._reject(
@@ -448,6 +450,10 @@ class CombatCommandService:
                 current,
                 accepted_result,
             )
+        except CombatCommitOutcomeUnknown:
+            # Quarantine protects this tentative cache until receipt recovery.
+            # Restoring it now could contradict a successful SQL commit.
+            raise
         except Exception:
             await self._restore_async(context, snapshot, move_undos)
             return self._reject(

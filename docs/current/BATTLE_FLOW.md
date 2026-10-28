@@ -68,8 +68,31 @@ are rechecked before saving. Regression owner:
 failure, repeated movement, restart, duplicate replay, occupied/foreign targets,
 stale durable positions, stat preservation, and cancellation ownership.
 
-This transaction does not unify character-sheet edits with combat stats, add
-durable identity for table creation/XP, or resolve every unknown commit outcome.
+If `commit()` raises, acceptance resolves its receipt using a fresh ORM session
+after locking the same stable game-session row. PostgreSQL recovery requires
+READ COMMITTED and bounds that row-lock wait to five seconds. A plain receipt
+SELECT miss cannot establish rollback while the original commit may still run.
+A recovered receipt returns success; a confirmed miss permits rejection.
+
+If lookup is unavailable, the protocol returns `ERROR` with
+`code=combat_outcome_unknown`, `outcome=unknown`, and `resync_required=true`.
+It does not send `ACTION_REJECTED` or restore a possibly committed cache. The
+session is quarantined: later authoritative reads/mutations and table snapshot
+saves/deletion cannot proceed. Heartbeats remain available. An empty dirty-save
+queue does not allow final-disconnect cleanup to discard the retained session.
+
+The next serialized state request or command attempts recovery before execution.
+The server installs the verified movement/combat outcome, clears quarantine,
+and sends current-role-filtered results. Lookup cancellation waits through
+installation; a notification failure cannot change durable success to rejection.
+Reload to check an uncertain outcome before retrying; the server does not invent
+a replacement operation ID or replay a new action automatically. Restart instead
+hydrates committed database state; general lifecycle retry lookup after an ended
+encounter and browser-wide operation reconciliation remain separate work.
+
+This transaction does not unify character-sheet edits with combat stats or add
+durable identity for table creation/XP. Pre-combat environment snapshots retain
+their separate failure/outcome contract.
 Legacy direct service callers supplying their own movement callback retain
 responsibility for that callback's persistence; the authenticated protocol uses
 the detached draft path.

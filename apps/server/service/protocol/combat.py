@@ -9,7 +9,7 @@ from database.database import SessionLocal
 from pydantic import ValidationError
 from service.combat_command_service import CombatCommandContext, CombatCommandService
 from service.combat_movement import CombatMovementDraft
-from service.combat_persistence_service import CombatPersistenceService
+from service.combat_persistence_service import CombatCommitOutcomeUnknown, CombatPersistenceService
 from service.combat_state_presenter import CombatStatePresenter
 from service.combatant_factory import CombatantFactory, CombatantFactoryContext
 from utils.blocking import run_blocking
@@ -23,6 +23,73 @@ logger = setup_logger(__name__)
 
 class _CombatMixin(_ProtocolBase):
     """Handler methods for combat domain."""
+
+    def _has_pending_combat(self) -> bool:
+        persistence = getattr(self, "combat_persistence_service", None)
+        return isinstance(persistence, CombatPersistenceService) and persistence.has_pending(self._get_session_code())
+
+    @staticmethod
+    def _combat_uncertain_response(sequence_id=None) -> Message:
+        data = {"code": "combat_outcome_unknown", "outcome": "unknown", "resync_required": True,
+                "error": "Combat outcome is uncertain. Reload to check the outcome before retrying."}
+        if sequence_id is not None:
+            data["sequence_id"] = sequence_id
+        return Message(MessageType.ERROR, data)
+
+    async def _recover_pending_combat(self) -> Message | None:
+        """Called under session ownership; never install an unverified outcome."""
+        if not self._has_pending_combat():
+            return None
+        persistence = self.combat_persistence_service
+        assert persistence is not None
+        code = self._get_session_code()
+        try:
+            resolved = await run_blocking(persistence.resolve_pending, code)
+        except Exception:
+            logger.exception("Combat outcome lookup is unavailable")
+            return self._combat_uncertain_response()
+        if resolved is None:
+            return None
+        from core_table.combat import CombatState
+        from service.combat_engine import CombatEngine
+
+        attempt = resolved.attempt
+        committed = resolved.committed
+        snapshot = attempt.state_after if committed is not None else attempt.state_before
+        state = CombatState.from_dict(snapshot) if snapshot else None
+        if committed is not None and attempt.movements:
+            table_id = attempt.movements[0].table_id
+            async with self.table_manager.table_write_lock(table_id):
+                table = self._get_table_by_id(table_id)
+                if table is None:
+                    return self._combat_uncertain_response(attempt.sequence_id)
+                # Quarantine prevents later edits/snapshots from changing these
+                # live positions. Reapply the original committed route once.
+                for move in attempt.movements:
+                    table.move_entity(move.entity_id, move.after, allow_out_of_bounds=True)
+        if state is None or snapshot.get("phase") == "ended":
+            CombatEngine._active.pop(code, None)
+        else:
+            CombatEngine._active[code] = state
+        persistence.complete_recovery(code, resolved)
+        context = dict(committed.result) if committed is not None else {
+            "accepted": False, "sequence_id": attempt.sequence_id, "applied": [],
+            "reason": "Combat command did not commit",
+        }
+        context["resync_required"] = True
+        for recipient in self._combat_client_ids():
+            requester = persistence.requester_key(self._get_client_info(recipient).get("user_id"), recipient)
+            kind = (MessageType.ACTION_RESULT if committed is not None else
+                    MessageType.ACTION_REJECTED if requester == attempt.requester_key else MessageType.COMBAT_STATE)
+            try:
+                await self.send_to_client(self._combat_state_message(
+                    state, kind, recipient, context if kind != MessageType.COMBAT_STATE else None,
+                ), recipient)
+            except Exception:
+                # Durable success/cache installation cannot become rejection
+                # because a peer disconnected. Reconnect hydrates current state.
+                logger.exception("Combat recovery notification failed")
+        return None
 
     def _combat_client_ids(self) -> list[str]:
         client_info = getattr(self.session_manager, 'client_info', None)
@@ -243,7 +310,10 @@ class _CombatMixin(_ProtocolBase):
                 "reason": str(exc),
             })
 
-        result = await self._apply_combat_envelope(service, envelope, msg, client_id)
+        try:
+            result = await self._apply_combat_envelope(service, envelope, msg, client_id)
+        except CombatCommitOutcomeUnknown:
+            return self._combat_uncertain_response(envelope.sequence_id)
         response_type = MessageType.ACTION_RESULT if result.accepted else MessageType.ACTION_REJECTED
         if result.accepted:
             from service.combat_engine import CombatEngine

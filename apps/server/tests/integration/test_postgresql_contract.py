@@ -8,6 +8,7 @@ import time
 import uuid
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from alembic import command
@@ -104,6 +105,69 @@ def _constraint_names(inspector, table_name: str) -> set[str]:
         *(item.get("name") for item in inspector.get_indexes(table_name)),
     }
     return {name for name in names if name}
+
+
+@pytest.mark.parametrize("fail_after_movement_flush", [False, True])
+def test_combat_movement_and_acceptance_share_transaction(postgresql_engine, monkeypatch, fail_after_movement_flush):
+    from service import combat_persistence_service as persistence_module
+    from service.combat_movement import CombatSpriteMovement
+    from service.combat_persistence_service import CombatPersistenceService
+
+    suffix = uuid.uuid4().hex[:12]
+    table_id, sprite_id, encounter_id = (str(uuid.uuid4()) for _ in range(3))
+    with postgresql_engine.connect() as connection:
+        outer = connection.begin()
+        factory = sessionmaker(bind=connection, expire_on_commit=False, join_transaction_mode="create_savepoint")
+        try:
+            with factory() as db:
+                owner = models.User(username=f"combat-{suffix}", hashed_password="not-a-real-hash")
+                db.add(owner)
+                db.flush()
+                game = models.GameSession(name="Combat transaction", session_code=suffix, owner_id=owner.id)
+                db.add(game)
+                db.flush()
+                table = models.VirtualTable(table_id=table_id, name="Combat table", width=1000, height=1000,
+                                            session_id=game.id)
+                db.add(table)
+                db.flush()
+                db.add(models.Entity(table_id=table.id, entity_id=1, sprite_id=sprite_id, name="Hero",
+                                     position_x=100, position_y=100, layer="tokens", hp=17))
+                db.commit()
+                owner_id = owner.id
+            service = CombatPersistenceService(factory)
+            snapshot = {"combat_id": encounter_id, "table_id": table_id, "phase": "active", "state_version": 0}
+            arguments: dict[str, Any] = dict(session_code=suffix, requester_key=f"user:{owner_id}", sequence_id=1,
+                             actor_id="hero", command_type="start_combat", command_payload={},
+                             result_payload={"accepted": True}, state_before={}, state_after=snapshot,
+                             created_by=owner_id)
+            service.persist_accepted(**arguments)
+            stage = persistence_module.stage_combat_movements
+
+            def stage_and_maybe_fail(db, session_id, movements):
+                stage(db, session_id, movements)
+                if fail_after_movement_flush:
+                    raise RuntimeError("Injected failure after movement flush")
+
+            monkeypatch.setattr(persistence_module, "stage_combat_movements", stage_and_maybe_fail)
+            arguments.update(sequence_id=2, command_type="move", state_before={**snapshot, "state_version": 1},
+                             movements=(CombatSpriteMovement(table_id, sprite_id, 1, (100, 100), (150, 100), None, None),))
+            if fail_after_movement_flush:
+                with pytest.raises(RuntimeError, match="after movement flush"):
+                    service.persist_accepted(**arguments)
+            else:
+                accepted = service.persist_accepted(**arguments)
+                replay = service.persist_accepted(**arguments)
+                assert accepted.state_version == 2 and replay.duplicate
+                assert accepted.result == replay.result
+            with factory() as db:
+                entity = db.query(models.Entity).filter_by(sprite_id=sprite_id).one()
+                encounter = db.query(models.CombatEncounter).filter_by(encounter_id=encounter_id).one()
+                expected = 1 if fail_after_movement_flush else 2
+                assert (entity.position_x, entity.hp) == (100 if fail_after_movement_flush else 150, 17)
+                assert encounter.state_version == expected
+                assert db.query(models.CombatActionJournal).filter_by(encounter_id=encounter_id).count() == expected
+        finally:
+            outer.rollback()
 
 
 def test_postgresql_schema_is_at_head_with_bounded_identifiers(postgresql_engine):

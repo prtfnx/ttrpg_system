@@ -12,6 +12,18 @@ are preserved. Browser production build and the 11 PostgreSQL gate-checker
 regressions pass. No `TEST_POSTGRESQL_DATABASE_URL` is configured: real
 PostgreSQL gates, packaged served acceptance, and provider recovery remain open.
 
+R1 is in progress: `f8fecc2c` adds borrowed-transaction staging and `04b5cb12`
+commits authenticated combat movement with snapshot/journal acceptance. SQLite
+regressions cover failure after flush, mixed batches, duplicate replay, restart,
+stale durable positions, translated geometry, and cancellation ownership. The
+follow-up endpoint correction saves the validator's snapped destination and
+authoritative route start. Unknown commit outcomes, detached environment saves,
+and actual PostgreSQL execution are still open; R1 is not marked complete.
+Acceptance also rechecks the encounter's session/table identity and source
+revision under database row locks. The existing mandatory PostgreSQL contract
+module now includes movement/snapshot/journal success, rollback after flush,
+and duplicate replay cases; these require execution against PostgreSQL in CI.
+
 Source baseline: local `main` at `058d5446`. This reassesses [the October 23 architecture research](ARCHITECTURE_RESEARCH_2026-10-23.md) against current code and subsequent fixes. The old report's commit identifiers, branch counts, and descriptions of unfixed defects are historical. Current tracking state is ten local commits ahead of `origin/main`; deployment of those changes is not established here.
 
 The release priorities are durable game actions, responsive multiplayer play, recoverable reconnects, and a tested way to restore retained data. Broad package extraction, elimination of every import cycle, and horizontal scaling are outside this release's critical path.

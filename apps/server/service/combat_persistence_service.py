@@ -135,11 +135,14 @@ class CombatPersistenceService:
         Returned values are provisional until that outer commit succeeds.
         """
         encounter_id = str(state_after['combat_id'])
+        encounter = self._get_or_create_encounter(db, session_code, state_after)
         existing = self._find_action(db, encounter_id, requester_key, sequence_id)
         if existing:
             return self._stored_command(existing, duplicate=True)
 
-        encounter = self._get_or_create_encounter(db, session_code, state_after)
+        expected_version = state_before.get('state_version')
+        if expected_version is not None and expected_version != encounter.state_version:
+            raise ValueError("Combat changed before acceptance; reload")
         next_version = int(encounter.state_version or 0) + 1
         state_after = dict(state_after)
         state_after['state_version'] = next_version
@@ -184,17 +187,20 @@ class CombatPersistenceService:
     @staticmethod
     def _get_or_create_encounter(db, session_code, state_after):
         encounter_id = str(state_after['combat_id'])
-        encounter = db.query(CombatEncounter).filter(
-            CombatEncounter.encounter_id == encounter_id
-        ).first()
-        if encounter:
-            return encounter
-
+        # Serialize acceptance and future outcome lookups on the stable session
+        # row, including the first command before an encounter row exists.
         game_session = db.query(GameSession).filter(
             GameSession.session_code == session_code
-        ).first()
+        ).with_for_update().first()
         if not game_session:
             raise ValueError(f"Game session not found: {session_code}")
+        encounter = db.query(CombatEncounter).filter(
+            CombatEncounter.encounter_id == encounter_id
+        ).with_for_update().first()
+        if encounter:
+            if encounter.session_id != game_session.id or encounter.table_id != str(state_after.get('table_id', '')):
+                raise ValueError("Encounter does not belong to this session/table")
+            return encounter
 
         encounter = CombatEncounter(
             encounter_id=encounter_id,

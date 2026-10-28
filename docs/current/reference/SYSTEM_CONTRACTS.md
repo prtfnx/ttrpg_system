@@ -27,6 +27,7 @@ whether the contract still holds after a change. Test filenames below are in
 | Settings publish only after confirmed save; failures require reload | [Settings](../features/SETTINGS_AND_CUSTOMIZATION.md) | `test_tables_protocol.py`, `test_table_settings_roundtrip.py` |
 | Creation announcements exclude scene layers/walls/metadata | [Tables](../features/TABLES_AND_CANVAS.md) | `test_tables_protocol.py` |
 | Populated copies receive independent sprite/wall identities | [Tables](../features/TABLES_AND_CANVAS.md) | `test_table_copy_persistence.py` |
+| Authenticated combat movement and acceptance commit together; validated endpoints are saved | [Combat](../BATTLE_FLOW.md) | `test_combat_movement_transaction.py`, `apps/server/tests/integration/test_postgresql_contract.py` |
 | Combat lifecycle snapshot and journal share acceptance; rejected lifecycle changes do not survive restart | [Combat](../BATTLE_FLOW.md) | `test_combat_lifecycle_persistence.py` |
 | Cancelled combat commands settle before releasing ordering/publication ownership | [Combat](../BATTLE_FLOW.md) | `test_combat_cancellation.py` |
 | Character stat events respect token layers, including unloaded tables | [Sprites](../features/SPRITES_TOKENS_AND_ENTITIES.md) | `test_character_protocol.py` |
@@ -44,7 +45,8 @@ whether the contract still holds after a change. Test filenames below are in
 ## Limits to retain in reviews
 
 - The immediate support scope is [one trusted session](../explanation/TRUSTED_SESSION_SCOPE.md).
-- TODO: complete worker migration, combat/table atomicity, and linked-stat repair.
+- TODO: complete worker migration, linked character/token/encounter stat repair,
+  and unknown commit outcome recovery beyond the implemented movement transaction.
 - TODO: independent core-table adapters and browser import-cycle cleanup.
 - Fog/vision hides rendered pixels; it is not a confidentiality boundary for
   all world data delivered to the browser. TODO: review every sensitive payload

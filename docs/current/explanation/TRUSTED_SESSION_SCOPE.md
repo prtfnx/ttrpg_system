@@ -21,8 +21,11 @@ architecture extraction is required to use this scope.
 - Terrain/cover commands require one edit outside active combat. Ordinary
   move/attack batches remain supported. Noninteractive roles cannot mutate
   combat through a stale controller assignment.
-- Combat moves save against the authenticated numeric session ID; the
-  public session code is used for combat lookup. Weapon ranges convert
+- Combat moves stage privately and commit positions/geometry with the combat
+  snapshot and journal. A rejected batch needs no compensating database move.
+  Source positions and the encounter's table/session ownership are rechecked;
+  unrelated token stats are not rewritten. The public session code identifies
+  combat lookup. Weapon ranges convert
   pixels using persisted table units, including meters and hidden grids.
 - Populated table copies get independent sprite, wall, and cover-zone IDs.
   Failed persistent creation/import does not register a phantom live table
@@ -42,8 +45,9 @@ These are remaining limitations, not completed architecture guarantees:
 - Extend durable operation receipts beyond existing canvas/sprite/paint/chat
   and combat mechanisms, especially table creation and XP awards. Reconcile
   unknown commit outcomes; reload before retrying an unconfirmed create.
-- Transactions or durable repair across table/token/character/combat
-  resources, including transactional terrain changes during combat.
+- Transactions or durable repair for linked character/token/encounter stats
+  and other resources beyond combat movement, including terrain changes
+  during combat (currently prohibited).
 - Detached environment-save inputs and settlement review for remaining
   worker migrations. Combat commands already retain ownership through SQL
   settlement, cache installation, and protocol publication.

@@ -1,9 +1,10 @@
 import json
+from typing import Any
 
 import pytest
 from core_table.combat import CombatState
 from database.crud import load_active_combat_encounter
-from database.models import CombatActionJournal, CombatEncounter
+from database.models import CombatActionJournal, CombatEncounter, GameSession
 from service.combat_persistence_service import CombatPersistenceService
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
@@ -123,7 +124,7 @@ def test_duplicate_command_returns_stored_result_without_advancing_snapshot(
     service = CombatPersistenceService(
         sessionmaker(bind=test_db.get_bind(), expire_on_commit=False)
     )
-    arguments = {
+    arguments: dict[str, Any] = {
         "session_code": test_game_session.session_code,
         "requester_key": "user:1",
         "sequence_id": 42,
@@ -229,7 +230,7 @@ def test_borrowed_combat_transaction_leaves_commit_to_caller(test_db, test_game_
 def test_duplicate_staging_does_not_commit_unrelated_pending_changes(test_db, test_game_session):
     factory = sessionmaker(bind=test_db.get_bind(), expire_on_commit=False)
     service = CombatPersistenceService(factory)
-    arguments = dict(
+    arguments: dict[str, Any] = dict(
         session_code=test_game_session.session_code, requester_key="user:1",
         sequence_id=99, actor_id="actor-1", command_type="attack",
         command_payload={}, result_payload={"accepted": True}, state_before={},
@@ -245,6 +246,32 @@ def test_duplicate_staging_does_not_commit_unrelated_pending_changes(test_db, te
         db.rollback()
     test_db.expire_all()
     assert test_game_session.name != "Must roll back"
+
+
+@pytest.mark.parametrize("conflict", ["revision", "table", "session"])
+def test_acceptance_rechecks_encounter_scope_and_source_revision(test_db, test_game_session, conflict):
+    service = CombatPersistenceService(sessionmaker(bind=test_db.get_bind(), expire_on_commit=False))
+    arguments: dict[str, Any] = dict(
+        session_code=test_game_session.session_code, requester_key="user:1", sequence_id=1,
+        actor_id="actor-1", command_type="attack", command_payload={},
+        result_payload={"accepted": True}, state_before={},
+        state_after=_state("scope-check", hp=20), created_by=test_game_session.owner_id,
+    )
+    service.persist_accepted(**arguments)
+    arguments["sequence_id"] = 2
+    if conflict == "revision":
+        arguments["state_before"] = {"state_version": 0}
+    elif conflict == "table":
+        arguments["state_after"] = {**arguments["state_after"], "table_id": "other-table"}
+    else:
+        test_db.add(GameSession(name="Other session", session_code="OTHER", owner_id=test_game_session.owner_id))
+        test_db.commit()
+        arguments["session_code"] = "OTHER"
+    with pytest.raises(ValueError):
+        service.persist_accepted(**arguments)
+    test_db.expire_all()
+    assert test_db.query(CombatEncounter).one().state_version == 1
+    assert test_db.query(CombatActionJournal).count() == 1
 
 
 def _state(combat_id: str, hp: int) -> dict:

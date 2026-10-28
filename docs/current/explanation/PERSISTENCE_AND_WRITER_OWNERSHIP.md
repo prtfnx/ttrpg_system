@@ -56,9 +56,14 @@ character/token/combat writes; detached environment-save callbacks; and complete
 worker migration for synchronous protocol paths. Combat lifecycle transitions
 are calculated without implicit engine commits; accepted snapshot and journal
 share one transaction. Combat command cancellation retains ownership through
-settlement, cache installation, and protocol publication. Movement still saves
-separately from the combat journal, so lifecycle atomicity is not full combat/table
-atomicity.
+settlement, cache installation, and protocol publication. Authenticated combat
+movement now stages against a private table under session/table ownership and
+commits affected positions and geometry with the snapshot/journal. The worker
+rechecks persisted source positions and updates only movement-owned fields.
+Acceptance locks the session/encounter rows and checks encounter session/table
+identity and the expected combat revision before advancing the journal.
+This does not make character-sheet/token/encounter stats one transaction or
+resolve every unknown commit outcome.
 These are not current guarantees. Environment commands are limited to a single
 pre-combat edit to contain known partial-write cases.
 
@@ -99,3 +104,7 @@ and rollback rules.
 - `apps/server/tests/unit/test_persistence_recovery.py`: failed save, retry, and final-disconnect recovery.
 - `apps/server/tests/unit/test_application_writer.py`: admission, lifecycle wiring, and cache retirement.
 - `apps/server/tests/integration/test_writer_fencing_postgresql.py`: every table's trigger, stale snapshots, migration writes, two-process lock ordering, and authenticated WebSockets between two running servers.
+
+- `apps/server/tests/unit/test_combat_movement_transaction.py`: atomic movement acceptance, restart, stale positions, and cancellation.
+- `apps/server/tests/unit/test_combat_persistence.py`: borrowed transactions, scope, and revision conflicts.
+- `apps/server/tests/integration/test_postgresql_contract.py`: movement/journal atomicity and duplicate replay on PostgreSQL.

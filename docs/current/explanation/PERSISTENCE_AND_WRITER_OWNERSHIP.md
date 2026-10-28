@@ -48,6 +48,16 @@ durable journals/receipts; see [Command and history](../reference/COMMAND_AND_HI
 These do not cover every table/settings mutation. A retained dirty snapshot
 is not itself a crash-durable record of an unconfirmed edit.
 
+## Snapshot admission guard
+
+`TableManager.persistence_guard` is an optional application callback. When it
+denies persistence, table snapshots and deletion return failure without writing.
+Async operations recheck admission after acquiring table ownership, so a queued
+save cannot bypass a newly quarantined cache. With no callback, the existing
+behavior is preserved. This is an adapter for application outcome recovery;
+it does not itself classify failed commits or replace database writer fencing.
+Regression owner: `apps/server/tests/unit/test_async_table_persistence.py`.
+
 ## Deferred consistency work
 
 TODO: extend durable receipts and outcome reconciliation to table creation,

@@ -69,3 +69,42 @@ async def test_cancelled_save_keeps_lock_until_worker_finishes(test_db, test_gam
         await first
     assert await second
     assert calls == 2
+
+
+async def test_quarantined_snapshots_cannot_save_or_delete(test_db, test_game_session):
+    manager = TableManager(test_db)
+    table = manager.create_table("Guarded", 100, 100)
+    table_id = str(table.table_id)
+    assert await manager.save_table_async(table_id, test_game_session.id)
+    table.display_name = "Unconfirmed"
+    manager.persistence_guard = lambda: False
+    assert not manager.save_table(table_id, test_game_session.id)
+    assert not manager.save_to_database(test_game_session.id)
+    assert not await manager.save_table_async(table_id, test_game_session.id)
+    assert not await manager.delete_table_async(table_id, test_game_session.id)
+    assert not await manager.save_to_database_async(test_game_session.id)
+    test_db.expire_all()
+    row = crud.get_virtual_table_by_id(test_db, table_id)
+    assert row is not None and row.name == "Guarded"
+    manager.persistence_guard = lambda: True
+    assert await manager.save_table_async(table_id, test_game_session.id)
+    test_db.expire_all()
+    row = crud.get_virtual_table_by_id(test_db, table_id)
+    assert row is not None and row.name == "Unconfirmed"
+
+
+async def test_snapshot_guard_is_rechecked_after_waiting_for_table_ownership(test_db, test_game_session):
+    manager = TableManager(test_db)
+    table = manager.create_table("Waiting", 100, 100)
+    table_id = str(table.table_id)
+    lock = manager.table_write_lock(table_id)
+    await lock.acquire()
+    task = asyncio.create_task(manager.save_table_async(table_id, test_game_session.id))
+    try:
+        await asyncio.sleep(0)
+        assert not task.done()
+        manager.persistence_guard = lambda: False
+    finally:
+        lock.release()
+    assert not await task
+    assert crud.get_virtual_table_by_id(test_db, table_id) is None

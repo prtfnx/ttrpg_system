@@ -4,7 +4,7 @@ import copy
 import json
 import logging
 import uuid
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional
 
 from .protocol import Message, MessageType
 from .table import VirtualTable
@@ -21,6 +21,11 @@ class TableManager:
         self.tables_id: dict[str, VirtualTable] = {}
         self.db_session = db_session  # SQLAlchemy session for database operations
         self._save_locks: dict[str, asyncio.Lock] = {}
+        self.persistence_guard: Optional[Callable[[], bool]] = None
+
+    def persistence_allowed(self) -> bool:
+        """An application may quarantine snapshots while a commit is unresolved."""
+        return self.persistence_guard is None or self.persistence_guard()
 
     def set_db_session(self, db_session):
         """Set database session for persistence operations"""
@@ -99,7 +104,7 @@ class TableManager:
 
     def save_to_database(self, session_id: int) -> bool:
         """Save all tables to database"""
-        if not self.db_session:
+        if not self.db_session or not self.persistence_allowed():
             logger.warning("No database session available for saving tables")
             return False
 
@@ -145,7 +150,7 @@ class TableManager:
 
     def save_table(self, table_id: str, session_id: int) -> bool:
         """Save a specific table to database"""
-        if not self.db_session or table_id not in self.tables:
+        if not self.db_session or table_id not in self.tables or not self.persistence_allowed():
             return False
 
         try:
@@ -168,6 +173,8 @@ class TableManager:
         from utils.blocking import run_blocking
 
         async with self.table_write_lock(table_id):
+            if not self.persistence_allowed():
+                return False
             table = draft if draft is not None else self.tables.get(table_id)
             if table is None or str(table.table_id) != table_id:
                 return False
@@ -201,6 +208,8 @@ class TableManager:
         if not self.db_session:
             return False
         async with self.table_write_lock(table_id):
+            if not self.persistence_allowed():
+                return False
             session_factory = sessionmaker(bind=self.db_session.get_bind())
             self.release_db_session()
 
@@ -226,6 +235,8 @@ class TableManager:
                 raise
 
     async def save_to_database_async(self, session_id: int) -> bool:
+        if not self.persistence_allowed():
+            return False
         for table_id in list(self.tables):
             if not await self.save_table_async(table_id, session_id):
                 return False

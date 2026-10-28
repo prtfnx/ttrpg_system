@@ -1206,6 +1206,8 @@ class ActionsCore(AsyncActionsProtocol):
                         'character_id': character_id,
                         'version': result.get('version'),
                         'character_data': result.get('character_data'),
+                        'token_updates': result.get('token_updates'),
+                        'token_stats': result.get('token_stats'),
                     }
                 )
             else:

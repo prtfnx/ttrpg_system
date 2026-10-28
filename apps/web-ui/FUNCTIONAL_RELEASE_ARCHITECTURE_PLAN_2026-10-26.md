@@ -42,10 +42,23 @@ lost commit responses, lookup outages, cancellation, ended encounters, and
 current-role notification filtering. Next: implement the R2 field-authority and
 linked-stat boundary; retain browser reconciliation and PostgreSQL evidence gates.
 
-R2 has a tested borrowed-transaction adapter for linked HP/max-HP/AC projections.
-It locks entity rows in stable order, preserves session/layer scope, and leaves
-commit/rollback to the source transaction. Production character update wiring
-and the encounter/sheet authority policy remain open at this checkpoint.
+R2 now uses its borrowed-transaction adapter in generic character updates:
+source document, version, audit records, and linked HP/max-HP/AC projections
+share one commit. Loaded-table locks prevent background snapshots from racing
+post-commit installation. Publication consumes detached committed identities
+without a second write, installs all live projections before transport awaits,
+and reports notification failures as successful acceptance requiring resync.
+Regressions include failed staging, zero/null stats, private/unloaded tokens,
+stale versions, cancellation, and a queued background snapshot. Token-originated
+sheet edits, active encounter write-back/authority, old-data reconciliation, and
+uncertain character commit outcomes still require follow-up; R2 remains partial.
+
+The continuation batch passes 300 focused server regressions, full pinned
+Pyright with zero errors/warnings, targeted Ruff, and current-doc link checks.
+The 15 PostgreSQL contract cases still skip locally without a configured test
+database. The character/source transaction path is covered with real SQLite
+and production dispatch; it has not yet been qualified on PostgreSQL or through
+the served browser. No new implementation commits have been pushed.
 
 Source baseline: local `main` at `058d5446`. This reassesses [the October 23 architecture research](ARCHITECTURE_RESEARCH_2026-10-23.md) against current code and subsequent fixes. The old report's commit identifiers, branch counts, and descriptions of unfixed defects are historical. At plan creation the tracking state was ten local commits ahead of `origin/main`; deployment of subsequent local changes is not established here.
 
@@ -73,7 +86,7 @@ For a public production service, also require automated independent backups, res
 | Finding | Current assessment | Release action |
 | --- | --- | --- |
 | A1: combat lifecycle writes before acceptance | Fixed locally in `7676607f`: engine transitions no longer commit implicitly; accepted snapshot/journal owns the lifecycle save. | Retain failure/restart regressions. Do not reopen this as a separate refactor. |
-| A2: independent table/token/character/combat commits | Partial: combat movement/snapshot/journal now share acceptance. Character changes and token stat synchronization still commit separately. | Finish R1 evidence and implement R2 before qualifying retained game state. |
+| A2: independent table/token/character/combat commits | Partial: combat movement/snapshot/journal share acceptance, as do generic character updates and linked stat projections. Token-originated edits and encounter/sheet reconciliation remain separate. | Finish R1 evidence and remaining R2 boundaries before qualifying retained game state. |
 | A3: cancellation releases combat ownership early | Fixed for command settlement/publication, detached environment snapshots, and pending outcome recovery. Other migrated paths still need review. | Preserve existing coverage; finish remaining input/ordering work in R3. |
 | A4: synchronous database work in async paths | Open for choice encounters, join hydration, permission fallbacks, and compendium lookups. Wall command persistence already uses workers. | R3; migrate identified paths rather than rewriting all persistence. |
 | A5: private token stat broadcasts | Known character-stat producer fixed in `2a2cb2a8`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |

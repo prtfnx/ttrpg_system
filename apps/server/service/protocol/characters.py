@@ -1,5 +1,8 @@
+from contextlib import AsyncExitStack
+
 from core_table.protocol import Message, MessageType
 from service.character_protocol_persistence_service import (
+    TokenStatUpdate,
     persist_character_token_stats,
     record_xp_award,
 )
@@ -549,6 +552,15 @@ class _CharactersMixin(_ProtocolBase):
             })
 
     async def handle_character_update(self, msg: Message, client_id: str) -> Message:
+        # A background snapshot must not capture old live token stats between
+        # source/projection commit and installation. Lock loaded tables in one
+        # stable order; unloaded tables have no live snapshot writer.
+        async with AsyncExitStack() as ownership:
+            for table_id in sorted(self.table_manager.tables):
+                await ownership.enter_async_context(self.table_manager.table_write_lock(table_id))
+            return await self._apply_character_update(msg, client_id)
+
+    async def _apply_character_update(self, msg: Message, client_id: str) -> Message:
         """Handle partial character updates (delta) with optimistic version checking"""
         logger.debug("Character update requested", extra={"event_name": "character.update.requested"})
         if not msg.data:
@@ -581,8 +593,14 @@ class _CharactersMixin(_ProtocolBase):
             )
 
             if result.success:
-                # Sync character stats to linked tokens
-                await self._sync_character_stats_to_tokens(session_id, character_id, updates)
+                # New managers return projections committed with the source.
+                # Compatibility callers without that receipt use the old helper.
+                result_data = result.data if isinstance(result.data, dict) else {}
+                resync_required = await self._sync_character_stats_to_tokens(
+                    session_id, character_id, updates,
+                    committed_updates=result_data.get('token_updates'),
+                    committed_stats=result_data.get('token_stats'),
+                )
 
                 # Broadcast to session that character updated
                 returned_version = None
@@ -594,11 +612,16 @@ class _CharactersMixin(_ProtocolBase):
                     'updates': updates,
                     'version': returned_version if returned_version is not None else version
                 })
-                await self._broadcast_character_event(
-                    broadcast, session_id, character_id, client_id
-                )
+                try:
+                    await self._broadcast_character_event(broadcast, session_id, character_id, client_id)
+                except Exception:
+                    logger.exception("Committed character update notification failed")
+                    resync_required = True
 
-                return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': True, 'character_id': character_id, 'message': result.message if hasattr(result, 'message') else 'updated', 'version': returned_version})
+                response = {'success': True, 'character_id': character_id, 'message': result.message if hasattr(result, 'message') else 'updated', 'version': returned_version}
+                if resync_required:
+                    response['resync_required'] = True
+                return Message(MessageType.CHARACTER_UPDATE_RESPONSE, response)
             else:
                 result_data = result.data if isinstance(result.data, dict) else {}
                 return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {
@@ -874,7 +897,10 @@ class _CharactersMixin(_ProtocolBase):
         )
         return Message(MessageType.MULTICLASS_RESPONSE, resp_data)
 
-    async def _sync_character_stats_to_tokens(self, session_id: int, character_id: str, updates: dict):
+    async def _sync_character_stats_to_tokens(
+        self, session_id: int, character_id: str, updates: dict,
+        *, committed_updates=None, committed_stats=None,
+    ):
         """
         Sync character stat changes (HP, max HP, AC) to all tokens linked to this character.
         Called after character updates to keep token stats in sync.
@@ -892,6 +918,8 @@ class _CharactersMixin(_ProtocolBase):
                 updated_stats['max_hp'] = source_stats['max_hp']
             if 'ac' in source_stats:
                 updated_stats['ac'] = source_stats['ac']
+            if committed_stats is not None:
+                updated_stats = committed_stats
 
             if not updated_stats:
                 return  # No stats to sync
@@ -901,12 +929,13 @@ class _CharactersMixin(_ProtocolBase):
                 extra={"event_name": "character.stats_sync.started"},
             )
 
-            token_updates = await run_blocking(
-                persist_character_token_stats,
-                session_id,
-                character_id,
-                updated_stats,
-            )
+            token_updates = ([TokenStatUpdate(**update) for update in committed_updates]
+                             if committed_updates is not None else None)
+            if token_updates is None:
+                token_updates = await run_blocking(
+                    persist_character_token_stats, session_id, character_id, updated_stats,
+                )
+            events = []
             for token_update in token_updates:
                 layer = token_update.layer
                 table = self.table_manager.tables.get(token_update.table_id)
@@ -920,13 +949,22 @@ class _CharactersMixin(_ProtocolBase):
 
                 # Unloaded tables retain the transaction's authoritative layer;
                 # loaded tokens use their current live layer under session ownership.
-                await self.broadcast_filtered(Message(MessageType.SPRITE_UPDATE, {
+                events.append((Message(MessageType.SPRITE_UPDATE, {
                     'sprite_id': token_update.sprite_id,
                     'table_id': token_update.table_id,
                     'updates': updated_stats,
                     'operation': 'update',
                     'source': 'character_sync',
-                }), layer, '')
+                }), layer))
+            # Install every committed projection before any transport await.
+            # One failed peer notification must not leave later live tokens old.
+            resync_required = False
+            for event, layer in events:
+                try:
+                    await self.broadcast_filtered(event, layer, '')
+                except Exception:
+                    logger.exception("Committed character stat notification failed")
+                    resync_required = True
 
             logger.info(
                 "Synchronized character stats to linked tokens",
@@ -935,6 +973,8 @@ class _CharactersMixin(_ProtocolBase):
                     "token_count": len(token_updates),
                 },
             )
+            return resync_required
 
         except Exception:
             logger.exception("Character-to-token synchronization failed")
+            return True

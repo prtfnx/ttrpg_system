@@ -316,7 +316,7 @@ class ServerProtocol(
     async def _invoke_handler_in_scope(self, msg: Message, client_id: str):
         if self._has_pending_combat() or msg.type == MessageType.COMBAT_COMMAND or (msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
                 MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE,
-                MessageType.TABLE_SETTINGS_UPDATE} and getattr(
+                MessageType.TABLE_SETTINGS_UPDATE, MessageType.CHARACTER_UPDATE} and getattr(
                     getattr(self, "table_manager", None), "db_session", None)):
             # Include post-commit broadcasts in cancellation shielding. The
             # session lock must not release between storage and publication.

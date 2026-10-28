@@ -15,8 +15,8 @@ Last source audit: 2026-10-26
   archive behavior.
 - `service/character_schema.py` owns the versioned character document.
 - `service/character_rules.py` is the versioned XP and multiclass rules source.
-- `service/character_protocol_persistence_service.py` owns short-lived XP-log
-  and linked-token stat transactions used directly by protocol handlers.
+- `service/character_protocol_persistence_service.py` owns linked-stat staging
+  and standalone XP-log/token helpers. Generic updates supply the source transaction.
 - `managers/character_draft_manager.py` owns durable wizard drafts.
 - `routers/compendium.py` exposes read-only, bounded compendium REST routes.
 - `service/compendium_artifact.py` verifies production artifact manifests.
@@ -70,17 +70,37 @@ until the caller commits. `persist_character_token_stats` remains the standalone
 session-owning wrapper. Outer commit/rollback and cross-session isolation are
 covered by `tests/unit/test_character_protocol_persistence_service.py`.
 
-The character update handler still commits the character before invoking that
-standalone wrapper. The staging API prepares a shared acceptance boundary; it
-does not yet make the production character/token update atomic. R2 must wire
-the source document, version, audit records, and token projections into one
-transaction, then install/publish the returned projections without another write.
+Generic character updates now stage the source document, version, audit records,
+and all linked HP/max-HP/AC projections in one transaction. A failed projection
+write rolls back source and token changes together. Projection values are
+validated independently of legacy document field placement. `data.stats` is
+the structured source; a legacy delta that disagrees with it rejects with
+`Conflicting character stat locations; update data.stats` before source or
+projection writes. Zero is a real value and explicit null clears a field.
+Removing canonical `data.stats` clears its linked HP/max-HP/AC projections.
+
+`ActionsCore` carries the committed detached token identities/stats back to the
+handler. Publication performs no second token write. The handler holds loaded
+table write locks in stable order through acceptance and cache installation,
+so queued background snapshots cannot overwrite the new stats with old live
+values. Cancellation retains session/table ownership until this work settles.
+All loaded projections install before the first transport await. One failed
+notification cannot skip later tokens or reject durable success; the response
+sets `resync_required=true` when publication fails. Layer filtering still uses
+current live layers or the committed layer for unloaded tokens.
+
+Regression owner: `tests/unit/test_character_stat_transaction.py` exercises the
+real manager, ActionsCore, protocol dispatch, SQLite transaction, and queued
+snapshot path. PostgreSQL execution and browser resync acceptance remain release
+gates. Token-originated edits and active encounter writes are separate paths;
+unknown character commit outcomes and existing divergent-row repair still need
+reconciliation. This is not a universal stat-ownership or receipt guarantee.
 
 Current field boundaries must remain explicit:
 
 | State | Current owner | Remaining consistency work |
 | --- | --- | --- |
-| Character document, version, XP and advancement | Character manager and advancement commands | Couple linked stat projections to source acceptance; preserve advancement restrictions. |
+| Character document, version, XP and advancement | Character manager and advancement commands | Generic sheet edits include linked projections atomically; XP and token-originated changes still need their own outcome contracts. |
 | Token HP/max-HP/AC outside combat | Linked sheet synchronization or authorized token edit | Resolve bidirectional write ownership and failed publication/restart behavior. |
 | Active encounter HP, resources and turn state | Combat command snapshot/journal | Define sheet edits during combat and any encounter-completion write-back before unifying these fields. |
 

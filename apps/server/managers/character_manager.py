@@ -7,6 +7,7 @@ Handles character persistence in the database for game sessions
 import json
 import uuid
 from copy import deepcopy
+from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
@@ -21,14 +22,40 @@ from database.models import (
     SessionCharacter,
     User,
 )
+from service.character_protocol_persistence_service import stage_character_token_stats
 from service.character_rules import multiclass_prerequisites
-from service.character_schema import validate_character_document
+from service.character_schema import CharacterStats, validate_character_document
 from sqlalchemy import and_, or_
 from utils.logger import setup_logger
 from utils.time import utc_now
 
 logger = setup_logger(__name__)
 MAX_CHARACTER_BYTES = 512 * 1024
+
+
+def _linked_stat_patch(updates: dict[str, Any], merged: dict[str, Any]) -> dict[str, object]:
+    """Validate projections and reject ambiguous legacy/nested stat values."""
+    data = updates.get('data') or {}
+    nested = data.get('stats') or {}
+    root = updates.get('stats') or {}
+    source = {**root, **nested, **updates}
+    patch = {key: source[key] for key in ('hp', 'maxHp', 'ac') if key in source}
+    if 'maxHp' not in patch and 'max_hp' in source:
+        patch['maxHp'] = source['max_hp']
+    if 'stats' in data and data['stats'] is None:
+        patch = {'hp': None, 'maxHp': None, 'ac': None, **patch}
+    if any(isinstance(value, bool) for value in patch.values()):
+        raise ValueError('Character token stats must be numbers or null')
+    normalized = CharacterStats.model_validate(patch).model_dump(by_alias=True, exclude_unset=True)
+    canonical_stats = (merged.get('data') or {}).get('stats') or {}
+    canonical = {key: canonical_stats[key] for key in ('hp', 'maxHp', 'ac') if key in canonical_stats}
+    # An explicit nested null is meaningful even though Merge Patch removed
+    # that key from the resulting document.
+    canonical.update({key: nested[key] for key in ('hp', 'maxHp', 'ac') if key in nested})
+    canonical = CharacterStats.model_validate(canonical).model_dump(by_alias=True, exclude_unset=True)
+    if any(key in canonical and canonical[key] != value for key, value in normalized.items()):
+        raise ValueError('Conflicting character stat locations; update data.stats')
+    return {('max_hp' if key == 'maxHp' else key): value for key, value in normalized.items()}
 
 
 def apply_json_merge_patch(target: Any, patch: Any) -> Any:
@@ -336,6 +363,7 @@ class ServerCharacterManager:
                         'error': 'XP, level, class, and proficiency changes require an advancement command',
                     }
                 merged_json = _serialize_character(merged)
+                token_stats = _linked_stat_patch(updates, merged)
 
                 # Spell slot validation
                 slot_error = self._validate_spell_slots(current_json, updates)
@@ -383,6 +411,8 @@ class ServerCharacterManager:
                 # Auto-log key character changes
                 self._detect_and_log(db, character_id, session_id, user_id, current_json, updates)
 
+                token_updates = stage_character_token_stats(db, session_id, character_id, token_stats)
+
                 db.commit()
 
                 return {
@@ -390,6 +420,8 @@ class ServerCharacterManager:
                     'character_id': character_id,
                     'version': new_version,
                     'character_data': merged,
+                    'token_updates': [asdict(update) for update in token_updates],
+                    'token_stats': token_stats,
                 }
 
         except ValueError as e:
@@ -723,10 +755,10 @@ class ServerCharacterManager:
         old_char = old_json.get('data', {})
 
         # HP change
-        new_hp = new_char.get('stats', {}).get('hp')
-        old_hp = old_char.get('stats', {}).get('hp')
+        new_hp = (new_char.get('stats') or {}).get('hp')
+        old_hp = (old_char.get('stats') or {}).get('hp')
         if new_hp is not None and old_hp is not None and new_hp != old_hp:
-            delta = new_hp - old_hp
+            delta = int(new_hp) - int(old_hp)
             sign = '+' if delta > 0 else ''
             self._log(db, character_id, session_id, user_id, 'hp_change',
                       f"HP: {old_hp} \u2192 {new_hp} ({sign}{delta})")

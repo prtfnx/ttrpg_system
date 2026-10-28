@@ -4,6 +4,16 @@ Date: 2026-10-26, Europe/Kiev.
 
 Status: proposed implementation backlog; this document does not declare the remaining work complete.
 
+Continuation: 2026-10-27. Redated all 22 unpublished commits for both author
+and committer in Europe/Kyiv, preserving trees, identities, messages, and
+working files. Saved original history on
+`backup/unpublished-before-redate-2026-10-27-db7fbc7e`. A normal fast-forward
+push published exactly the oldest 11 through `8820d458`; 11 remained local
+before new work. See the [commit map](audit/release-2026-10-27/commit-map.json)
+for old/new identifiers. Short references below use the redated history.
+Next implementation target: uncertain character commit outcomes, followed by
+token-originated consistency and remaining R2/R3 work.
+
 Execution started: 2026-10-26. R0 documentation reconciliation is implemented.
 The isolated optimized WASM build matches the baseline `HEAD` binary byte for
 byte (SHA-256 `33ba71838d57fbf860d9d51933a17bbfacd64ff92cfbc8c035bd016775bfcace`,
@@ -12,7 +22,7 @@ are preserved. Browser production build and the 11 PostgreSQL gate-checker
 regressions pass. No `TEST_POSTGRESQL_DATABASE_URL` is configured: real
 PostgreSQL gates, packaged served acceptance, and provider recovery remain open.
 
-R1 is in progress: `f8fecc2c` adds borrowed-transaction staging and `04b5cb12`
+R1 is in progress: `dfa29c4b` adds borrowed-transaction staging and `aa811e55`
 commits authenticated combat movement with snapshot/journal acceptance. SQLite
 regressions cover failure after flush, mixed batches, duplicate replay, restart,
 stale durable positions, translated geometry, and cancellation ownership. The
@@ -58,9 +68,9 @@ Pyright with zero errors/warnings, targeted Ruff, and current-doc link checks.
 The 15 PostgreSQL contract cases still skip locally without a configured test
 database. The character/source transaction path is covered with real SQLite
 and production dispatch; it has not yet been qualified on PostgreSQL or through
-the served browser. No new implementation commits have been pushed.
+the served browser. That validation run preceded the October 27 partial push recorded above.
 
-Source baseline: local `main` at `058d5446`. This reassesses [the October 23 architecture research](ARCHITECTURE_RESEARCH_2026-10-23.md) against current code and subsequent fixes. The old report's commit identifiers, branch counts, and descriptions of unfixed defects are historical. At plan creation the tracking state was ten local commits ahead of `origin/main`; deployment of subsequent local changes is not established here.
+Source baseline: local `main` at `62c3e9e4`. This reassesses [the October 23 architecture research](ARCHITECTURE_RESEARCH_2026-10-23.md) against current code and subsequent fixes. The old report's commit identifiers, branch counts, and descriptions of unfixed defects are historical. At plan creation the tracking state was ten local commits ahead of `origin/main`; deployment of subsequent local changes is not established here.
 
 The release priorities are durable game actions, responsive multiplayer play, recoverable reconnects, and a tested way to restore retained data. Broad package extraction, elimination of every import cycle, and horizontal scaling are outside this release's critical path.
 
@@ -85,17 +95,17 @@ For a public production service, also require automated independent backups, res
 
 | Finding | Current assessment | Release action |
 | --- | --- | --- |
-| A1: combat lifecycle writes before acceptance | Fixed locally in `7676607f`: engine transitions no longer commit implicitly; accepted snapshot/journal owns the lifecycle save. | Retain failure/restart regressions. Do not reopen this as a separate refactor. |
+| A1: combat lifecycle writes before acceptance | Fixed locally in `badecc9f`: engine transitions no longer commit implicitly; accepted snapshot/journal owns the lifecycle save. | Retain failure/restart regressions. Do not reopen this as a separate refactor. |
 | A2: independent table/token/character/combat commits | Partial: combat movement/snapshot/journal share acceptance, as do generic character updates and linked stat projections. Token-originated edits and encounter/sheet reconciliation remain separate. | Finish R1 evidence and remaining R2 boundaries before qualifying retained game state. |
 | A3: cancellation releases combat ownership early | Fixed for command settlement/publication, detached environment snapshots, and pending outcome recovery. Other migrated paths still need review. | Preserve existing coverage; finish remaining input/ordering work in R3. |
 | A4: synchronous database work in async paths | Open for choice encounters, join hydration, permission fallbacks, and compendium lookups. Wall command persistence already uses workers. | R3; migrate identified paths rather than rewriting all persistence. |
-| A5: private token stat broadcasts | Known character-stat producer fixed in `2a2cb2a8`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
-| A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `429f0fe9`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
+| A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
+| A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
 | A8: inconsistent durable operation identity/outcomes | Open for important operations such as table creation and XP awards. Canvas/sprite/paint/chat/combat already have domain-specific mechanisms. | R4: extend existing patterns selectively and resolve unknown commit outcomes. |
 | A9: core-table imports server infrastructure | Still present. | Defer extraction; introduce only the transaction/worker adapters needed by R1-R3. |
 | A10: browser dependency cycles | Research recorded 39 cycles; the count was not rerun for this plan. | Defer wholesale cleanup. Fix a cycle only when a reproducible release workflow requires it. |
-| A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `3dcb4347`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |
+| A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `efe187ac`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |
 | A12: singleton application writer | Intentional supported deployment boundary. | Measure the target session in R7; defer partitioning and multiple active workers. |
 
 Existing focused server regressions and static checks are useful evidence for the completed fixes. They do not replace real PostgreSQL execution, a served browser playthrough, real object-storage checks, or a restore rehearsal. The modified generated WASM files in the working tree also require provenance/build validation; their presence is not release evidence.

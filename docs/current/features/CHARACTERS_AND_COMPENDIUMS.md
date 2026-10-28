@@ -6,7 +6,7 @@ compendium data, or character-token links.
 Status: usable. Character storage and authority and the bundled starter
 compendium are implemented.
 
-Last source audit: 2026-10-26
+Last source audit: 2026-10-27
 
 ## Ownership
 
@@ -107,6 +107,22 @@ Current field boundaries must remain explicit:
 Ending an encounter does not currently establish a general character-sheet HP
 write-back guarantee. Do not overwrite active encounter values from a delayed
 sheet projection or infer that the newest row always owns a shared stat.
+
+## Character commit verification adapter
+
+`service/character_update_recovery.py` can verify one admitted, in-process CAS
+attempt using the stable session-row lock and a fresh READ COMMITTED snapshot.
+The exact accepted version/document/modifier proves commit; the unchanged source
+version/document proves rollback after the original transaction has settled.
+Unavailable, missing, archived, or otherwise changed sources stay unknown.
+Lookup does not clear quarantine until its caller installs the verified outcome.
+The PostgreSQL lock wait is bounded to five seconds. Regression owner:
+`tests/unit/test_character_update_recovery.py`.
+
+This adapter is not yet wired into character acceptance at this checkpoint.
+It is not a durable retry ledger and cannot classify an arbitrary superseding
+write after process replacement. Character outcome handling remains a release
+follow-up until application admission, installation, and browser recovery use it.
 
 ## Browser edits and reconnects
 

@@ -7,6 +7,7 @@ from typing import Any, Callable
 from database.database import SessionLocal
 from database.models import CombatActionJournal, CombatEncounter, GameSession
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 from utils.time import utc_now
 
 
@@ -84,44 +85,14 @@ class CombatPersistenceService:
     ) -> PersistedCombatCommand:
         encounter_id = str(state_after['combat_id'])
         with self._session_factory() as db:
-            existing = self._find_action(
-                db,
-                encounter_id,
-                requester_key,
-                sequence_id,
-            )
-            if existing:
-                return self._stored_command(existing, duplicate=True)
-
-            encounter = self._get_or_create_encounter(
-                db,
-                session_code,
-                state_after,
-            )
-            next_version = int(encounter.state_version or 0) + 1
-            state_after = dict(state_after)
-            state_after['state_version'] = next_version
-            stored_result = dict(result_payload)
-            stored_result['state_version'] = next_version
-            if isinstance(stored_result.get('combat'), dict):
-                stored_result['combat'] = dict(stored_result['combat'])
-                stored_result['combat']['state_version'] = next_version
-            self._update_snapshot(encounter, state_after, next_version)
-            action = CombatActionJournal(
-                encounter_id=encounter_id,
-                requester_key=requester_key,
-                sequence_id=sequence_id,
-                actor_id=actor_id,
-                command_type=command_type,
-                command_payload_json=json.dumps(command_payload),
-                result_payload_json=json.dumps(stored_result),
-                state_before_json=json.dumps(state_before),
-                state_after_hash=str(state_after.get('state_hash', '')),
-                state_version=next_version,
-                created_by=created_by,
-            )
-            db.add(action)
             try:
+                persisted = self.stage_accepted(
+                    db, session_code=session_code, requester_key=requester_key,
+                    sequence_id=sequence_id, actor_id=actor_id,
+                    command_type=command_type, command_payload=command_payload,
+                    result_payload=result_payload, state_before=state_before,
+                    state_after=state_after, created_by=created_by,
+                )
                 db.commit()
             except IntegrityError:
                 db.rollback()
@@ -134,7 +105,54 @@ class CombatPersistenceService:
                 if existing:
                     return self._stored_command(existing, duplicate=True)
                 raise
-            return PersistedCombatCommand(stored_result, next_version)
+            return persisted
+
+    def stage_accepted(
+        self,
+        db: Session,
+        *,
+        session_code: str,
+        requester_key: str,
+        sequence_id: int,
+        actor_id: str | None,
+        command_type: str,
+        command_payload: dict[str, Any],
+        result_payload: dict[str, Any],
+        state_before: dict[str, Any],
+        state_after: dict[str, Any],
+        created_by: int | None,
+    ) -> PersistedCombatCommand:
+        """Flush snapshot/journal into a caller-owned transaction.
+
+        The caller owns commit, rollback, duplicate-race recovery and publication.
+        Returned values are provisional until that outer commit succeeds.
+        """
+        encounter_id = str(state_after['combat_id'])
+        existing = self._find_action(db, encounter_id, requester_key, sequence_id)
+        if existing:
+            return self._stored_command(existing, duplicate=True)
+
+        encounter = self._get_or_create_encounter(db, session_code, state_after)
+        next_version = int(encounter.state_version or 0) + 1
+        state_after = dict(state_after)
+        state_after['state_version'] = next_version
+        stored_result = dict(result_payload)
+        stored_result['state_version'] = next_version
+        if isinstance(stored_result.get('combat'), dict):
+            stored_result['combat'] = dict(stored_result['combat'])
+            stored_result['combat']['state_version'] = next_version
+        self._update_snapshot(encounter, state_after, next_version)
+        db.add(CombatActionJournal(
+            encounter_id=encounter_id, requester_key=requester_key,
+            sequence_id=sequence_id, actor_id=actor_id, command_type=command_type,
+            command_payload_json=json.dumps(command_payload),
+            result_payload_json=json.dumps(stored_result),
+            state_before_json=json.dumps(state_before),
+            state_after_hash=str(state_after.get('state_hash', '')),
+            state_version=next_version, created_by=created_by,
+        ))
+        db.flush()
+        return PersistedCombatCommand(stored_result, next_version)
 
     @staticmethod
     def _find_action(db, encounter_id, requester_key, sequence_id):

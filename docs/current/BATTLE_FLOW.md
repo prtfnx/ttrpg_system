@@ -1,6 +1,6 @@
 # Battle flow
 
-Last source audit: 2026-09-14
+Last source audit: 2026-10-26
 
 Battle flow is command-oriented now. React can help the user plan a turn, and
 Rust/WASM can draw previews, but the server is the only place that accepts
@@ -43,6 +43,19 @@ such as `COMBAT_START`, `COMBAT_ATTACK`, `COMBAT_SPELL`, `TURN_END`,
 `ACTION_COMMIT`, death-save requests, direct DM HP/resource/status edits,
 opportunity-attack resolve, and direct cover/terrain mutations are no longer
 the live mutation surface.
+
+## Persistence transaction ownership
+
+`CombatPersistenceService.persist_accepted` owns the standalone snapshot/journal
+transaction. `stage_accepted(db, ...)` flushes the same records inside a trusted
+caller's existing transaction and never commits or rolls it back. That caller
+owns duplicate-race recovery, rollback of every staged resource, and publication
+only after a successful outer commit. A returned staged result is provisional.
+Regression owner: `apps/server/tests/unit/test_combat_persistence.py` covers
+outer commit, outer rollback, and duplicate staging with unrelated pending work.
+
+Combat movement still commits separately in the current protocol path; the
+staging API alone does not make movement and combat acceptance atomic.
 
 ## Command envelope
 

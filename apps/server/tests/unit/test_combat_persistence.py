@@ -197,6 +197,56 @@ def test_last_action_returns_newest_journal_entry(
     assert entry.state_before["combatants"][0]["hp"] == 15
 
 
+@pytest.mark.parametrize("commit", [False, True])
+def test_borrowed_combat_transaction_leaves_commit_to_caller(test_db, test_game_session, commit):
+    factory = sessionmaker(bind=test_db.get_bind(), expire_on_commit=False)
+    service = CombatPersistenceService(factory)
+    with factory() as db:
+        result = service.stage_accepted(
+            db, session_code=test_game_session.session_code, requester_key="user:1",
+            sequence_id=99, actor_id="actor-1", command_type="attack",
+            command_payload={"commands": [{"type": "attack"}]},
+            result_payload={"accepted": True}, state_before={},
+            state_after=_state("borrowed", hp=15), created_by=test_game_session.owner_id,
+        )
+        assert result.state_version == 1
+        assert db.in_transaction()
+        # A second resource belongs to the same outer acceptance boundary.
+        session = db.get(type(test_game_session), test_game_session.id)
+        assert session is not None
+        session.name = "Accepted together"
+        if commit:
+            db.commit()
+        else:
+            db.rollback()
+
+    test_db.expire_all()
+    assert test_db.query(CombatEncounter).filter_by(encounter_id="borrowed").count() == int(commit)
+    assert test_db.query(CombatActionJournal).filter_by(encounter_id="borrowed").count() == int(commit)
+    assert (test_game_session.name == "Accepted together") is commit
+
+
+def test_duplicate_staging_does_not_commit_unrelated_pending_changes(test_db, test_game_session):
+    factory = sessionmaker(bind=test_db.get_bind(), expire_on_commit=False)
+    service = CombatPersistenceService(factory)
+    arguments = dict(
+        session_code=test_game_session.session_code, requester_key="user:1",
+        sequence_id=99, actor_id="actor-1", command_type="attack",
+        command_payload={}, result_payload={"accepted": True}, state_before={},
+        state_after=_state("borrowed-duplicate", hp=15), created_by=test_game_session.owner_id,
+    )
+    original = service.persist_accepted(**arguments)
+    with factory() as db:
+        session = db.get(type(test_game_session), test_game_session.id)
+        assert session is not None
+        session.name = "Must roll back"
+        duplicate = service.stage_accepted(db, **arguments)
+        assert duplicate.duplicate and duplicate.result == original.result
+        db.rollback()
+    test_db.expire_all()
+    assert test_game_session.name != "Must roll back"
+
+
 def _state(combat_id: str, hp: int) -> dict:
     return {
         "combat_id": combat_id,

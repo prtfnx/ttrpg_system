@@ -165,6 +165,7 @@ class CombatCommandContext:
         Callable[[str, list[str], list[dict[str, Any]]], list[dict[str, Any]]]
     ] = None
     save_table: Optional[Callable[[str], str | None]] = None
+    save_table_async: Callable[[str], Awaitable[str | None]] | None = None
     movement_draft: CombatMovementDraft | None = None
 
 
@@ -1001,6 +1002,8 @@ class CombatCommandService:
         context: CombatCommandContext,
         table_id: str,
     ) -> str | None:
+        if context.save_table_async is not None:
+            return await context.save_table_async(table_id)
         if context.save_table is None:
             return None
         return await run_blocking(context.save_table, table_id)

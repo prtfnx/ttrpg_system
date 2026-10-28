@@ -235,3 +235,69 @@ async def test_cancelled_movement_keeps_table_and_session_ownership_until_public
     finally:
         release.set()
         await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.parametrize("failure", [False, True])
+async def test_environment_save_uses_detached_worker_input_and_rolls_back_failure(game, monkeypatch, failure):
+    ended = await game.command([{"type": "end_combat", "actor_id": "__dm__"}])
+    assert ended.type == MessageType.ACTION_RESULT
+    main_thread = threading.get_ident()
+    save = crud.save_table_to_db
+    seen = []
+
+    def save_snapshot(db, snapshot, session_id):
+        assert threading.get_ident() != main_thread
+        assert snapshot is not game.table
+        assert snapshot.difficult_terrain_cells == {(1, 2)}
+        seen.append(snapshot)
+        if failure:
+            raise RuntimeError("Injected environment transaction failure")
+        return save(db, snapshot, session_id)
+
+    monkeypatch.setattr(crud, "save_table_to_db", save_snapshot)
+    response = await game.command([{"type": "set_terrain", "actor_id": "__dm__",
+                                    "table_id": str(game.table.table_id), "cells": [[1, 2]]}], sequence=3)
+    assert response.type == (MessageType.ACTION_REJECTED if failure else MessageType.ACTION_RESULT)
+    assert len(seen) == 1
+    expected = set() if failure else {(1, 2)}
+    assert game.table.difficult_terrain_cells == expected
+    with game.factory() as db:
+        row = db.query(models.VirtualTable).filter_by(table_id=str(game.table.table_id)).one()
+        assert json.loads(row.difficult_terrain_json) == ([] if failure else [[1, 2]])
+
+
+async def test_cancelled_environment_save_holds_ownership_until_snapshot_settles(game, monkeypatch):
+    ended = await game.command([{"type": "end_combat", "actor_id": "__dm__"}])
+    assert ended.type == MessageType.ACTION_RESULT
+    started, release = threading.Event(), threading.Event()
+    save = crud.save_table_to_db
+
+    def delayed(db, snapshot, session_id):
+        assert snapshot is not game.table
+        started.set()
+        assert release.wait(5)
+        return save(db, snapshot, session_id)
+
+    monkeypatch.setattr(crud, "save_table_to_db", delayed)
+    task = asyncio.create_task(game.command([{"type": "set_terrain", "actor_id": "__dm__",
+        "table_id": str(game.table.table_id), "cells": [[1, 2]]}], sequence=3))
+
+    async def admitted():
+        while not started.is_set():
+            await asyncio.sleep(.001)
+
+    try:
+        await asyncio.wait_for(admitted(), 2)
+        task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done() and game.proto._mutation_lock.locked()
+        assert game.proto.table_manager.table_write_lock(str(game.table.table_id)).locked()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, 2)
+        with game.factory() as db:
+            row = db.query(models.VirtualTable).filter_by(table_id=str(game.table.table_id)).one()
+            assert json.loads(row.difficult_terrain_json) == [[1, 2]]
+    finally:
+        release.set()
+        await asyncio.gather(task, return_exceptions=True)

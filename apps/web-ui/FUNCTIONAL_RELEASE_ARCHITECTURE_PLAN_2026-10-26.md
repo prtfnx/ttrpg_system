@@ -17,12 +17,22 @@ commits authenticated combat movement with snapshot/journal acceptance. SQLite
 regressions cover failure after flush, mixed batches, duplicate replay, restart,
 stale durable positions, translated geometry, and cancellation ownership. The
 follow-up endpoint correction saves the validator's snapped destination and
-authoritative route start. Unknown commit outcomes, detached environment saves,
-and actual PostgreSQL execution are still open; R1 is not marked complete.
+authoritative route start. Pre-combat environment persistence now uses the
+existing async table snapshot path, with detached worker inputs and retained
+session/table ownership through cancellation. Unknown commit outcomes and actual
+PostgreSQL execution are still open; R1 is not marked complete.
 Acceptance also rechecks the encounter's session/table identity and source
 revision under database row locks. The existing mandatory PostgreSQL contract
 module now includes movement/snapshot/journal success, rollback after flush,
 and duplicate replay cases; these require execution against PostgreSQL in CI.
+
+Validation for this first implementation batch: 229 focused server regressions
+pass, the full pinned Pyright check reports zero errors/warnings, targeted Ruff
+checks pass, and `docs:check` passes. The PostgreSQL contract module collects
+12 cases but skips them locally without a configured test database. No served
+provider playthrough, restore rehearsal, or final release qualification is
+claimed. Next: resolve lost commit acknowledgements before treating SQL errors
+as definite rejection, then implement the R2 field-authority/linked-stat boundary.
 
 Source baseline: local `main` at `058d5446`. This reassesses [the October 23 architecture research](ARCHITECTURE_RESEARCH_2026-10-23.md) against current code and subsequent fixes. The old report's commit identifiers, branch counts, and descriptions of unfixed defects are historical. Current tracking state is ten local commits ahead of `origin/main`; deployment of those changes is not established here.
 

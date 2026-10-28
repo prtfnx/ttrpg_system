@@ -52,8 +52,7 @@ is not itself a crash-durable record of an unconfirmed edit.
 
 TODO: extend durable receipts and outcome reconciliation to table creation,
 XP awards, and settings; shared transactions or repair for linked
-character/token/combat writes; detached environment-save callbacks; and complete
-worker migration for synchronous protocol paths. Combat lifecycle transitions
+character/token/combat writes; and complete worker migration for synchronous protocol paths. Combat lifecycle transitions
 are calculated without implicit engine commits; accepted snapshot and journal
 share one transaction. Combat command cancellation retains ownership through
 settlement, cache installation, and protocol publication. Authenticated combat
@@ -64,7 +63,9 @@ Acceptance locks the session/encounter rows and checks encounter session/table
 identity and the expected combat revision before advancing the journal.
 This does not make character-sheet/token/encounter stats one transaction or
 resolve every unknown commit outcome.
-These are not current guarantees. Environment commands are limited to a single
+Pre-combat environment saves use the async detached-snapshot path and retain
+table ordering through cancellation. The TODO guarantees above remain incomplete.
+Environment commands are limited to a single
 pre-combat edit to contain known partial-write cases.
 
 ## PostgreSQL process handover

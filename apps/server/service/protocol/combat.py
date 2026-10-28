@@ -182,18 +182,18 @@ class _CombatMixin(_ProtocolBase):
         }})
         return resp
 
-    def _persist_table_state(self, table_id: str, msg: Message) -> str | None:
-        save_table = getattr(self.table_manager, 'save_table', None)
-        if not callable(save_table):
-            return None
+    async def _persist_table_state_async(self, table_id: str, msg: Message) -> str | None:
+        session_id = self._get_session_id(msg)
+        if session_id is None:
+            return "Authenticated session identity required"
         try:
-            saved = save_table(table_id, session_id=self._get_session_id(msg))
-        except Exception as exc:
-            logger.warning('Failed to persist table %s: %s', table_id, exc)
-            return 'Failed to persist table state'
-        if saved is False:
-            return 'Failed to persist table state'
-        return None
+            # TableManager captures a detached snapshot on-loop and retains
+            # table ordering until its worker-owned transaction settles.
+            saved = await self.table_manager.save_table_async(table_id, session_id)
+        except Exception:
+            logger.exception("Failed to persist environment for table %s", table_id)
+            return "Failed to persist table state"
+        return None if saved else "Failed to persist table state"
 
     def _get_table_by_id(self, table_id: str):
         return self.table_manager.tables_id.get(table_id) or self.table_manager.tables.get(table_id)
@@ -308,7 +308,7 @@ class _CombatMixin(_ProtocolBase):
                     combatants,
                     self._combatant_factory_context(msg, table_id),
                 ),
-                save_table=lambda table_id: self._persist_table_state(table_id, msg),
+                save_table_async=lambda table_id: self._persist_table_state_async(table_id, msg),
             ),
         )
 

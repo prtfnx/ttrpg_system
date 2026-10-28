@@ -193,14 +193,17 @@ persistence, restore, character lookup, movement rule loading/validation, and
 table saves. Normal completion applies state versions, restoration, and
 role-filtered delivery on the event loop. Cancelling `run_blocking` does not
 stop an already running thread, so command ownership waits for that worker's
-settlement. Environment save callbacks still read a live table rather than a
-detached snapshot.
+settlement. Pre-combat environment edits use `TableManager.save_table_async`,
+which captures a detached snapshot on the event loop and creates a worker-owned
+ORM session. Their table write lock remains held through SQL settlement.
 
 Combat command settlement finishes before propagating cancellation, and
 protocol dispatch keeps session ownership through peer publication. Repeated
 cancellation cannot release that lock while SQL, rollback, or publication is
 still pending. Focused regressions cover commit success/failure and a waiting
-state reader. TODO: detach the remaining environment-save inputs.
+state reader. `test_combat_movement_transaction.py` also covers detached
+environment-save inputs, failed saves, and cancellation during the snapshot
+transaction.
 Current terrain/cover commands require one DM command outside active combat;
 see [Battle flow](BATTLE_FLOW.md).
 
@@ -268,8 +271,9 @@ rejects replaced-server admission and closes its real sockets with retry code
 1012. One Uvicorn worker is enforced by `scripts/migrate_and_start.py`.
 
 Async full-table saves capture detached snapshots on the event loop and
-persist them atomically in worker-owned sessions. This does not describe every
-synchronous wall or environment-save path. Failed existing-table saves remain
+persist them atomically in worker-owned sessions. Combat environment saves use
+this path; wall command persistence also uses worker-owned sessions. Remaining
+join/choice/permission/compendium database paths still require worker migration. Failed existing-table saves remain
 pending; normal final disconnect retains failed state for retry, while a
 superseded process retires
 its obsolete cache. A failed command is not a universal in-memory rollback.

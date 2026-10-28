@@ -48,9 +48,9 @@ These are remaining limitations, not completed architecture guarantees:
 - Transactions or durable repair for linked character/token/encounter stats
   and other resources beyond combat movement, including terrain changes
   during combat (currently prohibited).
-- Detached environment-save inputs and settlement review for remaining
-  worker migrations. Combat commands already retain ownership through SQL
-  settlement, cache installation, and protocol publication.
+- Settlement review for remaining worker migrations. Combat commands retain
+  ownership through SQL settlement, cache installation, and protocol publication;
+  pre-combat environment saves already capture detached snapshots on the loop.
 - Worker migration for remaining join/choice/permission/compendium
   paths. Wall command persistence already uses worker-owned sessions. One session can still pause during synchronous database work.
 - Independent core-table persistence adapters and browser dependency cycles.

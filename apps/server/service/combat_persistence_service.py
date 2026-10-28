@@ -6,6 +6,7 @@ from typing import Any, Callable
 
 from database.database import SessionLocal
 from database.models import CombatActionJournal, CombatEncounter, GameSession
+from service.combat_movement import CombatSpriteMovement, stage_combat_movements
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from utils.time import utc_now
@@ -82,6 +83,7 @@ class CombatPersistenceService:
         state_before: dict[str, Any],
         state_after: dict[str, Any],
         created_by: int | None,
+        movements: tuple[CombatSpriteMovement, ...] = (),
     ) -> PersistedCombatCommand:
         encounter_id = str(state_after['combat_id'])
         with self._session_factory() as db:
@@ -93,6 +95,11 @@ class CombatPersistenceService:
                     result_payload=result_payload, state_before=state_before,
                     state_after=state_after, created_by=created_by,
                 )
+                if movements and not persisted.duplicate:
+                    encounter = db.query(CombatEncounter).filter_by(encounter_id=encounter_id).one()
+                    if any(move.table_id != encounter.table_id for move in movements):
+                        raise ValueError("Movement must use the encounter table")
+                    stage_combat_movements(db, encounter.session_id, movements)
                 db.commit()
             except IntegrityError:
                 db.rollback()

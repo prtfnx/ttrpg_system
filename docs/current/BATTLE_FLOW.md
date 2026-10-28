@@ -54,8 +54,25 @@ only after a successful outer commit. A returned staged result is provisional.
 Regression owner: `apps/server/tests/unit/test_combat_persistence.py` covers
 outer commit, outer rollback, and duplicate staging with unrelated pending work.
 
-Combat movement still commits separately in the current protocol path; the
-staging API alone does not make movement and combat acceptance atomic.
+The authenticated combat protocol stages movement against a private table while
+holding the session mutation lock and that table's write lock. Subsequent moves
+and attack range checks read the staged positions. Acceptance commits only the
+affected token positions/translated obstacle geometry with the combat snapshot
+and journal. It never saves a separate move or rewrites unrelated token stats.
+Live table/entity references receive the committed moves before publication.
+
+A later invalid action or failed transaction discards the draft; no reverse
+database move is needed. Persisted source positions and encounter table identity
+are rechecked before saving. Regression owner:
+`apps/server/tests/unit/test_combat_movement_transaction.py` covers staged-write
+failure, repeated movement, restart, duplicate replay, occupied/foreign targets,
+stale durable positions, stat preservation, and cancellation ownership.
+
+This transaction does not unify character-sheet edits with combat stats, add
+durable identity for table creation/XP, or resolve every unknown commit outcome.
+Legacy direct service callers supplying their own movement callback retain
+responsibility for that callback's persistence; the authenticated protocol uses
+the detached draft path.
 
 ## Command envelope
 

@@ -8,6 +8,7 @@ from database.crud import get_game_mode, get_session_rules_json
 from database.database import SessionLocal
 from pydantic import ValidationError
 from service.combat_command_service import CombatCommandContext, CombatCommandService
+from service.combat_movement import CombatMovementDraft
 from service.combat_persistence_service import CombatPersistenceService
 from service.combat_state_presenter import CombatStatePresenter
 from service.combatant_factory import CombatantFactory, CombatantFactoryContext
@@ -242,32 +243,7 @@ class _CombatMixin(_ProtocolBase):
                 "reason": str(exc),
             })
 
-        result = await service.apply_async(
-            envelope,
-            CombatCommandContext(
-                session_code=self._get_session_code(),
-                client_id=client_id,
-                role=self._get_client_role(client_id),
-                user_id=self._get_user_id(msg, client_id),
-                table_lookup=self._get_table_by_id,
-                # Combat uses the public session code; canvas persistence uses
-                # the authenticated numeric database identity, including undo.
-                move_sprite=lambda table_id, sprite_id, old_position, new_position, _session_code:
-                    self._move_sprite_for_combat_command(
-                        table_id, sprite_id, old_position, new_position,
-                        session_id=self._get_session_id(msg),
-                        actor_role=self._get_client_role(client_id),
-                    ),
-                validate_move=lambda *args: self._validate_move_for_combat_command(
-                    *args, actor_role=self._get_client_role(client_id)),
-                build_combatants=lambda table_id, entity_ids, combatants: CombatantFactory().build_many(
-                    entity_ids,
-                    combatants,
-                    self._combatant_factory_context(msg, table_id),
-                ),
-                save_table=lambda table_id: self._persist_table_state(table_id, msg),
-            ),
-        )
+        result = await self._apply_combat_envelope(service, envelope, msg, client_id)
         response_type = MessageType.ACTION_RESULT if result.accepted else MessageType.ACTION_REJECTED
         if result.accepted:
             from service.combat_engine import CombatEngine
@@ -282,19 +258,59 @@ class _CombatMixin(_ProtocolBase):
                     await self.send_to_client(response, recipient_id)
                 return response
             if result.duplicate:
-                return self._combat_state_message(
-                    state,
-                    response_type,
-                    client_id,
-                    context,
-                )
-            return await self._broadcast_combat_state(
-                state,
-                response_type,
-                client_id,
-                context,
-            )
+                return self._combat_state_message(state, response_type, client_id, context)
+            return await self._broadcast_combat_state(state, response_type, client_id, context)
         return Message(response_type, result.to_dict())
+
+    async def _apply_combat_envelope(self, service, envelope, msg, client_id):
+        from service.combat_command_service import CombatCommandType
+        from service.combat_engine import CombatEngine
+
+        if not any(command.type == CombatCommandType.MOVE for command in envelope.commands):
+            return await self._run_combat_envelope(service, envelope, msg, client_id)
+        state = CombatEngine.get_state(self._get_session_code())
+        if state is None:
+            return await self._run_combat_envelope(service, envelope, msg, client_id)
+        async with self.table_manager.table_write_lock(state.table_id):
+            table = self._get_table_by_id(state.table_id)
+            if table is None:
+                from service.combat_command_service import CombatCommandResult
+                return CombatCommandResult(False, envelope.sequence_id, [], reason="Combat table not found")
+            draft = CombatMovementDraft(table)
+            result = await self._run_combat_envelope(service, envelope, msg, client_id, draft)
+            if result.accepted and not result.duplicate:
+                draft.publish()
+            return result
+
+    async def _run_combat_envelope(self, service, envelope, msg, client_id, draft=None):
+        return await service.apply_async(
+            envelope,
+            CombatCommandContext(
+                session_code=self._get_session_code(),
+                client_id=client_id,
+                role=self._get_client_role(client_id),
+                user_id=self._get_user_id(msg, client_id),
+                table_lookup=draft.lookup if draft is not None else self._get_table_by_id,
+                movement_draft=draft,
+                # Combat uses the public session code; canvas persistence uses
+                # the authenticated numeric database identity, including undo.
+                move_sprite=lambda table_id, sprite_id, old_position, new_position, _session_code:
+                    self._move_sprite_for_combat_command(
+                        table_id, sprite_id, old_position, new_position,
+                        session_id=self._get_session_id(msg),
+                        actor_role=self._get_client_role(client_id),
+                        draft=draft,
+                    ),
+                validate_move=lambda *args: self._validate_move_for_combat_command(
+                    *args, actor_role=self._get_client_role(client_id), draft=draft),
+                build_combatants=lambda table_id, entity_ids, combatants: CombatantFactory().build_many(
+                    entity_ids,
+                    combatants,
+                    self._combatant_factory_context(msg, table_id),
+                ),
+                save_table=lambda table_id: self._persist_table_state(table_id, msg),
+            ),
+        )
 
     async def _move_sprite_for_combat_command(
         self,
@@ -304,6 +320,7 @@ class _CombatMixin(_ProtocolBase):
         new_position: dict[str, float],
         session_id: int | None,
         actor_role: str = "player",
+        draft: CombatMovementDraft | None = None,
     ) -> dict[str, Any]:
         if session_id is None:
             return {"success": False, "message": "Authenticated session identity required"}
@@ -316,6 +333,9 @@ class _CombatMixin(_ProtocolBase):
         rules = rules or SessionRules.defaults(session_code or "default")
         if session_code:
             self._rules_cache[session_code] = (rules, mode)
+        if draft is not None:
+            return await draft.move(table_id, sprite_id, old_position, new_position, session_code,
+                                    allow_out_of_bounds=rules.allows_out_of_bounds(is_dm=is_dm(actor_role)))
         result = await self.actions.move_sprite(
             table_id=table_id,
             sprite_id=sprite_id,
@@ -334,9 +354,9 @@ class _CombatMixin(_ProtocolBase):
         new_position: dict[str, float],
         path: list[Any],
         combatant: Any,
-        *, actor_role: str = "player",
+        *, actor_role: str = "player", draft: CombatMovementDraft | None = None,
     ) -> dict[str, Any]:
-        table = self._get_table_by_id(table_id)
+        table = draft.lookup(table_id) if draft is not None else self._get_table_by_id(table_id)
         if table is None:
             return {"success": False, "message": "Table not found"}
 

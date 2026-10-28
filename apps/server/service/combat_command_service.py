@@ -11,6 +11,7 @@ from typing import Any, Awaitable, Callable, Optional
 
 from core_table.combat import CombatAction, CombatState
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from service.combat_movement import CombatMovementDraft
 from service.combat_persistence_service import CombatPersistenceService
 from utils.blocking import run_blocking
 from utils.roles import can_interact, is_dm
@@ -163,6 +164,7 @@ class CombatCommandContext:
         Callable[[str, list[str], list[dict[str, Any]]], list[dict[str, Any]]]
     ] = None
     save_table: Optional[Callable[[str], str | None]] = None
+    movement_draft: CombatMovementDraft | None = None
 
 
 @dataclass
@@ -1014,6 +1016,8 @@ class CombatCommandService:
             return {"error": "move_sprite callback required"}
         if not command.table_id:
             return {"error": "table_id required"}
+        if command.table_id != state.table_id:
+            return {"error": "Movement must use the encounter table"}
         if command.target_x is None or command.target_y is None:
             return {"error": "target_x and target_y required"}
         if command.from_x is None or command.from_y is None:
@@ -1072,6 +1076,9 @@ class CombatCommandService:
         )
         if not move_result.get("success", False):
             return {"error": move_result.get("message") or "Move failed"}
+        if context.movement_draft is not None:
+            from_pos = move_result["from"]
+            to_pos = move_result["to"]
 
         actor.movement_remaining -= movement_cost
         state.action_log.append(CombatAction(
@@ -1267,6 +1274,7 @@ class CombatCommandService:
             state_before=snapshot or {},
             state_after=state_after,
             created_by=context.user_id,
+            movements=context.movement_draft.effects() if context.movement_draft else (),
         )
         if current is not None:
             current.state_version = persisted.state_version
@@ -1306,6 +1314,7 @@ class CombatCommandService:
             state_before=snapshot or {},
             state_after=state_after,
             created_by=context.user_id,
+            movements=context.movement_draft.effects() if context.movement_draft else (),
         )
         if current is not None:
             current.state_version = persisted.state_version
@@ -1320,7 +1329,7 @@ class CombatCommandService:
         snapshot: dict[str, Any] | None,
         move_undos: list[tuple[str, str, dict[str, float], dict[str, float]]],
     ) -> None:
-        if context.move_sprite is not None:
+        if context.move_sprite is not None and context.movement_draft is None:
             for table_id, entity_id, from_pos, to_pos in reversed(move_undos):
                 try:
                     await context.move_sprite(table_id, entity_id, from_pos, to_pos, context.session_code)

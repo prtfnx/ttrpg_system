@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from core_table.protocol import Message, MessageType
+from core_table.server import TableManager
 from core_table.session_rules import SessionRules
 from service.attack_resolver import AttackResult
 from service.combat_engine import CombatEngine
@@ -392,7 +393,7 @@ class TestCombatCommand:
         assert proto.sent == []
         assert actor.has_action is True
 
-    async def test_move_command_spends_movement_and_uses_actions_core(self):
+    async def test_move_command_stages_movement_until_acceptance(self):
         CombatEngine._active.pop("TST", None)
         state = CombatEngine.start_combat(
             "TST",
@@ -413,14 +414,14 @@ class TestCombatCommand:
         proto = _ProtoStub(role="player")
         proto.actions = MagicMock()
         proto.actions.move_sprite = AsyncMock(return_value=MagicMock(success=True, message="ok"))
-        table = MagicMock()
-        table.width = 640
-        table.height = 640
+        proto.table_manager = TableManager()
+        table = proto.table_manager.create_table("Combat", 640, 640)
+        table.table_id = "t1"
+        proto.table_manager.add_table(table)
         table.grid_cell_px = 64
-        table.walls = {}
-        table.entities = {}
-        table.difficult_terrain_cells = set()
-        proto.table_manager.tables_id = {"t1": table}
+        entity = table.add_entity({"sprite_id": "sprite-a", "position": [32, 32], "layer": "tokens"})
+        proto.combat_persistence_service = _mock_persistence()
+        proto.combat_persistence_service.find_result.return_value = None
 
         resp = await proto.handle_combat_command(
             Message(MessageType.COMBAT_COMMAND, {
@@ -445,7 +446,8 @@ class TestCombatCommand:
         assert live_state.combatants[0].movement_remaining == 25
         assert resp.data["applied"][0]["result"]["cost_ft"] == 5
         assert resp.data["applied"][0]["result"]["declared_cost_ft"] == 30
-        proto.actions.move_sprite.assert_awaited_once()
+        proto.actions.move_sprite.assert_not_awaited()
+        assert entity.position == (96, 32)
 
 # ---------------------------------------------------------------------------
 # handle_ai_action

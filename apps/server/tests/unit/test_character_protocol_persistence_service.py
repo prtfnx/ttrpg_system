@@ -131,3 +131,47 @@ def test_xp_award_is_recorded_with_protocol_context(persistence_context):
         assert log.description == "+250 XP from quest: Saved the village"
         assert log.session_id == session_id
         assert log.user_id == user_id
+
+
+@pytest.mark.parametrize("commit", [False, True])
+def test_linked_stats_share_the_callers_character_transaction(persistence_context, commit):
+    import json
+
+    from database.models import Entity, SessionCharacter
+
+    persistence, factory, (session_id, user_id) = persistence_context
+    with factory() as db:
+        db.add(SessionCharacter(character_id="character-one", session_id=session_id, owner_user_id=user_id,
+                                character_name="Hero", character_data='{"data":{"stats":{"hp":1}}}', version=1))
+        db.commit()
+    with factory() as db:
+        character = db.query(SessionCharacter).filter_by(character_id="character-one").one()
+        character.character_data = '{"data":{"stats":{"hp":9}}}'
+        character.version = 2
+        identities = persistence.stage_character_token_stats(db, session_id, "character-one", {"hp": 9})
+        assert identities == [persistence.TokenStatUpdate("sprite-one", "table-one", "tokens")]
+        assert db.in_transaction()
+        if commit:
+            db.commit()
+        else:
+            db.rollback()
+    with factory() as db:
+        character = db.query(SessionCharacter).filter_by(character_id="character-one").one()
+        entity = db.query(Entity).filter_by(sprite_id="sprite-one").one()
+        assert json.loads(character.character_data)["data"]["stats"]["hp"] == (9 if commit else 1)
+        assert character.version == (2 if commit else 1)
+        assert entity.hp == (9 if commit else 1)
+        assert db.query(Entity).filter_by(sprite_id="sprite-two").one().hp == 4
+
+
+def test_linked_stat_staging_cannot_modify_identity_or_permissions(persistence_context):
+    from database.models import Entity
+
+    persistence, factory, (session_id, _) = persistence_context
+    with factory() as db:
+        with pytest.raises(ValueError, match="only change"):
+            persistence.stage_character_token_stats(db, session_id, "character-one",
+                                                    {"hp": 9, "controlled_by": "[999]"})
+        db.commit()
+    with factory() as db:
+        assert db.query(Entity).filter_by(sprite_id="sprite-one").one().hp == 1

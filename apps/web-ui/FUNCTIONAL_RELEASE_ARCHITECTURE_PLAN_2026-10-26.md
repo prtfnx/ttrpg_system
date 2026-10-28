@@ -42,6 +42,11 @@ lost commit responses, lookup outages, cancellation, ended encounters, and
 current-role notification filtering. Next: implement the R2 field-authority and
 linked-stat boundary; retain browser reconciliation and PostgreSQL evidence gates.
 
+R2 has a tested borrowed-transaction adapter for linked HP/max-HP/AC projections.
+It locks entity rows in stable order, preserves session/layer scope, and leaves
+commit/rollback to the source transaction. Production character update wiring
+and the encounter/sheet authority policy remain open at this checkpoint.
+
 Source baseline: local `main` at `058d5446`. This reassesses [the October 23 architecture research](ARCHITECTURE_RESEARCH_2026-10-23.md) against current code and subsequent fixes. The old report's commit identifiers, branch counts, and descriptions of unfixed defects are historical. At plan creation the tracking state was ten local commits ahead of `origin/main`; deployment of subsequent local changes is not established here.
 
 The release priorities are durable game actions, responsive multiplayer play, recoverable reconnects, and a tested way to restore retained data. Broad package extraction, elimination of every import cycle, and horizontal scaling are outside this release's critical path.

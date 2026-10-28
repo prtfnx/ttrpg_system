@@ -6,7 +6,7 @@ compendium data, or character-token links.
 Status: usable. Character storage and authority and the bundled starter
 compendium are implemented.
 
-Last source audit: 2026-09-14
+Last source audit: 2026-10-26
 
 ## Ownership
 
@@ -59,6 +59,34 @@ below.
 Deletion is an idempotent archive operation. It detaches linked tokens and
 removes active sharing grants while retaining character logs and an archive
 event.
+
+## Linked-stat transaction boundary
+
+`stage_character_token_stats(db, session_id, character_id, stats)` locks linked
+entity rows in stable ID order and flushes HP/max-HP/AC inside a caller-owned
+transaction. It cannot change identity or permissions, and it never commits or
+rolls back that transaction. Its detached token identities/layers are provisional
+until the caller commits. `persist_character_token_stats` remains the standalone
+session-owning wrapper. Outer commit/rollback and cross-session isolation are
+covered by `tests/unit/test_character_protocol_persistence_service.py`.
+
+The character update handler still commits the character before invoking that
+standalone wrapper. The staging API prepares a shared acceptance boundary; it
+does not yet make the production character/token update atomic. R2 must wire
+the source document, version, audit records, and token projections into one
+transaction, then install/publish the returned projections without another write.
+
+Current field boundaries must remain explicit:
+
+| State | Current owner | Remaining consistency work |
+| --- | --- | --- |
+| Character document, version, XP and advancement | Character manager and advancement commands | Couple linked stat projections to source acceptance; preserve advancement restrictions. |
+| Token HP/max-HP/AC outside combat | Linked sheet synchronization or authorized token edit | Resolve bidirectional write ownership and failed publication/restart behavior. |
+| Active encounter HP, resources and turn state | Combat command snapshot/journal | Define sheet edits during combat and any encounter-completion write-back before unifying these fields. |
+
+Ending an encounter does not currently establish a general character-sheet HP
+write-back guarantee. Do not overwrite active encounter values from a delayed
+sheet projection or infer that the newest row always owns a shared stat.
 
 ## Browser edits and reconnects
 

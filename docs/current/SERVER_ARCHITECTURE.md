@@ -207,6 +207,12 @@ transaction.
 Current terrain/cover commands require one DM command outside active combat;
 see [Battle flow](BATTLE_FLOW.md).
 
+Combat commit-response failures resolve the journal under a fresh session-row
+barrier. Unavailable lookups quarantine the cache, serialized work, snapshots,
+and empty-session cleanup; heartbeats remain available. A later authoritative
+request installs and publishes the verified outcome before running its handler.
+See [Battle flow](BATTLE_FLOW.md) for the recovery contract and regressions.
+
 `protocol/combat.py` should stay a boundary layer: parse the websocket message,
 build context, call the service, and send filtered responses.
 

@@ -71,8 +71,13 @@ commits affected positions and geometry with the snapshot/journal. The worker
 rechecks persisted source positions and updates only movement-owned fields.
 Acceptance locks the session/encounter rows and checks encounter session/table
 identity and the expected combat revision before advancing the journal.
-This does not make character-sheet/token/encounter stats one transaction or
-resolve every unknown commit outcome.
+Combat commit-response errors resolve receipts in a fresh READ COMMITTED
+transaction after locking the same session row. If lookup is unavailable, the
+protocol quarantines authoritative reads/writes and snapshots until recovery
+installs the verified outcome. Empty dirty queues cannot discard this cache.
+See [Battle flow](../BATTLE_FLOW.md) for retry and cancellation rules. This does
+not make character-sheet/token/encounter stats one transaction or add universal
+operation receipts for table/settings/XP commands.
 Pre-combat environment saves use the async detached-snapshot path and retain
 table ordering through cancellation. The TODO guarantees above remain incomplete.
 Environment commands are limited to a single

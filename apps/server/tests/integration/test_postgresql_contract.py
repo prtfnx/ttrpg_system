@@ -170,6 +170,92 @@ def test_combat_movement_and_acceptance_share_transaction(postgresql_engine, mon
             outer.rollback()
 
 
+@pytest.mark.parametrize("commit", [False, True])
+def test_combat_outcome_lookup_waits_for_the_original_transaction(postgresql_engine, commit):
+    from service.combat_persistence_service import CombatPersistenceService, PendingCombatCommit
+
+    suffix = uuid.uuid4().hex[:12]
+    factory = sessionmaker(bind=postgresql_engine, expire_on_commit=False)
+    with factory() as db:
+        owner = models.User(username=f"outcome-{suffix}", hashed_password="not-a-real-hash")
+        db.add(owner)
+        db.flush()
+        game = models.GameSession(name="Outcome barrier", session_code=suffix, owner_id=owner.id)
+        db.add(game)
+        db.commit()
+        owner_id, session_id = owner.id, game.id
+    writer = factory()
+    reader_ready = threading.Event()
+    reader_pids, results, errors = [], [], []
+    encounter_id = str(uuid.uuid4())
+    snapshot = {"combat_id": encounter_id, "table_id": str(uuid.uuid4()), "phase": "active"}
+    attempt = PendingCombatCommit(encounter_id, f"user:{owner_id}", 1, {}, snapshot, ())
+
+    def read_session():
+        db = factory()
+        reader_pids.append(db.execute(text("SELECT pg_backend_pid()")).scalar_one())
+        reader_ready.set()
+        return db
+
+    def resolve():
+        try:
+            results.append(CombatPersistenceService(read_session)._resolve_commit(suffix, attempt))
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=resolve, daemon=True)
+    try:
+        CombatPersistenceService(factory).stage_accepted(
+            writer, session_code=suffix, requester_key=attempt.requester_key, sequence_id=1,
+            actor_id=None, command_type="start_combat", command_payload={},
+            result_payload={"accepted": True}, state_before={}, state_after=snapshot, created_by=owner_id,
+        )
+        writer_pid = writer.execute(text("SELECT pg_backend_pid()")).scalar_one()
+        reader.start()
+        assert reader_ready.wait(3)
+        deadline = time.monotonic() + 3
+        blocked = False
+        with postgresql_engine.connect().execution_options(isolation_level="AUTOCOMMIT") as observer:
+            while time.monotonic() < deadline:
+                blockers = observer.execute(text("SELECT pg_blocking_pids(:pid)"), {"pid": reader_pids[0]}).scalar_one()
+                if writer_pid in blockers:
+                    blocked = True
+                    break
+                time.sleep(.01)
+        assert blocked, "Outcome lookup did not wait on the acceptance session-row lock"
+        assert not results and not errors
+        if commit:
+            writer.commit()
+        else:
+            writer.rollback()
+        reader.join(timeout=5)
+        assert not reader.is_alive() and not errors
+        assert len(results) == 1
+        if commit:
+            assert results[0] is not None and results[0].state_version == 1
+        else:
+            assert results[0] is None
+    finally:
+        writer.rollback()
+        writer.close()
+        if reader.ident is not None:
+            reader.join(timeout=6)
+        with postgresql_engine.begin() as connection:
+            connection.execute(text("DELETE FROM combat_actions WHERE encounter_id = :id"), {"id": encounter_id})
+            connection.execute(text("DELETE FROM combat_encounters WHERE encounter_id = :id"), {"id": encounter_id})
+            connection.execute(text("DELETE FROM game_sessions WHERE id = :id"), {"id": session_id})
+            connection.execute(text("DELETE FROM users WHERE id = :id"), {"id": owner_id})
+
+
+def test_combat_outcome_lookup_rejects_repeatable_read_snapshots(postgresql_engine):
+    from service.combat_persistence_service import CombatPersistenceService, PendingCombatCommit
+
+    engine = postgresql_engine.execution_options(isolation_level="REPEATABLE READ")
+    service = CombatPersistenceService(sessionmaker(bind=engine))
+    with pytest.raises(RuntimeError, match="READ COMMITTED"):
+        service._resolve_commit("unused", PendingCombatCommit("unused", "user:1", 1, {}, {}, ()))
+
+
 def test_postgresql_schema_is_at_head_with_bounded_identifiers(postgresql_engine):
     inspector = inspect(postgresql_engine)
 

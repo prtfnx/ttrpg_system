@@ -44,7 +44,9 @@ These are remaining limitations, not completed architecture guarantees:
 
 - Extend durable operation receipts beyond existing canvas/sprite/paint/chat
   and combat mechanisms, especially table creation and XP awards. Reconcile
-  unknown commit outcomes; reload before retrying an unconfirmed create.
+  unknown table/settings/XP outcomes; reload before retrying an unconfirmed
+  create. Combat receipt recovery and snapshot quarantine already handle
+  ambiguous commit responses; complete browser acceptance remains to verify.
 - Transactions or durable repair for linked character/token/encounter stats
   and other resources beyond combat movement, including terrain changes
   during combat (currently prohibited).

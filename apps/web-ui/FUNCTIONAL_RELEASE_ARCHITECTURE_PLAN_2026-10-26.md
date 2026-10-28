@@ -19,8 +19,12 @@ stale durable positions, translated geometry, and cancellation ownership. The
 follow-up endpoint correction saves the validator's snapped destination and
 authoritative route start. Pre-combat environment persistence now uses the
 existing async table snapshot path, with detached worker inputs and retained
-session/table ownership through cancellation. Unknown commit outcomes and actual
-PostgreSQL execution are still open; R1 is not marked complete.
+session/table ownership through cancellation. Backend combat commit recovery now
+resolves the durable receipt behind a session-row barrier. Unavailable outcomes
+quarantine serialized work and snapshot retries until a later request installs
+the verified result; empty-session cleanup retains the cache. Actual PostgreSQL
+execution and complete browser recovery acceptance remain open; R1 is not yet
+release-qualified.
 Acceptance also rechecks the encounter's session/table identity and source
 revision under database row locks. The existing mandatory PostgreSQL contract
 module now includes movement/snapshot/journal success, rollback after flush,
@@ -29,12 +33,16 @@ and duplicate replay cases; these require execution against PostgreSQL in CI.
 Validation for this first implementation batch: 229 focused server regressions
 pass, the full pinned Pyright check reports zero errors/warnings, targeted Ruff
 checks pass, and `docs:check` passes. The PostgreSQL contract module collects
-12 cases but skips them locally without a configured test database. No served
+15 cases but skips them locally without a configured test database. New cases
+observe PostgreSQL row-lock blocking through original transaction commit/rollback
+and reject repeatable-read recovery snapshots. No served
 provider playthrough, restore rehearsal, or final release qualification is
-claimed. Next: resolve lost commit acknowledgements before treating SQL errors
-as definite rejection, then implement the R2 field-authority/linked-stat boundary.
+claimed. Continuation validation: 177 focused server regressions pass, including
+lost commit responses, lookup outages, cancellation, ended encounters, and
+current-role notification filtering. Next: implement the R2 field-authority and
+linked-stat boundary; retain browser reconciliation and PostgreSQL evidence gates.
 
-Source baseline: local `main` at `058d5446`. This reassesses [the October 23 architecture research](ARCHITECTURE_RESEARCH_2026-10-23.md) against current code and subsequent fixes. The old report's commit identifiers, branch counts, and descriptions of unfixed defects are historical. Current tracking state is ten local commits ahead of `origin/main`; deployment of those changes is not established here.
+Source baseline: local `main` at `058d5446`. This reassesses [the October 23 architecture research](ARCHITECTURE_RESEARCH_2026-10-23.md) against current code and subsequent fixes. The old report's commit identifiers, branch counts, and descriptions of unfixed defects are historical. At plan creation the tracking state was ten local commits ahead of `origin/main`; deployment of subsequent local changes is not established here.
 
 The release priorities are durable game actions, responsive multiplayer play, recoverable reconnects, and a tested way to restore retained data. Broad package extraction, elimination of every import cycle, and horizontal scaling are outside this release's critical path.
 
@@ -60,8 +68,8 @@ For a public production service, also require automated independent backups, res
 | Finding | Current assessment | Release action |
 | --- | --- | --- |
 | A1: combat lifecycle writes before acceptance | Fixed locally in `7676607f`: engine transitions no longer commit implicitly; accepted snapshot/journal owns the lifecycle save. | Retain failure/restart regressions. Do not reopen this as a separate refactor. |
-| A2: independent table/token/character/combat commits | Open. Combat movement persists before its journal; character changes and token stat synchronization commit separately. | R1 and R2 are release blockers for retained game state. |
-| A3: cancellation releases combat ownership early | Fixed for command settlement and protocol publication in `d6c1031d`. Detached environment-save inputs and other migrated paths still need review. | Preserve existing coverage; finish the remaining input/ordering work in R1 and R3. |
+| A2: independent table/token/character/combat commits | Partial: combat movement/snapshot/journal now share acceptance. Character changes and token stat synchronization still commit separately. | Finish R1 evidence and implement R2 before qualifying retained game state. |
+| A3: cancellation releases combat ownership early | Fixed for command settlement/publication, detached environment snapshots, and pending outcome recovery. Other migrated paths still need review. | Preserve existing coverage; finish remaining input/ordering work in R3. |
 | A4: synchronous database work in async paths | Open for choice encounters, join hydration, permission fallbacks, and compendium lookups. Wall command persistence already uses workers. | R3; migrate identified paths rather than rewriting all persistence. |
 | A5: private token stat broadcasts | Known character-stat producer fixed in `2a2cb2a8`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `429f0fe9`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |

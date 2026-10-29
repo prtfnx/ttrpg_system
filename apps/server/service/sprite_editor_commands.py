@@ -197,6 +197,11 @@ class SpriteEditorCommandService(CanvasCommandService):
             new = {entity.sprite_id: entity.to_dict() for entity in staged.entities.values()}
         changes = [{"kind": "sprite", "id": target, "before": old.get(target), "after": new.get(target)}
             for target in sorted(old.keys() | new.keys()) if encoded(old.get(target)) != encoded(new.get(target))]
+        projections = self._prepare_character_bindings(db, changes, scope.session_id, scope.actor_id, role)
+        for target, stats in projections.items():
+            entity = staged.find_entity_by_sprite_id(target)
+            for stat_field, value in stats.items():
+                setattr(entity, stat_field, value)
         moved = [change for change in changes if change["before"] is not None and change["after"] is not None
                  and change["before"]["position"] != change["after"]["position"]]
         if moved:

@@ -22,6 +22,7 @@ from core_table.sprite_commands import transform_sprite_geometry
 from core_table.table import LAYER_NAMES, Entity, VirtualTable
 from database import models
 from service.canvas_journal import MAX_HISTORY_BYTES, MAX_HISTORY_ENTRIES, RETENTION, trim_history
+from service.character_token_binding import CharacterBindingError, prepare_character_bindings
 from service.movement_validator import MovementValidator
 from service.paint_object_service import PaintObjectService, _object_dict, _Rejected
 from service.text_sprite import encode_text_metadata, text_metadata
@@ -371,6 +372,7 @@ class CanvasCommandService:
                     combat_ids.update(str(member["entity_id"]) for member in json.loads(encounter.combatants_json or "[]"))
             self._authorize(changes, role, actor_id, mode, combat_ids)
             if mode != "copy":
+                self._prepare_character_bindings(db, changes, session_id, actor_id, role)
                 events = self._apply(db, table, changes, role, actor_id, session_id, operation_id, rules)
                 if any(change["kind"] == "sprite" for change in changes):
                     from service.sprite_delta_persistence import stage_sprite_delta
@@ -573,6 +575,13 @@ class CanvasCommandService:
                     raise CanvasRejected(
                         "combat_required", "Combat tokens must use combat commands, not editor group operations"
                     )
+
+    @staticmethod
+    def _prepare_character_bindings(db, changes, session_id, actor_id, role):
+        try:
+            return prepare_character_bindings(db, changes, session_id, actor_id, bypass_owner_check=is_dm(role))
+        except CharacterBindingError as exc:
+            raise CanvasRejected(exc.code, str(exc)) from exc
 
     def _apply(self, db, table, changes, role, actor_id, session_id, operation_id, rules):
         events = []

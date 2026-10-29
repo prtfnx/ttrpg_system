@@ -20,6 +20,11 @@ _TYPES = {MessageType.SPRITE_CREATE, MessageType.SPRITE_REMOVE, MessageType.SPRI
 
 
 def can_buffer(message):
+    if message.type == MessageType.SPRITE_CREATE and (
+            message.data.get('character_id') or (message.data.get('sprite_data') or {}).get('character_id')):
+        # Binding stats are resolved during SQL acceptance. Its canonical
+        # publication must be built after that resolution, not collected early.
+        return False
     return message.type in _TYPES or (message.type == MessageType.SPRITE_UPDATE
         and isinstance(message.data, dict) and set(message.data) <= EDITOR_UPDATE_FIELDS)
 

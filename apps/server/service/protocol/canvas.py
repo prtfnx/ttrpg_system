@@ -31,6 +31,19 @@ class _CanvasMixin(_ProtocolBase):
             receipt = await run_blocking(SpriteEditorCommandService(SessionLocal).persist,
                 scope=scope, before_snapshot=before_snapshot, staged=staged, combat_sprite_ids=combat_ids)
         scope.receipt.update(receipt)
+        # Binding preparation may replace client hints with canonical source
+        # stats. Publish the installed result, never the pre-commit hints.
+        if isinstance(result.data, dict):
+            for target in before_snapshot.get('_sprite_targets', ()):
+                before = before_snapshot['sprites'][target]
+                entity = staged.find_entity_by_sprite_id(target)
+                if entity is None or not entity.character_id or before and before.get('character_id') == entity.character_id:
+                    continue
+                stats = {field: getattr(entity, field) for field in ('hp', 'max_hp', 'ac')}
+                if isinstance(result.data.get('sprite_data'), dict):
+                    result.data['sprite_data'].update(stats)
+                else:
+                    result.data.update(stats)
         return True
 
     @staticmethod

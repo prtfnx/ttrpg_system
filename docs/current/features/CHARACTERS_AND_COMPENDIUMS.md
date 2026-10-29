@@ -118,7 +118,25 @@ commit, change the character version, or write to another token. Detaching keeps
 independent values; changing stats on an existing link is rejected so callers
 use the character command. Moving an existing linked token does not require
 new character edit permission. `test_character_token_binding.py` covers these
-adapter rules; protocol integration is a separate boundary.
+adapter rules. Sprite editor acceptance and canvas paste/history restoration
+invoke the adapter before their token/journal commit. New links and linked
+creation publish the committed canonical values, with linked creations excluded
+from early transport-batch publication. Binding is not a character edit and does
+not increment its source version or logs.
+
+The normal sprite update path no longer performs a second reverse source write.
+A changed stat on an existing link rejects the entire sprite command, including
+other fields; callers use `character_update`. A new binding treats supplied stat
+values as hints and copies current source values. Explicit `character_id: null`
+detaches without looking up or changing the previous source, even when the same
+command sets independent stats. Normal role/layer and sprite-control checks
+still apply. Real protocol/SQLite regressions in
+`test_sprite_editor_protocol.py` cover binding, canonical publications, failed
+flush rollback, durable duplicate replay, batching, and detach.
+
+Existing divergent rows, older flat NPC documents, and specialized compendium
+creation still need reconciliation/qualification. These changes do not establish
+a general historical-data repair or encounter-completion write-back guarantee.
 
 ## Character commit verification adapter
 

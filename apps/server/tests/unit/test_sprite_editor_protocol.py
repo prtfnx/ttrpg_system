@@ -67,6 +67,117 @@ async def test_normal_text_create_and_edit_enter_same_durable_history(protocol):
     assert sprite_command_scope.get() is None
 
 
+@pytest.fixture
+def character_source(protocol, test_game_session):
+    proto, table, factory = protocol
+    with factory() as db:
+        source = models.SessionCharacter(character_id="linked-source", session_id=test_game_session.id,
+            owner_user_id=test_game_session.owner_id, character_name="Hero", version=1,
+            character_data=json.dumps({"character_id": "linked-source", "name": "Hero",
+                "data": {"stats": {"hp": 0, "maxHp": 30, "ac": None}}}))
+        db.add(source)
+        db.commit()
+    # No source write belongs to sprite acceptance or publication.
+    proto.actions.update_character = AsyncMock(side_effect=AssertionError("Unexpected reverse source write"))
+    return proto, table, factory
+
+
+@pytest.mark.parametrize("create_linked", [False, True])
+async def test_binding_copies_current_source_stats_in_the_sprite_receipt_transaction(character_source, create_linked):
+    proto, table, factory = character_source
+    if not create_linked:
+        await send(proto, Message(MessageType.SPRITE_CREATE, {"table_id": str(table.table_id), "sprite_data": {
+            "sprite_id": "bound", "x": 100, "y": 100, "hp": 99, "max_hp": 99, "ac": 99}}))
+        message = Message(MessageType.SPRITE_UPDATE, {"table_id": str(table.table_id), "sprite_id": "bound",
+            "character_id": "linked-source"})
+    else:
+        message = Message(MessageType.SPRITE_CREATE, {"table_id": str(table.table_id), "sprite_data": {
+            "sprite_id": "bound", "x": 100, "y": 100, "character_id": "linked-source", "hp": 99}})
+    retry = copy.deepcopy(message)
+    response = await send(proto, message)
+    assert response.type in {MessageType.SUCCESS, MessageType.SPRITE_RESPONSE}
+    entity = table.find_entity_by_sprite_id("bound")
+    assert (entity.hp, entity.max_hp, entity.ac) == (0, 30, None)
+    data = response.data["sprite_data"] if create_linked else response.data["updates"]
+    assert (data["hp"], data["max_hp"], data["ac"]) == (0, 30, None)
+    with factory() as db:
+        source = db.query(models.SessionCharacter).one()
+        saved = db.query(models.Entity).filter_by(sprite_id="bound").one()
+        assert source.version == 1 and (saved.hp, saved.max_hp, saved.ac) == (0, 30, None)
+        assert db.query(models.CanvasCommandJournal).count() == (1 if create_linked else 2)
+        assert not db.query(models.CharacterLog).count()
+    proto.actions.update_character.assert_not_awaited()
+    replay = await send(proto, retry)
+    assert replay.data["resync_required"] and "updates" not in replay.data
+
+
+async def test_invalid_binding_rejects_without_token_or_journal_writes(protocol):
+    proto, table, factory = protocol
+    request = Message(MessageType.SPRITE_CREATE, {"table_id": str(table.table_id), "sprite_data": {
+        "sprite_id": "bound", "x": 100, "y": 100, "character_id": "missing"}})
+    assert (await send(proto, request)).type == MessageType.ERROR
+    assert table.find_entity_by_sprite_id("bound") is None
+    proto.broadcast_filtered.assert_not_awaited()
+    with factory() as db:
+        assert not db.query(models.Entity).count() and not db.query(models.CanvasCommandJournal).count()
+
+
+async def test_linked_stat_edit_rejects_atomically_and_detach_never_changes_the_old_source(character_source):
+    proto, table, factory = character_source
+    await send(proto, Message(MessageType.SPRITE_CREATE, {"table_id": str(table.table_id), "sprite_data": {
+        "sprite_id": "bound", "x": 100, "y": 100, "character_id": "linked-source"}}))
+    proto.broadcast_filtered.reset_mock()
+    response = await send(proto, Message(MessageType.SPRITE_UPDATE, {"table_id": str(table.table_id),
+        "sprite_id": "bound", "hp": 5, "aura_radius": 100}))
+    assert response.type == MessageType.ERROR
+    token = table.find_entity_by_sprite_id("bound")
+    assert token.hp == 0 and token.aura_radius is None
+    proto.broadcast_filtered.assert_not_awaited()
+    with factory() as db:
+        assert db.query(models.Entity).one().hp == 0
+        assert db.query(models.CanvasCommandJournal).count() == 1
+    response = await send(proto, Message(MessageType.SPRITE_UPDATE, {"table_id": str(table.table_id),
+        "sprite_id": "bound", "character_id": None, "hp": 5}))
+    assert response.type == MessageType.SUCCESS
+    assert table.find_entity_by_sprite_id("bound").character_id is None
+    assert table.find_entity_by_sprite_id("bound").hp == 5
+    with factory() as db:
+        assert db.query(models.SessionCharacter).one().version == 1
+        assert db.query(models.Entity).one().character_id is None
+    proto.actions.update_character.assert_not_awaited()
+
+
+async def test_binding_failure_after_flush_rolls_back_token_receipt_and_cache(character_source, monkeypatch):
+    proto, table, factory = character_source
+    from service import sprite_editor_commands
+    stage = sprite_editor_commands.stage_sprite_delta
+
+    def fail_after_flush(*args, **kwargs):
+        stage(*args, **kwargs)
+        raise RuntimeError("Failure after binding flush")
+
+    monkeypatch.setattr(sprite_editor_commands, "stage_sprite_delta", fail_after_flush)
+    request = Message(MessageType.SPRITE_CREATE, {"table_id": str(table.table_id), "sprite_data": {
+        "sprite_id": "bound", "x": 100, "y": 100, "character_id": "linked-source"}})
+    assert (await send(proto, request)).type == MessageType.ERROR
+    assert table.find_entity_by_sprite_id("bound") is None
+    proto.broadcast_filtered.assert_not_awaited()
+    with factory() as db:
+        assert not db.query(models.Entity).count() and not db.query(models.CanvasCommandJournal).count()
+        assert db.query(models.SessionCharacter).one().version == 1
+
+
+async def test_linked_creates_publish_canonical_stats_when_transport_batched(character_source):
+    proto, table, _ = character_source
+    messages = [Message(MessageType.SPRITE_CREATE, {"table_id": str(table.table_id), "sprite_data": {
+        "sprite_id": f"bound-{i}", "x": 100 + i * 100, "y": 100, "character_id": "linked-source", "hp": 99,
+    }}).to_dict() for i in range(2)]
+    await send(proto, Message(MessageType.BATCH_REQUEST, {"messages": messages}))
+    events = [call.args[0] for call in proto.broadcast_filtered.await_args_list]
+    assert len(events) == 2 and all(message.data["sprite_data"]["hp"] == 0 for message in events)
+    assert all(table.find_entity_by_sprite_id(f"bound-{i}").hp == 0 for i in range(2))
+
+
 async def test_identical_create_retry_acknowledges_without_rebroadcast_or_stale_object(protocol):
     proto, table, factory = protocol
     message = create(table)

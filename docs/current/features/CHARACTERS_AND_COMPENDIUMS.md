@@ -93,8 +93,8 @@ Regression owner: `tests/unit/test_character_stat_transaction.py` exercises the
 real manager, ActionsCore, protocol dispatch, SQLite transaction, and queued
 snapshot path. PostgreSQL execution and browser resync acceptance remain release
 gates. Token-originated edits and active encounter writes are separate paths;
-unknown character commit outcomes and existing divergent-row repair still need
-reconciliation. This is not a universal stat-ownership or receipt guarantee.
+durable character request identity across restart and existing divergent-row
+repair still need reconciliation. This is not a universal stat-ownership or receipt guarantee.
 
 Current field boundaries must remain explicit:
 
@@ -119,10 +119,31 @@ Lookup does not clear quarantine until its caller installs the verified outcome.
 The PostgreSQL lock wait is bounded to five seconds. Regression owner:
 `tests/unit/test_character_update_recovery.py`.
 
-This adapter is not yet wired into character acceptance at this checkpoint.
-It is not a durable retry ledger and cannot classify an arbitrary superseding
-write after process replacement. Character outcome handling remains a release
-follow-up until application admission, installation, and browser recovery use it.
+Generic character acceptance now takes the same stable session-row lock before
+validation and records the exact before/after CAS state before attempting commit.
+A failed commit response closes its original ORM session, then resolves on a
+fresh connection while session/loaded-table ownership is still held. Confirmed
+commit returns success; a proven rollback permits failure. A different source
+version/document/modifier, archive, missing row, or failed lookup remains unknown.
+
+Unavailable outcomes return `ERROR` with `code=character_outcome_unknown`,
+`outcome=unknown`, and `resync_required=true`. Session authoritative work, table
+snapshots, and empty-session cleanup share quarantine with combat; heartbeats
+remain available. A later serialized request attempts recovery and installs
+committed projections before resuming. Recovery cancellation retains ownership.
+The result uses the original actor and request correlation; current-authority
+viewers receive the separate character event. Replaying that original request
+during recovery returns its settled result without another source update;
+reusing its identity for different update data rejects.
+
+The request identity crosses the worker through a scoped ContextVar and is reset
+after dispatch. `tests/unit/test_character_stat_transaction.py` covers committed
+and rolled-back response loss, lookup outages, snapshot fencing, exact replay,
+payload mismatch, and cancellation. This is an in-process CAS verifier, not a
+durable retry ledger across process restart. A superseding or missing source
+cannot be guessed into success/failure; operator reconciliation or clean restart
+is required if ordinary recovery cannot establish it. PostgreSQL and complete
+browser acceptance remain release gates.
 
 ## Browser edits and reconnects
 

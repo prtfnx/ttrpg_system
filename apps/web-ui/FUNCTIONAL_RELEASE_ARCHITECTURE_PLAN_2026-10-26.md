@@ -14,6 +14,17 @@ for old/new identifiers. Short references below use the redated history.
 Next implementation target: uncertain character commit outcomes, followed by
 token-originated consistency and remaining R2/R3 work.
 
+October 27 implementation: generic character updates now wait on a stable
+session-row lock and verify commit-response errors against the exact before/after
+CAS version/document on a fresh connection. Unavailable or superseded outcomes
+stay unknown and share the session/snapshot admission fence with combat. Later
+serialized requests install verified projections before work resumes; recovered
+receipts retain the original actor/message identity. Replaying that original
+request during recovery returns its outcome without incrementing the source
+again; changing its payload rejects. This is in-process reconciliation, not a
+durable retry ledger across restart. Token-originated transactions, encounter
+authority, general durable identities, and real PostgreSQL acceptance remain open.
+
 Execution started: 2026-10-26. R0 documentation reconciliation is implemented.
 The isolated optimized WASM build matches the baseline `HEAD` binary byte for
 byte (SHA-256 `33ba71838d57fbf860d9d51933a17bbfacd64ff92cfbc8c035bd016775bfcace`,
@@ -61,7 +72,7 @@ and reports notification failures as successful acceptance requiring resync.
 Regressions include failed staging, zero/null stats, private/unloaded tokens,
 stale versions, cancellation, and a queued background snapshot. Token-originated
 sheet edits, active encounter write-back/authority, old-data reconciliation, and
-uncertain character commit outcomes still require follow-up; R2 remains partial.
+durable character request identity across restart still require follow-up; R2 remains partial.
 
 The continuation batch passes 300 focused server regressions, full pinned
 Pyright with zero errors/warnings, targeted Ruff, and current-doc link checks.

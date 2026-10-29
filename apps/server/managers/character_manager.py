@@ -25,6 +25,12 @@ from database.models import (
 from service.character_protocol_persistence_service import stage_character_token_stats
 from service.character_rules import multiclass_prerequisites
 from service.character_schema import CharacterStats, validate_character_document
+from service.character_update_recovery import (
+    CharacterUpdateOutcomeUnknown,
+    CharacterUpdateRecovery,
+    PendingCharacterUpdate,
+    character_update_request_id,
+)
 from sqlalchemy import and_, or_
 from utils.logger import setup_logger
 from utils.time import utc_now
@@ -106,7 +112,20 @@ class ServerCharacterManager:
 
     def __init__(self):
         logger.info("ServerCharacterManager initialized")
+        self.update_recovery = CharacterUpdateRecovery(lambda: SessionLocal())
         # No need to manually create table - SQLAlchemy migrations handle this
+
+    def _settle_failed_update(self, attempt: PendingCharacterUpdate, error: Exception) -> dict[str, Any]:
+        self.update_recovery.remember(attempt)
+        resolved = self.update_recovery.resolve(attempt.session_id)
+        if resolved is None:
+            raise CharacterUpdateOutcomeUnknown("Character recovery attempt disappeared")
+        # Immediate resolution still runs under caller-owned session/table locks.
+        self.update_recovery.complete(resolved)
+        if resolved.committed:
+            return deepcopy(attempt.result)
+        return {'success': False, 'error': f'Character update did not commit: {error}',
+                'current_version': attempt.before_version}
 
     @staticmethod
     def _can_view(db: Any, character: SessionCharacter, user_id: int, bypass: bool = False) -> bool:
@@ -308,12 +327,17 @@ class ServerCharacterManager:
         Merges JSON if appropriate and enforces optimistic concurrency if expected_version provided.
         bypass_owner_check=True allows DM-initiated updates (e.g. token HP sync).
         """
+        attempt = None
         try:
+            if self.update_recovery.has_pending(session_id):
+                raise CharacterUpdateOutcomeUnknown('Resolve the pending character update first')
             with SessionLocal() as db:
                 # Validate session and character presence
-                session = db.query(GameSession).filter(GameSession.id == session_id).first()
+                session = db.query(GameSession).filter(GameSession.id == session_id).with_for_update().first()
                 if not session:
                     return {'success': False, 'error': f'Session {session_id} not found'}
+                if self.update_recovery.has_pending(session_id):
+                    raise CharacterUpdateOutcomeUnknown('Resolve the pending character update first')
 
                 existing = db.query(SessionCharacter).filter(
                     SessionCharacter.character_id == character_id,
@@ -413,9 +437,7 @@ class ServerCharacterManager:
 
                 token_updates = stage_character_token_stats(db, session_id, character_id, token_stats)
 
-                db.commit()
-
-                return {
+                result = {
                     'success': True,
                     'character_id': character_id,
                     'version': new_version,
@@ -423,11 +445,23 @@ class ServerCharacterManager:
                     'token_updates': [asdict(update) for update in token_updates],
                     'token_stats': token_stats,
                 }
+                attempt = PendingCharacterUpdate(
+                    session_id, character_id, user_id, character_update_request_id.get(),
+                    int(current_version), str(char_payload), merged_json, deepcopy(result), deepcopy(updates),
+                )
+                db.commit()
+            return result
 
+        except CharacterUpdateOutcomeUnknown:
+            raise
         except ValueError as e:
+            if attempt is not None:
+                return self._settle_failed_update(attempt, e)
             return {'success': False, 'error': str(e)}
 
         except Exception as e:
+            if attempt is not None:
+                return self._settle_failed_update(attempt, e)
             logger.error(f"Error updating character: {e}")
             return {'success': False, 'error': f'Database error: {str(e)}'}
 

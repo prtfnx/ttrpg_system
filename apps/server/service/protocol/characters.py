@@ -7,6 +7,7 @@ from service.character_protocol_persistence_service import (
     record_xp_award,
 )
 from service.character_rules import level_for_xp
+from service.character_update_recovery import CharacterUpdateOutcomeUnknown, character_update_request_id
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import is_dm
@@ -18,6 +19,80 @@ logger = setup_logger(__name__)
 
 class _CharactersMixin(_ProtocolBase):
     """Handler methods for characters domain."""
+
+    def _has_pending_character_update(self) -> bool:
+        session_id = getattr(getattr(self, 'session_manager', None), 'game_session_db_id', None)
+        if not isinstance(session_id, int) or isinstance(session_id, bool):
+            return False
+        from managers.character_manager import get_server_character_manager
+        return get_server_character_manager().update_recovery.has_pending(session_id)
+
+    @staticmethod
+    def _character_uncertain_response(character_id=None) -> Message:
+        data = {'code': 'character_outcome_unknown', 'outcome': 'unknown', 'resync_required': True,
+                'error': 'Character outcome is uncertain. Reload to check before retrying.'}
+        if character_id is not None:
+            data['character_id'] = character_id
+        return Message(MessageType.ERROR, data)
+
+    async def _recover_pending_character_update(self, request: Message, client_id: str) -> Message | None:
+        if not self._has_pending_character_update():
+            return None
+        from managers.character_manager import get_server_character_manager
+        manager = get_server_character_manager()
+        session_id = self._get_session_id(request)
+        assert session_id is not None
+        try:
+            resolved = await run_blocking(manager.update_recovery.resolve, session_id)
+        except CharacterUpdateOutcomeUnknown:
+            logger.exception('Character outcome lookup is unavailable or ambiguous')
+            return self._character_uncertain_response()
+        if resolved is None:
+            return None
+        attempt = resolved.attempt
+        if resolved.committed:
+            async with AsyncExitStack() as ownership:
+                for table_id in sorted(self.table_manager.tables):
+                    await ownership.enter_async_context(self.table_manager.table_write_lock(table_id))
+                await self._sync_character_stats_to_tokens(
+                    session_id, attempt.character_id, attempt.updates,
+                    committed_updates=attempt.result['token_updates'], committed_stats=attempt.result['token_stats'],
+                )
+        manager.update_recovery.complete(resolved)
+        if resolved.committed:
+            try:
+                await self._broadcast_character_event(Message(MessageType.CHARACTER_UPDATE, {
+                    'character_id': attempt.character_id, 'updates': attempt.updates,
+                    'version': attempt.result['version'], 'source': 'recovery', 'resync_required': True,
+                }), session_id, attempt.character_id)
+            except Exception:
+                logger.exception('Committed character recovery notification failed')
+        outcome = {'success': resolved.committed, 'character_id': attempt.character_id, 'resync_required': True}
+        if resolved.committed:
+            outcome['version'] = attempt.result['version']
+        else:
+            outcome['error'] = 'Character update did not commit'
+            outcome['current_version'] = attempt.before_version
+        matching_request = request.message_id == attempt.request_id and self._get_user_id(request, client_id) == attempt.user_id
+        payload = request.data if isinstance(request.data, dict) else {}
+        matching_payload = (request.type == MessageType.CHARACTER_UPDATE
+                            and payload.get('character_id') == attempt.character_id
+                            and (payload.get('updates') or payload.get('character_data')) == attempt.updates)
+        # Reply only to the original actor and original message identity. Other
+        # viewers receive the separately authorized character event above.
+        if attempt.request_id is not None:
+            for recipient, info in list(getattr(self.session_manager, 'client_info', {}).items()):
+                if info.get('user_id') != attempt.user_id or matching_request and recipient == client_id:
+                    continue
+                try:
+                    await self.send_to_client(Message(MessageType.CHARACTER_UPDATE_RESPONSE, dict(outcome),
+                        correlation_id=attempt.request_id, causation_id=attempt.request_id), recipient)
+                except Exception:
+                    logger.exception('Character recovery receipt delivery failed')
+        if matching_request and not matching_payload:
+            return Message(MessageType.ERROR, {'code': 'operation_id_conflict',
+                'error': 'The recovered request identity belongs to different character updates'})
+        return Message(MessageType.CHARACTER_UPDATE_RESPONSE, outcome) if matching_request else None
 
     async def _character_client_ids(
         self,
@@ -583,14 +658,14 @@ class _CharactersMixin(_ProtocolBase):
             if not hasattr(self.actions, 'update_character'):
                 return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': 'Server does not support character delta updates'})
 
-            result = await self.actions.update_character(
-                session_id=session_id,
-                character_id=character_id,
-                updates=updates,
-                user_id=user_id,
-                expected_version=version,
-                bypass_owner_check=is_dm(self._get_client_role(client_id)),
-            )
+            request_scope = character_update_request_id.set(msg.message_id)
+            try:
+                result = await self.actions.update_character(
+                    session_id=session_id, character_id=character_id, updates=updates, user_id=user_id,
+                    expected_version=version, bypass_owner_check=is_dm(self._get_client_role(client_id)),
+                )
+            finally:
+                character_update_request_id.reset(request_scope)
 
             if result.success:
                 # New managers return projections committed with the source.
@@ -632,6 +707,8 @@ class _CharactersMixin(_ProtocolBase):
                     'character_data': result_data.get('character_data'),
                 })
 
+        except CharacterUpdateOutcomeUnknown:
+            return self._character_uncertain_response(character_id)
         except Exception:
             logger.exception("Character update request failed")
             return Message(

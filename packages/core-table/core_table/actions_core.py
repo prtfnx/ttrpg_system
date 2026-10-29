@@ -1183,6 +1183,8 @@ class ActionsCore(AsyncActionsProtocol):
 
     async def update_character(self, session_id: int, character_id: str, updates: Dict[str, Any], user_id: int, expected_version: Optional[int] = None, bypass_owner_check: bool = False) -> ActionResult:
         """Apply partial updates (delta) to a character using server-side manager with optimistic concurrency."""
+        from service.character_update_recovery import CharacterUpdateOutcomeUnknown
+
         try:
             from managers.character_manager import get_server_character_manager
 
@@ -1221,6 +1223,8 @@ class ActionsCore(AsyncActionsProtocol):
                         'character_data': result.get('character_data'),
                     },
                 )
+        except CharacterUpdateOutcomeUnknown:
+            raise
         except Exception as e:
             logger.error(f"Error in update_character: {e}")
             return ActionResult(

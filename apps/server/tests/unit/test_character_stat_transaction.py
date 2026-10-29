@@ -12,13 +12,14 @@ from managers import character_manager
 from service.combat_engine import CombatEngine
 from service.protocol import characters
 from service.protocol.base import ServerProtocol
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 
 @pytest.fixture
 def linked(test_db, test_db_engine, test_game_session, monkeypatch):
     factory = sessionmaker(bind=test_db_engine, expire_on_commit=False)
     monkeypatch.setattr(character_manager, "SessionLocal", factory)
+    monkeypatch.setattr(character_manager, "_server_character_manager", character_manager.ServerCharacterManager())
     manager = TableManager(test_db)
     character_id = "linked-hero"
     code, session_id, owner = test_game_session.session_code, test_game_session.id, test_game_session.owner_id
@@ -66,7 +67,8 @@ def linked(test_db, test_db_engine, test_game_session, monkeypatch):
 
     try:
         yield SimpleNamespace(factory=factory, proto=proto, code=code, session_id=session_id,
-            character_id=character_id, tokens=tokens, tables=tables, events=events, update=update)
+            character_id=character_id, tokens=tokens, tables=tables, events=events, update=update,
+            responses=responses, owner=owner)
     finally:
         CombatEngine._active.pop(code, None)
 
@@ -207,3 +209,127 @@ async def test_cancelled_character_update_retains_ownership_through_cache_instal
         await asyncio.gather(task, return_exceptions=True)
         if saver is not None:
             await asyncio.gather(saver, return_exceptions=True)
+
+
+def lose_character_commit_response(linked, monkeypatch, committed, unavailable=False):
+    original_factory = character_manager.SessionLocal
+    first = True
+
+    class LostResponseSession(Session):
+        def commit(self):
+            nonlocal first
+            if first:
+                first = False
+                if committed:
+                    super().commit()
+                else:
+                    super().rollback()
+                raise OSError('Lost character commit response')
+            return super().commit()
+
+    monkeypatch.setattr(character_manager, 'SessionLocal', sessionmaker(
+        bind=original_factory.kw['bind'], class_=LostResponseSession, expire_on_commit=False,
+    ))
+    recovery = character_manager.get_server_character_manager().update_recovery
+    lookup = recovery._lookup
+    if unavailable:
+        def offline(_attempt):
+            raise OSError('Character outcome database unavailable')
+        monkeypatch.setattr(recovery, '_lookup', offline)
+    return recovery, lookup
+
+
+@pytest.mark.parametrize('committed', [False, True])
+async def test_character_commit_error_resolves_before_success_or_rejection(linked, monkeypatch, committed):
+    lose_character_commit_response(linked, monkeypatch, committed)
+    response = await linked.update({'data': {'stats': {'hp': 5}}})
+    assert response.data['success'] is committed
+    assert saved_state(linked)[0] == (2 if committed else 1)
+    assert saved_state(linked)[2] == [(5 if committed else 20, 20, 12)] * 3
+    assert [token.hp for token in linked.tokens[:2]] == [5 if committed else 20] * 2
+    assert not linked.proto._has_pending_writes()
+
+
+@pytest.mark.parametrize('committed', [False, True])
+@pytest.mark.parametrize('replay', [False, True])
+async def test_character_lookup_outage_fences_snapshots_then_recovers_the_original_request(
+    linked, monkeypatch, committed, replay,
+):
+    recovery, lookup = lose_character_commit_response(linked, monkeypatch, committed, unavailable=True)
+    patch = {'data': {'stats': {'hp': 5}}}
+    uncertain = await linked.update(patch)
+    original_id = uncertain.causation_id
+    assert uncertain.type == MessageType.ERROR and uncertain.data['outcome'] == 'unknown'
+    assert 'success' not in uncertain.data
+    assert linked.proto._has_pending_writes()
+    assert [token.hp for token in linked.tokens[:2]] == [20, 20]
+    assert not await linked.proto.table_manager.save_to_database_async(linked.session_id)
+    denied = await linked.update({'data': {'stats': {'hp': 10}}})
+    assert denied.type == MessageType.ERROR and denied.data['outcome'] == 'unknown'
+    await linked.proto.handle_client(Message(MessageType.PING, {}), 'dm')
+    assert linked.responses[-1].type == MessageType.PONG
+    assert saved_state(linked)[0] == (2 if committed else 1)
+    monkeypatch.setattr(recovery, '_lookup', lookup)
+    if replay:
+        request = Message(MessageType.CHARACTER_UPDATE,
+            {'character_id': linked.character_id, 'updates': patch, 'version': 1}, message_id=original_id)
+    else:
+        request = Message(MessageType.TABLE_REQUEST, {'table_id': str(linked.tables[0].table_id)})
+    await linked.proto.handle_client(request, 'dm')
+    receipts = [message for message in linked.responses if message.type == MessageType.CHARACTER_UPDATE_RESPONSE
+                and message.causation_id == original_id]
+    assert len(receipts) == 1 and receipts[0].data['success'] is committed
+    assert not linked.proto._has_pending_writes()
+    assert [token.hp for token in linked.tokens[:2]] == [5 if committed else 20] * 2
+    # Replaying the original request during recovery must not increment again.
+    assert saved_state(linked)[0] == (2 if committed else 1)
+    assert await linked.proto.table_manager.save_to_database_async(linked.session_id)
+    assert saved_state(linked)[2] == [(5 if committed else 20, 20, 12)] * 3
+
+
+async def test_cancelled_character_recovery_waits_for_installation(linked, monkeypatch):
+    recovery, lookup = lose_character_commit_response(linked, monkeypatch, True, unavailable=True)
+    assert (await linked.update({'data': {'stats': {'hp': 5}}})).type == MessageType.ERROR
+    started, release = threading.Event(), threading.Event()
+
+    def delayed(attempt):
+        started.set()
+        assert release.wait(5)
+        return lookup(attempt)
+
+    monkeypatch.setattr(recovery, '_lookup', delayed)
+    task = asyncio.create_task(linked.proto.handle_client(
+        Message(MessageType.TABLE_REQUEST, {'table_id': str(linked.tables[0].table_id)}), 'dm'))
+
+    async def admitted():
+        while not started.is_set():
+            await asyncio.sleep(.001)
+
+    try:
+        await asyncio.wait_for(admitted(), 2)
+        for _ in range(2):
+            task.cancel()
+            await asyncio.sleep(0)
+        assert not task.done() and linked.proto._mutation_lock.locked()
+        assert not linked.proto.table_manager.persistence_allowed()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, 2)
+        assert [token.hp for token in linked.tokens[:2]] == [5, 5]
+        assert not linked.proto._has_pending_writes()
+    finally:
+        release.set()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+async def test_recovery_cannot_reuse_original_identity_for_different_updates(linked, monkeypatch):
+    recovery, lookup = lose_character_commit_response(linked, monkeypatch, True, unavailable=True)
+    uncertain = await linked.update({'data': {'stats': {'hp': 5}}})
+    monkeypatch.setattr(recovery, '_lookup', lookup)
+    request = Message(MessageType.CHARACTER_UPDATE,
+        {'character_id': linked.character_id, 'updates': {'data': {'stats': {'hp': 9}}}, 'version': 1},
+        message_id=uncertain.causation_id)
+    await linked.proto.handle_client(request, 'dm')
+    response = linked.responses[-1]
+    assert response.type == MessageType.ERROR and response.data['code'] == 'operation_id_conflict'
+    assert saved_state(linked)[0] == 2 and saved_state(linked)[2] == [(5, 20, 12)] * 3

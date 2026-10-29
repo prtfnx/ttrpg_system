@@ -133,8 +133,11 @@ class ServerProtocol(
         self._rules_cache: Dict[str, Any] = {}
         prior_guard = self.table_manager.persistence_guard
         self.table_manager.persistence_guard = lambda: (
-            not self._has_pending_combat() and (prior_guard is None or bool(prior_guard()))
+            not self._has_pending_writes() and (prior_guard is None or bool(prior_guard()))
         )
+
+    def _has_pending_writes(self) -> bool:
+        return self._has_pending_combat() or self._has_pending_character_update()
 
     def register_handler(self, msg_type: MessageType, handler: Callable):
         """Extension point for custom message handlers."""
@@ -314,7 +317,7 @@ class ServerProtocol(
             return await self._invoke_handler_in_scope(msg, client_id)
 
     async def _invoke_handler_in_scope(self, msg: Message, client_id: str):
-        if self._has_pending_combat() or msg.type == MessageType.COMBAT_COMMAND or (msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
+        if self._has_pending_writes() or msg.type == MessageType.COMBAT_COMMAND or (msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
                 MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE,
                 MessageType.TABLE_SETTINGS_UPDATE, MessageType.CHARACTER_UPDATE} and getattr(
                     getattr(self, "table_manager", None), "db_session", None)):
@@ -329,6 +332,9 @@ class ServerProtocol(
             failure = await self._recover_pending_combat()
             if failure is not None:
                 return failure
+            outcome = await self._recover_pending_character_update(msg, client_id)
+            if outcome is not None:
+                return outcome
         return await self._invoke_handler_body(msg, client_id)
 
     async def _invoke_handler_body(self, msg: Message, client_id: str):
@@ -436,7 +442,7 @@ class ServerProtocol(
                     continue
                 individual_msg = Message.from_dict(msg_data)
                 if (can_buffer(individual_msg)
-                        and not self._has_pending_combat()
+                        and not self._has_pending_writes()
                         and getattr(getattr(self, "table_manager", None), "db_session", None)):
                     run = [individual_msg]
                     while index < len(messages_data) and len(run) < MAX_SPRITE_RUN_COMMANDS:

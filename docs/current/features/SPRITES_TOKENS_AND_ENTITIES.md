@@ -114,6 +114,35 @@ Wire obstacle metadata remains `unknown` at the incoming payload boundary.
 endpoints before reading geometry. Table post-staging forwards that wire data
 without pretending an unvalidated record is a typed editor object.
 
+## Linked stat authority
+
+Stat ownership checked against source on 2026-10-27:
+
+| Field | Authority and edit path |
+| --- | --- |
+| Linked persistent HP, max HP, AC | Character `data.stats`; the token panel sends a versioned `character_update`, which commits the source and every persisted linked projection together. |
+| Unlinked token HP, max HP, AC | Independent token fields accepted through sprite commands. |
+| Character link | Sprite acceptance validates an active, editable character in the same numeric session and copies its current canonical stats in the token/journal transaction. |
+| Active encounter HP and resources | Combat snapshot/journal commands; the token panel edits persistent character stats and does not change encounter resources. Completion does not automatically write encounter HP back to the character. |
+
+Independent stat changes on an existing link reject the complete sprite edit.
+There is no second reverse character transaction. A new binding copies saved
+source values, including zero and null, rather than applying supplied stat hints
+to the source. Explicit detach retains independent token values and never falls
+back to the old character. Binding requires character edit authority; controlling
+an already linked token still permits normal movement under sprite permissions.
+
+The browser installs accepted partial HP/max-HP/AC and character-link values from
+both `success` receipts and `sprite_update` events directly into its store. This
+works with a detached renderer, clears explicit nulls, respects active-table
+scope, and does not issue another sprite write. Character deltas merge nested
+data rather than replacing the full sheet.
+
+Regressions: `test_character_token_binding.py`, `test_sprite_editor_protocol.py`,
+`TokenConfigModal.test.tsx`, and `clientProtocol.test.ts`. Legacy divergent rows,
+flat NPC sources, specialized compendium creation, PostgreSQL execution, and
+served multiplayer qualification remain separate release work.
+
 ## Protocol messages
 
 Current sprite messages:

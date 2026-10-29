@@ -4,6 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vite
 const mocks = vi.hoisted(() => {
   const storeState: Record<string, unknown> = {};
   const getState = vi.fn(() => storeState);
+  const setState = vi.fn((partial: Record<string, unknown> | ((state: Record<string, unknown>) => Record<string, unknown>)) => {
+    Object.assign(storeState, typeof partial === 'function' ? partial(storeState) : partial);
+  });
   const renderEngine = {
     set_background_color: vi.fn(),
   };
@@ -12,7 +15,7 @@ const mocks = vi.hoisted(() => {
       const s = getState();
       return typeof selector === 'function' ? selector(s) : s;
     },
-    { getState }
+    { getState, setState }
   );
   const runtime = {
     applyLayerSettings: vi.fn(),
@@ -1267,6 +1270,23 @@ describe('WebClientProtocol', () => {
         expect(handler).toHaveBeenCalledOnce();
         expect((handler.mock.calls[0][0] as CustomEvent).detail).toMatchObject({ operation: 'update', updates: { metadata: 'accepted' } });
       } finally { window.removeEventListener('sprite-updated', handler); }
+    });
+
+    it.each(['success', 'sprite_update'])('installs canonical token stats and binding from %s without another write', async type => {
+      const p = makeProtocol(); const ws = makeOpenWs(p);
+      mocks.storeState.sprites = [{ id: 'token', tableId: 'table-abc', characterId: 'old', hp: 99, maxHp: 99, ac: 12 }];
+      await dispatch(p, type, { table_id: 'table-abc', sprite_id: 'token', operation: 'update',
+        updates: { character_id: 'source', hp: 0, max_hp: 30, ac: null } });
+      expect((mocks.storeState.sprites as Record<string, unknown>[])[0])
+        .toMatchObject({ characterId: 'source', hp: 0, maxHp: 30, ac: undefined });
+      await dispatch(p, type, { table_id: 'table-old', sprite_id: 'token', operation: 'update', updates: { hp: 99 } });
+      expect((mocks.storeState.sprites as Record<string, unknown>[])[0].hp).toBe(0);
+      await dispatch(p, type, { table_id: 'table-abc', sprite_id: 'token', operation: 'update',
+        updates: { character_id: null, hp: null, max_hp: null } });
+      expect((mocks.storeState.sprites as Record<string, unknown>[])[0])
+        .toMatchObject({ characterId: undefined, hp: undefined, maxHp: undefined });
+      p.sendBatch();
+      expect(ws.send).not.toHaveBeenCalled();
     });
 
     it('BATCH_RESPONSE dispatches validated inner messages to handlers', async () => {

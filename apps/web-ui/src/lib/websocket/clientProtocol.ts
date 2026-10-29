@@ -1251,6 +1251,7 @@ export class WebClientProtocol {
     }
     
     if (message.data?.sprite_id && message.data.updates && message.data.table_id && this.targetsActiveTable(message.data)) {
+      this.applyTokenProjection(message.data);
       emitProtocolEvent('sprite-updated', { ...message.data, operation: 'update' });
     }
     emitProtocolEvent('protocol-success', message.data);
@@ -1425,11 +1426,34 @@ export class WebClientProtocol {
   private async handleSpriteUpdate(message: Message): Promise<void> {
     logger.debug('Sprite updated:', message.data);
     if (!this.targetsActiveTable(message.data)) return;
+    this.applyTokenProjection(message.data);
     emitProtocolEvent('sprite-updated', message.data);
     if (message.data?.sprite_data && typeof message.data.table_id === 'string' && typeof message.data.sprite_id === 'string') {
       emitProtocolEvent('canvas-canonical-object', { operationId: message.correlation_id, tableId: message.data.table_id,
         kind: 'sprite', id: message.data.sprite_id, object: message.data.sprite_data });
     }
+  }
+
+  private applyTokenProjection(data: Record<string, unknown> | undefined): void {
+    const updates = data?.updates;
+    if (!data || typeof data.sprite_id !== 'string' || !updates || typeof updates !== 'object' || Array.isArray(updates)) return;
+    const fields = updates as Record<string, unknown>;
+    const patch: Partial<import('@/types').Sprite> = {};
+    for (const [wire, local, maximum] of [['hp', 'hp', 1_000_000], ['max_hp', 'maxHp', 1_000_000], ['ac', 'ac', 100]] as const) {
+      if (!Object.hasOwn(fields, wire)) continue;
+      const value = fields[wire];
+      if (value === null) patch[local] = undefined;
+      else if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= maximum) patch[local] = value;
+    }
+    if (fields.character_id === null) patch.characterId = undefined;
+    else if (typeof fields.character_id === 'string' && fields.character_id.length > 0 && fields.character_id.length <= 64) {
+      patch.characterId = fields.character_id;
+    }
+    if (Object.keys(patch).length === 0) return;
+    // Accept projections even while the renderer is detached. The store's
+    // updateSprite command would send a second mutation back to the server.
+    useGameStore.setState(state => ({ sprites: state.sprites.map(sprite =>
+      sprite.id === data.sprite_id && sprite.tableId === data.table_id ? { ...sprite, ...patch } : sprite) }));
   }
 
   private async handleSpriteRemove(message: Message): Promise<void> {

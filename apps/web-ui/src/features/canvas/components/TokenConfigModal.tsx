@@ -1,5 +1,6 @@
 import { useGameStore } from '@/store';
 import { authService } from '@features/auth';
+import { useCharacterUpdateCommand } from '@features/character/hooks/useCharacterUpdateCommand';
 import { isDM } from '@features/session/types/roles';
 import { useProtocol } from '@lib/api';
 import { Modal } from '@shared/components';
@@ -20,15 +21,16 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   const { sprites, characters, sessionRole, unlinkSpriteFromCharacter, getCharacterForSprite, updateSprite } = useGameStore();
   const distanceUnit = useGameStore(s => s.distanceUnit);
   const { protocol, isConnected } = useProtocol();
+  const { submitCharacterUpdate } = useCharacterUpdateCommand();
 
   const sprite = sprites.find(s => s.id === spriteId);
   const linkedCharacter = sprite?.characterId ? getCharacterForSprite(spriteId) : null;
   const canManageOwnership = isDM(sessionRole);
 
  const [selectedCharacterId, setSelectedCharacterId] = useState<string>(sprite?.characterId || '');
- const [localHp, setLocalHp] = useState<number>(sprite?.hp ?? linkedCharacter?.data?.stats?.hp ?? 10);
- const [localMaxHp, setLocalMaxHp] = useState<number>(sprite?.maxHp ?? linkedCharacter?.data?.stats?.maxHp ?? 10);
- const [localAc, setLocalAc] = useState<number>(sprite?.ac ?? linkedCharacter?.data?.stats?.ac ?? 10);
+ const [localHp, setLocalHp] = useState<number>(linkedCharacter ? linkedCharacter.data?.stats?.hp ?? 0 : sprite?.hp ?? 10);
+ const [localMaxHp, setLocalMaxHp] = useState<number>(linkedCharacter ? linkedCharacter.data?.stats?.maxHp ?? 0 : sprite?.maxHp ?? 10);
+ const [localAc, setLocalAc] = useState<number>(linkedCharacter ? linkedCharacter.data?.stats?.ac ?? 0 : sprite?.ac ?? 10);
  const [localAuraRadius, setLocalAuraRadius] = useState<number>(sprite?.auraRadiusUnits ?? (sprite?.auraRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.auraRadius) : 0));
  const [localAuraColor, setLocalAuraColor] = useState<string>(sprite?.auraColor ?? '#ffe4b5');
  const [localVisionRadius, setLocalVisionRadius] = useState<number | ''>(sprite?.visionRadiusUnits ?? (sprite?.visionRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.visionRadius) : ''));
@@ -66,13 +68,18 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
     }
  }, [protocol, isConnected, characters.length]);
 
+  useEffect(() => {
+    if (sprite?.characterId && !linkedCharacter && protocol && isConnected) {
+      protocol.loadCharacter(sprite.characterId);
+    }
+  }, [sprite?.characterId, linkedCharacter, protocol, isConnected]);
+
   // Update local state when sprite or linked character changes
   useEffect(() => {
     if (sprite) {
-      // Use sprite stats first, fallback to character stats
-      setLocalHp(sprite.hp ?? linkedCharacter?.data?.stats?.hp ?? 10);
-      setLocalMaxHp(sprite.maxHp ?? linkedCharacter?.data?.stats?.maxHp ?? 10);
-      setLocalAc(sprite.ac ?? linkedCharacter?.data?.stats?.ac ?? 10);
+      setLocalHp(linkedCharacter ? linkedCharacter.data?.stats?.hp ?? 0 : sprite.hp ?? 10);
+      setLocalMaxHp(linkedCharacter ? linkedCharacter.data?.stats?.maxHp ?? 0 : sprite.maxHp ?? 10);
+      setLocalAc(linkedCharacter ? linkedCharacter.data?.stats?.ac ?? 0 : sprite.ac ?? 10);
       setLocalAuraRadius(sprite.auraRadiusUnits ?? (sprite.auraRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.auraRadius) : 0));
       setLocalAuraColor(sprite.auraColor ?? '#ffe4b5');
       setLocalVisionRadius(sprite.visionRadiusUnits ?? (sprite.visionRadius ? useGameStore.getState().getUnitConverter().toUnits(sprite.visionRadius) : ''));
@@ -113,24 +120,15 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
           setLocalDarkvisionRadius(darkvisionInTableUnits);
         }
 
-        // Single update: link character AND sync stats in one call
+        // The server copies the current source stats while accepting the link.
         updateSprite(spriteId, { 
           characterId, 
-          hp: newHp, 
-          maxHp: newMaxHp, 
-          ac: newAc,
           ...(darkvisionInTableUnits != null
             ? { hasDarkvision: true, darkvisionRadiusUnits: darkvisionInTableUnits }
             : {}),
         });
       } else {
-        // Character not found, link with current token stats
-        updateSprite(spriteId, { 
-          characterId,
-          hp: localHp,
-          maxHp: localMaxHp,
-          ac: localAc
-        });
+        updateSprite(spriteId, { characterId });
         setSelectedCharacterId(characterId);
       }
     } else {
@@ -143,66 +141,23 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   const handleHpChange = (newHp: number) => {
     setLocalHp(newHp);
     
-    logger.debug('[TokenConfigModal] Updating HP', { 
-      spriteId, 
-      newHp, 
-      currentCharacterId: sprite?.characterId,
-      linkedCharacter: linkedCharacter?.id 
-    });
-    
-    // Always update token HP - preserve characterId
-    updateSprite(spriteId, { hp: newHp });
-    
-    // Also update character HP if linked
-    if (linkedCharacter) {
-      const updateCharacter = useGameStore.getState().updateCharacter;
-      const newData = {
-        ...linkedCharacter.data,
-        stats: {
-          ...linkedCharacter.data?.stats,
-          hp: newHp,
-        }
-      };
-      updateCharacter(linkedCharacter.id, { data: newData });
-    }
+    if (sprite.characterId) {
+      if (linkedCharacter) submitCharacterUpdate(linkedCharacter.id, { data: { stats: { hp: newHp } } });
+    } else updateSprite(spriteId, { hp: newHp });
   };
 
   const handleMaxHpChange = (newMaxHp: number) => {
     setLocalMaxHp(newMaxHp);
-    // Always update token max HP
-    updateSprite(spriteId, { maxHp: newMaxHp });
-    
-    // Also update character max HP if linked
-    if (linkedCharacter) {
-      const updateCharacter = useGameStore.getState().updateCharacter;
-      const newData = {
-        ...linkedCharacter.data,
-        stats: {
-          ...linkedCharacter.data?.stats,
-          maxHp: newMaxHp,
-        }
-      };
-      updateCharacter(linkedCharacter.id, { data: newData });
-    }
+    if (sprite.characterId) {
+      if (linkedCharacter) submitCharacterUpdate(linkedCharacter.id, { data: { stats: { maxHp: newMaxHp } } });
+    } else updateSprite(spriteId, { maxHp: newMaxHp });
   };
 
   const handleAcChange = (newAc: number) => {
     setLocalAc(newAc);
-    // Always update token AC
-    updateSprite(spriteId, { ac: newAc });
-    
-    // Also update character AC if linked
-    if (linkedCharacter) {
-      const updateCharacter = useGameStore.getState().updateCharacter;
-      const newData = {
-        ...linkedCharacter.data,
-        stats: {
-          ...linkedCharacter.data?.stats,
-          ac: newAc,
-        }
-      };
-      updateCharacter(linkedCharacter.id, { data: newData });
-    }
+    if (sprite.characterId) {
+      if (linkedCharacter) submitCharacterUpdate(linkedCharacter.id, { data: { stats: { ac: newAc } } });
+    } else updateSprite(spriteId, { ac: newAc });
   };
 
   const handleAuraRadiusChange = (newRadius: number) => {
@@ -218,6 +173,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   };
 
   const hpPercentage = localMaxHp > 0 ? (localHp / localMaxHp) * 100 : 0;
+  const statsUnavailable = Boolean(sprite.characterId && !linkedCharacter);
 
   // Current ownership list
   const controlledBy: string[] = Array.isArray(sprite?.controlledBy)
@@ -306,6 +262,12 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
 
           {/* Token Stats - Always visible */}
           <div className={styles.configSection}>
+            {sprite.characterId && <p role="status">{statsUnavailable
+              ? 'Load the linked character to edit its stats.'
+              : linkedCharacter?.syncStatus === 'syncing' ? 'Saving character stats…'
+              : linkedCharacter?.syncStatus === 'error' ? 'Character stats could not be confirmed. Review saved state before retrying.'
+              : linkedCharacter?.syncStatus === 'local' ? 'Character stats are saved only on this page.'
+              : 'Edits update the linked character. Use combat controls for encounter HP.'}</p>}
             <div className={styles.statRow}>
               <label htmlFor="token-current-hp">HP:</label>
               <div className={styles.hpInputGroup}>
@@ -313,6 +275,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                   type="button"
                   className={styles.hpButton}
                   onClick={() => handleHpChange(Math.max(0, localHp - 1))}
+                  disabled={statsUnavailable}
                 >
                   −
                 </button>
@@ -324,11 +287,13 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                   className={styles.hpInput}
                   min="0"
                   max={localMaxHp}
+                  disabled={statsUnavailable}
                 />
                 <button
                   type="button"
                   className={styles.hpButton}
                   onClick={() => handleHpChange(Math.min(localMaxHp, localHp + 1))}
+                  disabled={statsUnavailable}
                 >
                   +
                 </button>
@@ -361,6 +326,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                 onChange={(e) => handleMaxHpChange(Math.max(1, parseInt(e.target.value) || 1))}
                 className={styles.hpInput}
                 min="1"
+                disabled={statsUnavailable}
               />
             </div>
           </div>
@@ -372,9 +338,10 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                 id="token-armor-class"
                 type="number"
                 value={localAc}
-                onChange={(e) => handleAcChange(Math.max(0, parseInt(e.target.value) || 10))}
+                onChange={(e) => handleAcChange(Math.max(0, parseInt(e.target.value) || 0))}
                 className={styles.hpInput}
                 min="0"
+                disabled={statsUnavailable}
               />
             </div>
           </div>

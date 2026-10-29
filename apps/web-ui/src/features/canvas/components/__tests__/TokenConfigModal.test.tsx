@@ -19,16 +19,21 @@
 import { useGameStore } from '@/store';
 import type { Character, Sprite } from '@/types';
 import { TokenConfigModal } from '@features/canvas';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock ProtocolContext
 const mockProtocol = {
   requestCharacterList: vi.fn(),
+  requestPlayerList: vi.fn(),
+  loadCharacter: vi.fn(),
+  updateCharacter: vi.fn(() => true),
+  updateSprite: vi.fn(),
 };
 
-vi.mock('../../services/ProtocolContext', () => ({
+vi.mock('@lib/api', () => ({
+  ProtocolService: { hasProtocol: () => true, getProtocol: () => mockProtocol },
   useProtocol: () => ({
     protocol: mockProtocol,
     isConnected: true,
@@ -36,7 +41,7 @@ vi.mock('../../services/ProtocolContext', () => ({
 }));
 
 // Mock authService
-vi.mock('../../services/auth.service', () => ({
+vi.mock('@features/auth', () => ({
   authService: {
     getUserInfo: () => ({ id: 123, name: 'TestUser' }),
   },
@@ -95,7 +100,7 @@ describe('TokenConfigModal - Component UI Tests', () => {
     });
 
     onCloseMock = vi.fn() as unknown as () => void;
-    mockProtocol.requestCharacterList.mockClear();
+    vi.clearAllMocks();
   });
 
   describe('Rendering', () => {
@@ -335,6 +340,30 @@ describe('TokenConfigModal - Component UI Tests', () => {
   });
 
   describe('Character Linking', () => {
+    it.each([
+      ['token-current-hp', 'hp'], ['token-max-hp', 'maxHp'], ['token-armor-class', 'ac'],
+    ])('saves linked %s through the versioned character command', (inputId, field) => {
+      const character = createTestCharacter();
+      useGameStore.setState({ sprites: [createTestSprite({ characterId: character.id })], characters: [character] });
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+      fireEvent.change(document.getElementById(inputId)!, { target: { value: '0' } });
+      const expected = field === 'maxHp' ? 1 : 0;
+      expect(mockProtocol.updateCharacter).toHaveBeenCalledWith('char-1', { data: { stats: { [field]: expected } } }, 1);
+      expect(useGameStore.getState().characters[0]).toMatchObject({ data: { class: 'Ranger', stats: { [field]: expected } }, syncStatus: 'syncing' });
+      // A linked projection is installed by server acceptance, never a separate token save.
+      expect(useGameStore.getState().sprites[0]).toMatchObject({ hp: 50, maxHp: 50, ac: 15 });
+      expect(mockProtocol.updateSprite).not.toHaveBeenCalled();
+    });
+
+    it('waits for the linked source rather than saving independent stats when it is missing', () => {
+      useGameStore.setState({ sprites: [createTestSprite({ characterId: 'missing' })], characters: [] });
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+      expect(mockProtocol.loadCharacter).toHaveBeenCalledWith('missing');
+      expect(screen.getByLabelText('HP:')).toBeDisabled();
+      expect(screen.getByLabelText('Armor Class (AC):')).toBeDisabled();
+      expect(mockProtocol.updateCharacter).not.toHaveBeenCalled();
+    });
+
     it('should link character to sprite', async () => {
       const user = userEvent.setup();
       const testSprite = createTestSprite();

@@ -182,6 +182,16 @@ browser asks the user to review saved state before retrying. These paths have
 protocol-unit coverage in `clientProtocol.test.ts`; a complete served-browser
 and PostgreSQL recovery playthrough remains a release gate.
 
+The token configuration panel uses the same versioned character command for
+linked HP, max HP, and AC. It sends only the edited nested stat, preserves other
+optimistic sheet fields using JSON Merge Patch, and displays pending/error/local
+save status. Unlinked tokens retain independent sprite commands. A missing
+linked source is loaded before stat editing is enabled. Token projections change
+through server acceptance rather than an independent optimistic token save.
+`TokenConfigModal.test.tsx` and the shared command-hook tests cover this route.
+The panel edits persistent character stats; encounter HP remains under combat
+commands and is not automatically written back on encounter completion.
+
 This queue is deliberately page-memory durability, not offline persistence. It
 survives a transport reconnect while the current page and protocol instance
 remain alive, but not navigation, reload, tab closure, or browser failure. UI

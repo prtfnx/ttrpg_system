@@ -1,6 +1,7 @@
 import { useGameStore } from '@/store';
 import type { Character } from '@/types';
 import { useProtocol } from '@lib/api';
+import { applyJsonMergePatch } from '@shared/utils/jsonMergePatch';
 import { useCallback } from 'react';
 
 export type CharacterUpdateDisposition = 'sent' | 'queued' | 'local' | 'rejected';
@@ -20,13 +21,14 @@ export function useCharacterUpdateCommand() {
     const store = useGameStore.getState();
     const character = store.characters.find(candidate => candidate.id === characterId);
     if (!character) return 'rejected';
+    const optimistic = applyJsonMergePatch(character, updates) as Character;
 
     if (!protocol) {
-      store.updateCharacter(characterId, { ...updates, syncStatus: 'local' });
+      store.updateCharacter(characterId, { ...optimistic, syncStatus: 'local' });
       return 'local';
     }
 
-    store.updateCharacter(characterId, { ...updates, syncStatus: 'syncing' });
+    store.updateCharacter(characterId, { ...optimistic, syncStatus: 'syncing' });
     const accepted = protocol.updateCharacter(
       characterId,
       updates as Record<string, unknown>,

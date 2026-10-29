@@ -47,6 +47,7 @@ describe('useCharacterUpdateCommand', () => {
       ...mocks.state.characters[0],
       name: 'Hero',
       version: 4,
+      data: { stats: { hp: 10 } },
       syncStatus: 'synced',
     };
     mocks.state.updateCharacter.mockClear();
@@ -87,5 +88,14 @@ describe('useCharacterUpdateCommand', () => {
     expect(disposition).toBe('local');
     expect(mocks.protocol.updateCharacter).not.toHaveBeenCalled();
     expect(mocks.state.characters[0]).toMatchObject({ name: 'Local edit', syncStatus: 'local' });
+  });
+
+  it('merges an optimistic stat delta while transmitting only that delta', () => {
+    mocks.context.protocol = mocks.protocol;
+    Object.assign(mocks.state.characters[0].data, { inventory: ['rope'], stats: { hp: 10, ac: 12 } });
+    const { result } = renderHook(() => useCharacterUpdateCommand());
+    act(() => { result.current.submitCharacterUpdate('character-1', { data: { stats: { hp: 0 } } }); });
+    expect(mocks.state.characters[0].data).toEqual({ inventory: ['rope'], stats: { hp: 0, ac: 12 } });
+    expect(mocks.protocol.updateCharacter).toHaveBeenCalledWith('character-1', { data: { stats: { hp: 0 } } }, 4);
   });
 });

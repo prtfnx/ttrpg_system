@@ -611,6 +611,18 @@
         "resync_required": {
           "type": "boolean"
         },
+        "outcome": {
+          "const": "unknown"
+        },
+        "character_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "sequence_id": {
+          "type": "integer",
+          "minimum": 0
+        },
         "code": {
           "enum": [
             "forbidden", "not_found", "version_conflict", "limit_exceeded",
@@ -618,7 +630,8 @@
             "persistence_failed", "table_settings_save_failed", "conflict",
             "history_conflict", "unsupported", "movement_rejected",
             "combat_required", "paint_disabled", "history_unavailable",
-            "text_version_conflict", "table_creation_save_failed"
+            "text_version_conflict", "table_creation_save_failed",
+            "combat_outcome_unknown", "character_outcome_unknown", "operation_id_conflict"
           ]
         },
         "current_object": {

@@ -26,6 +26,22 @@ shared envelope schema. This bounds response correlation overhead; clients
 must not attach arbitrary-size strings as identities. Generated Python and
 browser schemas share the same boundary.
 
+## Uncertain persistence outcomes
+
+The closed `error` payload schema includes `combat_outcome_unknown` and
+`character_outcome_unknown` with `outcome: unknown` and `resync_required: true`.
+The required `error` string describes the situation. Combat errors may identify
+the nonnegative `sequence_id`; character errors may identify `character_id`
+(1-64 characters). A session-wide recovery lookup may omit that identity.
+Envelope `causation_id` identifies the request that triggered the response.
+An unknown outcome is not proof of rollback; read/reconcile saved state before
+creating a replacement mutation. `operation_id_conflict` rejects reuse of a
+recovered character request identity for different update data.
+
+These fields are declared in the canonical schema and both generated copies.
+`tests/test_protocol_schema.py` checks valid server-shaped recovery errors and
+rejects invalid fields without opening the payload to arbitrary properties.
+
 ## Text sprite save acknowledgements
 
 Text sprite command fields are checked against source on 2026-10-06. A

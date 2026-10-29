@@ -100,6 +100,32 @@ def test_message_from_json_enforces_type_specific_payloads():
         )
 
 
+@pytest.mark.parametrize("data", [
+    {"code": "combat_outcome_unknown", "error": "Reload before retrying", "outcome": "unknown",
+     "sequence_id": 17, "resync_required": True},
+    {"code": "character_outcome_unknown", "error": "Reload before retrying", "outcome": "unknown",
+     "character_id": "character-1", "resync_required": True},
+    {"code": "character_outcome_unknown", "error": "Reload before retrying", "outcome": "unknown",
+     "resync_required": True},
+    {"code": "operation_id_conflict", "error": "Identity belongs to different updates"},
+])
+def test_recovery_errors_survive_the_shared_wire_validator(data):
+    wire = Message(MessageType.ERROR, data, causation_id="original-request").to_json()
+    parsed = Message.from_json(wire)
+    assert parsed.data == data
+    assert parsed.causation_id == "original-request"
+
+
+@pytest.mark.parametrize("updates", [
+    {"outcome": "committed"}, {"character_id": ""}, {"character_id": "x" * 65},
+    {"sequence_id": -1}, {"sequence_id": True}, {"unregistered_field": True},
+])
+def test_recovery_error_payloads_keep_the_closed_schema(updates):
+    data = {"code": "character_outcome_unknown", "error": "Reload before retrying", "outcome": "unknown"}
+    with pytest.raises(ValueError, match="Invalid protocol message"):
+        Message.from_json(Message(MessageType.ERROR, {**data, **updates}).to_json())
+
+
 @pytest.mark.parametrize(
     "message",
     [

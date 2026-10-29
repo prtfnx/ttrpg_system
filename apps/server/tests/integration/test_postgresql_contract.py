@@ -418,6 +418,73 @@ def test_character_outcome_lookup_rejects_repeatable_read_snapshots(postgresql_e
     assert service.has_pending(1)
 
 
+@pytest.mark.parametrize("fail_after_flush", [False, True])
+def test_character_binding_and_sprite_receipt_share_acceptance(postgresql_engine, monkeypatch, fail_after_flush):
+    from core_table.protocol import Message, MessageType
+    from core_table.table import VirtualTable
+    from service import sprite_editor_commands
+    from service.sprite_editor_commands import SpriteCommandScope, SpriteEditorCommandService
+
+    suffix = uuid.uuid4().hex[:12]
+    table = VirtualTable("Binding transaction", 1000, 1000)
+    with postgresql_engine.connect() as connection:
+        outer = connection.begin()
+        factory = sessionmaker(bind=connection, expire_on_commit=False, join_transaction_mode="create_savepoint")
+        try:
+            with factory() as db:
+                owner = models.User(username=f"binding-{suffix}", hashed_password="not-a-real-hash")
+                db.add(owner)
+                db.flush()
+                game = models.GameSession(name="Binding transaction", session_code=suffix, owner_id=owner.id)
+                db.add(game)
+                db.flush()
+                db.add_all([
+                    models.VirtualTable(table_id=str(table.table_id), name=table.display_name, width=1000, height=1000,
+                                        session_id=game.id),
+                    models.SessionCharacter(character_id=f"source-{suffix}", session_id=game.id,
+                        owner_user_id=owner.id, character_name="Hero", version=3, character_data=json.dumps({
+                            "character_id": f"source-{suffix}", "name": "Hero",
+                            "data": {"stats": {"hp": 0, "maxHp": 30, "ac": None}},
+                        })),
+                ])
+                db.commit()
+                session_id, actor_id = game.id, owner.id
+            before = table.to_dict()
+            table.add_entity({"sprite_id": "bound", "x": 100, "y": 100, "hp": 99,
+                              "character_id": f"source-{suffix}"})
+            request = Message(MessageType.SPRITE_CREATE, {"table_id": str(table.table_id), "sprite_data": {
+                "sprite_id": "bound", "x": 100, "y": 100, "character_id": f"source-{suffix}"}})
+            scope = SpriteCommandScope.from_message(request, session_id, actor_id)
+            assert scope is not None
+            stage = sprite_editor_commands.stage_sprite_delta
+
+            def stage_and_maybe_fail(*args, **kwargs):
+                stage(*args, **kwargs)
+                if fail_after_flush:
+                    raise RuntimeError("Injected failure after binding flush")
+
+            monkeypatch.setattr(sprite_editor_commands, "stage_sprite_delta", stage_and_maybe_fail)
+            service = SpriteEditorCommandService(factory)
+            if fail_after_flush:
+                with pytest.raises(RuntimeError, match="after binding flush"):
+                    service.persist(scope=scope, before_snapshot=before, staged=table)
+            else:
+                assert service.persist(scope=scope, before_snapshot=before, staged=table)["success"]
+                replay = service.replay(scope)
+                assert replay is not None and replay["resync_required"]
+            with factory() as db:
+                entity = db.query(models.Entity).filter_by(sprite_id="bound").one_or_none()
+                if fail_after_flush:
+                    assert entity is None
+                else:
+                    assert entity is not None and (entity.hp, entity.max_hp, entity.ac) == (0, 30, None)
+                assert db.query(models.CanvasCommandJournal).count() == (0 if fail_after_flush else 1)
+                assert db.query(models.SessionCharacter).one().version == 3
+                assert not db.query(models.CharacterLog).count()
+        finally:
+            outer.rollback()
+
+
 def test_postgresql_schema_is_at_head_with_bounded_identifiers(postgresql_engine):
     inspector = inspect(postgresql_engine)
 

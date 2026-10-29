@@ -14,6 +14,7 @@ from core_table.dice import DiceEngine, DiceRollResult
 from core_table.protocol import Message, MessageType
 from database import database, models
 from fastapi import WebSocket
+from managers import character_manager
 from service import canvas_persistence_service, game_session_protocol
 from service.choice_encounter_persistence_service import ChoiceEncounterPersistenceService
 from service.combat_engine import CombatEngine
@@ -53,6 +54,8 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
     test_db, test_db_engine, game_session_with_players, test_user, player_user, monkeypatch,
 ):
     factory = sessionmaker(bind=test_db_engine, expire_on_commit=False)
+    monkeypatch.setattr(character_manager, "SessionLocal", factory)
+    monkeypatch.setattr(character_manager, "_server_character_manager", character_manager.ServerCharacterManager())
     for module in (database, canvas_persistence_service, base, canvas, combat, session):
         monkeypatch.setattr(module, "SessionLocal", factory)
     asset_provider = SimpleNamespace(request_session_assets=AsyncMock(return_value=[]))
@@ -69,7 +72,8 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
     character_id = str(uuid.uuid4())
     test_db.add(models.SessionCharacter(
         character_id=character_id, session_id=session_id, owner_user_id=player_user.id,
-        character_name="Hero", character_data=json.dumps({"stats": {"hp": 20, "maxHp": 20, "ac": 12}}),
+        character_name="Hero", character_data=json.dumps({"character_id": character_id, "name": "Hero",
+            "schemaVersion": 1, "data": {"stats": {"hp": 20, "maxHp": 20, "ac": 12}}}),
     ))
     test_db.commit()
     CombatEngine._active.pop(code, None)
@@ -109,6 +113,12 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
                 "hp": 20, "max_hp": 20, "ac": 12, "character_id": character_id},
         }, MessageType.SPRITE_RESPONSE)
         hero_id = hero["sprite_id"]
+        accepted = await request(service, player, MessageType.CHARACTER_UPDATE, {
+            "character_id": character_id, "updates": {"data": {"stats": {"ac": 13}}}, "version": 1,
+        }, MessageType.CHARACTER_UPDATE_RESPONSE)
+        assert accepted["success"] and accepted["version"] == 2
+        with factory() as db:
+            assert db.query(models.Entity).filter_by(sprite_id=hero_id).one().ac == 13
         enemy = await request(service, dm, MessageType.SPRITE_CREATE, {
             "table_id": table_id, "sprite_data": {"name": "Enemy", "x": 250, "y": 100, "layer": "tokens",
                 "hp": 20, "max_hp": 20, "ac": 10},
@@ -142,7 +152,7 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         state = CombatEngine.get_state(code)
         assert state is not None
         actor = next(item for item in state.combatants if item.entity_id == hero_id)
-        assert (actor.hp, actor.max_hp, actor.armor_class) == (20, 20, 12)
+        assert (actor.hp, actor.max_hp, actor.armor_class) == (20, 20, 13)
         current = state.get_current_combatant()
         assert current is not None and current.entity_id == hero_id
         planned = [
@@ -200,7 +210,7 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         restored_hero = restored_table.find_entity_by_sprite_id(hero_id)
         assert restored_hero is not None
         assert restored_hero.position == (200, 100)
-        assert (restored_hero.hp, restored_hero.max_hp, restored_hero.ac, restored_hero.character_id) == (20, 20, 12, character_id)
+        assert (restored_hero.hp, restored_hero.max_hp, restored_hero.ac, restored_hero.character_id) == (20, 20, 13, character_id)
         assert restored_table.difficult_terrain_cells == {(10, 10)}
         restored = await request(service, dm, MessageType.COMBAT_STATE_REQUEST, {}, MessageType.COMBAT_STATE)
         assert restored["combat"]["state_version"] == state_before_reload["state_version"]

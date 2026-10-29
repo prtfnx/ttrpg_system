@@ -1,4 +1,5 @@
 import copy
+import json
 import math
 import re
 import uuid
@@ -355,6 +356,45 @@ def test_copy_cut_and_paste_use_captured_server_content_and_new_ids(scene):
         assert db.get(models.PaintObject, new_paint).created_by == scene["actor"]
         assert db.get(models.PaintObject, new_paint).version == 1
         assert db.get(models.PaintObject, PAINT) is None
+
+
+@pytest.mark.parametrize("archive_source", [False, True])
+def test_paste_rechecks_character_source_instead_of_restoring_clipboard_stats(scene, archive_source):
+    table = scene["table"]["table"]
+    token = table.find_entity_by_sprite_id("sprite")
+    token.character_id, token.hp, token.max_hp, token.ac = "canvas-source", 99, 99, 99
+    with scene["factory"]() as db:
+        source = models.SessionCharacter(character_id="canvas-source", session_id=scene["session"],
+            owner_user_id=scene["actor"], character_name="Hero", version=1,
+            character_data=json.dumps({"character_id": "canvas-source", "name": "Hero",
+                "data": {"stats": {"hp": 10, "maxHp": 20, "ac": 12}}}))
+        db.add(source)
+        crud.save_table_to_db(db, table, scene["session"])
+    copied = scene["execute"](scene["command"]("copy", members=[scene["members"]()[1]]))
+    with scene["factory"]() as db:
+        source = db.query(models.SessionCharacter).one()
+        source.version = 2
+        source.character_data = json.dumps({"character_id": "canvas-source", "name": "Hero",
+            "data": {"stats": {"hp": 0, "maxHp": 30, "ac": None}}})
+        if archive_source:
+            from utils.time import utc_now
+            source.archived_at = utc_now()
+        db.commit()
+    target = str(uuid.uuid4())
+    command = scene["command"]("paste", clipboard_id=copied.receipt["clipboard_id"],
+        ids=[{"kind": "sprite", "source_id": "sprite", "id": target}], transform={**IDENTITY, "dx": 100})
+    if archive_source:
+        with pytest.raises(CanvasRejected, match="not found or edit permission denied"):
+            scene["execute"](command)
+    else:
+        result = scene["execute"](command)
+        pasted = result.table.find_entity_by_sprite_id(target)
+        assert (pasted.hp, pasted.max_hp, pasted.ac) == (0, 30, None)
+        assert result.events[0]["data"]["sprite_data"]["hp"] == 0
+    with scene["factory"]() as db:
+        assert db.query(models.Entity).filter_by(sprite_id=target).count() == (0 if archive_source else 1)
+        assert db.query(models.CanvasCommandJournal).count() == (1 if archive_source else 2)
+        assert db.query(models.SessionCharacter).one().version == 2
 
 
 def test_delete_undo_preserves_original_paint_provenance_and_sprite_control(scene):

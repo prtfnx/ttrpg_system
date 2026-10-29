@@ -143,6 +143,8 @@ CI supplies a fresh PostgreSQL service and requires:
 - concurrent chat and combat idempotency constraints;
 - combat movement/snapshot/journal and character source/version/log/linked-stat
   commit and rollback boundaries, including failure after projection flush;
+- authorized character binding and canonical zero/null stat inheritance with
+  sprite receipt acceptance, including rollback after the token flush;
 - combat and character recovery blocked behind the original transaction's
   session-row lock until commit or rollback, observed with `pg_blocking_pids`;
 - recovery rejection of repeatable-read snapshots, retaining quarantine;

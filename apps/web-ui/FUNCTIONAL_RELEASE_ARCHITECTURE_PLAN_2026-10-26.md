@@ -11,8 +11,10 @@ working files. Saved original history on
 push published exactly the oldest 11 through `8820d458`; 11 remained local
 before new work. See the [commit map](audit/release-2026-10-27/commit-map.json)
 for old/new identifiers. Short references below use the redated history.
-Next implementation target: uncertain character commit outcomes, followed by
-token-originated consistency and remaining R2/R3 work.
+Next implementation target: canonical NPC source creation and a deliberate
+dry-run/reconciliation path for legacy/divergent stats, followed by remaining
+encounter authority and R3 work. The ordinary token-panel stat path now uses
+the versioned character command described below.
 
 October 27 implementation: generic character updates now wait on a stable
 session-row lock and verify commit-response errors against the exact before/after
@@ -43,10 +45,36 @@ and current-doc checks pass. The mandatory PostgreSQL contract module now has
 20 cases, including character transaction success/rollback, original-transaction
 lock waits for both outcomes, and repeatable-read rejection. All 20 skip locally
 without `TEST_POSTGRESQL_DATABASE_URL`; no PostgreSQL acceptance is claimed.
-The next R2 implementation boundary is token-originated stat ownership and
-encounter/sheet reconciliation. R3-R7 remain as scoped below. Existing generated
+At that checkpoint the next R2 boundary was token-originated stat ownership
+and encounter/sheet reconciliation; see the following continuation. R3-R7 remain as scoped below. Existing generated
 WASM modifications and historical untracked audits are preserved; new work after
 the requested partial push remains local in commits of at most seven files.
+
+October 27 token-authority continuation: the token panel now sends linked
+HP/max-HP/AC edits through the shared versioned character command, retaining
+unknown-outcome and reconnect handling. Independent linked stat writes through
+sprite acceptance reject atomically, and the old second reverse source write
+is removed. New links/linked creation validate current source edit authority
+inside sprite acceptance and inherit canonical zero/null values without changing
+source versions. Canvas paste/history restoration rechecks that source; clipboard
+stats cannot overwrite current source values. Ambiguous legacy stats reject
+binding until deliberately migrated instead of silently clearing a projection.
+
+The browser now applies JSON Merge Patch to optimistic and incoming nested
+character data, preserving siblings. Accepted partial token stats and binding
+values install directly in the store, including null/detach, without another
+mutation or a mounted renderer. The recorded-transport trusted workflow now
+edits a linked source and verifies its token/combat/restart values. New coverage
+also includes archived-source paste rejection and PostgreSQL binding/receipt
+commit and rollback. Existing divergent data, flat NPC documents, specialized
+compendium creation, explicit encounter completion write-back, durable request
+identity across restart, and real PostgreSQL/served acceptance remain open.
+
+Validation: 830 focused server regressions and 858 browser/UI/store tests pass.
+The PostgreSQL contract module collects 22 cases, all skipped locally without
+`TEST_POSTGRESQL_DATABASE_URL`. Full pinned server Pyright, TypeScript, targeted
+Ruff/ESLint, and current-doc checks pass. These results do not close R2 or R7.
+All continuation commits remain local, with at most seven files per commit.
 
 Execution started: 2026-10-26. R0 documentation reconciliation is implemented.
 The isolated optimized WASM build matches the baseline `HEAD` binary byte for

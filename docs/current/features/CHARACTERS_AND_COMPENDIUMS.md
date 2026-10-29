@@ -92,16 +92,17 @@ current live layers or the committed layer for unloaded tokens.
 Regression owner: `tests/unit/test_character_stat_transaction.py` exercises the
 real manager, ActionsCore, protocol dispatch, SQLite transaction, and queued
 snapshot path. PostgreSQL execution and browser resync acceptance remain release
-gates. Token-originated edits and active encounter writes are separate paths;
-durable character request identity across restart and existing divergent-row
-repair still need reconciliation. This is not a universal stat-ownership or receipt guarantee.
+gates. The token panel now uses the same source transaction for linked stats;
+active encounter writes remain separate. Durable character request identity
+across restart, legacy NPC sources, and existing divergent-row repair still need
+reconciliation. This is not a universal stat-ownership or receipt guarantee.
 
 Current field boundaries must remain explicit:
 
 | State | Current owner | Remaining consistency work |
 | --- | --- | --- |
 | Character document, version, XP and advancement | Character manager and advancement commands | Generic sheet edits include linked projections atomically; XP and token-originated changes still need their own outcome contracts. |
-| Token HP/max-HP/AC outside combat | Linked sheet synchronization or authorized token edit | Resolve bidirectional write ownership and failed publication/restart behavior. |
+| Token HP/max-HP/AC outside combat | Character projection when linked; independent token fields otherwise | Token panel edits use the source command; qualify legacy NPC creation and existing-row repair, plus served recovery. |
 | Active encounter HP, resources and turn state | Combat command snapshot/journal | Define sheet edits during combat and any encounter-completion write-back before unifying these fields. |
 
 Ending an encounter does not currently establish a general character-sheet HP

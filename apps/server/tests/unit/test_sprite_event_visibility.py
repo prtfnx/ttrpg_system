@@ -85,7 +85,6 @@ async def test_every_sprite_event_uses_authoritative_layer(monkeypatch, layer, o
     proto.actions = ActionsCore(manager)
     proto.broadcast_filtered = AsyncMock(wraps=service.broadcast_filtered)
     proto.broadcast_to_session = AsyncMock()
-    monkeypatch.setattr("service.protocol.sprites.load_entity_character_id", lambda _id: None)
     data = {"table_id": str(table.table_id), "sprite_id": "token", **payload}
     if operation == "compendium_sprite_add":
         data["sprite_data"] = {**data["sprite_data"], "layer": layer}

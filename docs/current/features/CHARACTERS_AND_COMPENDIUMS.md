@@ -108,6 +108,18 @@ Ending an encounter does not currently establish a general character-sheet HP
 write-back guarantee. Do not overwrite active encounter values from a delayed
 sheet projection or infer that the newest row always owns a shared stat.
 
+## Character binding adapter
+
+`service/character_token_binding.py` prepares newly attached token projections
+inside a caller-owned sprite transaction. It checks the active source in the
+numeric session, requires source edit permission (or session DM authority), and
+copies canonical `data.stats` HP/max-HP/AC, including zero and null. It does not
+commit, change the character version, or write to another token. Detaching keeps
+independent values; changing stats on an existing link is rejected so callers
+use the character command. Moving an existing linked token does not require
+new character edit permission. `test_character_token_binding.py` covers these
+adapter rules; protocol integration is a separate boundary.
+
 ## Character commit verification adapter
 
 `service/character_update_recovery.py` can verify one admitted, in-process CAS

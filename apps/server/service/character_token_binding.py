@@ -44,6 +44,10 @@ def prepare_character_bindings(db, changes, session_id: int, actor_id: int, *, b
         except (ValueError, TypeError) as exc:
             raise CharacterBindingError("invalid_payload", "Linked character data is invalid") from exc
         stats = document.get("data", {}).get("stats") or {}
+        legacy_locations = [document, document.get("stats") or {}, document.get("data") or {}]
+        if any(name not in stats and any(isinstance(location, dict) and (name in location or field in location)
+               for location in legacy_locations) for field, name in STAT_FIELDS.items()):
+            raise CharacterBindingError("conflict", "Migrate legacy character stats to data.stats before binding")
         values = {field: stats.get(name) for field, name in STAT_FIELDS.items()}
         after.update(values)
         projected[change["id"]] = values

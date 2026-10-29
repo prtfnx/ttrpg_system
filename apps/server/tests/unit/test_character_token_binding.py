@@ -69,3 +69,16 @@ def test_existing_link_can_move_without_granting_character_edit_permission(test_
     change["before"] = {"character_id": source.character_id, "hp": 0, "max_hp": 20, "ac": None}
     change["after"] = {**deepcopy(change["before"]), "position": [200, 200]}
     assert prepare_character_bindings(test_db, [change], game.id, 999) == {}
+
+
+@pytest.mark.parametrize("location", ["root", "data"])
+def test_unmigrated_legacy_stats_cannot_be_silently_cleared_on_binding(test_db, binding, location):
+    source, change, game = binding
+    document = {"character_id": source.character_id, "name": "Hero", "data": {}}
+    target = document if location == "root" else document["data"]
+    target["hp"] = 20
+    source.character_data = json.dumps(document)
+    test_db.commit()
+    with pytest.raises(CharacterBindingError, match="Migrate legacy character stats"):
+        prepare_character_bindings(test_db, [change], game.id, game.owner_id)
+    assert change["after"]["hp"] == 99 and source.version == 3

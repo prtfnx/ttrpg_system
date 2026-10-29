@@ -134,6 +134,12 @@ still apply. Real protocol/SQLite regressions in
 `test_sprite_editor_protocol.py` cover binding, canonical publications, failed
 flush rollback, durable duplicate replay, batching, and detach.
 
+A source with legacy HP/max-HP/AC outside `data.stats` and no canonical value
+for that field rejects binding with a migration conflict. It must not silently
+clear the token or guess which legacy value is authoritative. Explicit canonical
+zero/null remains valid. The adapter regression covers both root and nested
+legacy fields.
+
 Existing divergent rows, older flat NPC documents, and specialized compendium
 creation still need reconciliation/qualification. These changes do not establish
 a general historical-data repair or encounter-completion write-back guarantee.

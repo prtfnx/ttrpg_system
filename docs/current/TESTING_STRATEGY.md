@@ -141,6 +141,11 @@ CI supplies a fresh PostgreSQL service and requires:
 - invalid foreign-key rejection;
 - real `SELECT ... FOR UPDATE` serialization;
 - concurrent chat and combat idempotency constraints;
+- combat movement/snapshot/journal and character source/version/log/linked-stat
+  commit and rollback boundaries, including failure after projection flush;
+- combat and character recovery blocked behind the original transaction's
+  session-row lock until commit or rollback, observed with `pg_blocking_pids`;
+- recovery rejection of repeatable-read snapshots, retaining quarantine;
 - readiness at head and on a deliberately mismatched revision;
 - recovery when `pool_pre_ping` encounters a terminated idle backend;
 - ORM writes and generated primary keys across every model family;

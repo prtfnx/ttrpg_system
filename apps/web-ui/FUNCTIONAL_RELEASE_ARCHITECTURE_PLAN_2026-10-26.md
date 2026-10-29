@@ -35,6 +35,19 @@ codes and bounded identifiers in both generated consumers. All 189 browser
 protocol tests and 123 core schema cases pass; TypeScript, targeted ESLint, and
 current-doc checks pass. Served PostgreSQL/browser qualification remains open.
 
+October 27 validation continuation: 568 character/combat/session/protocol server
+regressions pass, along with 250 core table/action/schema cases and 640 character
+UI/store cases (in addition to the 189 browser protocol cases above). Full pinned
+server Pyright, TypeScript, targeted Ruff/ESLint, generated-schema drift checks,
+and current-doc checks pass. The mandatory PostgreSQL contract module now has
+20 cases, including character transaction success/rollback, original-transaction
+lock waits for both outcomes, and repeatable-read rejection. All 20 skip locally
+without `TEST_POSTGRESQL_DATABASE_URL`; no PostgreSQL acceptance is claimed.
+The next R2 implementation boundary is token-originated stat ownership and
+encounter/sheet reconciliation. R3-R7 remain as scoped below. Existing generated
+WASM modifications and historical untracked audits are preserved; new work after
+the requested partial push remains local in commits of at most seven files.
+
 Execution started: 2026-10-26. R0 documentation reconciliation is implemented.
 The isolated optimized WASM build matches the baseline `HEAD` binary byte for
 byte (SHA-256 `33ba71838d57fbf860d9d51933a17bbfacd64ff92cfbc8c035bd016775bfcace`,

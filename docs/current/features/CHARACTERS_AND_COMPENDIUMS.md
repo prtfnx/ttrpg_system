@@ -145,6 +145,14 @@ cannot be guessed into success/failure; operator reconciliation or clean restart
 is required if ordinary recovery cannot establish it. PostgreSQL and complete
 browser acceptance remain release gates.
 
+The mandatory `tests/integration/test_postgresql_contract.py` suite includes
+source/version/log/token atomic commit and rollback, recovery waiting on the
+original session-row lock through commit or rollback, and repeatable-read
+rejection. `test_character_stat_transaction.py` also decodes actual outgoing
+responses with the shared schema, so serializable but schema-invalid outcomes
+fail the regression. Local skipped PostgreSQL cases do not qualify these
+database contracts; CI must execute them against its disposable service.
+
 ## Browser edits and reconnects
 
 The character panel and modeless character sheets submit edits through

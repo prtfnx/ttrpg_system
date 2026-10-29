@@ -42,7 +42,7 @@ def linked(test_db, test_db_engine, test_game_session, monkeypatch):
     events, responses = [], []
 
     async def send(message, _client):
-        message.to_json()  # Internal projection DTOs must not leak onto the wire.
+        Message.from_json(message.to_json())  # Validate the actual outgoing contract, not only JSON encoding.
         responses.append(message)
 
     session = SimpleNamespace(session_code=code, game_session_db_id=session_id,

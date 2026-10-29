@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import threading
 import time
@@ -254,6 +255,167 @@ def test_combat_outcome_lookup_rejects_repeatable_read_snapshots(postgresql_engi
     service = CombatPersistenceService(sessionmaker(bind=engine))
     with pytest.raises(RuntimeError, match="READ COMMITTED"):
         service._resolve_commit("unused", PendingCombatCommit("unused", "user:1", 1, {}, {}, ()))
+
+
+@pytest.mark.parametrize("fail_after_token_flush", [False, True])
+def test_character_source_and_linked_stats_share_transaction(postgresql_engine, monkeypatch, fail_after_token_flush):
+    from managers import character_manager
+
+    suffix = uuid.uuid4().hex[:12]
+    character_id, table_id, sprite_id = (str(uuid.uuid4()) for _ in range(3))
+    with postgresql_engine.connect() as connection:
+        outer = connection.begin()
+        factory = sessionmaker(bind=connection, expire_on_commit=False, join_transaction_mode="create_savepoint")
+        try:
+            with factory() as db:
+                owner = models.User(username=f"character-{suffix}", hashed_password="not-a-real-hash")
+                db.add(owner)
+                db.flush()
+                game = models.GameSession(name="Character transaction", session_code=suffix, owner_id=owner.id)
+                db.add(game)
+                db.flush()
+                table = models.VirtualTable(table_id=table_id, name="Linked table", width=1000, height=1000,
+                                            session_id=game.id)
+                db.add(table)
+                db.flush()
+                db.add_all([
+                    models.SessionCharacter(character_id=character_id, session_id=game.id, owner_user_id=owner.id,
+                        character_name="Hero", version=1, character_data=json.dumps({
+                            "character_id": character_id, "name": "Hero", "schemaVersion": 1,
+                            "data": {"stats": {"hp": 20, "maxHp": 20, "ac": 12}},
+                        })),
+                    models.Entity(table_id=table.id, entity_id=1, sprite_id=sprite_id, name="Hero",
+                        position_x=100, position_y=100, layer="tokens", character_id=character_id,
+                        hp=20, max_hp=20, ac=12),
+                ])
+                db.commit()
+                owner_id, session_id = owner.id, game.id
+            monkeypatch.setattr(character_manager, "SessionLocal", factory)
+            stage = character_manager.stage_character_token_stats
+
+            def stage_and_maybe_fail(db, session_id, character_id, stats):
+                result = stage(db, session_id, character_id, stats)
+                assert len(result) == 1
+                assert db.query(models.Entity.hp).scalar() == 0
+                if fail_after_token_flush:
+                    raise RuntimeError("Injected failure after linked token flush")
+                return result
+
+            monkeypatch.setattr(character_manager, "stage_character_token_stats", stage_and_maybe_fail)
+            manager = character_manager.ServerCharacterManager()
+            result = manager.update_character(session_id, character_id,
+                {"data": {"stats": {"hp": 0, "maxHp": 30, "ac": 15}}}, owner_id, expected_version=1)
+            assert result["success"] is not fail_after_token_flush
+            with factory() as db:
+                source = db.query(models.SessionCharacter).filter_by(character_id=character_id).one()
+                token = db.query(models.Entity).filter_by(sprite_id=sprite_id).one()
+                expected = {"hp": 20, "maxHp": 20, "ac": 12} if fail_after_token_flush else {
+                    "hp": 0, "maxHp": 30, "ac": 15,
+                }
+                assert json.loads(source.character_data)["data"]["stats"] == expected
+                assert (token.hp, token.max_hp, token.ac) == (expected["hp"], expected["maxHp"], expected["ac"])
+                assert source.version == (1 if fail_after_token_flush else 2)
+                has_logs = db.query(models.CharacterLog).filter_by(character_id=character_id).count() > 0
+                assert has_logs is not fail_after_token_flush
+        finally:
+            outer.rollback()
+
+
+@pytest.mark.parametrize("commit", [False, True])
+def test_character_outcome_lookup_waits_for_the_original_transaction(postgresql_engine, commit):
+    from service.character_update_recovery import CharacterUpdateRecovery, PendingCharacterUpdate
+
+    suffix = uuid.uuid4().hex[:12]
+    character_id = str(uuid.uuid4())
+    before, after = '{"name":"Hero","hp":20}', '{"name":"Hero","hp":5}'
+    factory = sessionmaker(bind=postgresql_engine, expire_on_commit=False)
+    with factory() as db:
+        owner = models.User(username=f"char-outcome-{suffix}", hashed_password="not-a-real-hash")
+        db.add(owner)
+        db.flush()
+        game = models.GameSession(name="Character outcome barrier", session_code=suffix, owner_id=owner.id)
+        db.add(game)
+        db.flush()
+        db.add(models.SessionCharacter(character_id=character_id, session_id=game.id, owner_user_id=owner.id,
+            character_name="Hero", version=1, character_data=before))
+        db.commit()
+        owner_id, session_id = owner.id, game.id
+    writer = factory()
+    reader_ready = threading.Event()
+    reader_pids, results, errors = [], [], []
+
+    def read_session():
+        db = factory()
+        reader_pids.append(db.execute(text("SELECT pg_backend_pid()")).scalar_one())
+        reader_ready.set()
+        return db
+
+    service = CharacterUpdateRecovery(read_session)
+    attempt = PendingCharacterUpdate(session_id, character_id, owner_id, "original-character-request",
+                                    1, before, after, {"version": 2}, {"hp": 5})
+    service.remember(attempt)
+
+    def resolve():
+        try:
+            results.append(service.resolve(session_id))
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=resolve, daemon=True)
+    try:
+        writer.query(models.GameSession).filter_by(id=session_id).with_for_update().one()
+        source = writer.query(models.SessionCharacter).filter_by(character_id=character_id).with_for_update().one()
+        source.version, source.character_data, source.last_modified_by = 2, after, owner_id
+        writer.flush()
+        writer_pid = writer.execute(text("SELECT pg_backend_pid()")).scalar_one()
+        reader.start()
+        assert reader_ready.wait(3)
+        deadline = time.monotonic() + 3
+        blocked = False
+        with postgresql_engine.connect().execution_options(isolation_level="AUTOCOMMIT") as observer:
+            while time.monotonic() < deadline:
+                blockers = observer.execute(text("SELECT pg_blocking_pids(:pid)"), {"pid": reader_pids[0]}).scalar_one()
+                if writer_pid in blockers:
+                    blocked = True
+                    break
+                time.sleep(.01)
+        assert blocked, "Character recovery did not wait on the original session-row lock"
+        assert not results and not errors
+        if commit:
+            writer.commit()
+        else:
+            writer.rollback()
+        reader.join(timeout=5)
+        assert not reader.is_alive() and not errors
+        assert len(results) == 1 and results[0] is not None
+        assert results[0].committed is commit
+        assert service.has_pending(session_id), "Verified state still needs live installation"
+        service.complete(results[0])
+        assert not service.has_pending(session_id)
+    finally:
+        writer.rollback()
+        writer.close()
+        if reader.ident is not None:
+            reader.join(timeout=6)
+        with postgresql_engine.begin() as connection:
+            connection.execute(text("DELETE FROM session_characters WHERE character_id = :id"), {"id": character_id})
+            connection.execute(text("DELETE FROM game_sessions WHERE id = :id"), {"id": session_id})
+            connection.execute(text("DELETE FROM users WHERE id = :id"), {"id": owner_id})
+
+
+def test_character_outcome_lookup_rejects_repeatable_read_snapshots(postgresql_engine):
+    from service.character_update_recovery import (
+        CharacterUpdateOutcomeUnknown,
+        CharacterUpdateRecovery,
+        PendingCharacterUpdate,
+    )
+
+    engine = postgresql_engine.execution_options(isolation_level="REPEATABLE READ")
+    service = CharacterUpdateRecovery(sessionmaker(bind=engine))
+    service.remember(PendingCharacterUpdate(1, "unused", 1, "unused", 1, "{}", "{}", {"version": 2}, {}))
+    with pytest.raises(CharacterUpdateOutcomeUnknown, match="READ COMMITTED"):
+        service.resolve(1)
+    assert service.has_pending(1)
 
 
 def test_postgresql_schema_is_at_head_with_bounded_identifiers(postgresql_engine):

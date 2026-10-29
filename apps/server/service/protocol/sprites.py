@@ -2,6 +2,7 @@ import copy
 import json
 import math
 import time
+import uuid
 from typing import Any
 
 from core_table.protocol import Message, MessageType
@@ -11,7 +12,9 @@ from service.canvas_persistence_service import (
     load_movement_policy,
     sprite_identity_exists,
 )
+from service.character_stat_normalization import compendium_npc_document
 from service.movement_validator import MovementValidator
+from service.sprite_editor_commands import sprite_command_scope
 from service.text_sprite import TextSpriteValidationError, encode_text_metadata, text_metadata
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
@@ -866,8 +869,10 @@ class _SpritesMixin(_ProtocolBase):
         if not can_interact(role):
             return Message(MessageType.ERROR, {'error': 'Insufficient permissions'})
 
-        if not sprite_data:
+        if not isinstance(sprite_data, dict) or not sprite_data:
             return Message(MessageType.ERROR, {'error': 'No sprite_data provided for compendium add'})
+        if monster_data is not None and not isinstance(monster_data, dict):
+            return Message(MessageType.ERROR, {'error': 'monster_data must be an object'})
 
         layer = sprite_data.get('layer', 'tokens') if isinstance(sprite_data, dict) else 'tokens'
         _dm_layers = {'dungeon_master', 'fog_of_war', 'light', 'height', 'obstacles', 'dm_notes'}
@@ -893,29 +898,17 @@ class _SpritesMixin(_ProtocolBase):
             except Exception as e:
                 logger.warning(f"Token resolution failed: {e}")
 
-        # --- Step 2: create NPC character from monster data ---
+        # Prepare a source for the same transaction as the token and receipt.
         character_id = sprite_data.get('character_id') or ''
         if monster_data and not character_id:
+            scope = sprite_command_scope.get()
+            if scope is None:
+                return Message(MessageType.ERROR, {'error': 'NPC placement requires authenticated persistent command context'})
             try:
-                session_id = self._get_session_id(msg)
-                if session_id:
-                    raw = monster_data.get('raw') or {}
-                    char_data = {
-                        'name': monster_data.get('name', 'Unknown'),
-                        'type': 'npc',
-                        'monster_type': monster_data.get('type') or monster_data.get('monsterType', ''),
-                        'challenge_rating': monster_data.get('challenge_rating', ''),
-                        'npc': True,
-                        **raw  # merge all raw monster stats into character data
-                    }
-                    char_result = await self.actions.save_character(session_id, char_data, user_id)
-                    if char_result.success:
-                        character_id = char_result.data.get('character_id', '')
-                        logger.info("NPC character created", extra={"event_name": "character.npc.created"})
-                    else:
-                        logger.warning("NPC character creation rejected")
-            except Exception as e:
-                logger.warning(f"Character creation error: {e}")
+                character_id = str(uuid.uuid5(uuid.UUID(scope.operation_id), 'character'))
+                scope.new_character.update(compendium_npc_document(monster_data, character_id=character_id))
+            except ValueError as exc:
+                return Message(MessageType.ERROR, {'error': str(exc)})
 
         # --- Step 3: build sprite and create it ---
         sprite_data_with_table = dict(sprite_data)

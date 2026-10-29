@@ -20,6 +20,7 @@ from service.canvas_command_service import (
     CanvasRejected,
     encoded,
 )
+from service.compendium_npc_persistence import stage_compendium_npc
 from service.paint_object_service import _Rejected
 from service.sprite_delta_persistence import stage_sprite_delta
 from sqlalchemy import insert
@@ -27,7 +28,8 @@ from utils.action_diagnostics import timed_transaction
 from utils.roles import can_interact, is_dm
 
 SPRITE_COMMAND_TYPES = frozenset({MessageType.SPRITE_CREATE, MessageType.SPRITE_REMOVE,
-    MessageType.SPRITE_MOVE, MessageType.SPRITE_SCALE, MessageType.SPRITE_ROTATE, MessageType.SPRITE_UPDATE})
+    MessageType.SPRITE_MOVE, MessageType.SPRITE_SCALE, MessageType.SPRITE_ROTATE, MessageType.SPRITE_UPDATE,
+    MessageType.COMPENDIUM_SPRITE_ADD, MessageType.COMPENDIUM_SPRITE_UPDATE, MessageType.COMPENDIUM_SPRITE_REMOVE})
 EDITOR_UPDATE_FIELDS = frozenset({"sprite_id", "table_id", "width", "height", "rotation", "scale_x",
     "scale_y", "metadata", "expected_text_revision", "name"})
 
@@ -42,6 +44,7 @@ class SpriteCommandScope:
     editor: bool
     issued_at_seconds: float
     receipt: dict = field(default_factory=dict, compare=False)
+    new_character: dict = field(default_factory=dict, compare=False)
 
     @classmethod
     def from_message(cls, msg, session_id, actor_id):
@@ -56,7 +59,8 @@ class SpriteCommandScope:
         identity = encoded([session_id, actor_id, table_id, msg.type.value, msg.message_id]).decode("utf-8")
         return cls(session_id, actor_id, table_id, str(uuid.uuid5(uuid.NAMESPACE_URL, identity)),
             hashlib.sha256(encoded({"type": msg.type.value, "data": msg.data, "timestamp": msg.timestamp})).hexdigest(),
-            msg.type != MessageType.SPRITE_UPDATE or set(msg.data) <= EDITOR_UPDATE_FIELDS, msg.timestamp)
+            msg.type not in {MessageType.SPRITE_UPDATE, MessageType.COMPENDIUM_SPRITE_UPDATE}
+            or set(msg.data) <= EDITOR_UPDATE_FIELDS, msg.timestamp)
 
 
 sprite_command_scope: ContextVar[SpriteCommandScope | None] = ContextVar("sprite_command_scope", default=None)
@@ -197,6 +201,8 @@ class SpriteEditorCommandService(CanvasCommandService):
             new = {entity.sprite_id: entity.to_dict() for entity in staged.entities.values()}
         changes = [{"kind": "sprite", "id": target, "before": old.get(target), "after": new.get(target)}
             for target in sorted(old.keys() | new.keys()) if encoded(old.get(target)) != encoded(new.get(target))]
+        if scope.new_character:
+            stage_compendium_npc(db, scope.session_id, scope.actor_id, scope.new_character, changes)
         projections = self._prepare_character_bindings(db, changes, scope.session_id, scope.actor_id, role)
         for target, stats in projections.items():
             entity = staged.find_entity_by_sprite_id(target)

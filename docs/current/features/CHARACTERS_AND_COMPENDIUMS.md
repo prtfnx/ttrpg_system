@@ -126,6 +126,25 @@ character identity or sharing. `test_character_stat_normalization.py` checks all
 idempotent preparation. Creation and repair must explicitly adopt these proposals
 inside their own acceptance transactions.
 
+## Compendium NPC acceptance
+
+Compendium add/update/remove now use the existing sprite command scope and
+durable journal. For a new monster, add prepares a canonical document under a
+deterministic character ID derived from that request's operation identity.
+`stage_compendium_npc` inserts the source in the same worker-owned transaction
+as token binding, token persistence, and the sprite receipt. No separate source
+save is issued. Invalid monster stats reject instead of falling back to an
+unlinked token. Existing character links still require source edit authority.
+
+Source, token, and receipt roll back together; a replay reads the durable sprite
+receipt without creating another NPC or publishing stale token data. Session
+ownership survives cancellation until installation/publication settles. Undoing
+the editor token creation keeps the character source available in the character
+list; it is not character archival. `test_compendium_npc_transaction.py` covers
+acceptance, rollback after flush, protocol reconstruction/replay, invalid input,
+and repeated cancellation. Generic sprite commit-response uncertainty and its
+full release qualification remain part of the broader operation-outcome work.
+
 ## Character binding adapter
 
 `service/character_token_binding.py` prepares newly attached token projections

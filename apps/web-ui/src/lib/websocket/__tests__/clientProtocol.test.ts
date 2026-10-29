@@ -2011,6 +2011,17 @@ describe('WebClientProtocol', () => {
       expect(updateCharacter).toHaveBeenCalledWith('c4', expect.objectContaining({ hp: 20 }));
     });
 
+    it('merges incoming character stat deltas without dropping other sheet fields', async () => {
+      mocks.storeState.characters = [{ id: 'c1', version: 2,
+        data: { stats: { hp: 10, maxHp: 20, ac: 12 }, inventory: ['rope'], spellSlots: { 1: 2 } } }];
+      await dispatch(makeProtocol(), 'character_update', {
+        character_id: 'c1', updates: { data: { stats: { hp: 0, ac: null }, spellSlots: null } }, version: 3,
+      });
+      expect(mocks.storeState.updateCharacter).toHaveBeenCalledWith('c1', expect.objectContaining({
+        data: { stats: { hp: 0, maxHp: 20 }, inventory: ['rope'] }, version: 3,
+      }));
+    });
+
     it('CHARACTER_UPDATE_RESPONSE success updates sync status', async () => {
       const store = mocks.storeState as Record<string, unknown>;
       const updateCharacter = vi.fn();

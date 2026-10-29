@@ -212,6 +212,11 @@ browser asks the user to review saved state before retrying. These paths have
 protocol-unit coverage in `clientProtocol.test.ts`; a complete served-browser
 and PostgreSQL recovery playthrough remains a release gate.
 
+Incoming character data deltas use the same JSON Merge Patch semantics as the
+server and optimistic command: nested siblings survive, null members are removed,
+and arrays replace. A single HP update cannot discard another client's AC,
+inventory, or spell slots. `clientProtocol.test.ts` covers this receiving boundary.
+
 The token configuration panel uses the same versioned character command for
 linked HP, max HP, and AC. It sends only the edited nested stat, preserves other
 optimistic sheet fields using JSON Merge Patch, and displays pending/error/local

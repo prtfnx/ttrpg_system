@@ -25,6 +25,7 @@ import {
 } from '@features/painting/model/paintProtocol';
 import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import { logger, protocolLogger } from '@shared/utils/logger';
+import { applyJsonMergePatch } from '@shared/utils/jsonMergePatch';
 import { demoQuery } from '@shared/utils/demoSession';
 import { showToast } from '@shared/utils/toast';
 import type { Message, MessageHandler } from './message';
@@ -1747,9 +1748,13 @@ export class WebClientProtocol {
     
     // Delta update (partial changes)
     const updates = data.updates;
-    if (characterId && updates) {
+    if (characterId && updates && typeof updates === 'object' && !Array.isArray(updates)) {
       const version = data.version as number | undefined;
       const updatePayload: Partial<Character> = { ...(updates as Partial<Character>) };
+      if (Object.hasOwn(updates, 'data')) {
+        const existing = store.characters.find(character => character.id === characterId);
+        updatePayload.data = applyJsonMergePatch(existing?.data, (updates as Record<string, unknown>).data) as Character['data'];
+      }
       if (version !== undefined) {
         updatePayload.version = version;
       }

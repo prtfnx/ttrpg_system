@@ -110,7 +110,10 @@ export class WebClientProtocol {
     retryCount: number;
     message: Message;
     sent: boolean;
+    outcomeUnknown?: boolean;
+    recoveryProbeSent?: boolean;
   }>();
+  private characterResyncNeeded = new Set<string>();
   private pendingCharacterCreates = new Map<string, string>();
   private readonly BATCH_DELAY_MS = 30;
   private readonly MAX_BATCH_SIZE = 15;
@@ -779,6 +782,7 @@ export class WebClientProtocol {
           protocolLogger.connection('WebSocket connection closed', { code: event.code, reason: event.reason });
           this.websocket = null;
           this.connectionAlive = false;
+          this.markCharacterUpdatesUncertain();
           this.lastCloseCode = event.code;
           this.lastCloseReason = this.sanitizeCloseReason(event.reason);
           this.notifyConnectionState('disconnected');
@@ -983,6 +987,15 @@ export class WebClientProtocol {
     }
   }
 
+  private markCharacterUpdatesUncertain(): void {
+    for (const pending of this.pendingCharacterUpdates.values()) {
+      if (!pending.sent) continue;
+      pending.outcomeUnknown = true;
+      pending.recoveryProbeSent = false;
+      this.characterResyncNeeded.add(pending.characterId);
+    }
+  }
+
   /** Start sending keep-alive pings to server (30s interval) */
   public startPing(): void {
     if (this.pingInterval) {
@@ -1067,6 +1080,7 @@ export class WebClientProtocol {
   }
 
   private closeForReconnect(reason: string): void {
+    this.markCharacterUpdatesUncertain();
     for (const request of this.resyncs.values()) clearTimeout(request.timer);
     this.resyncs.clear();
     const socket = this.websocket;
@@ -1178,6 +1192,24 @@ export class WebClientProtocol {
 
   private async handleError(message: Message): Promise<void> {
     logger.error('Server error', message.data);
+    if (message.data?.code === 'character_outcome_unknown') {
+      const requestId = message.causation_id ?? message.correlation_id;
+      const pending = requestId ? this.pendingCharacterUpdates.get(requestId) : undefined;
+      if (pending) {
+        pending.outcomeUnknown = true;
+        this.characterResyncNeeded.add(pending.characterId);
+        useGameStore.getState().updateCharacter(pending.characterId, { syncStatus: 'syncing' });
+        if (!pending.recoveryProbeSent) {
+          pending.recoveryProbeSent = true;
+          // A serialized read asks the server to settle the existing intent.
+          // Never invent a replacement mutation after an uncertain outcome.
+          this.requestActiveTable();
+          showToast.warning('Checking whether the character update was saved.');
+        }
+      }
+      emitProtocolEvent('protocol-error', message.data);
+      return;
+    }
     this.settingsBuffer.reject(message);
     if (message.data?.resync_required === true && typeof message.data.table_id === 'string') {
       this.resynchronizeTable(message.data.table_id);
@@ -1721,7 +1753,8 @@ export class WebClientProtocol {
       if (version !== undefined) {
         updatePayload.version = version;
       }
-      updatePayload.syncStatus = 'synced';
+      updatePayload.syncStatus = Array.from(this.pendingCharacterUpdates.values())
+        .some(pending => pending.characterId === characterId) ? 'syncing' : 'synced';
       updatePayload.updatedAt = new Date().toISOString();
       
       store.updateCharacter(characterId, updatePayload);
@@ -1738,29 +1771,40 @@ export class WebClientProtocol {
     const version = message.data?.version;
     const error = message.data?.error;
     const currentVersion = message.data?.current_version;
-    const correlatedPending = message.correlation_id
-      ? this.pendingCharacterUpdates.get(message.correlation_id)
+    const replyId = message.causation_id ?? message.correlation_id;
+    const correlatedPending = replyId
+      ? this.pendingCharacterUpdates.get(replyId)
       : undefined;
-    const fallbackPendingEntry = !correlatedPending && characterId
-      ? Array.from(this.pendingCharacterUpdates.entries()).find(([, pending]) => pending.characterId === characterId)
-      : undefined;
-    const pendingKey = correlatedPending ? message.correlation_id : fallbackPendingEntry?.[0];
+    const fallbackEntries = replyId === undefined && characterId
+      ? Array.from(this.pendingCharacterUpdates.entries()).filter(([, pending]) => pending.characterId === characterId)
+      : [];
+    if ((replyId !== undefined && !correlatedPending) || fallbackEntries.length > 1
+      || (correlatedPending && correlatedPending.characterId !== characterId)) {
+      logger.debug('Ignoring character receipt without an exact pending owner', { characterId, replyId });
+      emitProtocolEvent('character-update-response', message.data);
+      return;
+    }
+    const fallbackPendingEntry = fallbackEntries[0];
+    const pendingKey = correlatedPending ? replyId : fallbackPendingEntry?.[0];
     const pending = correlatedPending ?? fallbackPendingEntry?.[1];
+    if (message.data?.resync_required === true && characterId) this.characterResyncNeeded.add(characterId);
     
     if (success && characterId) {
       // Update successful - update version and sync status
       const store = useGameStore.getState();
-      const updatePayload: Partial<Character> = { syncStatus: 'synced' };
+      if (pendingKey) this.pendingCharacterUpdates.delete(pendingKey);
+      const remaining = Array.from(this.pendingCharacterUpdates.values()).some(item => item.characterId === characterId);
+      const updatePayload: Partial<Character> = { syncStatus: remaining ? 'syncing' : 'synced' };
       if (version !== undefined) {
         const parsedVersion = typeof version === 'number' ? version : Number(version);
         if (Number.isSafeInteger(parsedVersion) && parsedVersion >= 0) {
-          updatePayload.version = parsedVersion;
+          const current = store.characters.find(character => character.id === characterId)?.version;
+          if (current === undefined || parsedVersion >= current) updatePayload.version = parsedVersion;
         } else {
           logger.warn('Ignoring invalid character update version', { characterId, version });
         }
       }
       store.updateCharacter(characterId, updatePayload);
-      if (pendingKey) this.pendingCharacterUpdates.delete(pendingKey);
     } else if (!success && characterId) {
       // Update failed - handle version conflict or other errors
       const store = useGameStore.getState();
@@ -1773,6 +1817,7 @@ export class WebClientProtocol {
         && Number.isSafeInteger(parsedCurrentVersion)
         && parsedCurrentVersion >= 0
         && pending
+        && !pending.outcomeUnknown
         && pending.retryCount === 0
       ) {
         logger.warn(`Version conflict for character ${characterId}. Retrying version ${parsedCurrentVersion}`);
@@ -1802,9 +1847,19 @@ export class WebClientProtocol {
         // Other error
         logger.error(`Character update failed: ${error}`);
         if (pendingKey) this.pendingCharacterUpdates.delete(pendingKey);
-        store.updateCharacter(characterId, { syncStatus: 'error' });
-        showToast.error(`Failed to update character: ${error || 'Unknown error'}`);
+        const remaining = Array.from(this.pendingCharacterUpdates.values()).some(item => item.characterId === characterId);
+        store.updateCharacter(characterId, { syncStatus: remaining ? 'syncing' : 'error' });
+        if (pending?.outcomeUnknown) {
+          this.characterResyncNeeded.add(characterId);
+          showToast.warning('The previous character update could not be confirmed. Review the saved state before retrying.');
+        } else showToast.error(`Failed to update character: ${error || 'Unknown error'}`);
       }
+    }
+    if (characterId && !Array.from(this.pendingCharacterUpdates.values()).some(item => item.characterId === characterId)
+      && this.characterResyncNeeded.delete(characterId)) {
+      this.loadCharacter(characterId);
+      const tableId = useGameStore.getState().activeTableId;
+      if (tableId) this.resynchronizeTable(tableId);
     }
     
     emitProtocolEvent('character-update-response', message.data);
@@ -2632,6 +2687,7 @@ export class WebClientProtocol {
   }
 
   disconnect(): void {
+    this.markCharacterUpdatesUncertain();
     this.canvasPipelining = false;
     if (this.batchTimer) clearTimeout(this.batchTimer);
     this.batchTimer = null;

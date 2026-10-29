@@ -25,6 +25,16 @@ again; changing its payload rejects. This is in-process reconciliation, not a
 durable retry ledger across restart. Token-originated transactions, encounter
 authority, general durable identities, and real PostgreSQL acceptance remain open.
 
+October 27 browser recovery: receipts now match their exact causation identity,
+duplicate/ambiguous receipts cannot settle later edits, and acknowledged versions
+cannot regress newer known state. Transport loss and explicit unknown outcomes
+disable blind conflict retries. One serialized read probes recovery; canonical
+character/table hydration waits for all edits to that character to settle. The
+shared closed error schema now accepts the server's combat/character recovery
+codes and bounded identifiers in both generated consumers. All 189 browser
+protocol tests and 123 core schema cases pass; TypeScript, targeted ESLint, and
+current-doc checks pass. Served PostgreSQL/browser qualification remains open.
+
 Execution started: 2026-10-26. R0 documentation reconciliation is implemented.
 The isolated optimized WASM build matches the baseline `HEAD` binary byte for
 byte (SHA-256 `33ba71838d57fbf860d9d51933a17bbfacd64ff92cfbc8c035bd016775bfcace`,

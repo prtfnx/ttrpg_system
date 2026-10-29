@@ -150,14 +150,29 @@ browser acceptance remain release gates.
 The character panel and modeless character sheets submit edits through
 `useCharacterUpdateCommand`. The browser applies the edit optimistically and
 marks the character `syncing`; the protocol records the generated message ID
-before attempting transport. A successful correlated response advances the
-server version, marks the character `synced`, and removes the pending entry.
+before attempting transport. Responses use `causation_id` before trace
+`correlation_id` to settle exactly the originating pending entry. An uncorrelated
+legacy response is matched only when exactly one edit to that character is
+pending. Duplicate, stale, mismatched, and ambiguous receipts cannot settle a
+newer edit. Success advances the version without regressing a newer known
+version; the character stays `syncing` while another edit remains pending.
 
 If the socket disconnects, unsent updates stay in the protocol message queue
-and sent-but-unacknowledged updates stay in the pending map. Reconnecting the
-same protocol instance replays both categories. A server version conflict
-updates the local version and retries the same delta once; another rejection
-marks the character `error` instead of retrying forever.
+and sent-but-unacknowledged updates stay in the pending map, marked uncertain.
+Reconnecting the same protocol instance replays both categories with their
+original identities. A definite version conflict retries the same delta once.
+An uncertain edit is never converted into a new mutation on conflict, since the
+original may have committed before the connection or server was lost.
+
+`character_outcome_unknown` retains the original intent and sends one serialized
+active-table read to trigger server recovery. Repeated unknown responses do not
+create a read loop. A recovered receipt, publication-resync requirement, or
+uncertain conflict schedules canonical character and active-table reads after
+all pending edits to that character settle. This avoids an early recovery read
+overwriting a later optimistic edit. If the server cannot confirm the edit, the
+browser asks the user to review saved state before retrying. These paths have
+protocol-unit coverage in `clientProtocol.test.ts`; a complete served-browser
+and PostgreSQL recovery playthrough remains a release gate.
 
 This queue is deliberately page-memory durability, not offline persistence. It
 survives a transport reconnect while the current page and protocol instance

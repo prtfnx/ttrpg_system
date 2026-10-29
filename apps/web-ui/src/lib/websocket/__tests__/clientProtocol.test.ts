@@ -2110,6 +2110,144 @@ describe('WebClientProtocol', () => {
       });
     });
 
+    it('does not let a duplicate receipt settle a later edit to the same character', async () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      p.updateCharacter('c1', { hp: 10 }, 2); p.sendBatch();
+      const first = JSON.parse(ws.send.mock.calls[0][0]).data.messages[0];
+      await dispatch(p, 'character_update_response', { success: true, character_id: 'c1', version: 3 },
+        { correlation_id: first.message_id });
+      ws.send.mockClear();
+      p.updateCharacter('c1', { ac: 16 }, 3); p.sendBatch();
+      const second = JSON.parse(ws.send.mock.calls[0][0]).data.messages[0];
+      ws.send.mockClear();
+      const update = mocks.storeState.updateCharacter as Mock; update.mockClear();
+      await dispatch(p, 'character_update_response', { success: true, character_id: 'c1', version: 3 },
+        { correlation_id: first.message_id });
+      expect(update).not.toHaveBeenCalled();
+      await dispatch(p, 'character_update_response',
+        { success: false, character_id: 'c1', error: 'Version conflict', current_version: 4 },
+        { correlation_id: second.message_id });
+      p.sendBatch();
+      expect(JSON.parse(ws.send.mock.calls[0][0]).data.messages[0].data).toMatchObject({ updates: { ac: 16 }, version: 4 });
+    });
+
+    it('uses causation identity before a shared trace correlation', async () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      p.updateCharacter('c1', { hp: 10 }, 2); p.updateCharacter('c1', { ac: 16 }, 2); p.sendBatch();
+      const [first, second] = JSON.parse(ws.send.mock.calls[0][0]).data.messages;
+      await dispatch(p, 'character_update_response', { success: true, character_id: 'c1', version: 3 },
+        { causation_id: first.message_id, correlation_id: 'shared-trace' });
+      expect(mocks.storeState.updateCharacter).toHaveBeenLastCalledWith('c1', { syncStatus: 'syncing', version: 3 });
+      ws.send.mockClear();
+      await dispatch(p, 'character_update_response',
+        { success: false, character_id: 'c1', error: 'Version conflict', current_version: 3 },
+        { causation_id: second.message_id, correlation_id: 'shared-trace' });
+      p.sendBatch();
+      expect(JSON.parse(ws.send.mock.calls[0][0]).data.messages[0].data.updates).toEqual({ ac: 16 });
+    });
+
+    it('never guesses a pending owner from an ambiguous legacy receipt', async () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      p.updateCharacter('c1', { hp: 10 }, 2); p.updateCharacter('c1', { ac: 16 }, 2); p.sendBatch();
+      const requests = JSON.parse(ws.send.mock.calls[0][0]).data.messages;
+      ws.send.mockClear();
+      const update = mocks.storeState.updateCharacter as Mock; update.mockClear();
+      await dispatch(p, 'character_update_response', { success: true, character_id: 'c1', version: 3 });
+      expect(update).not.toHaveBeenCalled();
+      for (const request of requests) {
+        await dispatch(p, 'character_update_response',
+          { success: false, character_id: 'c1', error: 'Version conflict', current_version: 3 },
+          { causation_id: request.message_id });
+      }
+      p.sendBatch();
+      expect(JSON.parse(ws.send.mock.calls[0][0]).data.messages.map((message: Message) => message.data?.updates))
+        .toEqual([{ hp: 10 }, { ac: 16 }]);
+    });
+
+    it('keeps an unknown character intent and requests one read without replaying the mutation', async () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      p.updateCharacter('c1', { hp: 10 }, 2); p.sendBatch();
+      const request = JSON.parse(ws.send.mock.calls[0][0]).data.messages[0];
+      ws.send.mockClear();
+      const unknown = { code: 'character_outcome_unknown', outcome: 'unknown', character_id: 'c1', resync_required: true,
+        error: 'Character outcome is uncertain. Reload to check before retrying.' };
+      await dispatch(p, 'error', unknown, { causation_id: request.message_id }); p.sendBatch();
+      expect(JSON.parse(ws.send.mock.calls[0][0]).data.messages.map((message: Message) => message.type))
+        .toEqual([MessageType.TABLE_ACTIVE_REQUEST]);
+      ws.send.mockClear();
+      await dispatch(p, 'error', unknown, { causation_id: request.message_id }); p.sendBatch();
+      expect(ws.send).not.toHaveBeenCalled();
+      expect(mocks.storeState.updateCharacter).toHaveBeenLastCalledWith('c1', { syncStatus: 'syncing' });
+      await dispatch(p, 'character_update_response', { success: true, character_id: 'c1', version: 3, resync_required: true },
+        { causation_id: request.message_id }); p.sendBatch();
+      const types = ws.send.mock.calls.flatMap(call => {
+        const message = JSON.parse(call[0]); return message.type === MessageType.BATCH_REQUEST
+          ? message.data.messages.map((item: Message) => item.type) : [message.type];
+      });
+      expect(types).toContain(MessageType.CHARACTER_LOAD_REQUEST);
+      expect(types).toContain(MessageType.TABLE_REQUEST);
+      expect(types).not.toContain(MessageType.CHARACTER_UPDATE);
+    });
+
+    it('does not turn an unknown outcome into a new conflict retry after restart', async () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      p.updateCharacter('c1', { hp: 10 }, 2); p.sendBatch();
+      const request = JSON.parse(ws.send.mock.calls[0][0]).data.messages[0];
+      await dispatch(p, 'error', { code: 'character_outcome_unknown', outcome: 'unknown',
+        error: 'Character outcome is uncertain. Reload to check before retrying.' },
+        { causation_id: request.message_id }); p.sendBatch(); ws.send.mockClear();
+      await dispatch(p, 'character_update_response',
+        { success: false, character_id: 'c1', error: 'Version conflict', current_version: 3 },
+        { causation_id: request.message_id }); p.sendBatch();
+      const sent = ws.send.mock.calls.flatMap(call => {
+        const message = JSON.parse(call[0]); return message.type === MessageType.BATCH_REQUEST ? message.data.messages : [message];
+      });
+      expect(sent.some((message: Message) => message.type === MessageType.CHARACTER_UPDATE)).toBe(false);
+      expect(sent.some((message: Message) => message.type === MessageType.CHARACTER_LOAD_REQUEST)).toBe(true);
+    });
+
+    it('defers recovery hydration until later edits to that character settle', async () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      p.updateCharacter('c1', { hp: 10 }, 2); p.updateCharacter('c1', { ac: 16 }, 2); p.sendBatch();
+      const [first, second] = JSON.parse(ws.send.mock.calls[0][0]).data.messages; ws.send.mockClear();
+      await dispatch(p, 'character_update_response',
+        { success: false, character_id: 'c1', error: 'Character update did not commit', resync_required: true },
+        { causation_id: first.message_id }); p.sendBatch();
+      expect(ws.send).not.toHaveBeenCalled();
+      expect(mocks.storeState.updateCharacter).toHaveBeenLastCalledWith('c1', { syncStatus: 'syncing' });
+      await dispatch(p, 'character_update_response', { success: true, character_id: 'c1', version: 3 },
+        { causation_id: second.message_id }); p.sendBatch();
+      const sent = ws.send.mock.calls.flatMap(call => {
+        const message = JSON.parse(call[0]); return message.type === MessageType.BATCH_REQUEST ? message.data.messages : [message];
+      });
+      expect(sent.some((message: Message) => message.type === MessageType.CHARACTER_LOAD_REQUEST)).toBe(true);
+    });
+
+    it('does not regress the known character version when an older receipt arrives', async () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      p.updateCharacter('c1', { hp: 10 }, 2); p.sendBatch();
+      const request = JSON.parse(ws.send.mock.calls[0][0]).data.messages[0];
+      mocks.storeState.characters = [{ id: 'c1', version: 4 }];
+      await dispatch(p, 'character_update_response', { success: true, character_id: 'c1', version: 3 },
+        { causation_id: request.message_id });
+      expect(mocks.storeState.updateCharacter).toHaveBeenLastCalledWith('c1', { syncStatus: 'synced' });
+    });
+
+    it('treats a sent edit as uncertain after transport disconnect', async () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      p.updateCharacter('c1', { hp: 10 }, 2); p.sendBatch();
+      const request = JSON.parse(ws.send.mock.calls[0][0]).data.messages[0];
+      p.disconnect(); const resumed = makeOpenWs(p);
+      await dispatch(p, 'character_update_response',
+        { success: false, character_id: 'c1', error: 'Version conflict', current_version: 3 },
+        { causation_id: request.message_id }); p.sendBatch();
+      const sent = resumed.send.mock.calls.flatMap(call => {
+        const message = JSON.parse(call[0]); return message.type === MessageType.BATCH_REQUEST ? message.data.messages : [message];
+      });
+      expect(sent.some((message: Message) => message.type === MessageType.CHARACTER_UPDATE)).toBe(false);
+      expect(sent.some((message: Message) => message.type === MessageType.CHARACTER_LOAD_REQUEST)).toBe(true);
+    });
+
     it('CHARACTER_UPDATE_RESPONSE failure marks character as error', async () => {
       const store = mocks.storeState as Record<string, unknown>;
       const updateCharacter = vi.fn();

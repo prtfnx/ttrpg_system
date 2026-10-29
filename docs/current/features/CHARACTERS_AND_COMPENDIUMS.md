@@ -109,6 +109,23 @@ Ending an encounter does not currently establish a general character-sheet HP
 write-back guarantee. Do not overwrite active encounter values from a delayed
 sheet projection or infer that the newest row always owns a shared stat.
 
+## Canonical stat preparation
+
+`service/character_stat_normalization.py` builds detached canonical proposals;
+it never changes storage during a read. Existing canonical HP/max-HP/AC wins,
+including zero and null. Legacy candidates must agree when no canonical value
+exists. Unknown or conflicting values reject, and existing current HP cannot
+invent max HP. Known legacy aliases are removed from a successful proposal;
+other character and monster fields survive.
+
+The NPC builder understands bounded integer HP/AC and the bundled catalog's
+average-HP/dice notation. New NPCs start at their initial HP. Monster content is
+kept under `data`, including original compendium metadata, and cannot override
+character identity or sharing. `test_character_stat_normalization.py` checks all
+201 bundled monsters, combat content preservation, conflicts, zero/null, and
+idempotent preparation. Creation and repair must explicitly adopt these proposals
+inside their own acceptance transactions.
+
 ## Character binding adapter
 
 `service/character_token_binding.py` prepares newly attached token projections

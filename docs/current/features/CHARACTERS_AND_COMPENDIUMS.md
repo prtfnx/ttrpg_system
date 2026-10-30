@@ -126,6 +126,22 @@ character identity or sharing. `test_character_stat_normalization.py` checks all
 idempotent preparation. Creation and repair must explicitly adopt these proposals
 inside their own acceptance transactions.
 
+## Stat reconciliation preview adapter
+
+`service/character_stat_reconciliation.py` inspects one active character for a
+current session DM. It returns canonical values, source-change and token-mismatch
+counts, up to 50 token differences, and an exact SHA-256 precondition over source
+identity/version/document, linked projections, and combat activity. The public
+report excludes the internal repair patch. Preview does not write or select a
+winner among conflicting legacy candidates.
+
+Any active durable combat in the session blocks repair. A scan exceeding 1000
+linked tokens also blocks, and reports truncation explicitly. A future apply
+caller must recheck current DM authority, the exact precondition, and all blocked
+conditions under session/source/token ownership before writing. This adapter
+does not itself apply a repair. `test_character_stat_reconciliation.py` covers
+scope, private-token access, conflicts, combat, changed preconditions and bounds.
+
 ## Compendium NPC acceptance
 
 Compendium add/update/remove now use the existing sprite command scope and

@@ -1,10 +1,18 @@
+import copy
+
 from core_table.protocol import Message, MessageType
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import is_dm
 
 from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
+
+CHOICE_ENCOUNTER_MUTATIONS = frozenset({
+    MessageType.ENCOUNTER_START, MessageType.ENCOUNTER_END,
+    MessageType.ENCOUNTER_CHOICE, MessageType.ENCOUNTER_ROLL,
+})
 
 
 class _EncounterMixin(_ProtocolBase):
@@ -14,17 +22,19 @@ class _EncounterMixin(_ProtocolBase):
         from service.choice_encounter_persistence_service import ChoiceEncounterPersistenceService
         return ChoiceEncounterPersistenceService()
 
-    def _load_active_choice_encounter(self, session_code: str, encounter_id: str | None = None):
+    async def _load_active_choice_encounter(self, session_code: str, encounter_id: str | None = None):
         from service.encounter_engine import EncounterEngine
 
         enc = EncounterEngine.get(session_code)
         if enc and (encounter_id is None or enc.encounter_id == encounter_id):
             return enc
 
-        snapshot = self._encounter_store().load_active(session_code, encounter_id)
+        # Caller owns the session mutation lock through restoration. A cancelled
+        # read can finish in its worker, but cannot install its detached result.
+        snapshot = await run_blocking(self._encounter_store().load_active, session_code, encounter_id)
         return EncounterEngine.restore(snapshot) if snapshot else None
 
-    def _persist_choice_encounter(
+    async def _persist_choice_encounter(
         self,
         *,
         session_code: str,
@@ -34,12 +44,13 @@ class _EncounterMixin(_ProtocolBase):
         payload: dict,
         created_by: int | None = None,
     ) -> None:
-        self._encounter_store().save_snapshot(
+        await run_blocking(
+            self._encounter_store().save_snapshot,
             session_code=session_code,
-            encounter=encounter,
+            encounter=copy.deepcopy(encounter),
             event_type=event_type,
             actor_id=actor_id,
-            payload=payload,
+            payload=copy.deepcopy(payload),
             created_by=created_by,
         )
 
@@ -61,7 +72,7 @@ class _EncounterMixin(_ProtocolBase):
         session_code = self._get_session_code()
         created_by = self._get_user_id(msg, client_id)
         try:
-            if self._load_active_choice_encounter(session_code):
+            if await self._load_active_choice_encounter(session_code):
                 return Message(MessageType.ERROR, {'error': 'An active encounter already exists'})
         except ChoiceEncounterPersistenceError:
             logger.exception("Failed to check for an active choice encounter")
@@ -80,7 +91,7 @@ class _EncounterMixin(_ProtocolBase):
         except (TypeError, ValueError):
             return Message(MessageType.ERROR, {'error': 'Invalid encounter choice data'})
         try:
-            self._persist_choice_encounter(
+            await self._persist_choice_encounter(
                 session_code=session_code,
                 encounter=enc.to_dict(dm=True),
                 event_type='EncounterStarted',
@@ -104,18 +115,18 @@ class _EncounterMixin(_ProtocolBase):
         d = msg.data or {}
         session_code = self._get_session_code()
         try:
-            active = self._load_active_choice_encounter(session_code, d.get('encounter_id'))
+            active = await self._load_active_choice_encounter(session_code, d.get('encounter_id'))
         except ChoiceEncounterPersistenceError:
             logger.exception("Failed to load choice encounter for completion")
             return Message(MessageType.ERROR, {'error': 'Encounter storage is unavailable'})
-        before = active.to_dict(dm=True) if active else None
+        before = copy.deepcopy(active.to_dict(dm=True)) if active else None
         enc = EncounterEngine.end_encounter(session_code, d.get('encounter_id'))
         if not enc:
             return Message(MessageType.ERROR, {'error': 'No active encounter'})
         dm_encounter = enc.to_dict(dm=True)
         actor_id = str(self._get_user_id(msg, client_id) or client_id)
         try:
-            self._persist_choice_encounter(
+            await self._persist_choice_encounter(
                 session_code=session_code,
                 encounter=dm_encounter,
                 event_type='EncounterEnded',
@@ -150,18 +161,18 @@ class _EncounterMixin(_ProtocolBase):
         from service.encounter_engine import EncounterEngine
         session_code = self._get_session_code()
         try:
-            active = self._load_active_choice_encounter(session_code, d.get('encounter_id'))
+            active = await self._load_active_choice_encounter(session_code, d.get('encounter_id'))
         except ChoiceEncounterPersistenceError:
             logger.exception("Failed to load choice encounter for selection")
             return Message(MessageType.ERROR, {'error': 'Encounter storage is unavailable'})
-        before = active.to_dict(dm=True) if active else None
+        before = copy.deepcopy(active.to_dict(dm=True)) if active else None
         result = EncounterEngine.submit_choice(session_code, player_id, choice_id, d.get('encounter_id'))
         if 'error' in result:
             return Message(MessageType.ERROR, result)
         enc = EncounterEngine.get(session_code)
         if enc:
             try:
-                self._persist_choice_encounter(
+                await self._persist_choice_encounter(
                     session_code=session_code,
                     encounter=enc.to_dict(dm=True),
                     event_type='ChoiceSelected',
@@ -192,18 +203,18 @@ class _EncounterMixin(_ProtocolBase):
         from service.encounter_engine import EncounterEngine
         session_code = self._get_session_code()
         try:
-            active = self._load_active_choice_encounter(session_code, d.get('encounter_id'))
+            active = await self._load_active_choice_encounter(session_code, d.get('encounter_id'))
         except ChoiceEncounterPersistenceError:
             logger.exception("Failed to load choice encounter for roll")
             return Message(MessageType.ERROR, {'error': 'Encounter storage is unavailable'})
-        before = active.to_dict(dm=True) if active else None
+        before = copy.deepcopy(active.to_dict(dm=True)) if active else None
         result = EncounterEngine.submit_roll(session_code, player_id, bonus, d.get('encounter_id'))
         if 'error' in result:
             return Message(MessageType.ERROR, result)
         enc = EncounterEngine.get(session_code)
         if enc:
             try:
-                self._persist_choice_encounter(
+                await self._persist_choice_encounter(
                     session_code=session_code,
                     encounter=enc.to_dict(dm=True),
                     event_type='RollResolved',

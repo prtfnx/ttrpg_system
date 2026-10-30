@@ -22,7 +22,8 @@ def _make_service(session_code="TST"):
          patch("service.game_session_protocol.get_server_asset_manager"):
         mock_sp.return_value.handlers = {}
         mock_sp.return_value.handle_client = AsyncMock()
-        mock_sp.return_value._load_active_choice_encounter.return_value = None
+        mock_sp.return_value._mutation_lock = asyncio.Lock()
+        mock_sp.return_value._load_active_choice_encounter = AsyncMock(return_value=None)
         svc = GameSessionProtocolService.__new__(GameSessionProtocolService)
         svc.session_code = session_code
         svc.db_session = None
@@ -151,13 +152,13 @@ class TestClientLifecycle:
         ws = _ws()  # never added
         await svc.remove_client(ws)  # should not raise
 
-    async def test_banned_player_raises(self):
+    async def test_banned_player_raises(self, monkeypatch):
         svc = _make_service()
         svc.db_session = MagicMock()
         svc.game_session_db_id = 1
-        game_session = MagicMock()
-        game_session.ban_list = json.dumps([{"player_id": "7", "reason": "cheating"}])
-        svc.db_session.get.return_value = game_session
+        def denied(*args):
+            raise PermissionError("Banned: cheating")
+        monkeypatch.setattr("service.game_session_protocol.load_join_metadata", denied)
         ws = _ws()
         with pytest.raises(PermissionError, match="Banned"):
             await svc.add_client(ws, "c1", {"user_id": 7, "username": "Cheater", "role": "player"})

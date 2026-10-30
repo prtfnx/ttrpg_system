@@ -27,7 +27,7 @@ from .canvas import _CanvasMixin
 from .characters import _CharactersMixin
 from .chat import _ChatMixin
 from .combat import _CombatMixin
-from .encounter import _EncounterMixin
+from .encounter import CHOICE_ENCOUNTER_MUTATIONS, _EncounterMixin
 from .helpers import _HelpersMixin
 from .measurements import _MeasurementsMixin
 from .paint import _PaintMixin
@@ -317,7 +317,7 @@ class ServerProtocol(
             return await self._invoke_handler_in_scope(msg, client_id)
 
     async def _invoke_handler_in_scope(self, msg: Message, client_id: str):
-        if self._has_pending_writes() or msg.type == MessageType.COMBAT_COMMAND or (msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
+        if self._has_pending_writes() or msg.type in CHOICE_ENCOUNTER_MUTATIONS | {MessageType.COMBAT_COMMAND} or (msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
                 MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE,
                 MessageType.TABLE_SETTINGS_UPDATE, MessageType.CHARACTER_UPDATE} and getattr(
                     getattr(self, "table_manager", None), "db_session", None)):

@@ -16,6 +16,7 @@ from core_table.server import TableManager
 from database import models as db_models
 from database.crud import append_ban_to_session
 from fastapi import WebSocket
+from utils.blocking import run_blocking
 from utils.logger import log_context, setup_logger
 from utils.roles import can_modify_role, get_permissions, get_visible_layers
 from utils.roles import is_dm as _is_dm
@@ -23,6 +24,7 @@ from utils.time import utc_now
 
 from .asset_manager import get_server_asset_manager
 from .server_protocol import ServerProtocol
+from .session_join_hydration import load_join_metadata
 from .websocket_outbox import WebSocketOutbox
 
 logger = setup_logger(__name__)
@@ -148,32 +150,22 @@ class GameSessionProtocolService:
         """Add a client to this game session. Raises PermissionError if the player is banned."""
         game_mode = 'free_roam'
         rules_dict: dict = {}
-        try:
+        # External lifecycle entry point: hold the same session lock through
+        # metadata read, encounter restore, registration and welcome enqueue.
+        # Already serialized handlers must not acquire this lock recursively.
+        async with self.server_protocol._mutation_lock:
             if self.db_session and self.game_session_db_id:
-                sess = self.db_session.get(db_models.GameSession, self.game_session_db_id)
-                if sess and sess.ban_list:
-                    ban_list = json.loads(sess.ban_list)
-                    user_id = str(user_info.get('user_id', ''))
-                    username = user_info.get('username', '')
-                    for ban in ban_list:
-                        if ban.get('player_id') == user_id or ban.get('username') == username:
-                            raise PermissionError(f"Banned: {ban.get('reason', 'no reason given')}")
+                game_mode, rules_dict = await run_blocking(
+                    load_join_metadata, self.game_session_db_id, self.session_code,
+                    str(user_info.get('user_id', '')), user_info.get('username', ''),
+                )
+            await self._register_client(websocket, client_id, user_info, game_mode, rules_dict)
+        await self._outboxes[websocket].drain()
 
-                if sess:
-                    game_mode = sess.game_mode or 'free_roam'
-                    try:
-                        rules_dict = json.loads(sess.session_rules_json or '{}')
-                        rules_dict.setdefault('session_id', self.session_code)
-                    except (json.JSONDecodeError, TypeError):
-                        logger.warning(
-                            "Stored session rules are invalid",
-                            extra={
-                                "event_name": "game_session.rules.invalid",
-                                "outcome": "rejected",
-                            },
-                        )
-        finally:
-            self._release_db_session()
+    async def _register_client(self, websocket, client_id, user_info, game_mode, rules_dict):
+        role = user_info.get('role', 'player')
+        active_encounter = await self.server_protocol._load_active_choice_encounter(self.session_code)
+        choice_encounter = active_encounter.to_dict(dm=_is_dm(role)) if active_encounter else None
 
         self.clients[client_id] = websocket
         self.client_info[client_id] = {
@@ -184,21 +176,7 @@ class GameSessionProtocolService:
         self.websocket_to_client[websocket] = client_id
 
         logger.info(f"Client {client_id} ({user_info.get('username', 'unknown')}) added to session {self.session_code}")
-          # Send welcome message with protocol support
-        role = user_info.get('role', 'player')
-
-        choice_encounter = None
-
-        try:
-            active_encounter = self.server_protocol._load_active_choice_encounter(
-                self.session_code
-            )
-            if active_encounter:
-                choice_encounter = active_encounter.to_dict(dm=_is_dm(role))
-        except Exception:
-            logger.exception("Failed to restore active choice encounter for welcome")
-
-        await self._send_message(websocket, Message(
+        self._enqueue_message(websocket, Message(
             MessageType.WELCOME,
             {
                 "message": f"Welcome to game session {self.session_code}",

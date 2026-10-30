@@ -30,5 +30,5 @@ def test_schema_lifecycle_tracks_repository_head(tmp_path):
 
 
 def test_repository_baseline_matches_all_model_tables():
-    assert len(Base.metadata.tables) == 34
-    assert repository_heads() == ("0012_canvas_command_journal",)
+    assert len(Base.metadata.tables) == 35
+    assert repository_heads() == ("0013_session_operation_receipts",)

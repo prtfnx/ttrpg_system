@@ -1077,6 +1077,24 @@ class SharedMeasurement(Base):
         }
 
 
+class SessionOperationReceipt(Base):
+    """Retained outcome of one actor's accepted session operation."""
+    __tablename__ = "session_operation_receipts"
+    __table_args__ = (
+        UniqueConstraint("session_id", "actor_id", "domain", "operation_id", name="uq_session_operation"),
+        Index("ix_session_operation_created", "session_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    session_id: Mapped[int] = mapped_column(ForeignKey("game_sessions.id", ondelete="CASCADE"), nullable=False)
+    actor_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    domain: Mapped[str] = mapped_column(String(32), nullable=False)
+    operation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    result_json: Mapped[dict] = mapped_column(JSON().with_variant(JSONB(), "postgresql"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
+
+
 class PaintTemplate(Base):
     """A reusable paint template shared by one game session."""
     __tablename__ = "paint_templates"

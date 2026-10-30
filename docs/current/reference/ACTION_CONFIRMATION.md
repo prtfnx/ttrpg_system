@@ -6,6 +6,27 @@ Status: usable.
 
 Last source audit: 2026-10-21
 
+## Durable outcome inventory (October 29)
+
+| Operation | Current acceptance and recovery boundary |
+| --- | --- |
+| Canvas/sprite/compendium placement | Existing actor/table receipts; NPC source, token and receipt share acceptance. Generic sprite commit-response uncertainty still needs reconciliation. |
+| Paint and chat | Existing domain operation identities and durable results; retain those contracts. |
+| Combat commands/start/end | Encounter journal and stable session barrier resolve uncertain commits; full lifecycle/browser acceptance remains a release gate. |
+| Character update/repair | Source/version/audit/linked projections share a transaction; exact in-process CAS recovery is not a durable request ledger across restart. |
+| XP award | Actor/session/domain-scoped original message identity; XP/version/audit/outcome share acceptance. See [Characters](../features/CHARACTERS_AND_COMPENDIUMS.md). |
+| Table create/copy/delete and settings | No general durable original-intent lookup; reload and reconcile before repeating an uncertain operation. R4 remains open here. |
+| Choice encounter transitions | Ordered snapshot/events with cancellation-safe publication; no durable retry receipt or general commit-uncertainty verifier yet. |
+
+The new `session_operation_receipts` adapter borrows the caller's transaction:
+it flushes without committing. Domain callers must authorize before lookup and
+own serialization through effect, receipt acceptance and publication. Reusing
+the same scoped identity with a different normalized payload rejects. Uniqueness
+is enforced in SQL. Results are bounded to 32 KiB and omit full source documents.
+Receipts currently remain for the retained session lifetime; no cleanup expires
+an accepted intent into a new operation. This adapter alone adds no guarantees
+to an operation until that operation's effect uses the same transaction.
+
 ## Ownership
 
 The server owns accepted state. Local previews remain immediate while a command

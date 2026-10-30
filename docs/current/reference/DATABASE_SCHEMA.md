@@ -106,6 +106,7 @@ the runtime application.
 | `walls` | `Wall` | persistent wall/door segments for movement, light, sight, and sound |
 | `audit_logs` | `AuditLog` | security and audit events |
 | `character_logs` | `CharacterLog` | per-character action log entries |
+| `session_operation_receipts` | `SessionOperationReceipt` | retained accepted outcomes by numeric session, actor, domain and original request identity |
 | `chat_messages` | `ChatMessage` | persisted session chat messages |
 | `paint_strokes` | `PaintStroke` | read-only legacy source retained for verified cutover and rollback |
 | `paint_state` | `PaintState` | authoritative per-table paint revision and z-order allocator |
@@ -177,7 +178,7 @@ apps/server/database/alembic/versions/
 ```
 
 The PostgreSQL baseline is `0001_postgresql_baseline`; incremental revisions
-through the current `0010_paint_objects` head add later behavior.
+through the current `0013_session_operation_receipts` head add later behavior.
 `0007_demo_guest_expiry` adds guest expiry and revokes the legacy demo host;
 `0008_application_writer` seeds the owner record and installs PostgreSQL
 statement triggers. `0009_table_previews` adds `preview_image`, `preview_etag`,
@@ -189,7 +190,16 @@ existing tables; application table creation seeds new rows in the same
 transaction. The active application reads and writes `paint_objects` through
 revisioned snapshots/events. Legacy `paint_strokes` remains read-only for the
 verified maintenance cutover and rollback window. There are
-33 application model tables, plus Alembic's revision ledger.
+35 application model tables, plus Alembic's revision ledger.
+`0011_selection_preferences` adds selection preferences, and
+`0012_canvas_command_journal` adds durable canvas/sprite receipts.
+`0013_session_operation_receipts` adds a writer-fenced receipt table with a
+unique `(session_id, actor_id, domain, operation_id)` scope and session/creation
+index. Its JSON/JSONB result is a bounded outcome, not a character snapshot.
+Receipts persist for the retained session lifetime; there is no age-based
+pruning or receipt-expiry retry window. Deleting the session or actor cascades
+its receipts. A migration downgrade drops this evidence and therefore ends the
+supported retry history; do not replay old operation identities after such a downgrade.
 Alembic records the deployed revision in `alembic_version`. The old numbered
 SQLite runner and ledger were retired; they are not an upgrade path for
 existing SQLite files.

@@ -135,6 +135,11 @@ identity/version/document, linked projections, and combat activity. The public
 report excludes the internal repair patch. Preview does not write or select a
 winner among conflicting legacy candidates.
 
+If a legacy source has no resolved value for a field while linked tokens hold
+non-null values, preview blocks instead of interpreting that unresolved field as
+a clear. Choose canonical values explicitly first. An established `data.stats`
+object retains the normal missing/null projection semantics.
+
 Any active durable combat in the session blocks repair. A scan exceeding 1000
 linked tokens also blocks, and reports truncation explicitly. A future apply
 caller must recheck current DM authority, the exact precondition, and all blocked

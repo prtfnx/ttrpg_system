@@ -66,6 +66,12 @@ def inspect_stat_reconciliation(db, session_id: int, character_id: str, actor_id
         normalized = normalize_character_stats(before, character_id=character_id)
         stats = normalized.get('data', {}).get('stats') or {}
         values = {'hp': stats.get('hp'), 'max_hp': stats.get('maxHp'), 'ac': stats.get('ac')}
+        previous_data = before.get('data') or {}
+        canonical_contract = isinstance(previous_data, dict) and isinstance(previous_data.get('stats'), dict)
+        unresolved = [name for wire, name in [('hp', 'hp'), ('max_hp', 'maxHp'), ('ac', 'ac')]
+                      if name not in stats and any(token[wire] is not None for token in tokens)]
+        if unresolved and not canonical_contract:
+            reasons.append('Legacy source has no ' + ', '.join(unresolved) + '; choose canonical values explicitly before clearing token stats')
         changed = [{**token, 'expected': values} for token in tokens
                    if any(token[key] != value for key, value in values.items())]
         report.update(canonical_stats=values, source_changes=normalized != before, token_mismatch_count=len(changed),

@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from database.models import CharacterLog, CombatEncounter, Entity, SessionCharacter, VirtualTable
+from database.models import CharacterLog, CombatEncounter, Entity, GamePlayer, SessionCharacter, VirtualTable
 from managers import character_manager
 from service.character_stat_reconciliation import inspect_stat_reconciliation, public_stat_report
 from sqlalchemy.orm import sessionmaker
@@ -154,3 +154,59 @@ def test_projection_failure_rolls_back_the_entire_repair(manager, repair, monkey
     with factory() as db:
         assert db.query(SessionCharacter).one().version == 4 and db.query(Entity).one().hp == 99
         assert not db.query(CharacterLog).count()
+
+
+def test_apply_rechecks_a_co_dm_role_revoked_after_preview(manager, repair, player_user):
+    service, factory = manager
+    game, source, _ = repair
+    with factory() as db:
+        db.add(GamePlayer(session_id=game.id, user_id=player_user.id, role='co_dm'))
+        db.commit()
+    preview = service.preview_stat_reconciliation(game.id, source.character_id, player_user.id)
+    with factory() as db:
+        db.query(GamePlayer).filter_by(session_id=game.id, user_id=player_user.id).one().role = 'player'
+        db.commit()
+    result = service.update_character(game.id, source.character_id, {}, player_user.id,
+        bypass_owner_check=True, stat_reconciliation_digest=preview['expected_digest'])
+    assert not result['success'] and 'DM authority' in result['error']
+
+
+def test_projection_only_repair_keeps_the_canonical_document_and_records_one_acceptance(manager, repair):
+    service, factory = manager
+    game, source, _ = repair
+    first = service.preview_stat_reconciliation(game.id, source.character_id, game.owner_id)
+    assert service.update_character(game.id, source.character_id, {}, game.owner_id,
+        stat_reconciliation_digest=first['expected_digest'])['success']
+    with factory() as db:
+        document = db.query(SessionCharacter).one().character_data
+        db.query(Entity).one().hp = 99
+        db.commit()
+    plan = service.preview_stat_reconciliation(game.id, source.character_id, game.owner_id)
+    assert not plan['source_changes'] and plan['token_mismatch_count'] == 1
+    result = service.update_character(game.id, source.character_id, {}, game.owner_id,
+        stat_reconciliation_digest=plan['expected_digest'])
+    assert result['success'] and result['version'] == 6
+    with factory() as db:
+        assert db.query(SessionCharacter).one().character_data == document
+        assert db.query(Entity).one().hp == 3 and db.query(CharacterLog).count() == 2
+
+
+def test_apply_of_a_matching_combat_blocked_plan_is_rejected(manager, repair):
+    service, factory = manager
+    game, source, _ = repair
+    with factory() as db:
+        db.add(CombatEncounter(encounter_id='blocked', session_id=game.id, table_id='repair-table', phase='active'))
+        db.commit()
+    plan = service.preview_stat_reconciliation(game.id, source.character_id, game.owner_id)
+    result = service.update_character(game.id, source.character_id, {}, game.owner_id,
+        stat_reconciliation_digest=plan['expected_digest'])
+    assert not result['success'] and 'active combat' in result['error']
+
+
+def test_unresolved_legacy_fields_do_not_become_silent_token_clears(test_db, repair):
+    game, source, token = repair
+    source.character_data = json.dumps({'name': 'Hero', 'hp': 3})
+    test_db.commit()
+    plan = inspect_stat_reconciliation(test_db, game.id, source.character_id, game.owner_id)
+    assert plan['status'] == 'blocked' and 'choose canonical values explicitly' in plan['blocked_reasons'][0]
+    assert plan['_updates'] == {} and token.max_hp == 99 and token.ac == 99

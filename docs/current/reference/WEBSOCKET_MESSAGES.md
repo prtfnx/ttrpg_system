@@ -130,6 +130,32 @@ fields connect an accepted command to its response without trusting them for
 identity or authorization. Normal priority is `5`; lower numbers are more
 urgent in the existing comments.
 
+## XP award identity and outcome
+
+`xp_award` requires the original nonempty envelope `message_id` (up to 128
+characters), a bounded numeric timestamp and a closed data object. Required data:
+`character_id` (1-64 characters) and integer `amount` (1-1,000,000). Optional data:
+`source` (1-50 characters, default `other`), `description` (up to 300), and the
+legacy `session_code` hint. The connection supplies authority and session scope;
+payload session hints cannot change them. Unknown fields reject.
+
+The original envelope identity is the XP operation identity. Repeat that identity
+with the same normalized input to resolve one intent, including after reconnect
+or server restart. Use a new identity for another deliberate award. A changed
+payload conflicts; current database DM authority is required before receipt
+lookup. XP, version, audit and result commit together. Receipts remain for the
+retained session lifetime and are not expired by an age-based cleanup.
+
+`xp_award_response` reports the original `operation_id`, amount, XP/level result
+and source version. Fresh acceptance includes the canonical character. A replay
+omits old source data and sets `replayed` and `resync_required`: read current
+character state instead of installing its historical version. Unresolved commit
+lookup returns `success: false`, `code: outcome_unknown`, `outcome: unknown`,
+the original operation/character identities and `resync_required`. It does not
+prove rejection. Retry only the original identity/body, never a new award guessed
+from a timeout. Publication failure after acceptance reports success requiring
+resync. See [Characters](../features/CHARACTERS_AND_COMPENDIUMS.md).
+
 ## Authenticated connection context
 
 The WebSocket handshake and session join establish the authoritative

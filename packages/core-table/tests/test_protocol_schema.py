@@ -9,6 +9,28 @@ SPRITE_MUTATIONS = {"sprite_create", "sprite_remove", "sprite_move", "sprite_sca
                     "compendium_sprite_add", "compendium_sprite_update", "compendium_sprite_remove"}
 
 
+@pytest.mark.parametrize('field,value', [('message_id', None), ('timestamp', None), ('amount', True),
+    ('amount', 0), ('amount', 1.5), ('amount', '100'), ('amount', 1000001),
+    ('source', 'x' * 51), ('description', 'x' * 301), ('character_id', ''), ('user_id', 7)])
+def test_xp_award_has_bounded_closed_payload_and_original_identity(field, value):
+    message = {'type': 'xp_award', 'message_id': 'original', 'timestamp': 1,
+               'data': {'character_id': 'hero', 'amount': 100}}
+    Message.from_dict(message)
+    target = message if field in {'message_id', 'timestamp'} else message['data']
+    target[field] = value
+    with pytest.raises(ValueError, match='Invalid protocol message'):
+        Message.from_dict(message)
+
+
+@pytest.mark.parametrize('field', ['message_id', 'timestamp'])
+def test_xp_award_missing_envelope_identity_is_not_synthesized(field):
+    message = {'type': 'xp_award', 'message_id': 'original', 'timestamp': 1,
+               'data': {'character_id': 'hero', 'amount': 100}}
+    del message[field]
+    with pytest.raises(ValueError, match='Invalid protocol message'):
+        Message.from_dict(message)
+
+
 @pytest.mark.parametrize("kind", sorted(SPRITE_MUTATIONS))
 @pytest.mark.parametrize("field,value", [("timestamp", "missing"), ("timestamp", None), ("timestamp", True), ("timestamp", -1),
     ("message_id", "missing"), ("message_id", None), ("message_id", "")])

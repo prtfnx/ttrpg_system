@@ -16,7 +16,8 @@ Last source audit: 2026-10-27
 - `service/character_schema.py` owns the versioned character document.
 - `service/character_rules.py` is the versioned XP and multiclass rules source.
 - `service/character_protocol_persistence_service.py` owns linked-stat staging
-  and standalone XP-log/token helpers. Generic updates supply the source transaction.
+  and token helpers. Generic updates supply the source transaction.
+- `service/xp_award_service.py` owns atomic XP/version/audit/receipt acceptance.
 - `managers/character_draft_manager.py` owns durable wizard drafts.
 - `routers/compendium.py` exposes read-only, bounded compendium REST routes.
 - `service/compendium_artifact.py` verifies production artifact manifests.
@@ -103,7 +104,7 @@ Current field boundaries must remain explicit:
 
 | State | Current owner | Remaining consistency work |
 | --- | --- | --- |
-| Character document, version, XP and advancement | Character manager and advancement commands | Sheet/token-panel edits and guarded stat repairs include linked projections atomically; XP and cross-restart operation outcomes still need their own contracts. |
+| Character document, version, XP and advancement | Character manager and advancement commands | Sheet/token-panel edits and guarded stat repairs include linked projections atomically; XP has its own atomic receipt transaction; generic character updates still lack a cross-restart request ledger. |
 | Token HP/max-HP/AC outside combat | Character projection when linked; independent token fields otherwise | Canonical NPC placement and guarded legacy/projection repair are implemented; qualify PostgreSQL, served creation and recovery. |
 | Active encounter HP, resources and turn state | Combat command snapshot/journal | Define sheet edits during combat and any encounter-completion write-back before unifying these fields. |
 
@@ -371,10 +372,36 @@ A roll request names intent only. The server verifies character access and
 derives the modifier and roll mode from the canonical sheet. A successful roll
 atomically persists character activity and a typed public system-chat record.
 
-XP awards are DM-only. `xp_award` resolves the pinned
-`dnd5e-2014-v1` XP table, updates through character version
-compare-and-swap, and returns the canonical document. Players see XP as
-read-only state.
+XP awards are DM-only. `xp_award` resolves the pinned `dnd5e-2014-v1`
+table under a stable session/source row lock. It commits the source XP/version,
+XP audit and durable operation result together, using the original envelope
+`message_id` scoped to the authenticated numeric session, actor and `xp_award`
+domain. Current database owner/DM/co-DM authority is checked before both new
+acceptance and receipt replay. An identity reused with different normalized
+input conflicts. Different deliberate identities award separately.
+
+Amounts are integers from 1 to 1,000,000; source is text up to 50 characters,
+description up to 300, and character identity up to 64. Stored conflicting or
+malformed XP fields reject before mutation. Equal legacy aliases normalize to
+`data.experience`. Existing sheet fields and token stats survive; crossing the
+XP threshold sets the pending-level flag, without lowering an existing level.
+
+First acceptance returns the canonical document and version. Duplicate/recovered
+receipts return the original small outcome with `replayed` and `resync_required`,
+without an old document or another broadcast. Reload current character state;
+never install the receipt version over a later known version. Receipts persist
+for the retained session lifetime, including target archival. There is no
+age-based pruning; deleting the session/actor removes its retry history.
+
+Commit-response errors look up the receipt on a fresh READ COMMITTED connection
+behind the same session-row barrier. An unavailable lookup remains explicitly
+`outcome_unknown`, not a proven rollback. Retry only the original identity and
+input; a new identity denotes another award. Admitted production dispatch keeps
+session ownership through SQL settlement and role-filtered publication despite
+repeated cancellation. Publication failure reports accepted state requiring
+resync. Players see XP as read-only state. Generic character, table and choice
+commands do not inherit these guarantees; PostgreSQL/served qualification remains
+an open release gate.
 
 Multiclass changes use `multiclass_request`. The server validates the pinned
 prerequisites, preserves a legacy primary class when normalizing the class

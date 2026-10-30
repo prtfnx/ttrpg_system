@@ -4,10 +4,10 @@ from core_table.protocol import Message, MessageType
 from service.character_protocol_persistence_service import (
     TokenStatUpdate,
     persist_character_token_stats,
-    record_xp_award,
 )
-from service.character_rules import level_for_xp
 from service.character_update_recovery import CharacterUpdateOutcomeUnknown, character_update_request_id
+from service.session_operation_receipts import OperationOutcomeUnknown, OperationRejected
+from service.xp_award_service import XPAwardIntent, XPAwardService
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import is_dm
@@ -832,95 +832,33 @@ class _CharactersMixin(_ProtocolBase):
         if not msg.data:
             return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': 'No data provided'})
 
-        character_id = msg.data.get('character_id')
-        try:
-            amount = int(msg.data.get('amount', 0))
-        except (TypeError, ValueError):
-            amount = 0
-        source = str(msg.data.get('source', 'other')).strip()[:50] or 'other'
-        description = str(msg.data.get('description', '')).strip()[:300]
         session_id = self._get_session_id(msg)
-        user_id = self._get_user_id(msg, client_id) or 0
-
-        if not character_id or not 0 < amount <= 1_000_000:
-            return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': 'character_id and positive amount required'})
         if not session_id:
             return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': 'Session not found'})
-
-        from managers.character_manager import get_server_character_manager
-        char_mgr = get_server_character_manager()
-
-        load_result = await run_blocking(
-            char_mgr.load_character,
-            session_id,
-            character_id,
-            user_id,
-            True,
-        )
-        if not load_result.get('success'):
-            return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': load_result.get('error', 'Character not found')})
-
-        char_data = load_result['character_data']
-        inner = char_data.get('data', char_data)
-        current_xp = int(inner.get('experience', inner.get('currentXP', 0)) or 0)
-        new_xp = current_xp + amount
-
-        old_level = level_for_xp(current_xp)
-        new_level = level_for_xp(new_xp)
-        leveled_up = new_level > old_level
-
-        updates: dict = {}
-        if 'data' in char_data:
-            updates = {'data': {**inner, 'experience': new_xp}}
-            if leveled_up:
-                updates['data']['level'] = new_level
-                updates['data']['pending_level_up'] = True
-        else:
-            updates = {**char_data, 'experience': new_xp}
-            if leveled_up:
-                updates['level'] = new_level
-                updates['pending_level_up'] = True
-
-        save_result = await run_blocking(
-            char_mgr.update_character,
-            session_id,
-            character_id,
-            updates,
-            user_id=user_id,
-            expected_version=load_result.get('version'),
-            bypass_owner_check=True,
-            allow_advancement_updates=True,
-        )
-        if not save_result.get('success'):
-            return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': save_result.get('error', 'Save failed')})
-
         try:
-            await run_blocking(
-                record_xp_award,
-                character_id=str(character_id),
-                session_id=session_id,
-                user_id=user_id,
-                amount=amount,
-                source=source,
-                description=description,
-            )
-        except Exception:
-            logger.exception("Failed to log XP award")
-
-        resp_data = {
-            'success': True, 'character_id': character_id,
-            'amount': amount, 'new_xp': new_xp,
-            'leveled_up': leveled_up, 'new_level': new_level if leveled_up else old_level,
-            'version': save_result.get('version'),
-            'character_data': save_result.get('character_data'),
-        }
-        await self._broadcast_character_event(
-            Message(MessageType.XP_AWARD_RESPONSE, resp_data),
-            session_id,
-            character_id,
-            client_id,
-        )
-        return Message(MessageType.XP_AWARD_RESPONSE, resp_data)
+            intent = XPAwardIntent.create(session_id, self._get_user_id(msg, client_id) or 0,
+                                         msg.message_id, msg.data)
+            result = await run_blocking(XPAwardService().execute, intent)
+        except OperationRejected as exc:
+            return Message(MessageType.XP_AWARD_RESPONSE, {
+                'success': False, 'code': exc.code, 'error': str(exc)})
+        except OperationOutcomeUnknown:
+            return Message(MessageType.XP_AWARD_RESPONSE, {
+                'success': False, 'code': 'outcome_unknown', 'outcome': 'unknown',
+                'character_id': msg.data.get('character_id'), 'operation_id': msg.message_id,
+                'resync_required': True,
+                'error': 'XP outcome is unknown. Retry only the original request identity and input.',
+            })
+        # Replays return original outcome metadata only; never rebroadcast an
+        # old character snapshot over later accepted edits.
+        if not result.get('replayed'):
+            try:
+                await self._broadcast_character_event(Message(MessageType.XP_AWARD_RESPONSE, result),
+                    session_id, intent.character_id, client_id)
+            except Exception:
+                logger.exception('XP event publication failed after acceptance')
+                result = {**result, 'resync_required': True}
+        return Message(MessageType.XP_AWARD_RESPONSE, result)
 
     async def handle_multiclass_request(self, msg: Message, client_id: str) -> Message:
         """Player or DM requests adding a new class (multiclassing)."""

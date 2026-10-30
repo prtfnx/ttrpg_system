@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from database.database import SessionLocal
-from database.models import CharacterLog, Entity, VirtualTable
+from database.models import Entity, VirtualTable
 from sqlalchemy.orm import Session
 
 
@@ -14,28 +14,6 @@ class TokenStatUpdate:
     sprite_id: str
     table_id: str
     layer: str
-
-
-def record_xp_award(
-    *,
-    character_id: str,
-    session_id: int,
-    user_id: int,
-    amount: int,
-    source: str,
-    description: str,
-) -> None:
-    """Write the non-authoritative XP audit log in a worker-owned session."""
-    with SessionLocal() as db:
-        db.add(CharacterLog(
-            character_id=character_id,
-            session_id=session_id,
-            action_type="xp_award",
-            description=f"+{amount} XP from {source}"
-            + (f": {description}" if description else ""),
-            user_id=user_id,
-        ))
-        db.commit()
 
 
 def persist_character_token_stats(

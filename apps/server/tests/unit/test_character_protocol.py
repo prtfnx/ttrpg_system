@@ -841,85 +841,22 @@ class TestXpAward:
         assert resp.data["success"] is False
         assert "Session" in resp.data["error"]
 
-    async def test_xp_award_no_level_up(self):
+    @pytest.mark.parametrize('unknown', [False, True])
+    async def test_xp_rejection_and_unknown_outcome_are_distinct(self, unknown):
         from core_table.protocol import Message, MessageType
+        from service.session_operation_receipts import OperationOutcomeUnknown, OperationRejected
 
         proto = _make_proto()
         proto._get_client_role = MagicMock(return_value="owner")
-        msg = Message(MessageType.XP_AWARD, {
-            "character_id": "c1", "amount": 50, "source": "quest",
-        })
-        char_mgr = MagicMock()
-        char_mgr.load_character.return_value = self._char_data(xp=100, level=1)
-        char_mgr.update_character.return_value = {
-            "success": True,
-            "version": 5,
-            "character_data": {"data": {"experience": 150, "level": 1}},
-        }
-
-        with patch("managers.character_manager.get_server_character_manager", return_value=char_mgr):
-            with patch("service.protocol.characters.record_xp_award"):
-                resp = await proto.handle_xp_award(msg, "dm1")
-
-        assert resp.data["success"] is True
-        assert resp.data["new_xp"] == 150
-        assert resp.data["leveled_up"] is False
-        char_mgr.update_character.assert_called_once()
-        assert char_mgr.update_character.call_args.kwargs["expected_version"] == 4
-        assert resp.data["version"] == 5
-
-    async def test_xp_award_triggers_level_up(self):
-        from core_table.protocol import Message, MessageType
-
-        proto = _make_proto()
-        proto._get_client_role = MagicMock(return_value="owner")
-        # 250 XP + 300 pushes past 300 threshold to level 2
-        msg = Message(MessageType.XP_AWARD, {
-            "character_id": "c1", "amount": 300, "source": "boss",
-        })
-        char_mgr = MagicMock()
-        char_mgr.load_character.return_value = self._char_data(xp=250, level=1)
-        char_mgr.update_character.return_value = {"success": True, "version": 5}
-
-        with patch("managers.character_manager.get_server_character_manager", return_value=char_mgr):
-            with patch("service.protocol.characters.record_xp_award"):
-                resp = await proto.handle_xp_award(msg, "dm1")
-
-        assert resp.data["success"] is True
-        assert resp.data["leveled_up"] is True
-        assert resp.data["new_level"] == 2
-
-    async def test_xp_persistence_does_not_block_event_loop(self):
-        from core_table.protocol import Message, MessageType
-
-        proto = _make_proto()
-        proto._get_client_role = MagicMock(return_value="owner")
-        char_mgr = MagicMock()
-
-        def slow_load(*_args, **_kwargs):
-            time.sleep(0.05)
-            return self._char_data(xp=100, level=1)
-
-        char_mgr.load_character.side_effect = slow_load
-        char_mgr.update_character.return_value = {"success": True, "version": 5}
-        marker = asyncio.Event()
-        asyncio.get_running_loop().call_later(0.01, marker.set)
-
-        with patch(
-            "managers.character_manager.get_server_character_manager",
-            return_value=char_mgr,
-        ), patch("service.protocol.characters.record_xp_award"):
-            response = await proto.handle_xp_award(
-                Message(MessageType.XP_AWARD, {
-                    "character_id": "c1",
-                    "amount": 50,
-                    "source": "quest",
-                }),
-                "dm1",
-            )
-
-        assert response.data["success"] is True
-        assert marker.is_set(), "XP persistence blocked the event loop"
+        error = OperationOutcomeUnknown('Unavailable') if unknown else OperationRejected('Denied', 'forbidden')
+        with patch('service.protocol.characters.XPAwardService') as service:
+            service.return_value.execute.side_effect = error
+            response = await proto.handle_xp_award(Message(MessageType.XP_AWARD,
+                {'character_id': 'hero', 'amount': 100}), 'dm1')
+        assert response.data['success'] is False
+        assert response.data['code'] == ('outcome_unknown' if unknown else 'forbidden')
+        assert response.data.get('outcome') == ('unknown' if unknown else None)
+        proto.broadcast_to_session.assert_not_awaited()
 
 
 @pytest.mark.unit

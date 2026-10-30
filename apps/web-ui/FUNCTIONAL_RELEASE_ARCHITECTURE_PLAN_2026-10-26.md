@@ -20,11 +20,44 @@ working files. Saved original history on
 push published exactly the oldest 11 through `8820d458`; 11 remained local
 before new work. See the [commit map](audit/release-2026-10-27/commit-map.json)
 for old/new identifiers. Short references below use the redated history.
-Next implementation target: R3 choice-encounter persistence and join hydration
-worker ownership/order. Canonical NPC placement and a deliberate guarded stat
-repair operation are implemented below. R2 still needs real PostgreSQL/served
-qualification; malformed/conflicting legacy data requires explicit decisions,
-and encounter completion retains its documented no-automatic-write-back policy.
+Next implementation target: R4 durable operation identities/outcome recovery,
+starting with an inventory and XP award acceptance. R3's named choice, join,
+permission-fallback and compendium worker paths are implemented with SQLite
+ordering/cancellation coverage. Real PostgreSQL/served qualification remains
+open alongside R2/R7. Malformed/conflicting legacy data requires deliberate
+repair, and encounter completion retains its no-automatic-write-back policy.
+
+October 28 R3 implementation: choice loads and snapshot/event writes use the
+bounded worker adapter with detached inputs and worker-owned SQLAlchemy sessions.
+Production dispatch retains mutation ownership through settlement, live install
+or rollback, and publication despite repeated cancellation. Prior engine snapshots
+are deep-copied, fixing shared mutable choice maps during rollback. Join metadata
+and encounter hydration hold the same session lock through registration/welcome
+enqueueing; socket draining occurs outside it. Cancelled read results cannot
+restore a completed prompt. Failed/cancelled connection admission rolls back
+provisional session/user/client indexes under lifecycle ownership and closes the
+socket, preserving other sockets and the reusable session cache.
+
+Sprite-control checks retain their in-memory fast path. Unloaded-token reads
+use fresh worker sessions and authenticated numeric session scoping for entities,
+active characters and normalized can_control grants. Empty/malformed token
+controllers remain DM-only and database failures deny. Compendium mapping-file
+initialization and token asset SQL now execute together in a worker with scalar
+inputs and detached metadata. A provided asset skips lookup; replay still uses
+the existing transactional NPC/token receipt and does not resolve/create twice.
+These changes add no durable choice retry ledger or generic commit-uncertainty
+reconciliation; those remain R4 work.
+
+Validation: 971 character/combat/canvas/sprite/choice/session/security and trusted
+SQLite workflow regressions pass together, plus one additional grant-revocation
+case (972 distinct passing tests). This includes 30 new worker/ordering/control
+and lifecycle cases. Full pinned Pyright reports zero errors/warnings; targeted
+Ruff, current-doc checks and history verification pass. Existing generated
+WASM/user files are preserved. No browser/Rust changes were needed. These local
+results do not establish real PostgreSQL/R2/served acceptance, commit-uncertainty
+recovery for choice commands, restore rehearsal or release capacity. All work
+after the explicitly requested 13-commit push remains local in commits of at
+most seven files.
 
 October 27 implementation: generic character updates now wait on a stable
 session-row lock and verify commit-response errors against the exact before/after
@@ -200,7 +233,7 @@ For a public production service, also require automated independent backups, res
 | A1: combat lifecycle writes before acceptance | Fixed locally in `badecc9f`: engine transitions no longer commit implicitly; accepted snapshot/journal owns the lifecycle save. | Retain failure/restart regressions. Do not reopen this as a separate refactor. |
 | A2: independent table/token/character/combat commits | Partial: combat movement/snapshot/journal share acceptance, as do generic character updates and linked stat projections. Token-originated edits and encounter/sheet reconciliation remain separate. | Finish R1 evidence and remaining R2 boundaries before qualifying retained game state. |
 | A3: cancellation releases combat ownership early | Fixed for command settlement/publication, detached environment snapshots, and pending outcome recovery. Other migrated paths still need review. | Preserve existing coverage; finish remaining input/ordering work in R3. |
-| A4: synchronous database work in async paths | Open for choice encounters, join hydration, permission fallbacks, and compendium lookups. Wall command persistence already uses workers. | R3; migrate identified paths rather than rewriting all persistence. |
+| A4: synchronous database work in async paths | Named R3 paths migrated: choice storage, join metadata/restoration, scoped permission fallbacks and compendium token resolution. Wall workers retained. | SQLite ordering/cancellation coverage implemented; served PostgreSQL/R2 responsiveness remains an R7 gate. |
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
@@ -275,7 +308,7 @@ Done when: character/token/encounter values follow one documented authority rule
 
 Priority: release blocker for responsive multiplayer. Dependencies: R0. Estimate: 3-5 days.
 
-Source evidence: [choice encounter helpers](../server/service/protocol/encounter.py) synchronously load/save snapshots from async handlers; [session join](../server/service/game_session_protocol.py) performs synchronous database reads and choice hydration. Permission fallback queries in `service/protocol/helpers.py` and database-backed compendium resolution also require call-site review.
+At plan creation, source evidence: [choice encounter helpers](../server/service/protocol/encounter.py) synchronously load/save snapshots from async handlers; [session join](../server/service/game_session_protocol.py) performs synchronous database reads and choice hydration. Permission fallback queries in `service/protocol/helpers.py` and database-backed compendium resolution also require call-site review.
 
 Implementation:
 

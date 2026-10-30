@@ -53,8 +53,13 @@ These are remaining limitations, not completed architecture guarantees:
 - Settlement review for remaining worker migrations. Combat commands retain
   ownership through SQL settlement, cache installation, and protocol publication;
   pre-combat environment saves already capture detached snapshots on the loop.
-- Worker migration for remaining join/choice/permission/compendium
-  paths. Wall command persistence already uses worker-owned sessions. One session can still pause during synchronous database work.
+- Served qualification of worker ordering and responsiveness. Choice storage,
+  join hydration, unloaded-sprite permission fallbacks and compendium token
+  lookups now run off the loop, alongside the existing wall worker path.
+  SQLite barriers cover cancellation and join/completion ordering; this does
+  not establish production PostgreSQL/R2 latency or make all handlers nonblocking.
+  Unloaded-token permission queries use the authenticated session and normalized
+  control grants; malformed metadata and storage failures deny.
 - Independent core-table persistence adapters and browser dependency cycles.
 - Adversarial-client confidentiality, multi-session capacity measurement,
   and production backup/restore verification. Fog is a rendering feature.

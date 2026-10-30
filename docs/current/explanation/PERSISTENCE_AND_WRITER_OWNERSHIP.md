@@ -58,6 +58,23 @@ behavior is preserved. This is an adapter for application outcome recovery;
 it does not itself classify failed commits or replace database writer fencing.
 Regression owner: `apps/server/tests/unit/test_async_table_persistence.py`.
 
+## Choice encounters and join hydration
+
+Choice snapshot/event transactions, join metadata reads and encounter restoration
+use the bounded blocking adapter. Workers create/close their own sessions and
+return detached values. The existing session mutation lock covers choice
+settlement, installation/rollback and publication, including repeated caller
+cancellation. Rollback snapshots are copied before mutating engine state.
+
+The external join entry point acquires that same lock through metadata/choice
+hydration, registration and welcome enqueueing, then drains the socket outside
+the lock. A cancelled read cannot install its eventual worker result. This
+prevents a delayed join from restoring a completed prompt. Connection-manager
+admission rolls back provisional socket/user/client indexes on failure or
+cancellation while retaining lifecycle ownership through cleanup. It does not give
+choice commands durable request receipts or resolve commit-response uncertainty;
+those remain part of general outcome-recovery work.
+
 ## Deferred consistency work
 
 TODO: extend durable receipts and outcome reconciliation to table creation,

@@ -25,6 +25,7 @@ from database.models import (
 from service.character_protocol_persistence_service import stage_character_token_stats
 from service.character_rules import multiclass_prerequisites
 from service.character_schema import CharacterStats, validate_character_document
+from service.character_stat_reconciliation import inspect_stat_reconciliation, public_stat_report
 from service.character_update_recovery import (
     CharacterUpdateOutcomeUnknown,
     CharacterUpdateRecovery,
@@ -313,6 +314,10 @@ class ServerCharacterManager:
                 return f'Cannot use more spell slots than available at level {level_str} (max {total})'
         return None
 
+    def preview_stat_reconciliation(self, session_id: int, character_id: str, user_id: int) -> dict:
+        with SessionLocal() as db:
+            return public_stat_report(inspect_stat_reconciliation(db, session_id, character_id, user_id))
+
     def update_character(
         self,
         session_id: int,
@@ -322,6 +327,7 @@ class ServerCharacterManager:
         expected_version: Optional[int] = None,
         bypass_owner_check: bool = False,
         allow_advancement_updates: bool = False,
+        stat_reconciliation_digest: str | None = None,
     ) -> Dict[str, Any]:
         """Perform a versioned update of a character's JSON data in a single DB transaction.
         Merges JSON if appropriate and enforces optimistic concurrency if expected_version provided.
@@ -368,6 +374,18 @@ class ServerCharacterManager:
                         'character_data': current_character,
                     }
 
+                if stat_reconciliation_digest is not None:
+                    report = inspect_stat_reconciliation(db, session_id, character_id, user_id, lock_tokens=True)
+                    if report['expected_digest'] != stat_reconciliation_digest:
+                        raise ValueError('Reconciliation plan changed; request a fresh dry run')
+                    if report['status'] == 'blocked':
+                        raise ValueError('; '.join(report['blocked_reasons']))
+                    if report['status'] == 'clean':
+                        return {'success': True, 'character_id': character_id, 'version': current_version,
+                                'character_data': json.loads(existing.character_data),
+                                'token_updates': [], 'token_stats': {}, 'applied_updates': {}}
+                    updates = report['_updates']
+
                 # Merge JSON
                 try:
                     char_payload = getattr(existing, 'character_data', None) or '{}'
@@ -387,7 +405,11 @@ class ServerCharacterManager:
                         'error': 'XP, level, class, and proficiency changes require an advancement command',
                     }
                 merged_json = _serialize_character(merged)
-                token_stats = _linked_stat_patch(updates, merged)
+                projection_updates = updates
+                if stat_reconciliation_digest is not None:
+                    stats = (merged.get('data') or {}).get('stats') or {}
+                    projection_updates = {'data': {'stats': {field: stats.get(field) for field in ('hp', 'maxHp', 'ac')}}}
+                token_stats = _linked_stat_patch(projection_updates, merged)
 
                 # Spell slot validation
                 slot_error = self._validate_spell_slots(current_json, updates)
@@ -433,7 +455,11 @@ class ServerCharacterManager:
                         return {'success': False, 'error': permission_error}
 
                 # Auto-log key character changes
-                self._detect_and_log(db, character_id, session_id, user_id, current_json, updates)
+                if stat_reconciliation_digest is not None:
+                    db.add(CharacterLog(character_id=character_id, session_id=session_id, user_id=user_id,
+                        action_type='stat_reconciliation', description='Reconciled canonical stats and linked tokens'))
+                else:
+                    self._detect_and_log(db, character_id, session_id, user_id, current_json, updates)
 
                 token_updates = stage_character_token_stats(db, session_id, character_id, token_stats)
 
@@ -445,9 +471,12 @@ class ServerCharacterManager:
                     'token_updates': [asdict(update) for update in token_updates],
                     'token_stats': token_stats,
                 }
+                if stat_reconciliation_digest is not None:
+                    result['applied_updates'] = deepcopy(updates)
                 attempt = PendingCharacterUpdate(
                     session_id, character_id, user_id, character_update_request_id.get(),
                     int(current_version), str(char_payload), merged_json, deepcopy(result), deepcopy(updates),
+                    reconciliation_digest=stat_reconciliation_digest,
                 )
                 db.commit()
             return result

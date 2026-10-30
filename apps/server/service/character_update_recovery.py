@@ -26,6 +26,7 @@ class PendingCharacterUpdate:
     after_document: str
     result: dict[str, Any]
     updates: dict[str, Any]
+    reconciliation_digest: str | None = None
 
 
 @dataclass(frozen=True)

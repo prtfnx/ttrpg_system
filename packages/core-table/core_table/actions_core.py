@@ -1181,7 +1181,7 @@ class ActionsCore(AsyncActionsProtocol):
                 message=f"Server error: {str(e)}"
             )
 
-    async def update_character(self, session_id: int, character_id: str, updates: Dict[str, Any], user_id: int, expected_version: Optional[int] = None, bypass_owner_check: bool = False) -> ActionResult:
+    async def update_character(self, session_id: int, character_id: str, updates: Dict[str, Any], user_id: int, expected_version: Optional[int] = None, bypass_owner_check: bool = False, stat_reconciliation_digest: Optional[str] = None) -> ActionResult:
         """Apply partial updates (delta) to a character using server-side manager with optimistic concurrency."""
         from service.character_update_recovery import CharacterUpdateOutcomeUnknown
 
@@ -1197,6 +1197,7 @@ class ActionsCore(AsyncActionsProtocol):
                 user_id,
                 expected_version,
                 bypass_owner_check=bypass_owner_check,
+                **({'stat_reconciliation_digest': stat_reconciliation_digest} if stat_reconciliation_digest is not None else {}),
             )
 
             if result.get('success'):
@@ -1210,6 +1211,7 @@ class ActionsCore(AsyncActionsProtocol):
                         'character_data': result.get('character_data'),
                         'token_updates': result.get('token_updates'),
                         'token_stats': result.get('token_stats'),
+                        **({'applied_updates': result['applied_updates']} if 'applied_updates' in result else {}),
                     }
                 )
             else:

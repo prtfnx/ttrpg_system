@@ -138,9 +138,22 @@ winner among conflicting legacy candidates.
 Any active durable combat in the session blocks repair. A scan exceeding 1000
 linked tokens also blocks, and reports truncation explicitly. A future apply
 caller must recheck current DM authority, the exact precondition, and all blocked
-conditions under session/source/token ownership before writing. This adapter
-does not itself apply a repair. `test_character_stat_reconciliation.py` covers
-scope, private-token access, conflicts, combat, changed preconditions and bounds.
+conditions under session/source/token ownership before writing.
+`test_character_stat_reconciliation.py` covers scope, private-token access,
+conflicts, combat, changed preconditions and bounds.
+
+The character manager accepts an internal `stat_reconciliation_digest` alongside
+its normal update entry point. Under the stable session/source locks it rechecks
+current database DM authority, locks linked rows, rebuilds the proposal, and
+compares the digest before any write. It uses the computed patch rather than
+caller-supplied changes. Canonical source/version, all linked projections, and a
+`stat_reconciliation` character log share one acceptance. Removing legacy aliases
+does not reinterpret them as authoritative null stat edits. A stale plan rejects;
+a fresh clean plan is a no-op with no new version or audit row. Failure rolls
+back the complete repair, and commit-response uncertainty uses the existing
+character verifier. Live callers must retain session/loaded-table ownership
+through installation just as for ordinary character commands. No standalone
+administrative write or writer-fencing bypass is introduced.
 
 ## Compendium NPC acceptance
 

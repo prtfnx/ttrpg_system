@@ -4,6 +4,15 @@ Date: 2026-10-26, Europe/Kiev.
 
 Status: proposed implementation backlog; this document does not declare the remaining work complete.
 
+Continuation: 2026-10-28. Redated the 32 unpublished commits for both author
+and committer to October 28 in Europe/Kyiv, preserving content, identities,
+messages and order. Original history is retained on
+`backup/unpublished-before-redate-2026-10-28-a43b9d08`. A normal fast-forward
+push published exactly the oldest 13 through `e85c331c`; 19 remained local
+before further implementation. See the [new commit map](audit/release-2026-10-28/commit-map.json).
+Historical short commit references below retain their original identifiers;
+use the mapping for their current equivalents. New implementation remains local.
+
 Continuation: 2026-10-27. Redated all 22 unpublished commits for both author
 and committer in Europe/Kyiv, preserving trees, identities, messages, and
 working files. Saved original history on

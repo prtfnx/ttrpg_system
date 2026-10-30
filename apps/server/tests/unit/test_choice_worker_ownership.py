@@ -6,7 +6,7 @@ import json
 import threading
 from contextlib import contextmanager
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from core_table.protocol import Message, MessageType
@@ -17,6 +17,7 @@ from service.choice_encounter_persistence_service import (
     ChoiceEncounterPersistenceService,
 )
 from service.encounter_engine import EncounterEngine
+from service.game_session import ConnectionManager
 from service.game_session_protocol import GameSessionProtocolService
 from service.server_protocol import ServerProtocol
 from sqlalchemy import create_engine
@@ -228,3 +229,74 @@ async def test_join_ban_and_rules_are_read_on_worker(game):
     data = json.loads(ws.send_text.call_args.args[0])['data']
     assert data['game_mode'] == 'turn_based'
     assert data['session_rules'] == {'turns': 'strict', 'session_id': 'WORK'}
+
+
+@pytest.mark.parametrize('failure', ['read', 'ban', 'enqueue'])
+async def test_failed_connect_removes_all_provisional_registrations(game, monkeypatch, failure):
+    manager = ConnectionManager()
+    manager.sessions_protocols['WORK'] = game.svc
+    monkeypatch.setattr('service.game_session.get_server_asset_manager', MagicMock())
+    ws, existing = AsyncMock(), AsyncMock()
+    # A failed new connection must not disturb another socket for the same user.
+    manager.active_connections['WORK'] = [existing]
+    manager.user_connections[2] = {existing}
+    manager.broadcast_to_session = AsyncMock()
+
+    def fail(*args, **kwargs):
+        if failure == 'ban':
+            raise PermissionError('Banned')
+        raise ChoiceEncounterPersistenceError('Unavailable')
+
+    if failure == 'enqueue':
+        monkeypatch.setattr(game.svc, '_enqueue_message', fail)
+    else:
+        monkeypatch.setattr(game.store, 'load_active', fail)
+    with pytest.raises((PermissionError, ChoiceEncounterPersistenceError)):
+        await manager.connect(ws, 'WORK', 2, 'joining')
+    assert manager.active_connections['WORK'] == [existing]
+    assert manager.user_connections[2] == {existing}
+    assert ws not in manager.connection_info and ws not in game.svc.websocket_to_client
+    assert not game.svc.clients and set(game.svc.client_info) == {'dm'}
+    manager.broadcast_to_session.assert_not_awaited()
+    ws.close.assert_awaited_once_with(code=4003 if failure == 'ban' else 1013)
+
+
+async def test_cancelled_connect_retains_lifecycle_ownership_through_rollback(game, monkeypatch):
+    manager = ConnectionManager()
+    manager.sessions_protocols['WORK'] = game.svc
+    monkeypatch.setattr('service.game_session.get_server_asset_manager', MagicMock())
+    entered, release, finished = threading.Event(), threading.Event(), threading.Event()
+    closing, release_close = asyncio.Event(), asyncio.Event()
+
+    def delayed(*args):
+        entered.set()
+        try:
+            assert release.wait(5)
+            return None
+        finally:
+            finished.set()
+
+    async def close(**kwargs):
+        closing.set()
+        await release_close.wait()
+
+    monkeypatch.setattr(game.store, 'load_active', delayed)
+    ws = AsyncMock()
+    ws.close.side_effect = close
+    task = asyncio.create_task(manager.connect(ws, 'WORK', 2, 'joining'))
+    try:
+        assert await asyncio.to_thread(entered.wait, 2)
+        task.cancel()
+        await asyncio.wait_for(closing.wait(), 2)
+        task.cancel()
+        await asyncio.sleep(0)
+        assert manager._session_lifecycle_locks['WORK'].locked() and not task.done()
+    finally:
+        release.set()
+        release_close.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert await asyncio.to_thread(finished.wait, 2)
+    assert not manager.active_connections and not manager.user_connections and not manager.connection_info
+    assert not game.svc.clients and not game.svc.websocket_to_client
+    assert not manager._session_lifecycle_locks['WORK'].locked()

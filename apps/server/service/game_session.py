@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Set, Union
 
+from core_table.action_batches import _finish_before_cancellation
 from core_table.protocol import Message, MessageType
 
 # Database imports
@@ -139,9 +140,9 @@ class ConnectionManager:
         # Setup R2 asset permissions using the role resolved by the caller
         user_role = role
 
-        asset_manager = get_server_asset_manager()
-        asset_manager.setup_session_permissions(session_code, user_id, username, user_role)
         try:
+            asset_manager = get_server_asset_manager()
+            asset_manager.setup_session_permissions(session_code, user_id, username, user_role)
             await protocol_service.add_client(websocket, client_id, {
                 "user_id": user_id,
                 "username": username,
@@ -149,22 +150,39 @@ class ConnectionManager:
                 "session_code": session_code,
                 "connection_id": self.connection_info[websocket]["connection_id"],
             })
-        except PermissionError:
-            logger.warning(
-                "Banned WebSocket user rejected",
-                extra={"event_name": "websocket.connection.rejected", "reason": "banned"},
-            )
-            await websocket.send_json({"type": "error", "message": "Access denied"})
-            await websocket.close(code=4003)
-            self.active_connections[session_code].remove(websocket)
-            del self.connection_info[websocket]
-            user_connections = self.user_connections.get(user_id)
-            if user_connections:
-                user_connections.discard(websocket)
-                if not user_connections:
-                    del self.user_connections[user_id]
+        except BaseException as exc:
+            # The endpoint has not yet marked this socket connected. Roll back
+            # provisional registrations here, without recursively acquiring the
+            # lifecycle lock via disconnect(). Cleanup must survive cancellation.
+            code = 4003 if isinstance(exc, PermissionError) else 1013
+            cleanup = asyncio.create_task(self._rollback_join(
+                protocol_service, websocket, session_code, user_id, code))
+            await _finish_before_cancellation(cleanup)
             raise
         return client_id
+
+    async def _rollback_join(self, protocol_service, websocket, session_code, user_id, code):
+        self.connection_info.pop(websocket, None)
+        sockets = self.active_connections.get(session_code, [])
+        if websocket in sockets:
+            sockets.remove(websocket)
+        if not sockets:
+            self.active_connections.pop(session_code, None)
+        user_sockets = self.user_connections.get(user_id)
+        if user_sockets is not None:
+            user_sockets.discard(websocket)
+            if not user_sockets:
+                self.user_connections.pop(user_id, None)
+        try:
+            await protocol_service.remove_client(websocket)
+        except Exception:
+            logger.exception("Failed join protocol cleanup failed")
+        try:
+            if code == 4003:
+                await asyncio.wait_for(websocket.send_json({"type": "error", "message": "Access denied"}), timeout=5)
+            await asyncio.wait_for(websocket.close(code=code), timeout=5)
+        except Exception:
+            logger.debug("Failed join socket already unavailable", exc_info=True)
 
     async def disconnect(self, websocket: WebSocket):
         """Disconnect a user from their game session with protocol cleanup"""

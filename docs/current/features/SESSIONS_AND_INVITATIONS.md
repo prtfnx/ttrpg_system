@@ -47,7 +47,15 @@ Session entry:
    same browser state.
 
 Handshake authority lookup and initial durable protocol reconstruction run as
-worker-owned synchronous database operations. Autosave and the final save on
+worker-owned synchronous database operations. Join ban/rules/game-mode reads
+also own a fresh worker session. The session mutation lock covers join metadata
+and choice-encounter hydration through registration and welcome enqueueing;
+outbound socket draining occurs after release. A delayed join cannot overwrite
+a newer encounter transition. Cancelled hydration discards its result, and a
+failed hydration registers no client. If admission fails after provisional
+connection-manager registration, rollback removes that socket from session,
+user and protocol indexes and closes it. Repeated cancellation retains lifecycle
+ownership through rollback; other sockets and the reusable session cache remain. Autosave and the final save on
 last disconnect use the same off-thread boundary. Final cleanup waits for
 serialized mutations and confirms the final save before clearing state. Failed
 saves retain the session for retry. Superseded writers instead retire obsolete

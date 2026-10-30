@@ -3184,7 +3184,27 @@
       }
     },
     {
-      "if": {"properties": {"type": {"enum": ["sprite_create", "sprite_remove", "sprite_move", "sprite_scale", "sprite_rotate", "sprite_update"]}}, "required": ["type"]},
+      "if": {
+        "properties": {"type": {"const": "character_update"},
+          "data": {"type": "object", "required": ["stat_reconciliation"]}},
+        "required": ["type", "data"]
+      },
+      "then": {"properties": {"data": {
+        "type": "object", "required": ["character_id", "stat_reconciliation"], "additionalProperties": false,
+        "properties": {
+          "character_id": {"type": "string", "minLength": 1, "maxLength": 64},
+          "stat_reconciliation": {"oneOf": [
+            {"type": "object", "required": ["mode"], "additionalProperties": false,
+              "properties": {"mode": {"const": "dry_run"}}},
+            {"type": "object", "required": ["mode", "expected_digest"], "additionalProperties": false,
+              "properties": {"mode": {"const": "apply"},
+                "expected_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}}
+          ]}
+        }
+      }}}
+    },
+    {
+      "if": {"properties": {"type": {"enum": ["sprite_create", "sprite_remove", "sprite_move", "sprite_scale", "sprite_rotate", "sprite_update", "compendium_sprite_add", "compendium_sprite_update", "compendium_sprite_remove"]}}, "required": ["type"]},
       "then": {
         "required": ["timestamp", "message_id"],
         "properties": {

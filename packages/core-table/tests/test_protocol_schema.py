@@ -5,7 +5,8 @@ import pytest
 from core_table.protocol import Message, MessageType
 
 SCHEMA_PATH = Path(__file__).parents[1] / "protocol" / "message.schema.json"
-SPRITE_MUTATIONS = {"sprite_create", "sprite_remove", "sprite_move", "sprite_scale", "sprite_rotate", "sprite_update"}
+SPRITE_MUTATIONS = {"sprite_create", "sprite_remove", "sprite_move", "sprite_scale", "sprite_rotate", "sprite_update",
+                    "compendium_sprite_add", "compendium_sprite_update", "compendium_sprite_remove"}
 
 
 @pytest.mark.parametrize("kind", sorted(SPRITE_MUTATIONS))
@@ -58,6 +59,25 @@ def test_message_type_schema_matches_python_enum():
 
     assert type_schema["x-enum-varnames"] == [member.name for member in MessageType]
     assert type_schema["enum"] == [member.value for member in MessageType]
+
+
+@pytest.mark.parametrize('options', [{'mode': 'dry_run'}, {'mode': 'apply', 'expected_digest': 'a' * 64}])
+def test_reconciliation_request_has_one_closed_explicit_mode(options):
+    parsed = Message.from_dict({'type': 'character_update', 'data': {'character_id': 'hero', 'stat_reconciliation': options}})
+    assert parsed.data['stat_reconciliation'] == options
+
+
+@pytest.mark.parametrize('data', [
+    {'character_id': 'hero', 'stat_reconciliation': {'mode': 'apply'}},
+    {'character_id': 'hero', 'stat_reconciliation': {'mode': 'apply', 'expected_digest': 'bad'}},
+    {'character_id': 'hero', 'stat_reconciliation': {'mode': 'dry_run', 'expected_digest': 'a' * 64}},
+    {'character_id': 'hero', 'stat_reconciliation': {'mode': 'guess'}},
+    {'character_id': 'hero', 'stat_reconciliation': {'mode': 'dry_run'}, 'updates': {'hp': 1}},
+    {'character_id': 'hero', 'stat_reconciliation': None},
+])
+def test_reconciliation_cannot_mix_mutations_or_omit_its_exact_precondition(data):
+    with pytest.raises(ValueError, match='Invalid protocol message'):
+        Message.from_dict({'type': 'character_update', 'data': data})
 
 
 def test_packaged_schema_matches_canonical_schema():

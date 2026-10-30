@@ -9,8 +9,9 @@ Last source audit: 2026-10-16
 
 ## Envelope identities
 
-Sprite create/remove/move/scale/rotate/update require a nonempty `message_id`
-and the original envelope `timestamp` in epoch seconds. Resends preserve both.
+Sprite create/remove/move/scale/rotate/update and compendium sprite
+add/update/remove require a nonempty `message_id` and the original envelope
+`timestamp` in epoch seconds. Resends preserve both.
 Missing/null timestamps and identities reject instead of creating fresh retry
 intent at decode time. This is separate from paint/canvas `issued_at`, which uses
 epoch milliseconds. Old clients without these sprite envelope fields must upgrade.
@@ -25,6 +26,17 @@ Message, correlation and causation IDs are bounded to 128 characters by the
 shared envelope schema. This bounds response correlation overhead; clients
 must not attach arbitrary-size strings as identities. Generated Python and
 browser schemas share the same boundary.
+
+## Stat reconciliation request schema
+
+`character_update` reserves a closed `stat_reconciliation` branch. Its data
+contains only `character_id` and `stat_reconciliation`. The latter is exactly
+`{ "mode": "dry_run" }` or
+`{ "mode": "apply", "expected_digest": "<64 lowercase hexadecimal characters>" }`.
+It cannot mix ordinary `updates`, a supplied source version, or extra fields
+into this branch. The shared schema validates both modes before dispatch;
+authorization and current-state preconditions remain server responsibilities.
+Normal character deltas retain their existing shape.
 
 ## Uncertain persistence outcomes
 

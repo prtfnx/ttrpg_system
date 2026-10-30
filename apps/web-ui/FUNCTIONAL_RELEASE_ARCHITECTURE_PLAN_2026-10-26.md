@@ -11,10 +11,11 @@ working files. Saved original history on
 push published exactly the oldest 11 through `8820d458`; 11 remained local
 before new work. See the [commit map](audit/release-2026-10-27/commit-map.json)
 for old/new identifiers. Short references below use the redated history.
-Next implementation target: canonical NPC source creation and a deliberate
-dry-run/reconciliation path for legacy/divergent stats, followed by remaining
-encounter authority and R3 work. The ordinary token-panel stat path now uses
-the versioned character command described below.
+Next implementation target: R3 choice-encounter persistence and join hydration
+worker ownership/order. Canonical NPC placement and a deliberate guarded stat
+repair operation are implemented below. R2 still needs real PostgreSQL/served
+qualification; malformed/conflicting legacy data requires explicit decisions,
+and encounter completion retains its documented no-automatic-write-back policy.
 
 October 27 implementation: generic character updates now wait on a stable
 session-row lock and verify commit-response errors against the exact before/after
@@ -75,6 +76,36 @@ The PostgreSQL contract module collects 22 cases, all skipped locally without
 `TEST_POSTGRESQL_DATABASE_URL`. Full pinned server Pyright, TypeScript, targeted
 Ruff/ESLint, and current-doc checks pass. These results do not close R2 or R7.
 All continuation commits remain local, with at most seven files per commit.
+
+October 27 NPC/reconciliation continuation: deterministic normalization checks
+all 201 bundled monsters, preserves canonical zero/null, rejects unresolved
+legacy conflicts, and retains NPC actions/abilities/resistances on the nested
+combat-consumer path. Compendium add/update/remove now use sprite receipt scopes;
+new NPC source, linked token and receipt share one transaction. Invalid creation
+does not fall back to an unlinked token. Rollback, protocol reconstruction/replay,
+and repeated cancellation have production-dispatch SQLite coverage. Compendium
+commands now require original envelope identity/time in both shared validators.
+
+DMs can preview one active character through the closed stat-reconciliation
+branch of `character_update`, then apply its exact digest. Reports are bounded
+and read-only. Apply rechecks database DM authority, source/projection state and
+combat under SQL/session/table ownership, then commits the computed canonical
+source, version, every linked projection and audit record together. Clean fresh
+apply is a no-op; stale plans, active combat, incomplete scans and unresolved
+legacy clears fail closed. Commit-response recovery retains the original digest
+and installs the verified result without applying it twice. There is no dedicated
+repair UI, no standalone writer bypass, and no claimed durable generic receipt
+across restart. Normal character schema/advancement validation remains in force.
+
+Validation: 864 focused server regressions, 858 browser/UI/store cases, and 279
+core table/action/schema cases pass. Full pinned Pyright reports zero errors and
+warnings; TypeScript, targeted Ruff, generated-schema drift and current-doc
+checks pass. The PostgreSQL contract module now collects 26 cases, including
+new-source and guarded-repair rollback/acceptance, but all skip locally without
+`TEST_POSTGRESQL_DATABASE_URL`. Real PostgreSQL, served provider workflows,
+generic sprite commit-uncertainty reconciliation, restore rehearsal and final
+release qualification remain open. Existing generated WASM/user files are
+preserved. All new commits remain local and change at most seven files.
 
 Execution started: 2026-10-26. R0 documentation reconciliation is implemented.
 The isolated optimized WASM build matches the baseline `HEAD` binary byte for

@@ -656,6 +656,8 @@ class _CharactersMixin(_ProtocolBase):
         if 'stat_reconciliation' in msg.data:
             try:
                 Message.from_dict(msg.to_dict())  # Also protect direct handler callers.
+                if not isinstance(character_id, str):
+                    raise ValueError('character_id is required')
                 if not session_id or not is_dm(self._get_client_role(client_id)):
                     raise ValueError('Session DM authority is required for stat reconciliation')
                 options = msg.data['stat_reconciliation']
@@ -680,6 +682,9 @@ class _CharactersMixin(_ProtocolBase):
         if not session_id:
             return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': 'Session not found'})
 
+        if not isinstance(updates, dict):
+            return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': 'Character updates must be an object'})
+
         # Require specialized update method in ActionsCore (no fallback)
         try:
             if not hasattr(self.actions, 'update_character'):
@@ -700,7 +705,7 @@ class _CharactersMixin(_ProtocolBase):
                 # Compatibility callers without that receipt use the old helper.
                 result_data = result.data if isinstance(result.data, dict) else {}
                 if reconciliation_digest is not None:
-                    updates = result_data['applied_updates']
+                    updates = dict(result_data['applied_updates'])
                     if not updates:
                         return Message(MessageType.CHARACTER_UPDATE_RESPONSE,
                             {'success': True, 'character_id': character_id, 'version': result_data['version']})

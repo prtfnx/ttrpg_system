@@ -34,7 +34,9 @@ def placement(test_db, test_db_engine, test_game_session, monkeypatch):
     async def send(message, target=None):
         target = target or proto
         await target.handle_client(message, 'dm')
-        return Message.from_json(target.send_to_client.call_args.args[0].to_json())
+        sender = target.send_to_client
+        assert isinstance(sender, AsyncMock)
+        return Message.from_json(sender.call_args.args[0].to_json())
     return SimpleNamespace(factory=factory, proto=proto, table=table, request=request, send=send)
 
 

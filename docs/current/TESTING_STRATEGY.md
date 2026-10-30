@@ -145,6 +145,8 @@ CI supplies a fresh PostgreSQL service and requires:
   commit and rollback boundaries, including failure after projection flush;
 - authorized character binding and canonical zero/null stat inheritance with
   sprite receipt acceptance, including rollback after the token flush;
+- new NPC source/token/receipt and guarded character stat repair/version/audit
+  commit and rollback in those same transaction seams;
 - combat and character recovery blocked behind the original transaction's
   session-row lock until commit or rollback, observed with `pg_blocking_pids`;
 - recovery rejection of repeatable-read snapshots, retaining quarantine;

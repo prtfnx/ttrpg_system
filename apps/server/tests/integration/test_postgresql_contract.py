@@ -258,7 +258,8 @@ def test_combat_outcome_lookup_rejects_repeatable_read_snapshots(postgresql_engi
 
 
 @pytest.mark.parametrize("fail_after_token_flush", [False, True])
-def test_character_source_and_linked_stats_share_transaction(postgresql_engine, monkeypatch, fail_after_token_flush):
+@pytest.mark.parametrize("reconcile_stats", [False, True])
+def test_character_source_and_linked_stats_share_transaction(postgresql_engine, monkeypatch, fail_after_token_flush, reconcile_stats):
     from managers import character_manager
 
     suffix = uuid.uuid4().hex[:12]
@@ -303,8 +304,20 @@ def test_character_source_and_linked_stats_share_transaction(postgresql_engine, 
 
             monkeypatch.setattr(character_manager, "stage_character_token_stats", stage_and_maybe_fail)
             manager = character_manager.ServerCharacterManager()
-            result = manager.update_character(session_id, character_id,
-                {"data": {"stats": {"hp": 0, "maxHp": 30, "ac": 15}}}, owner_id, expected_version=1)
+            target_stats = {"hp": 0, "maxHp": 30, "ac": 15}
+            if reconcile_stats:
+                with factory() as db:
+                    source = db.query(models.SessionCharacter).filter_by(character_id=character_id).one()
+                    document = json.loads(source.character_data)
+                    document['data']['stats'] = target_stats
+                    source.character_data = json.dumps(document)
+                    db.commit()
+                plan = manager.preview_stat_reconciliation(session_id, character_id, owner_id)
+                result = manager.update_character(session_id, character_id, {}, owner_id,
+                    stat_reconciliation_digest=plan['expected_digest'])
+            else:
+                result = manager.update_character(session_id, character_id,
+                    {"data": {"stats": target_stats}}, owner_id, expected_version=1)
             assert result["success"] is not fail_after_token_flush
             with factory() as db:
                 source = db.query(models.SessionCharacter).filter_by(character_id=character_id).one()
@@ -312,7 +325,7 @@ def test_character_source_and_linked_stats_share_transaction(postgresql_engine, 
                 expected = {"hp": 20, "maxHp": 20, "ac": 12} if fail_after_token_flush else {
                     "hp": 0, "maxHp": 30, "ac": 15,
                 }
-                assert json.loads(source.character_data)["data"]["stats"] == expected
+                assert json.loads(source.character_data)["data"]["stats"] == (target_stats if reconcile_stats else expected)
                 assert (token.hp, token.max_hp, token.ac) == (expected["hp"], expected["maxHp"], expected["ac"])
                 assert source.version == (1 if fail_after_token_flush else 2)
                 has_logs = db.query(models.CharacterLog).filter_by(character_id=character_id).count() > 0
@@ -419,7 +432,8 @@ def test_character_outcome_lookup_rejects_repeatable_read_snapshots(postgresql_e
 
 
 @pytest.mark.parametrize("fail_after_flush", [False, True])
-def test_character_binding_and_sprite_receipt_share_acceptance(postgresql_engine, monkeypatch, fail_after_flush):
+@pytest.mark.parametrize("create_source", [False, True])
+def test_character_binding_and_sprite_receipt_share_acceptance(postgresql_engine, monkeypatch, fail_after_flush, create_source):
     from core_table.protocol import Message, MessageType
     from core_table.table import VirtualTable
     from service import sprite_editor_commands
@@ -438,15 +452,13 @@ def test_character_binding_and_sprite_receipt_share_acceptance(postgresql_engine
                 game = models.GameSession(name="Binding transaction", session_code=suffix, owner_id=owner.id)
                 db.add(game)
                 db.flush()
-                db.add_all([
-                    models.VirtualTable(table_id=str(table.table_id), name=table.display_name, width=1000, height=1000,
-                                        session_id=game.id),
-                    models.SessionCharacter(character_id=f"source-{suffix}", session_id=game.id,
-                        owner_user_id=owner.id, character_name="Hero", version=3, character_data=json.dumps({
-                            "character_id": f"source-{suffix}", "name": "Hero",
-                            "data": {"stats": {"hp": 0, "maxHp": 30, "ac": None}},
-                        })),
-                ])
+                db.add(models.VirtualTable(table_id=str(table.table_id), name=table.display_name, width=1000, height=1000,
+                                          session_id=game.id))
+                npc_document = {"character_id": f"source-{suffix}", "name": "Hero", "schemaVersion": 1,
+                                "data": {"stats": {"hp": 0, "maxHp": 30, "ac": None}}}
+                if not create_source:
+                    db.add(models.SessionCharacter(character_id=f"source-{suffix}", session_id=game.id,
+                        owner_user_id=owner.id, character_name="Hero", version=3, character_data=json.dumps(npc_document)))
                 db.commit()
                 session_id, actor_id = game.id, owner.id
             before = table.to_dict()
@@ -456,6 +468,8 @@ def test_character_binding_and_sprite_receipt_share_acceptance(postgresql_engine
                 "sprite_id": "bound", "x": 100, "y": 100, "character_id": f"source-{suffix}"}})
             scope = SpriteCommandScope.from_message(request, session_id, actor_id)
             assert scope is not None
+            if create_source:
+                scope.new_character.update(npc_document)
             stage = sprite_editor_commands.stage_sprite_delta
 
             def stage_and_maybe_fail(*args, **kwargs):
@@ -479,7 +493,11 @@ def test_character_binding_and_sprite_receipt_share_acceptance(postgresql_engine
                 else:
                     assert entity is not None and (entity.hp, entity.max_hp, entity.ac) == (0, 30, None)
                 assert db.query(models.CanvasCommandJournal).count() == (0 if fail_after_flush else 1)
-                assert db.query(models.SessionCharacter).one().version == 3
+                source = db.query(models.SessionCharacter).one_or_none()
+                if create_source and fail_after_flush:
+                    assert source is None
+                else:
+                    assert source is not None and source.version == (1 if create_source else 3)
                 assert not db.query(models.CharacterLog).count()
         finally:
             outer.rollback()

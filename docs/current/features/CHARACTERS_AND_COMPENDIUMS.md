@@ -94,15 +94,17 @@ real manager, ActionsCore, protocol dispatch, SQLite transaction, and queued
 snapshot path. PostgreSQL execution and browser resync acceptance remain release
 gates. The token panel now uses the same source transaction for linked stats;
 active encounter writes remain separate. Durable character request identity
-across restart, legacy NPC sources, and existing divergent-row repair still need
-reconciliation. This is not a universal stat-ownership or receipt guarantee.
+across restart and real PostgreSQL/served qualification remain open. Canonical
+NPC creation and guarded repair are implemented below; conflicting or invalid
+legacy sources still require an explicit decision. This is not a universal
+stat-ownership or receipt guarantee.
 
 Current field boundaries must remain explicit:
 
 | State | Current owner | Remaining consistency work |
 | --- | --- | --- |
-| Character document, version, XP and advancement | Character manager and advancement commands | Generic sheet edits include linked projections atomically; XP and token-originated changes still need their own outcome contracts. |
-| Token HP/max-HP/AC outside combat | Character projection when linked; independent token fields otherwise | Token panel edits use the source command; qualify legacy NPC creation and existing-row repair, plus served recovery. |
+| Character document, version, XP and advancement | Character manager and advancement commands | Sheet/token-panel edits and guarded stat repairs include linked projections atomically; XP and cross-restart operation outcomes still need their own contracts. |
+| Token HP/max-HP/AC outside combat | Character projection when linked; independent token fields otherwise | Canonical NPC placement and guarded legacy/projection repair are implemented; qualify PostgreSQL, served creation and recovery. |
 | Active encounter HP, resources and turn state | Combat command snapshot/journal | Define sheet edits during combat and any encounter-completion write-back before unifying these fields. |
 
 Ending an encounter does not currently establish a general character-sheet HP
@@ -141,8 +143,7 @@ a clear. Choose canonical values explicitly first. An established `data.stats`
 object retains the normal missing/null projection semantics.
 
 Any active durable combat in the session blocks repair. A scan exceeding 1000
-linked tokens also blocks, and reports truncation explicitly. A future apply
-caller must recheck current DM authority, the exact precondition, and all blocked
+linked tokens also blocks, and reports truncation explicitly. Apply rechecks current DM authority, the exact precondition, and all blocked
 conditions under session/source/token ownership before writing.
 `test_character_stat_reconciliation.py` covers scope, private-token access,
 conflicts, combat, changed preconditions and bounds.
@@ -180,7 +181,9 @@ differences, and `expected_digest`. Inspect that report before sending:
 These are engineering protocol operations; there is no dedicated repair button.
 Use ordinary protocol envelopes with a fresh message ID for each deliberate
 request. Keep the same envelope identity/body when retrying an uncertain apply.
-Neither mode accepts a user-supplied patch or source version. The shared schema
+Neither mode accepts a user-supplied patch or source version. Ordinary character
+schema, advancement and spell-slot validation still applies; repair does not
+bypass those rules for malformed legacy documents. The shared schema
 and direct handler validation reject mixed requests. Cached client role checks
 are followed by current database DM checks in preview and guarded acceptance.
 
@@ -253,9 +256,10 @@ clear the token or guess which legacy value is authoritative. Explicit canonical
 zero/null remains valid. The adapter regression covers both root and nested
 legacy fields.
 
-Existing divergent rows, older flat NPC documents, and specialized compendium
-creation still need reconciliation/qualification. These changes do not establish
-a general historical-data repair or encounter-completion write-back guarantee.
+Canonical NPC placement and deliberate DM repair of unambiguous legacy or
+divergent projections are implemented above. Conflicting/invalid sources require
+an explicit canonical decision, and real PostgreSQL/served qualification remains
+open. Encounter completion still does not write HP back to the character.
 
 ## Character commit verification adapter
 

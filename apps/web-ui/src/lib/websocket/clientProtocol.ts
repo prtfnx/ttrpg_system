@@ -1912,16 +1912,22 @@ export class WebClientProtocol {
       const canonical = data.character_data as Record<string, unknown> | undefined;
       const current = useGameStore.getState().characters.find(character => character.id === characterId);
       const characterData = canonical?.data as Character['data'] | undefined;
-      useGameStore.getState().updateCharacter(characterId, {
-        ...(canonical?.name ? { name: String(canonical.name) } : {}),
-        ...(characterData ? { data: characterData } : {}),
-        ...(typeof data.version === 'number' ? { version: data.version } : {}),
-        updatedAt: new Date().toISOString(),
-        syncStatus: 'synced',
-      });
-      if (!canonical && current) {
-        this.loadCharacter(characterId);
+      const incomingVersion = typeof data.version === 'number' ? data.version : undefined;
+      const isOlder = incomingVersion !== undefined && typeof current?.version === 'number'
+        && incomingVersion < current.version;
+      if (canonical && !isOlder && !data.resync_required) {
+        useGameStore.getState().updateCharacter(characterId, {
+          ...(canonical.name ? { name: String(canonical.name) } : {}),
+          ...(characterData ? { data: characterData } : {}),
+          ...(incomingVersion !== undefined ? { version: incomingVersion } : {}),
+          updatedAt: new Date().toISOString(),
+          syncStatus: 'synced',
+        });
       }
+      if (current && (!canonical || data.resync_required)) this.loadCharacter(characterId);
+    } else if (data.outcome === 'unknown') {
+      showToast.warning(String(data.error ?? 'XP outcome is unknown. Check saved state before retrying.'));
+      if (characterId) this.loadCharacter(characterId);
     } else if (data.error) {
       showToast.error(String(data.error));
     }
@@ -2625,15 +2631,16 @@ export class WebClientProtocol {
     }));
   }
 
-  awardCharacterXP(characterId: string, amount: number, source: string, description = ''): void {
+  awardCharacterXP(characterId: string, amount: number, source: string, description = '', requestId?: string): string | undefined {
     if (this.userId === null) return;
-    this.sendMessage(createMessage(MessageType.XP_AWARD, {
-      character_id: characterId,
-      amount,
-      source,
-      description,
-      session_code: this.sessionCode,
-    }));
+    const message = createMessage(MessageType.XP_AWARD, {
+      character_id: characterId, amount, source, description, session_code: this.sessionCode,
+    });
+    // A caller retrying the same intent keeps its original ID and body.
+    // A fresh deliberate award leaves requestId unset to create a new identity.
+    if (requestId !== undefined) message.message_id = requestId;
+    this.sendMessage(message);
+    return message.message_id;
   }
 
   requestCharacterMulticlass(characterId: string, newClass: string): void {

@@ -27,6 +27,14 @@ Receipts currently remain for the retained session lifetime; no cleanup expires
 an accepted intent into a new operation. This adapter alone adds no guarantees
 to an operation until that operation's effect uses the same transaction.
 
+The browser's `awardCharacterXP` API returns its message identity and accepts
+that identity as an optional final argument when deliberately retrying the same
+input. Leaving it unset creates a separate award. Replay/unknown results trigger
+canonical reads; older advancement responses cannot lower a newer known version.
+The UI does not automatically replay uncertain XP or persist a cross-page retry
+queue. A character read alone does not prove whether one specific award committed;
+the retained original request identity is the receipt lookup key.
+
 ## Ownership
 
 The server owns accepted state. Local previews remain immediate while a command

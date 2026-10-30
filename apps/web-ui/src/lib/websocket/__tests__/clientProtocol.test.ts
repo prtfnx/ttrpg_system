@@ -784,6 +784,19 @@ describe('WebClientProtocol', () => {
   });
 
   describe('character advancement commands', () => {
+    it('retains the original XP identity for a retry and creates a new identity for a new award', () => {
+      const p = makeProtocol('ROOM', 7);
+      const ws = makeOpenWs(p);
+      const original = p.awardCharacterXP('char-1', 100, 'quest', 'Ruins');
+      p.awardCharacterXP('char-1', 100, 'quest', 'Ruins', original);
+      const deliberate = p.awardCharacterXP('char-1', 100, 'quest', 'Ruins');
+      const sent = (ws.send as Mock).mock.calls.map(call => JSON.parse(call[0]));
+      expect(original).toBeTruthy();
+      expect(sent.map(message => message.message_id)).toEqual([original, original, deliberate]);
+      expect(deliberate).not.toBe(original);
+      expect(sent[1].data).toEqual(sent[0].data);
+    });
+
     it('sends XP awards and multiclass requests immediately', () => {
       const p = makeProtocol('ROOM', 7);
       const ws = makeOpenWs(p);
@@ -1883,6 +1896,44 @@ describe('WebClientProtocol', () => {
         data: { experience: 900, level: 3 },
         version: 6,
       }));
+    });
+
+    it('XP replay reloads current state without installing an old receipt version', async () => {
+      const updateCharacter = vi.fn();
+      mocks.storeState.updateCharacter = updateCharacter;
+      mocks.storeState.characters = [{ id: 'c-xp', version: 8, data: { experience: 1000 } }];
+      const p = makeProtocol();
+      const load = vi.spyOn(p, 'loadCharacter');
+      await dispatch(p, 'xp_award_response', {
+        success: true, character_id: 'c-xp', version: 6, new_xp: 900,
+        replayed: true, resync_required: true,
+      });
+      expect(updateCharacter).not.toHaveBeenCalled();
+      expect(load).toHaveBeenCalledWith('c-xp');
+    });
+
+    it('an older advancement document cannot regress a newer character', async () => {
+      const updateCharacter = vi.fn();
+      mocks.storeState.updateCharacter = updateCharacter;
+      mocks.storeState.characters = [{ id: 'c-xp', version: 8, data: { experience: 1000 } }];
+      await dispatch(makeProtocol(), 'xp_award_response', {
+        success: true, character_id: 'c-xp', version: 6,
+        character_data: { data: { experience: 900 } },
+      });
+      expect(updateCharacter).not.toHaveBeenCalled();
+    });
+
+    it('unknown XP outcomes request a canonical read and emit the uncertainty', async () => {
+      const p = makeProtocol();
+      const load = vi.spyOn(p, 'loadCharacter');
+      const event = vi.fn();
+      window.addEventListener('xp-award-response', event);
+      await dispatch(p, 'xp_award_response', {
+        success: false, character_id: 'c-xp', outcome: 'unknown', code: 'outcome_unknown',
+      });
+      window.removeEventListener('xp-award-response', event);
+      expect(load).toHaveBeenCalledWith('c-xp');
+      expect((event.mock.calls[0][0] as CustomEvent).detail.outcome).toBe('unknown');
     });
 
     it('CHARACTER_DRAFT_FINALIZE_RESPONSE stores the character and exposes draft identity', async () => {

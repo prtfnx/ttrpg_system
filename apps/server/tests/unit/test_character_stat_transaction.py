@@ -15,6 +15,21 @@ from service.protocol.base import ServerProtocol
 from sqlalchemy.orm import Session, sessionmaker
 
 
+def legacy_repair_source(linked):
+    with linked.factory() as db:
+        source = db.query(models.SessionCharacter).one()
+        source.character_data = json.dumps({'character_id': linked.character_id, 'name': 'Hero',
+                                           'hp': 7, 'max_hp': 20, 'ac': 12})
+        db.commit()
+
+
+async def reconcile(linked, options):
+    request = Message(MessageType.CHARACTER_UPDATE,
+        {'character_id': linked.character_id, 'stat_reconciliation': options})
+    await linked.proto.handle_client(request, 'dm')
+    return request, next(response for response in reversed(linked.responses) if response.causation_id == request.message_id)
+
+
 @pytest.fixture
 def linked(test_db, test_db_engine, test_game_session, monkeypatch):
     factory = sessionmaker(bind=test_db_engine, expire_on_commit=False)
@@ -94,6 +109,56 @@ async def test_character_version_logs_and_loaded_unloaded_token_stats_commit_tog
         assert success and table is not None
         token = table.find_entity_by_sprite_id("linked-2")
         assert token is not None and token.hp == 0
+
+
+async def test_reconciliation_previews_then_repairs_loaded_unloaded_projections_and_is_idempotent(linked):
+    legacy_repair_source(linked)
+    before = saved_state(linked)
+    _, preview = await reconcile(linked, {'mode': 'dry_run'})
+    report = preview.data['report']
+    assert report['status'] == 'repairable' and report['token_mismatch_count'] == 3
+    assert '_updates' not in report and saved_state(linked) == before and not linked.events
+    _, response = await reconcile(linked, {'mode': 'apply', 'expected_digest': report['expected_digest']})
+    assert response.data['success'] and response.data['version'] == 2
+    assert saved_state(linked)[2] == [(7, 20, 12)] * 3
+    assert [token.hp for token in linked.tokens[:2]] == [7, 7]
+    assert [layer for _, layer in linked.events] == ['tokens', 'dungeon_master', 'tokens']
+    after = saved_state(linked)
+    _, clean = await reconcile(linked, {'mode': 'dry_run'})
+    assert clean.data['report']['status'] == 'clean'
+    _, response = await reconcile(linked, {'mode': 'apply', 'expected_digest': clean.data['report']['expected_digest']})
+    assert response.data['success'] and saved_state(linked) == after
+
+
+async def test_reconciliation_rejects_stale_plans_and_non_dm_requests(linked):
+    legacy_repair_source(linked)
+    _, preview = await reconcile(linked, {'mode': 'dry_run'})
+    with linked.factory() as db:
+        db.query(models.Entity).first().hp = 2
+        db.commit()
+    _, rejected = await reconcile(linked, {'mode': 'apply', 'expected_digest': preview.data['report']['expected_digest']})
+    assert not rejected.data['success'] and 'fresh dry run' in rejected.data['error']
+    assert saved_state(linked)[0] == 1 and not linked.events
+    linked.proto.session_manager.client_info['dm']['role'] = 'player'
+    _, rejected = await reconcile(linked, {'mode': 'dry_run'})
+    assert not rejected.data['success'] and 'report' not in rejected.data
+
+
+@pytest.mark.parametrize('committed', [False, True])
+async def test_repair_recovery_retains_original_digest_and_never_applies_the_patch_twice(linked, monkeypatch, committed):
+    legacy_repair_source(linked)
+    _, preview = await reconcile(linked, {'mode': 'dry_run'})
+    recovery, lookup = lose_character_commit_response(linked, monkeypatch, committed, unavailable=True)
+    request, uncertain = await reconcile(linked, {'mode': 'apply', 'expected_digest': preview.data['report']['expected_digest']})
+    assert uncertain.type == MessageType.ERROR and uncertain.data['code'] == 'character_outcome_unknown'
+    assert not await linked.proto.table_manager.save_to_database_async(linked.session_id)
+    monkeypatch.setattr(recovery, '_lookup', lookup)
+    await linked.proto.handle_client(request, 'dm')
+    receipts = [response for response in linked.responses if response.type == MessageType.CHARACTER_UPDATE_RESPONSE
+                and response.causation_id == request.message_id]
+    assert len(receipts) == 1 and receipts[0].data['success'] is committed
+    assert saved_state(linked)[0] == (2 if committed else 1)
+    assert [token.hp for token in linked.tokens[:2]] == [7 if committed else 20] * 2
 
 
 async def test_projection_failure_rolls_back_document_version_logs_and_all_token_writes(linked, monkeypatch):

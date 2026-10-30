@@ -45,6 +45,17 @@ def test_existing_current_hp_does_not_invent_max_hp():
     assert result["data"]["stats"] == {"hp": 3}
 
 
+def test_legacy_npc_keeps_actions_and_abilities_on_the_combat_consumers_data_path():
+    source = {'character_id': 'old-npc', 'name': 'Goblin', 'npc': True,
+              'hit_points': '7 (2d6)', 'armor_class': 15, 'stats': {'DEX': 14},
+              'actions': [{'name': 'Scimitar'}], 'damage_immunities': ['poison']}
+    result = normalize_character_stats(source, character_id='old-npc')
+    assert result['data']['actions'] == source['actions']
+    assert result['data']['damage_immunities'] == ['poison']
+    assert result['data']['stats'] == {'hp': 7, 'maxHp': 7, 'ac': 15, 'DEX': 14}
+    assert normalize_character_stats(result, character_id='old-npc') == result
+
+
 def test_raw_monster_content_cannot_override_identity_or_sharing():
     result = compendium_npc_document({"name": "Goblin", "raw": {"character_id": "victim", "controlledBy": [999],
         "hp": 0, "ac": 0}}, character_id="new-npc")

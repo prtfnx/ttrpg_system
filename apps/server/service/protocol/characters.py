@@ -78,6 +78,11 @@ class _CharactersMixin(_ProtocolBase):
         matching_payload = (request.type == MessageType.CHARACTER_UPDATE
                             and payload.get('character_id') == attempt.character_id
                             and (payload.get('updates') or payload.get('character_data')) == attempt.updates)
+        if attempt.reconciliation_digest is not None:
+            matching_payload = (request.type == MessageType.CHARACTER_UPDATE
+                and set(payload) == {'character_id', 'stat_reconciliation'}
+                and payload.get('character_id') == attempt.character_id
+                and payload.get('stat_reconciliation') == {'mode': 'apply', 'expected_digest': attempt.reconciliation_digest})
         # Reply only to the original actor and original message identity. Other
         # viewers receive the separately authorized character event above.
         if attempt.request_id is not None:
@@ -647,7 +652,29 @@ class _CharactersMixin(_ProtocolBase):
         user_id = self._get_user_id(msg, client_id) or 0
         session_id = self._get_session_id(msg)
 
-        if not character_id or not updates:
+        reconciliation_digest = None
+        if 'stat_reconciliation' in msg.data:
+            try:
+                Message.from_dict(msg.to_dict())  # Also protect direct handler callers.
+                if not session_id or not is_dm(self._get_client_role(client_id)):
+                    raise ValueError('Session DM authority is required for stat reconciliation')
+                options = msg.data['stat_reconciliation']
+                if options['mode'] == 'dry_run':
+                    from managers.character_manager import get_server_character_manager
+                    report = await run_blocking(get_server_character_manager().preview_stat_reconciliation,
+                        session_id, character_id, user_id)
+                    return Message(MessageType.CHARACTER_UPDATE_RESPONSE,
+                        {'success': True, 'character_id': character_id, 'report': report})
+                reconciliation_digest = options['expected_digest']
+                updates = {}
+            except ValueError as exc:
+                return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'character_id': character_id, 'error': str(exc)})
+            except Exception:
+                logger.exception('Stat reconciliation preview failed')
+                return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'character_id': character_id,
+                    'error': 'Stat reconciliation preview unavailable'})
+
+        if not character_id or not updates and reconciliation_digest is None:
             return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': 'character_id and updates are required'})
 
         if not session_id:
@@ -663,6 +690,7 @@ class _CharactersMixin(_ProtocolBase):
                 result = await self.actions.update_character(
                     session_id=session_id, character_id=character_id, updates=updates, user_id=user_id,
                     expected_version=version, bypass_owner_check=is_dm(self._get_client_role(client_id)),
+                    **({'stat_reconciliation_digest': reconciliation_digest} if reconciliation_digest is not None else {}),
                 )
             finally:
                 character_update_request_id.reset(request_scope)
@@ -671,6 +699,11 @@ class _CharactersMixin(_ProtocolBase):
                 # New managers return projections committed with the source.
                 # Compatibility callers without that receipt use the old helper.
                 result_data = result.data if isinstance(result.data, dict) else {}
+                if reconciliation_digest is not None:
+                    updates = result_data['applied_updates']
+                    if not updates:
+                        return Message(MessageType.CHARACTER_UPDATE_RESPONSE,
+                            {'success': True, 'character_id': character_id, 'version': result_data['version']})
                 resync_required = await self._sync_character_stats_to_tokens(
                     session_id, character_id, updates,
                     committed_updates=result_data.get('token_updates'),

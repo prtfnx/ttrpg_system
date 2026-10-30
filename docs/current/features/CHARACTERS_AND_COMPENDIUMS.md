@@ -155,6 +155,48 @@ character verifier. Live callers must retain session/loaded-table ownership
 through installation just as for ordinary character commands. No standalone
 administrative write or writer-fencing bypass is introduced.
 
+## Run a deliberate stat repair
+
+On an authenticated session-DM connection, send `character_update` with this
+data to preview one character:
+
+```json
+{"character_id":"<id>","stat_reconciliation":{"mode":"dry_run"}}
+```
+
+The correlated `character_update_response` contains `success` and a bounded
+`report` with `status` (`clean`, `repairable`, or `blocked`), canonical values,
+differences, and `expected_digest`. Inspect that report before sending:
+
+```json
+{"character_id":"<id>","stat_reconciliation":{"mode":"apply","expected_digest":"<digest from the preview>"}}
+```
+
+These are engineering protocol operations; there is no dedicated repair button.
+Use ordinary protocol envelopes with a fresh message ID for each deliberate
+request. Keep the same envelope identity/body when retrying an uncertain apply.
+Neither mode accepts a user-supplied patch or source version. The shared schema
+and direct handler validation reject mixed requests. Cached client role checks
+are followed by current database DM checks in preview and guarded acceptance.
+
+The existing serialized character command holds session and loaded-table
+ownership through commit, installation and role/layer-filtered publication.
+Apply rechecks the digest and combat state under SQL locks. Fresh clean apply
+does not write, broadcast, increment the source version, or add an audit row.
+Stale apply rejects and requires a new preview. Unknown commit responses retain
+quarantine; later recovery verifies and installs the original repair, including
+its exact digest identity, before allowing work to resume. It cannot apply that
+repair twice during recovery. Cross-restart request receipts remain a separate
+limitation, and a changed digest still fails closed after restart.
+
+Legacy NPC normalization also places actions, abilities, resistances, and other
+feature data on the nested path used by combat consumers, preserving current
+nested values and keeping identity/sharing/advancement fields out of that copy.
+Ambiguous or invalid sources require an explicit canonical decision; preview
+does not select a value or repair an active encounter. Regression owner:
+`test_character_stat_transaction.py`, including loaded/unloaded/private tokens,
+clean no-op, stale plans, DM gating, snapshot fencing and commit-response loss.
+
 ## Compendium NPC acceptance
 
 Compendium add/update/remove now use the existing sprite command scope and

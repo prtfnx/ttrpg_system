@@ -39,13 +39,23 @@ def normalize_character_stats(document: dict[str, Any], *, character_id: str) ->
     root_stats = result.get("stats", {})
     if not isinstance(data, dict) or not isinstance(root_stats, dict):
         raise ValueError("Character data and legacy stats must be objects")
+    npc = result.get('npc') or result.get('is_npc') or str(result.get('type', '')).lower() == 'npc'
+    if npc:
+        # The combat factory reads feature fields from data once it exists.
+        # Keep legacy NPC actions/abilities available after introducing stats.
+        envelope = {'character_id', 'name', 'data', 'stats', 'schemaVersion', 'schema_version', 'controlledBy',
+                    'owner_user_id', 'session_id', 'class', 'classes', 'experience', 'currentXP', 'level',
+                    'pending_level_up', 'proficiencyBonus'}
+        for key, value in result.items():
+            if key not in envelope:
+                data.setdefault(key, deepcopy(value))
     stats = data.get("stats")
     if stats is None:
         stats = {}
     if not isinstance(stats, dict):
         raise ValueError("Character data.stats must be an object or null")
     locations = [result, root_stats, data]
-    canonical = deepcopy(stats)
+    canonical = {**deepcopy(root_stats), **deepcopy(stats)} if npc else deepcopy(stats)
     for name, aliases in STAT_ALIASES.items():
         if name in stats:
             value = _stat(stats[name], name)

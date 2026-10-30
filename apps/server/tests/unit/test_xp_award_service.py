@@ -1,6 +1,10 @@
+import asyncio
+import copy
 import json
+import threading
 from contextlib import contextmanager
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from database import models
@@ -179,3 +183,116 @@ def test_invalid_stored_xp_rejects_before_audit_or_receipt(awards, xp_fields):
         awards.service.execute(awards.intent())
     with awards.factory() as db:
         assert db.query(models.CharacterLog).count() == db.query(models.SessionOperationReceipt).count() == 0
+
+
+@pytest.fixture
+def dispatch(awards, monkeypatch):
+    from core_table.protocol import Message
+    from core_table.server import TableManager
+    from managers import character_manager
+    from service.protocol.base import ServerProtocol
+
+    monkeypatch.setattr('service.protocol.characters.XPAwardService', lambda: awards.service)
+    monkeypatch.setattr(character_manager, 'SessionLocal', awards.factory)
+    monkeypatch.setattr(character_manager, '_server_character_manager', character_manager.ServerCharacterManager())
+    session = SimpleNamespace(game_session_db_id=1, session_code='XP1', client_info={
+        'dm': {'user_id': 1, 'role': 'owner'}, 'codm': {'user_id': 2, 'role': 'co_dm'},
+        'player': {'user_id': 3, 'role': 'player'}, 'unrelated': {'user_id': 99, 'role': 'player'},
+    })
+
+    def create():
+        protocol = ServerProtocol(TableManager(), session_manager=session)
+        protocol.send_to_client = AsyncMock()
+        return protocol
+
+    proto = create()
+
+    async def send(message, actor='dm', protocol=None):
+        target = protocol or proto
+        await target.handle_client(message, actor)
+        sender = target.send_to_client
+        assert isinstance(sender, AsyncMock)
+        return Message.from_json(sender.call_args.args[0].to_json())
+
+    return SimpleNamespace(proto=proto, create=create, send=send)
+
+
+@pytest.mark.asyncio
+async def test_real_dispatch_filters_publication_and_replays_original_request_after_restart(awards, dispatch):
+    from core_table.protocol import Message, MessageType
+
+    request = Message(MessageType.XP_AWARD, {'character_id': 'hero', 'amount': 100, 'source': 'quest'})
+    retry = copy.deepcopy(request)
+    result = await dispatch.send(request)
+    assert result.data['success'] and result.data['version'] == 2
+    sender = dispatch.proto.send_to_client
+    assert isinstance(sender, AsyncMock)
+    assert {call.args[1] for call in sender.await_args_list} == {'dm', 'codm', 'player'}
+    restarted = dispatch.create()
+    replay = await dispatch.send(retry, protocol=restarted)
+    assert replay.data['replayed'] and replay.data['resync_required']
+    sender = restarted.send_to_client
+    assert isinstance(sender, AsyncMock)
+    assert sender.await_count == 1 and sender.call_args.args[1] == 'dm'
+    changed = copy.deepcopy(retry)
+    changed.data['amount'] = 200
+    assert (await dispatch.send(changed)).data['code'] == 'conflict'
+    with awards.factory() as db:
+        assert db.query(models.CharacterLog).count() == db.query(models.SessionOperationReceipt).count() == 1
+
+
+@pytest.mark.asyncio
+async def test_repeated_cancellation_retains_xp_ownership_until_commit_and_publication(awards, dispatch, monkeypatch):
+    from core_table.protocol import Message, MessageType
+
+    entered, release = threading.Event(), threading.Event()
+    stage = xp_award_service.stage_receipt
+
+    def delayed(*args):
+        stage(*args)
+        entered.set()
+        assert release.wait(5)
+
+    monkeypatch.setattr(xp_award_service, 'stage_receipt', delayed)
+    request = Message(MessageType.XP_AWARD, {'character_id': 'hero', 'amount': 100})
+    task = asyncio.create_task(dispatch.send(request))
+    try:
+        assert await asyncio.to_thread(entered.wait, 2)
+        for _ in range(2):
+            task.cancel()
+            await asyncio.sleep(0)
+        assert dispatch.proto._mutation_lock.locked() and not task.done()
+        assert (await dispatch.send(Message(MessageType.PING, {}))).type == MessageType.PONG
+    finally:
+        release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert not dispatch.proto._mutation_lock.locked()
+    assert (await dispatch.send(request)).data['replayed']
+    with awards.factory() as db:
+        assert db.query(models.SessionCharacter).one().version == 2
+        assert db.query(models.CharacterLog).count() == db.query(models.SessionOperationReceipt).count() == 1
+
+
+@pytest.mark.asyncio
+async def test_publication_failure_is_accepted_requiring_resync(awards, dispatch, monkeypatch):
+    from core_table.protocol import Message, MessageType
+
+    monkeypatch.setattr(dispatch.proto, '_broadcast_character_event', AsyncMock(side_effect=RuntimeError('Send failed')))
+    response = await dispatch.send(Message(MessageType.XP_AWARD, {'character_id': 'hero', 'amount': 100}))
+    assert response.data['success'] and response.data['resync_required']
+    with awards.factory() as db:
+        assert db.query(models.SessionCharacter).one().version == 2
+
+
+@pytest.mark.asyncio
+async def test_stale_cached_dm_role_cannot_lookup_or_repeat_award(awards, dispatch):
+    from core_table.protocol import Message, MessageType
+
+    request = Message(MessageType.XP_AWARD, {'character_id': 'hero', 'amount': 100})
+    assert (await dispatch.send(request, actor='codm')).data['success']
+    with awards.factory() as db:
+        db.query(models.GamePlayer).filter_by(user_id=2).one().role = 'player'
+        db.commit()
+    response = await dispatch.send(request, actor='codm')
+    assert response.data['code'] == 'forbidden' and 'new_xp' not in response.data

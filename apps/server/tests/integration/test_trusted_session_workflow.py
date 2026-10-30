@@ -15,7 +15,7 @@ from core_table.protocol import Message, MessageType
 from database import database, models
 from fastapi import WebSocket
 from managers import character_manager
-from service import canvas_persistence_service, game_session_protocol
+from service import canvas_persistence_service, game_session_protocol, session_join_hydration, sprite_control
 from service.choice_encounter_persistence_service import ChoiceEncounterPersistenceService
 from service.combat_engine import CombatEngine
 from service.combat_persistence_service import CombatPersistenceService
@@ -56,7 +56,8 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
     factory = sessionmaker(bind=test_db_engine, expire_on_commit=False)
     monkeypatch.setattr(character_manager, "SessionLocal", factory)
     monkeypatch.setattr(character_manager, "_server_character_manager", character_manager.ServerCharacterManager())
-    for module in (database, canvas_persistence_service, base, canvas, combat, session):
+    for module in (database, canvas_persistence_service, base, canvas, combat, session,
+                   session_join_hydration, sprite_control):
         monkeypatch.setattr(module, "SessionLocal", factory)
     asset_provider = SimpleNamespace(request_session_assets=AsyncMock(return_value=[]))
     monkeypatch.setattr(game_session_protocol, "get_server_asset_manager", lambda: asset_provider)

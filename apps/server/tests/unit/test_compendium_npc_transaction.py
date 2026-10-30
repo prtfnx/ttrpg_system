@@ -83,6 +83,56 @@ async def test_invalid_monster_does_not_fall_back_to_an_unlinked_token(placement
     assert placement.table.find_entity_by_sprite_id('npc') is None
 
 
+@pytest.mark.parametrize('cancel', [False, True])
+async def test_token_resolution_initialization_and_sql_are_worker_owned(placement, monkeypatch, cancel):
+    from core_table.compendiums import token_resolution_service
+    entered, release = threading.Event(), threading.Event()
+    loop_thread = threading.get_ident()
+    lookups = []
+
+    class Resolver:
+        def get_token_info(self, name, monster_type):
+            assert threading.get_ident() != loop_thread
+            lookups.append((name, monster_type))
+            entered.set()
+            assert release.wait(5)
+            # The real resolver likewise creates and closes its own session.
+            with placement.factory() as db:
+                assert db.query(models.GameSession).count() == 1
+            return {'asset_id': 'worker-resolved'}
+
+    def initialize():
+        assert threading.get_ident() != loop_thread
+        return Resolver()
+
+    monkeypatch.setattr(token_resolution_service, 'get_token_service', initialize)
+    placement.request.data['sprite_data'].pop('asset_id')
+    retry = copy.deepcopy(placement.request)
+    task = asyncio.create_task(placement.send(placement.request))
+    try:
+        assert await asyncio.to_thread(entered.wait, 2)
+        assert placement.proto._mutation_lock.locked()
+        ping = await placement.send(Message(MessageType.PING, {}))
+        assert ping.type == MessageType.PONG
+        if cancel:
+            for _ in range(2):
+                task.cancel()
+                await asyncio.sleep(0)
+            assert not task.done()
+    finally:
+        release.set()
+    if cancel:
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    else:
+        assert (await task).type == MessageType.SPRITE_RESPONSE
+    assert placement.table.find_entity_by_sprite_id('npc').asset_id == 'worker-resolved'
+    assert (await placement.send(retry)).data['resync_required']
+    assert lookups == [('Goblin', '')]
+    with placement.factory() as db:
+        assert db.query(models.SessionCharacter).count() == db.query(models.Entity).count() == 1
+
+
 async def test_cancelled_npc_creation_holds_session_ownership_through_installation(placement, monkeypatch):
     from service import sprite_editor_commands
     stage = sprite_editor_commands.stage_compendium_npc

@@ -1,8 +1,9 @@
-import json
 import time
 from typing import Optional
 
 from core_table.protocol import Message, MessageType
+from service.sprite_control import can_control_persisted_sprite, controller_ids
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 
 from ._protocol_base import _ProtocolBase
@@ -105,61 +106,14 @@ class _HelpersMixin(_ProtocolBase):
                           if hasattr(self.table_manager, 'tables') else []):
                 entity = table.find_entity_by_sprite_id(sprite_id)
                 if entity is not None:
-                    cb = entity.controlled_by
-                    # Normalise: may be a JSON string if entity was updated via server_protocol
-                    if isinstance(cb, str):
-                        try:
-                            cb = json.loads(cb)
-                        except Exception:
-                            cb = []
-                    # controlled_by == [] means DM-only
-                    if not cb:
-                        return False
-                    # Compare as ints to handle any str/int mismatch
-                    if any(int(x) == user_id for x in cb if str(x).lstrip('-').isdigit()):
-                        return True
-                    # Entity exists in memory but user is not in controlled_by
-                    return False
+                    return user_id in controller_ids(entity.controlled_by)
 
-            # ── 2. DB fallback (for tables not in memory, e.g. persistence queries) ─
-            if hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
-                from database import crud
-                entity_db = crud.get_entity_by_sprite_id(self.table_manager.db_session, sprite_id)
-                if entity_db is None:
-                    # Sprite unknown to DB — deny
-                    return False
-
-                # controlled_by stored as JSON string in DB
-                try:
-                    controlled_by = json.loads(entity_db.controlled_by or '[]')
-                except Exception:
-                    controlled_by = []
-
-                if not controlled_by:
-                    # Empty list → DM-only sprite
-                    return False
-                if user_id in controlled_by:
-                    return True
-                if any(int(x) == user_id for x in controlled_by if str(x).lstrip('-').isdigit()):
-                    return True
-
-                # Check character ownership if sprite is linked to a character
-                if entity_db.character_id:
-                    from database.models import SessionCharacter
-                    character = self.table_manager.db_session.query(SessionCharacter).filter_by(
-                        character_id=entity_db.character_id
-                    ).first()
-                    if character:
-                        if character.owner_user_id == user_id:
-                            return True
-                        try:
-                            char_cb = json.loads(character.controlled_by or '[]')
-                            if user_id in char_cb:
-                                return True
-                        except Exception:
-                            pass
-
-                return False
+            # Send only trusted scalar identity to a worker-owned session.
+            session_id = getattr(self.session_manager, 'game_session_db_id', None)
+            if (getattr(self.table_manager, 'db_session', None)
+                    and isinstance(session_id, int) and not isinstance(session_id, bool)
+                    and session_id > 0):
+                return await run_blocking(can_control_persisted_sprite, session_id, sprite_id, user_id)
 
             # No DB and sprite not found in memory → deny
             return False

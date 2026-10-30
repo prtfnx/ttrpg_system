@@ -27,6 +27,13 @@ _MAX_SPRITE_DIMENSION = 10_000.0
 _MAX_TOKEN_STAT = 1_000_000
 
 
+def _resolve_compendium_token(monster_name: str, monster_type: str) -> dict:
+    # Singleton initialization reads mapping files; token lookup may query SQL.
+    # Both happen inside the worker, returning only detached asset metadata.
+    from core_table.compendiums.token_resolution_service import get_token_service
+    return get_token_service().get_token_info(monster_name, monster_type)
+
+
 def _get_required_table_id(data: dict[str, object]) -> str | None:
     """Return a normalized table ID, or None when the request omitted it."""
     table_id = data.get('table_id')
@@ -887,11 +894,11 @@ class _SpritesMixin(_ProtocolBase):
         asset_id = sprite_data.get('asset_id') or ''
         if monster_data and not asset_id:
             try:
-                from core_table.compendiums.token_resolution_service import get_token_service
-                token_service = get_token_service()
-                monster_name = monster_data.get('name', '')
-                monster_type = monster_data.get('type') or monster_data.get('monsterType', '')
-                token_info = token_service.get_token_info(monster_name, monster_type)
+                token_info = await run_blocking(
+                    _resolve_compendium_token,
+                    str(monster_data.get('name') or ''),
+                    str(monster_data.get('type') or monster_data.get('monsterType') or ''),
+                )
                 if token_info.get('asset_id'):
                     asset_id = token_info['asset_id']
                     logger.info("Compendium token resolved", extra={"event_name": "compendium.token.resolved"})

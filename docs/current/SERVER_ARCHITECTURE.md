@@ -81,11 +81,21 @@ without submitting work. Cancelling an already-submitted coroutine keeps its
 capacity reserved until the underlying thread finishes because Python cannot
 stop a running thread.
 
-TODO: migrate remaining synchronous client-join database and
-choice-encounter restoration, choice handlers, sprite-control permission
-fallbacks, and compendium token lookups to worker-owned sessions. These paths
-can still block the event loop. The worker limit covers submitted worker jobs;
-it does not make all protocol handlers nonblocking.
+Choice encounter loads/writes and join metadata hydration now use bounded
+workers with fresh worker-owned sessions. Session mutation ownership orders
+join restoration, registration and welcome enqueueing with choice transitions;
+socket draining happens outside the lock. Admitted choice mutations retain
+ownership through settlement/publication despite repeated cancellation. Cancelled
+join reads cannot restore their late results. See [Encounters](features/ENCOUNTERS.md).
+
+Sprite-control checks keep their in-memory fast path. Unloaded-token checks use
+`service/sprite_control.py` with the authenticated numeric session ID, scoped
+entity/character queries and normalized `CharacterPermission.can_control` grants.
+Empty or malformed token controllers remain DM-only; storage errors deny.
+Compendium token resolver initialization (mapping-file reads) and database asset
+lookup execute together in a worker and return detached asset metadata. Existing
+asset IDs skip this lookup. The worker limit covers submitted jobs; it does not
+make every protocol handler nonblocking or add durable retry/outcome receipts.
 
 Chat write, history, and moderation handlers follow the same rule: validate
 the command on the event loop, execute the complete database transaction and

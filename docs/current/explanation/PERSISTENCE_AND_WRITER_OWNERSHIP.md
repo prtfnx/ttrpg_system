@@ -34,15 +34,22 @@ characters, combat journals, paint, and assets have their own service boundaries
 
 For existing-table mutations, `ActionsCore` marks the table dirty and awaits
 confirmed persistence before returning success. A failed save remains dirty;
-retries use capped backoff. New-table creation instead saves a detached draft
-before installing live indexes/history. A failed create is not registered or
-queued for dirty-table retries. Failed table deletion retains live state. On an
+retries use capped backoff. Production table creation instead commits its
+detached draft, initial paint state and actor/session/domain request receipt
+together before installing live indexes/history. A rejected create is not
+registered or queued for dirty-table retries. An unknown commit quarantines
+serialized state work and snapshots until a fresh session-row barrier resolves
+the receipt and installs the current table or proves rollback. Repeated caller
+cancellation cannot release session/table ownership early. Standalone core-table
+callers retain their explicit detached-snapshot contract without automatic receipts. Failed table deletion retains live state. On an
 ordinary final disconnect, the manager drains mutations and retains a session
 whose final save failed so it can retry.
 
 The retained state is memory-resident. A failed command may later be saved by a
 retry; failure does not universally mean the in-memory mutation was reversed.
-Do not promise generic command idempotency or automatically resubmit creates.
+Do not promise generic command idempotency. A supported table-create retry
+retains its original scoped identity/body; older unconfirmed creates and other
+unsupported domains require reconciliation before resubmission.
 Canvas commands, sprite actions, and paint operations have domain-specific
 durable journals/receipts; see [Command and history](../reference/COMMAND_AND_HISTORY.md).
 These do not cover every table/settings mutation. A retained dirty snapshot
@@ -77,9 +84,11 @@ those remain part of general outcome-recovery work.
 
 ## Deferred consistency work
 
-TODO: extend durable receipts and outcome reconciliation to table creation,
-XP awards, and settings; shared transactions or repair for linked
-character/token/combat writes; and complete worker migration for synchronous protocol paths. Combat lifecycle transitions
+TODO: extend durable receipts and outcome reconciliation to table deletion,
+settings, generic character and choice commands. Table creation and XP now commit
+their effects and receipts together; this does not add universal retry safety or
+a persisted browser recovery queue. Complete remaining legacy character/token
+repairs and qualify worker ownership on the release candidate. Combat lifecycle transitions
 are calculated without implicit engine commits; accepted snapshot and journal
 share one transaction. Combat command cancellation retains ownership through
 settlement, cache installation, and protocol publication. Authenticated combat

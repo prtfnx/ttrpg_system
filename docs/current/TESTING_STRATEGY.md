@@ -131,6 +131,16 @@ the original retry identity and reject older advancement state. The PostgreSQL
 contract adds independent concurrent XP duplicates and observed session-lock
 blocking through original commit/rollback. SQLite is not row-lock evidence.
 
+Table creation tests exercise create/copy/import and receipt/paint-state
+rollback, changed-payload rejection, current-role lookup, copied global identities,
+canonical character links, deleted-target replay, and current-state reconstruction.
+Production dispatch covers repeated cancellation, post-commit installation failure,
+unknown-outcome read/snapshot quarantine and recovery after actor-role revocation.
+Copy wire replay must not capture its source again. Browser tests distinguish
+receipt reconciliation from initial creation hydration. PostgreSQL adds concurrent
+same-intent creation and observed settlement-lock waits; skipped cases are not
+database qualification. Large creation replies use the ordered snapshot outbox.
+
 ### PostgreSQL integration contract
 
 Database-sensitive integration tests use an explicitly disposable database from

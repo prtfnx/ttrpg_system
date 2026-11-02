@@ -109,7 +109,7 @@ def _constraint_names(inspector, table_name: str) -> set[str]:
 
 
 @pytest.fixture
-def xp_postgresql(postgresql_engine):
+def session_operations_postgresql(postgresql_engine):
     from service.xp_award_service import XPAwardIntent, XPAwardService
 
     factory = sessionmaker(bind=postgresql_engine, expire_on_commit=False)
@@ -133,6 +133,9 @@ def xp_postgresql(postgresql_engine):
     finally:
         with factory() as db:
             db.query(models.SessionOperationReceipt).filter_by(session_id=session_id).delete()
+            for table in db.query(models.VirtualTable).filter_by(session_id=session_id).all():
+                db.delete(table)
+            db.flush()
             db.query(models.CharacterLog).filter_by(session_id=session_id).delete()
             db.query(models.SessionCharacter).filter_by(character_id=character_id).delete()
             db.query(models.GameSession).filter_by(id=session_id).delete()
@@ -141,11 +144,11 @@ def xp_postgresql(postgresql_engine):
 
 
 @pytest.mark.parametrize('fail_after_flush', [False, True])
-def test_xp_source_audit_and_receipt_share_acceptance(xp_postgresql, monkeypatch, fail_after_flush):
+def test_xp_source_audit_and_receipt_share_acceptance(session_operations_postgresql, monkeypatch, fail_after_flush):
     from service import xp_award_service
     from service.session_operation_receipts import OperationRejected
 
-    scope = xp_postgresql
+    scope = session_operations_postgresql
     if fail_after_flush:
         stage = xp_award_service.stage_receipt
 
@@ -166,12 +169,12 @@ def test_xp_source_audit_and_receipt_share_acceptance(xp_postgresql, monkeypatch
         assert db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id).count() == int(not fail_after_flush)
 
 
-def test_concurrent_xp_duplicates_on_independent_services_accept_once(xp_postgresql):
+def test_concurrent_xp_duplicates_on_independent_services_accept_once(session_operations_postgresql):
     from concurrent.futures import ThreadPoolExecutor
 
     from service.xp_award_service import XPAwardService
 
-    scope, barrier = xp_postgresql, threading.Barrier(2)
+    scope, barrier = session_operations_postgresql, threading.Barrier(2)
 
     def execute():
         barrier.wait(timeout=5)
@@ -188,11 +191,11 @@ def test_concurrent_xp_duplicates_on_independent_services_accept_once(xp_postgre
 
 
 @pytest.mark.parametrize('commit', [False, True])
-def test_xp_outcome_lookup_waits_for_original_transaction(xp_postgresql, postgresql_engine, commit):
+def test_xp_outcome_lookup_waits_for_original_transaction(session_operations_postgresql, postgresql_engine, commit):
     from service.session_operation_receipts import stage_receipt
     from service.xp_award_service import XPAwardService
 
-    scope, writer = xp_postgresql, xp_postgresql.factory()
+    scope, writer = session_operations_postgresql, session_operations_postgresql.factory()
     ready, results, errors, pids = threading.Event(), [], [], []
 
     def reader_factory():
@@ -211,6 +214,107 @@ def test_xp_outcome_lookup_waits_for_original_transaction(xp_postgresql, postgre
     try:
         scope.service._authorize_and_lock(writer, scope.intent.identity)
         stage_receipt(writer, scope.intent.identity, {'success': True, 'version': 2})
+        writer_pid = writer.execute(text('SELECT pg_backend_pid()')).scalar_one()
+        reader.start()
+        assert ready.wait(3)
+        deadline, blocked = time.monotonic() + 3, False
+        with postgresql_engine.connect().execution_options(isolation_level='AUTOCOMMIT') as observer:
+            while time.monotonic() < deadline:
+                blockers = observer.execute(text('SELECT pg_blocking_pids(:pid)'), {'pid': pids[0]}).scalar_one()
+                if writer_pid in blockers:
+                    blocked = True
+                    break
+                time.sleep(.01)
+        assert blocked and not results and not errors
+        writer.commit() if commit else writer.rollback()
+        reader.join(timeout=5)
+        assert not reader.is_alive() and not errors and len(results) == 1
+        assert (results[0] is not None) is commit
+    finally:
+        writer.rollback()
+        writer.close()
+        if reader.ident is not None:
+            reader.join(timeout=6)
+
+
+@pytest.mark.parametrize('fail_after_flush', [False, True])
+def test_table_creation_and_receipt_share_acceptance(session_operations_postgresql, monkeypatch, fail_after_flush):
+    from service import table_creation_service
+    from service.session_operation_receipts import OperationRejected
+    from service.table_creation_service import TableCreateIntent, TableCreationService
+
+    scope = session_operations_postgresql
+    service = TableCreationService(scope.factory)
+    intent = TableCreateIntent.create(scope.session_id, scope.actor_id, 'table-original', {'table_name': 'Scene'})
+    if fail_after_flush:
+        stage = table_creation_service.stage_receipt
+
+        def fail(*args):
+            stage(*args)
+            raise RuntimeError('After table/paint/receipt flush')
+
+        monkeypatch.setattr(table_creation_service, 'stage_receipt', fail)
+        with pytest.raises(OperationRejected):
+            service.execute(intent)
+    else:
+        assert not service.execute(intent).replayed
+        assert service.execute(intent).replayed
+    with scope.factory() as db:
+        assert db.query(models.VirtualTable).filter_by(session_id=scope.session_id).count() == int(not fail_after_flush)
+        assert db.query(models.PaintState).filter_by(table_id=intent.table_id).count() == int(not fail_after_flush)
+        assert db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id).count() == int(not fail_after_flush)
+
+
+def test_concurrent_table_creates_with_one_identity_accept_once(session_operations_postgresql):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from service.table_creation_service import TableCreateIntent, TableCreationService
+
+    scope, barrier = session_operations_postgresql, threading.Barrier(2)
+    intent = TableCreateIntent.create(scope.session_id, scope.actor_id, 'table-original', {'table_name': 'Scene'})
+
+    def execute():
+        barrier.wait(timeout=5)
+        return TableCreationService(scope.factory).execute(intent)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(execute) for _ in range(2)]
+        results = [future.result(timeout=10) for future in futures]
+    assert sorted(result.replayed for result in results) == [False, True]
+    with scope.factory() as db:
+        assert db.query(models.VirtualTable).filter_by(session_id=scope.session_id).count() == 1
+        assert db.query(models.PaintState).filter_by(table_id=intent.table_id).count() == 1
+        assert db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id).count() == 1
+
+
+@pytest.mark.parametrize('commit', [False, True])
+def test_table_creation_lookup_waits_for_original_transaction(session_operations_postgresql, postgresql_engine, commit):
+    from core_table.table import VirtualTable
+    from database.crud import stage_new_table_snapshot
+    from service.session_operation_receipts import lock_operation_session, stage_receipt
+    from service.table_creation_service import TableCreateIntent, TableCreationService
+
+    scope, ready = session_operations_postgresql, threading.Event()
+    intent = TableCreateIntent.create(scope.session_id, scope.actor_id, 'table-original', {'table_name': 'Scene'})
+    writer, results, errors, pids = scope.factory(), [], [], []
+
+    def reader_factory():
+        db = scope.factory()
+        pids.append(db.execute(text('SELECT pg_backend_pid()')).scalar_one())
+        ready.set()
+        return db
+
+    def lookup():
+        try:
+            results.append(TableCreationService(reader_factory).resolve(intent))
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=lookup, daemon=True)
+    try:
+        lock_operation_session(writer, intent.identity)
+        stage_new_table_snapshot(writer, VirtualTable('Scene', 2000, 2000, table_id=intent.table_id), scope.session_id)
+        stage_receipt(writer, intent.identity, {'success': True, 'table_id': intent.table_id})
         writer_pid = writer.execute(text('SELECT pg_backend_pid()')).scalar_one()
         reader.start()
         assert ready.wait(3)

@@ -9,7 +9,10 @@ Last source audit: 2026-10-16
 
 ## Source owners
 
-- `apps/server/service/protocol/tables.py`: table list, create, load, delete,
+- `apps/server/service/protocol/table_creation.py`: create/copy/import installation
+  and uncertain-outcome recovery.
+- `apps/server/service/table_creation_service.py`: worker-owned table/receipt acceptance.
+- `apps/server/service/protocol/tables.py`: table list, load, delete,
   active-table, table update, scale, move, and table settings handlers.
 - `apps/server/service/protocol/session.py`: layer settings and active-table
   database helpers.
@@ -114,7 +117,8 @@ import/copy hints inside acceptance without changing source versions.
 
 Receipts retain only bounded outcome metadata for the retained session lifetime.
 A replay reads the current table, never its original snapshot. It does not
-replace a resident live table or rebroadcast creation. A retained receipt for a
+replace a resident live table or rebroadcast an already-resident creation. A
+recovered/uncached committed table announces metadata once when installed. A retained receipt for a
 later-deleted table reports `table_deleted` and cannot resurrect it. Imports
 retain proposed sprite identities and reject collisions atomically.
 

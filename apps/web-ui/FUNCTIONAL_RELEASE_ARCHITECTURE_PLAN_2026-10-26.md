@@ -28,12 +28,51 @@ working files. Saved original history on
 push published exactly the oldest 11 through `8820d458`; 11 remained local
 before new work. See the [commit map](audit/release-2026-10-27/commit-map.json)
 for old/new identifiers. Short references below use the redated history.
-Next implementation target: remaining R4 table create/copy/delete receipt
-acceptance and browser ownership of uncertain high-risk intents. The outcome
-inventory and atomic XP receipt path are implemented. Generic character and
-sprite/choice commit-recovery gaps remain separate work. Real PostgreSQL/served
-qualification remains open alongside R2/R7; R6 restore rehearsal remains open.
-Encounter completion retains its no-automatic-write-back policy.
+Next implementation target: remaining R4 durable table delete/settings outcomes
+and persisted browser ownership of uncertain create/XP intents. Create/copy/import
+receipts and session recovery are now implemented. Generic character and
+sprite/choice outcome gaps remain separate work. PostgreSQL/served qualification
+remains open alongside R2/R7; R6 restore rehearsal remains open. Encounter
+completion retains its no-automatic-write-back policy.
+
+October 29 table-creation continuation: production create/copy/import now commits
+a detached table, initial paint state and actor/session/domain/original-request
+receipt together. A stable session-row barrier resolves commit-response loss.
+Unavailable outcomes quarantine serialized state work and background snapshots;
+recovery installs the verified current table or proves rollback before work
+resumes. Repeated cancellation cannot release session/table ownership before
+settlement, installation and publication. Post-commit installation failures enter
+the same recovery gate. Internal recovery can restore server coherence after
+actor-role revocation while withholding private results from that actor.
+
+Copy identity names the original source rather than a later captured snapshot.
+Receipt lookup precedes replay capture, so changing/deleting the source cannot
+recopy one intent into another table. Source/target locks order capture and
+installation with background snapshots, and unresolved dirty sources reject.
+Imported/copied links recheck active same-session characters and inherit canonical
+zero/null stats inside acceptance. Equal global sprite/wall identities cannot
+overwrite unrelated objects. Copies keep their existing no-paint/no-preview policy.
+
+Resident replays preserve current live state; reconstructed receipts read current
+SQL state, not an old stored scene. Deleted-target receipts cannot recreate a table.
+Only installation announces public metadata; scene contents remain in DM responses.
+Large creation responses use the ordered bounded snapshot outbox. The shared wire
+schema now admits the UI's copy/import fields (previously rejected before dispatch),
+requires original identity/time, and aligns creation bounds with the handler.
+Browser replay reconciles a local draft and requests canonical reads without
+reentering creation hydration or resetting a newer form. The low-level create API
+can retain a request identity; the UI still has no persisted uncertain-intent queue.
+Delete/settings and pre-receipt historical operations do not inherit this guarantee.
+
+Validation: 1,055 server/migration/workflow cases, 1,046 browser/store/renderer-boundary
+cases and 175 shared schema cases pass. Full pinned Pyright has zero errors/warnings;
+TypeScript, targeted Ruff/ESLint, generated-schema drift and current-doc checks pass.
+The PostgreSQL contract now collects 36 cases, adding table/paint/receipt rollback,
+independent concurrent duplicate creates and observed original-transaction lock waits.
+All 36 contract cases and the PostgreSQL Alembic case skip locally without a test URL:
+37 skips, not PostgreSQL qualification. Real provider latency, served acceptance,
+restore rehearsal and capacity remain release gates. Existing WASM/user files are
+preserved. Work remains local in commits of at most seven files; R4 remains partial.
 
 October 29 R4 continuation: `session_operation_receipts` has a writer-fenced
 migration, actor/session/domain/original-message uniqueness and bounded detached
@@ -285,7 +324,7 @@ For a public production service, also require automated independent backups, res
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
-| A8: inconsistent durable operation identity/outcomes | XP now has atomic durable receipts and original-intent replay; table creation/settings and general character/choice outcomes remain open. Canvas/sprite/paint/chat/combat retain domain-specific mechanisms. | Finish remaining R4 domains and real PostgreSQL/browser acceptance; do not infer universal exactly-once delivery. |
+| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import now have atomic receipts, original-intent replay and settlement recovery. Table delete/settings and general character/choice outcomes remain open. Canvas/sprite/paint/chat/combat retain domain mechanisms. | Finish remaining R4 domains and persisted browser recovery, then real PostgreSQL/served acceptance; do not infer universal exactly-once delivery. |
 | A9: core-table imports server infrastructure | Still present. | Defer extraction; introduce only the transaction/worker adapters needed by R1-R3. |
 | A10: browser dependency cycles | Research recorded 39 cycles; the count was not rerun for this plan. | Defer wholesale cleanup. Fix a cycle only when a reproducible release workflow requires it. |
 | A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `efe187ac`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |

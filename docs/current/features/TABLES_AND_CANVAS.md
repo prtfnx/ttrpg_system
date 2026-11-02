@@ -363,3 +363,19 @@ in [Persistence and application ownership](../explanation/PERSISTENCE_AND_WRITER
 Regression coverage includes `test_table_transform_persistence.py`,
 `test_table_settings_roundtrip.py`, and the atomic/async persistence suites in
 `apps/server/tests/unit/`.
+
+## Confirmed table deletion in the browser
+
+Typed `success` deletion receipts and peer `table_update` deletion events remove
+the table summary, including inactive tables. Deleting the active scene clears
+the active pointer, sprites, walls and selection without echoing an active-table
+change to the server. Sprite-deletion successes do not retire a table.
+
+The protocol retains retired identities for its session lifetime. Delayed table
+snapshots, active-table replies, create notifications and table-list entries
+cannot restore those identities. Buffered settings and unsent table commands
+are discarded, and a table recovery timeout is cancelled when deletion is
+confirmed. A deliberate `deleteTable(tableId, originalRequestId)` retry preserves
+the original request identity; this is not a persisted browser recovery queue.
+Regression owners: `src/lib/websocket/__tests__/clientProtocol.test.ts` and
+`tableSettingsBuffer.test.ts` in `apps/web-ui/`.

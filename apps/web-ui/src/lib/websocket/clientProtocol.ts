@@ -78,6 +78,7 @@ export class WebClientProtocol {
   private sessionCode: string;
   private userId: number | null = null;
   private canvasPipelining = false;
+  private readonly retiredTableIds = new Set<string>();
 
   // Reconnection with exponential backoff
   private reconnectAttempts = 0;
@@ -244,6 +245,8 @@ export class WebClientProtocol {
 
   /** Override sendMessage to use batching for non-critical messages */
   sendMessage(message: Message): boolean {
+    if (message.type !== MessageType.TABLE_DELETE && typeof message.data?.table_id === 'string'
+      && this.retiredTableIds.has(message.data.table_id)) return false;
     this.prepareSpritePreviewScope(message);
     if (new TextEncoder().encode(JSON.stringify(message)).length > this.MAX_OUTBOUND_FRAME_BYTES) {
       logger.error('Protocol message exceeds the 64 KiB frame limit', message.type);
@@ -1241,13 +1244,10 @@ export class WebClientProtocol {
   private async handleSuccess(message: Message): Promise<void> {
     protocolLogger.message('received', { type: 'success', data: message.data });
     
-    // Only dispatch table-deleted for actual table deletion messages
-    // NOT for sprite operations that happen to include table_id
-    if (message.data && 
-        typeof message.data.message === 'string' && 
-        message.data.message.toLowerCase().includes('delet') && 
-        message.data.table_id) {
-      emitProtocolEvent('table-deleted', message.data);
+    const data = message.data;
+    if (data?.table_id && !data.sprite_id && (data.operation === 'delete'
+      || (typeof data.message === 'string' && data.message.toLowerCase().includes('table deleted')))) {
+      this.acceptTableDeletion(data);
     }
     
     if (message.data?.sprite_id && message.data.updates && message.data.table_id && this.targetsActiveTable(message.data)) {
@@ -1305,6 +1305,11 @@ export class WebClientProtocol {
   private async handleTableUpdate(message: Message): Promise<void> {
     logger.debug('Table update:', message.data);
     const data = message.data as Record<string, unknown>;
+    if (data?.operation === 'delete') {
+      this.acceptTableDeletion(data);
+      return;
+    }
+    if (typeof data?.table_id === 'string' && this.retiredTableIds.has(data.table_id)) return;
     if (data?.operation === 'create' && data.table_data && typeof data.table_data === 'object') {
       const tableData = data.table_data as Record<string, unknown>;
       const tableId = String(tableData.table_id ?? data.table_id ?? '');
@@ -1343,7 +1348,7 @@ export class WebClientProtocol {
         syncStatus: 'synced' as const,
         lastSyncTime: Date.now()
       })) as import('@/store').TableInfo[];
-      useGameStore.getState().setTables(serverTables);
+      useGameStore.getState().setTables(serverTables.filter(table => !this.retiredTableIds.has(table.table_id)));
       useGameStore.getState().setTablesLoading(false);
     }
     emitProtocolEvent('table-list-updated', message.data);
@@ -1352,17 +1357,15 @@ export class WebClientProtocol {
   private async handleNewTableResponse(message: Message): Promise<void> {
     logger.debug('New table created:', message.data);
     const data = message.data as Record<string, unknown>;
+    if (typeof data.table_id === 'string' && this.retiredTableIds.has(data.table_id)) return;
     if (data.replayed || data.table_deleted) {
       const state = useGameStore.getState();
       const tableId = typeof data.table_id === 'string' ? data.table_id : '';
       const localId = typeof data.local_table_id === 'string' ? data.local_table_id : '';
       const current = data.table_data as Record<string, unknown> | undefined;
       if (data.table_deleted) {
-        useGameStore.setState(previous => ({
-          tables: previous.tables.filter(table => table.table_id !== tableId && table.table_id !== localId),
-          activeTableId: previous.activeTableId === tableId || previous.activeTableId === localId
-            ? null : previous.activeTableId,
-        }));
+        this.acceptTableDeletion({ ...data, table_id: tableId });
+        if (localId) this.acceptTableDeletion({ table_id: localId });
       } else if (localId && state.tables.some(table => table.table_id === localId)
         && tableId && typeof current?.table_name === 'string'
         && typeof current.width === 'number' && typeof current.height === 'number') {
@@ -1425,7 +1428,7 @@ export class WebClientProtocol {
     const success = data.success;
     const error = data.error;
     
-    if (success && table_id) {
+    if (success && table_id && !this.retiredTableIds.has(table_id)) {
       // Set the active table in the store
       const gameStore = useGameStore.getState();
       gameStore.setActiveTableId(table_id);
@@ -2094,7 +2097,30 @@ export class WebClientProtocol {
     if (typeof rawTableId !== 'string' || !rawTableId.trim()) return true;
 
     const activeTableId = useGameStore.getState().activeTableId;
-    return !activeTableId || activeTableId === rawTableId.trim();
+    return !this.retiredTableIds.has(rawTableId.trim()) && (!activeTableId || activeTableId === rawTableId.trim());
+  }
+
+  private acceptTableDeletion(data: Record<string, unknown>): void {
+    const tableId = data.table_id;
+    if (typeof tableId !== 'string' || !tableId) return;
+    this.retiredTableIds.add(tableId);
+    this.settingsBuffer.forgetTable(tableId);
+    const recovery = this.resyncs.get(tableId);
+    if (recovery) clearTimeout(recovery.timer);
+    this.resyncs.delete(tableId);
+    const watermark = this.commandTracking.watermark(tableId);
+    this.commandTracking.resolveSnapshot(watermark);
+    this.wallSync.resolveSnapshot(watermark);
+    this.batchQueue = this.batchQueue.filter(message => message.data?.table_id !== tableId);
+    this.messageQueue = this.messageQueue.filter(message => message.data?.table_id !== tableId);
+    for (const [id, pending] of this.pendingWallCreates) if (pending.tableId === tableId) this.pendingWallCreates.delete(id);
+    useGameStore.setState(previous => ({
+      tables: (previous.tables ?? []).filter(table => table.table_id !== tableId),
+      ...(previous.activeTableId === tableId ? {
+        activeTableId: null, sprites: [], walls: [], selectedSprites: [],
+      } : {}),
+    }));
+    emitProtocolEvent('table-deleted', data);
   }
 
   // Public API methods for sending requests
@@ -2115,10 +2141,13 @@ export class WebClientProtocol {
     return message.message_id;
   }
 
-  deleteTable(tableId: string): void {
-    this.sendMessage(createMessage(MessageType.TABLE_DELETE, {
+  deleteTable(tableId: string, requestId?: string): string | undefined {
+    const message = createMessage(MessageType.TABLE_DELETE, {
       table_id: tableId
-    }));
+    });
+    if (requestId !== undefined) message.message_id = requestId;
+    this.sendMessage(message);
+    return message.message_id;
   }
 
   requestTableData(tableId: string): void {

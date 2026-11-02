@@ -88,6 +88,12 @@ export class TableSettingsBuffer {
     for (const scope of this.scopes.values()) for (const id of ids) scope.pending.delete(id);
   }
 
+  forgetTable(tableId: string): void {
+    const scope = this.scopes.get(tableId);
+    if (scope?.timer) clearTimeout(scope.timer);
+    this.scopes.delete(tableId);
+  }
+
   dispose(): void {
     for (const scope of this.scopes.values()) if (scope.timer) clearTimeout(scope.timer);
     this.scopes.clear();

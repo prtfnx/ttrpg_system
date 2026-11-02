@@ -15,6 +15,16 @@ function harness() {
 afterEach(() => vi.useRealTimers());
 
 describe('table settings buffer', () => {
+  it('discards a retired table draft without dropping another table draft', () => {
+    const { buffer, send } = harness();
+    buffer.stage('deleted', { grid_cell_px: 60 });
+    buffer.stage('kept', { grid_cell_px: 80 });
+    buffer.forgetTable('deleted');
+    vi.advanceTimersByTime(1000);
+    expect(send).toHaveBeenCalledOnce();
+    expect(send.mock.calls[0][0].data?.table_id).toBe('kept');
+    buffer.dispose();
+  });
   it('previews twenty changes immediately and persists only their final value', () => {
     const { buffer, apply, send } = harness();
     for (let size = 55; size <= 150; size += 5) buffer.stage('t1', { grid_cell_px: size });

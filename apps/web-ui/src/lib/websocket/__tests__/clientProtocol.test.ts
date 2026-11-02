@@ -658,6 +658,13 @@ describe('WebClientProtocol', () => {
       expect(msg.type).toBe('table_delete');
       expect(msg.data.table_id).toBe('tbl-1');
     });
+
+    it('retains the original identity on a deliberate retry', () => {
+      const p = makeProtocol(); const ws = makeOpenWs(p);
+      const id = p.deleteTable('550e8400-e29b-41d4-a716-446655440000');
+      expect(p.deleteTable('550e8400-e29b-41d4-a716-446655440000', id)).toBe(id);
+      expect(ws.send.mock.calls.map(call => JSON.parse(call[0]).message_id)).toEqual([id, id]);
+    });
   });
 
   describe('setActiveTable', () => {
@@ -2409,6 +2416,52 @@ describe('WebClientProtocol', () => {
       await dispatch(p, 'success', { message: 'Table deleted successfully', table_id: 't1' });
       window.removeEventListener('table-deleted', fn);
       expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it.each(['success', 'table_update'])('%s deletion removes active scene state and fences delayed snapshots', async type => {
+      const p = makeProtocol();
+      Object.assign(mocks.storeState, { activeTableId: 'table-abc',
+        tables: [{ table_id: 'table-abc' }, { table_id: 'kept' }],
+        sprites: [{ id: 'token' }], walls: [{ wall_id: 'wall' }], selectedSprites: ['token'] });
+      const event = vi.fn(); const table = vi.fn();
+      window.addEventListener('table-deleted', event);
+      window.addEventListener('table-response', table);
+      try {
+        await dispatch(p, type, { operation: 'delete', table_id: 'table-abc', operation_id: 'original' });
+        expect(mocks.storeState).toMatchObject({ tables: [{ table_id: 'kept' }], activeTableId: null,
+          sprites: [], walls: [], selectedSprites: [] });
+        expect(event).toHaveBeenCalledOnce();
+        expect(mockSetActiveTableId).not.toHaveBeenCalled();
+        await dispatch(p, 'table_response', { table_data: { table_id: 'table-abc' } });
+        await dispatch(p, 'table_active_response', { success: true, table_id: 'table-abc' });
+        expect(table).not.toHaveBeenCalled();
+        expect(mockSetActiveTableId).not.toHaveBeenCalled();
+      } finally {
+        window.removeEventListener('table-deleted', event);
+        window.removeEventListener('table-response', table);
+        p.disconnect();
+      }
+    });
+
+    it('removes a peer-deleted inactive table without clearing the current scene', async () => {
+      const p = makeProtocol();
+      Object.assign(mocks.storeState, { tables: [{ table_id: 'table-abc' }, { table_id: 'inactive' }],
+        sprites: [{ id: 'current-token' }], walls: [{ wall_id: 'current-wall' }] });
+      await dispatch(p, 'table_update', { operation: 'delete', table_id: 'inactive' });
+      expect(mocks.storeState).toMatchObject({ tables: [{ table_id: 'table-abc' }], activeTableId: 'table-abc',
+        sprites: [{ id: 'current-token' }], walls: [{ wall_id: 'current-wall' }] });
+      p.disconnect();
+    });
+
+    it('does not mistake a sprite deletion success for table deletion', async () => {
+      const p = makeProtocol(); const event = vi.fn();
+      window.addEventListener('table-deleted', event);
+      try {
+        await dispatch(p, 'success', { message: 'Sprite deleted successfully', operation: 'delete',
+          table_id: 'table-abc', sprite_id: 'token' });
+        expect(event).not.toHaveBeenCalled();
+        expect(mocks.storeState.activeTableId).toBe('table-abc');
+      } finally { window.removeEventListener('table-deleted', event); p.disconnect(); }
     });
   });
 

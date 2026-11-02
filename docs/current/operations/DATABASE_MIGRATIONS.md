@@ -15,7 +15,7 @@ Alembic is the only hosted schema authority:
 - revisions: `apps/server/database/alembic/versions/`;
 - deployed revision ledger: `alembic_version`;
 - baseline: `0001_postgresql_baseline`;
-- current head: `0012_canvas_command_journal`.
+- current head: `0013_session_operation_receipts`.
 
 Revision 0011 adds `game_players.selection_mode`, non-null with the default
 `separate`. Existing memberships keep separate selection. The authenticated
@@ -43,6 +43,16 @@ data. The new table has application-writer fencing on PostgreSQL. Downgrading
 to 0011 removes these receipts and undo history, not the accepted scene edits.
 The complete model inventory and JSONB/scoped-operation constraints are checked
 by `apps/server/tests/unit/test_model_metadata.py`.
+
+Revision `0013_session_operation_receipts` adds session/actor/domain-scoped
+accepted operation outcomes, with bounded JSON/JSONB results, SQL uniqueness,
+a session/creation index and PostgreSQL writer fencing. Deploy storage before
+depending on XP receipt handling. There is no data backfill or receipt expiry:
+existing XP values and audit rows remain intact, and only newly accepted request
+identities gain retry evidence. An unconfirmed award first sent to a version
+without XP receipts cannot safely be repeated through the new API; reconcile
+its source/audit state manually. A downgrade to 0012 removes that evidence while
+preserving awarded XP. Do not replay earlier identities after downgrading.
 
 Run from `apps/server` with `DATABASE_MIGRATION_URL` set to the intended
 schema-owner connection. Alembic falls back to `DATABASE_URL` when the

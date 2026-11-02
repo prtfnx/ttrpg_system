@@ -123,6 +123,14 @@ pytest tests/ -q
 ruff check .
 ```
 
+XP acceptance regressions cover source/version/audit/receipt rollback together,
+fresh and reconstructed-service duplicate replay, distinct awards, changed input,
+revoked DM authority, archive lookup, lost commit responses with receipt outages,
+repeated cancellation and role-filtered notification failure. Browser tests keep
+the original retry identity and reject older advancement state. The PostgreSQL
+contract adds independent concurrent XP duplicates and observed session-lock
+blocking through original commit/rollback. SQLite is not row-lock evidence.
+
 ### PostgreSQL integration contract
 
 Database-sensitive integration tests use an explicitly disposable database from

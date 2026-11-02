@@ -28,12 +28,52 @@ working files. Saved original history on
 push published exactly the oldest 11 through `8820d458`; 11 remained local
 before new work. See the [commit map](audit/release-2026-10-27/commit-map.json)
 for old/new identifiers. Short references below use the redated history.
-Next implementation target: R4 durable operation identities/outcome recovery,
-starting with an inventory and XP award acceptance. R3's named choice, join,
-permission-fallback and compendium worker paths are implemented with SQLite
-ordering/cancellation coverage. Real PostgreSQL/served qualification remains
-open alongside R2/R7. Malformed/conflicting legacy data requires deliberate
-repair, and encounter completion retains its no-automatic-write-back policy.
+Next implementation target: remaining R4 table create/copy/delete receipt
+acceptance and browser ownership of uncertain high-risk intents. The outcome
+inventory and atomic XP receipt path are implemented. Generic character and
+sprite/choice commit-recovery gaps remain separate work. Real PostgreSQL/served
+qualification remains open alongside R2/R7; R6 restore rehearsal remains open.
+Encounter completion retains its no-automatic-write-back policy.
+
+October 29 R4 continuation: `session_operation_receipts` has a writer-fenced
+migration, actor/session/domain/original-message uniqueness and bounded detached
+results. The borrowed adapter never commits independently. Receipt retention is
+the retained session lifetime; there is no age-based expiration or backfill of
+historical XP operations. The current action-confirmation reference inventories
+existing mechanisms and the remaining table/settings/choice/character gaps.
+
+XP now commits source document/version, award audit and durable receipt in one
+transaction behind stable session/source row locks. Current database DM authority
+is checked before execution or replay. A changed payload conflicts; a distinct
+intent increments independently. Commit-response loss resolves through a fresh
+READ COMMITTED lookup behind the same session-row barrier; unavailable outcomes
+remain explicitly unknown. Reconstructed services can repeat the original intent
+without another award, including after target archival. An old receipt cannot
+supply an obsolete character snapshot. Production dispatch retains session
+ownership through settlement/publication despite repeated cancellation; failed
+notifications return accepted state requiring resync. The old separate XP-log
+writer is removed. Normal schema checks, existing stats and unrelated fields
+remain intact; conflicting legacy XP rejects and equal aliases normalize.
+
+The shared request schema requires bounded original identity/time and a closed
+XP payload. The browser API returns the identity and accepts it for a deliberate
+same-input retry. Replay/unknown results schedule canonical reads and older
+advancement responses cannot lower a newer known version. There is no automatic
+uncertain-XP replay or persisted cross-page retry queue; a source read by itself
+does not prove an individual award's outcome. Previously unconfirmed awards sent
+to versions without receipts require manual reconciliation, not blind replay.
+
+Validation: 1,024 focused server/migration/workflow cases, 868 browser/store
+cases and 165 shared schema cases pass. Full pinned server Pyright reports zero
+errors/warnings; TypeScript, targeted Ruff/ESLint, generated-schema drift and
+current-doc checks pass. The PostgreSQL contract now collects 31 cases, including
+XP rollback/acceptance, independent concurrent duplicates and observed session
+lock waits through commit/rollback. All 31 contract cases plus the PostgreSQL
+Alembic case skip locally without `TEST_POSTGRESQL_DATABASE_URL`: 32 skipped,
+not PostgreSQL evidence. Real provider/served acceptance, writer qualification
+of the candidate migration and restore rehearsal remain required. Existing
+WASM/user files are preserved; all continuation work remains local in commits
+of at most seven files. R4 remains partial.
 
 October 28 R3 implementation: choice loads and snapshot/event writes use the
 bounded worker adapter with detached inputs and worker-owned SQLAlchemy sessions.
@@ -245,7 +285,7 @@ For a public production service, also require automated independent backups, res
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
-| A8: inconsistent durable operation identity/outcomes | Open for important operations such as table creation and XP awards. Canvas/sprite/paint/chat/combat already have domain-specific mechanisms. | R4: extend existing patterns selectively and resolve unknown commit outcomes. |
+| A8: inconsistent durable operation identity/outcomes | XP now has atomic durable receipts and original-intent replay; table creation/settings and general character/choice outcomes remain open. Canvas/sprite/paint/chat/combat retain domain-specific mechanisms. | Finish remaining R4 domains and real PostgreSQL/browser acceptance; do not infer universal exactly-once delivery. |
 | A9: core-table imports server infrastructure | Still present. | Defer extraction; introduce only the transaction/worker adapters needed by R1-R3. |
 | A10: browser dependency cycles | Research recorded 39 cycles; the count was not rerun for this plan. | Defer wholesale cleanup. Fix a cycle only when a reproducible release workflow requires it. |
 | A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `efe187ac`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |
@@ -335,7 +375,7 @@ Done when: the named gameplay paths perform no blocking SQL on the server loop, 
 
 Priority: release blocker for supported retry flows. Dependencies: R1/R2 transaction boundaries; contract design can start alongside R1. Estimate: 4-7 days.
 
-Source evidence: XP handling in [character protocol](../server/service/protocol/characters.py) computes and commits the increment before separately recording the award; it has no durable award identity. Table creation and settings do not share a complete durable outcome lookup contract. Existing canvas history and combat sequence handling should be reused and reviewed, not replaced wholesale.
+At plan creation, source evidence: XP handling in [character protocol](../server/service/protocol/characters.py) computes and commits the increment before separately recording the award; it has no durable award identity. Table creation and settings do not share a complete durable outcome lookup contract. Existing canvas history and combat sequence handling should be reused and reviewed, not replaced wholesale.
 
 Implementation:
 

@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 SERVER_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_INI = SERVER_ROOT / "alembic.ini"
-HEAD_REVISION = "0012_canvas_command_journal"
+HEAD_REVISION = "0013_session_operation_receipts"
 
 
 def _config(monkeypatch, database_url: str) -> Config:
@@ -154,6 +154,7 @@ def test_baseline_compiles_for_postgresql(monkeypatch):
     assert "CREATE TABLE paint_objects" in sql
     assert "JSONB" in sql
     assert 'ON "paint_objects"' in sql
+    assert 'ON "session_operation_receipts"' in sql
     assert "INSERT INTO alembic_version" in sql
     assert "SERIAL" in sql
     assert "PRAGMA" not in sql

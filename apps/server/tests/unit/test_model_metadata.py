@@ -32,6 +32,7 @@ EXPECTED_TABLES = {
     "session_assets",
     "session_characters",
     "session_invitations",
+    "session_operation_receipts",
     "shared_measurements",
     "users",
     "virtual_tables",
@@ -90,4 +91,14 @@ def test_canvas_journal_uses_jsonb_and_scoped_operation_identity():
     assert str(table.c.result_json.type.compile(dialect=postgresql.dialect())) == "JSONB"
     assert any(isinstance(constraint, UniqueConstraint) and
                list(constraint.columns.keys()) == ["table_id", "actor_id", "operation_id"]
+               for constraint in table.constraints)
+
+
+def test_session_receipt_uses_jsonb_and_actor_session_domain_identity():
+    from sqlalchemy.dialects import postgresql
+
+    table = Base.metadata.tables['session_operation_receipts']
+    assert str(table.c.result_json.type.compile(dialect=postgresql.dialect())) == 'JSONB'
+    assert any(isinstance(constraint, UniqueConstraint) and
+               list(constraint.columns.keys()) == ['session_id', 'actor_id', 'domain', 'operation_id']
                for constraint in table.constraints)

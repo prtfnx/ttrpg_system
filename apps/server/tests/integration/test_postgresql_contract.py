@@ -108,6 +108,132 @@ def _constraint_names(inspector, table_name: str) -> set[str]:
     return {name for name in names if name}
 
 
+@pytest.fixture
+def xp_postgresql(postgresql_engine):
+    from service.xp_award_service import XPAwardIntent, XPAwardService
+
+    factory = sessionmaker(bind=postgresql_engine, expire_on_commit=False)
+    suffix, character_id = uuid.uuid4().hex[:12], str(uuid.uuid4())
+    with factory() as db:
+        owner = models.User(username=f'xp-{suffix}', hashed_password='unused')
+        db.add(owner)
+        db.flush()
+        game = models.GameSession(name='XP receipts', session_code=suffix, owner_id=owner.id)
+        db.add(game)
+        db.flush()
+        db.add(models.SessionCharacter(character_id=character_id, session_id=game.id,
+            owner_user_id=owner.id, character_name='Hero', character_data=json.dumps({
+                'character_id': character_id, 'name': 'Hero', 'data': {'experience': 0, 'level': 1}})))
+        db.commit()
+        actor_id, session_id = owner.id, game.id
+    intent = XPAwardIntent.create(session_id, actor_id, 'xp-original', {'character_id': character_id, 'amount': 100})
+    try:
+        yield SimpleNamespace(factory=factory, service=XPAwardService(factory), intent=intent,
+                              session_id=session_id, actor_id=actor_id, character_id=character_id)
+    finally:
+        with factory() as db:
+            db.query(models.SessionOperationReceipt).filter_by(session_id=session_id).delete()
+            db.query(models.CharacterLog).filter_by(session_id=session_id).delete()
+            db.query(models.SessionCharacter).filter_by(character_id=character_id).delete()
+            db.query(models.GameSession).filter_by(id=session_id).delete()
+            db.query(models.User).filter_by(id=actor_id).delete()
+            db.commit()
+
+
+@pytest.mark.parametrize('fail_after_flush', [False, True])
+def test_xp_source_audit_and_receipt_share_acceptance(xp_postgresql, monkeypatch, fail_after_flush):
+    from service import xp_award_service
+    from service.session_operation_receipts import OperationRejected
+
+    scope = xp_postgresql
+    if fail_after_flush:
+        stage = xp_award_service.stage_receipt
+
+        def fail(*args):
+            stage(*args)
+            raise RuntimeError('After source/audit/receipt flush')
+
+        monkeypatch.setattr(xp_award_service, 'stage_receipt', fail)
+        with pytest.raises(OperationRejected):
+            scope.service.execute(scope.intent)
+    else:
+        assert scope.service.execute(scope.intent)['new_xp'] == 100
+        assert scope.service.execute(scope.intent)['replayed']
+    with scope.factory() as db:
+        source = db.query(models.SessionCharacter).filter_by(character_id=scope.character_id).one()
+        assert source.version == (1 if fail_after_flush else 2)
+        assert db.query(models.CharacterLog).filter_by(session_id=scope.session_id).count() == int(not fail_after_flush)
+        assert db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id).count() == int(not fail_after_flush)
+
+
+def test_concurrent_xp_duplicates_on_independent_services_accept_once(xp_postgresql):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from service.xp_award_service import XPAwardService
+
+    scope, barrier = xp_postgresql, threading.Barrier(2)
+
+    def execute():
+        barrier.wait(timeout=5)
+        return XPAwardService(scope.factory).execute(scope.intent)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(execute) for _ in range(2)]
+        results = [future.result(timeout=10) for future in futures]
+    assert sorted(result['replayed'] for result in results) == [False, True]
+    with scope.factory() as db:
+        assert db.query(models.CharacterLog).filter_by(session_id=scope.session_id).count() == 1
+        assert db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id).count() == 1
+        assert db.query(models.SessionCharacter).filter_by(character_id=scope.character_id).one().version == 2
+
+
+@pytest.mark.parametrize('commit', [False, True])
+def test_xp_outcome_lookup_waits_for_original_transaction(xp_postgresql, postgresql_engine, commit):
+    from service.session_operation_receipts import stage_receipt
+    from service.xp_award_service import XPAwardService
+
+    scope, writer = xp_postgresql, xp_postgresql.factory()
+    ready, results, errors, pids = threading.Event(), [], [], []
+
+    def reader_factory():
+        db = scope.factory()
+        pids.append(db.execute(text('SELECT pg_backend_pid()')).scalar_one())
+        ready.set()
+        return db
+
+    def lookup():
+        try:
+            results.append(XPAwardService(reader_factory).lookup(scope.intent))
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=lookup, daemon=True)
+    try:
+        scope.service._authorize_and_lock(writer, scope.intent.identity)
+        stage_receipt(writer, scope.intent.identity, {'success': True, 'version': 2})
+        writer_pid = writer.execute(text('SELECT pg_backend_pid()')).scalar_one()
+        reader.start()
+        assert ready.wait(3)
+        deadline, blocked = time.monotonic() + 3, False
+        with postgresql_engine.connect().execution_options(isolation_level='AUTOCOMMIT') as observer:
+            while time.monotonic() < deadline:
+                blockers = observer.execute(text('SELECT pg_blocking_pids(:pid)'), {'pid': pids[0]}).scalar_one()
+                if writer_pid in blockers:
+                    blocked = True
+                    break
+                time.sleep(.01)
+        assert blocked and not results and not errors
+        writer.commit() if commit else writer.rollback()
+        reader.join(timeout=5)
+        assert not reader.is_alive() and not errors and len(results) == 1
+        assert (results[0] is not None) is commit
+    finally:
+        writer.rollback()
+        writer.close()
+        if reader.ident is not None:
+            reader.join(timeout=6)
+
+
 @pytest.mark.parametrize("fail_after_movement_flush", [False, True])
 def test_combat_movement_and_acceptance_share_transaction(postgresql_engine, monkeypatch, fail_after_movement_flush):
     from service import combat_persistence_service as persistence_module

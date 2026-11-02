@@ -568,3 +568,26 @@ def test_message_from_json_accepts_paint_object_envelopes(message):
 def test_message_from_json_rejects_invalid_paint_object_envelopes(message):
     with pytest.raises(ValueError, match="Invalid protocol message"):
         Message.from_json(json.dumps(message))
+
+
+@pytest.mark.parametrize('field,value', [('message_id', ''), ('message_id', 'x' * 129),
+    ('timestamp', -1), ('timestamp', True), ('data', {'table_id': 'scene-name'}),
+    ('data', {'table_id': '11111111-1111-1111-1111-111111111111', 'user_id': 2})])
+def test_table_delete_requires_closed_uuid_payload_and_original_identity(field, value):
+    message = {'type': 'table_delete', 'message_id': 'original', 'timestamp': 1,
+               'data': {'table_id': '11111111-1111-1111-1111-111111111111'}}
+    assert Message.from_dict(message).message_id == 'original'
+    message[field] = value
+    with pytest.raises(ValueError):
+        Message.from_dict(message)
+
+
+@pytest.mark.parametrize('field', ['message_id', 'timestamp'])
+def test_table_delete_missing_identity_cannot_be_synthesized(field):
+    message = {'type': 'table_delete', 'message_id': 'original', 'timestamp': 1,
+               'data': {'table_id': '11111111-1111-1111-1111-111111111111'}}
+    del message[field]
+    with pytest.raises(ValueError):
+        Message.from_dict(message)
+
+

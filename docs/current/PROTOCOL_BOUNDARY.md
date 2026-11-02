@@ -266,3 +266,14 @@ overlapping edits. Capability resets when replacing or disconnecting the socket.
 A reconnect to a server without support recovers existing in-flight dependency
 commands from authoritative snapshots instead of replaying unsupported bodies.
 Other message envelopes retain their existing version defaults.
+
+## Durable table deletion identity
+
+`table_delete` requires the original non-empty `message_id` (at most 128
+characters), a finite nonnegative `timestamp`, and a closed `data` object
+containing only a table UUID in `table_id`. Names, implicit envelope identities,
+and client-supplied actor/session fields are rejected before dispatch. A deliberate
+retry retains the original ID and table UUID; changing the target under that ID
+cannot accept another deletion. Python and browser validators use the generated
+copies of the canonical schema. Regression owner:
+`packages/core-table/tests/test_protocol_schema.py`.

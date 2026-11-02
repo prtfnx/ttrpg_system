@@ -55,6 +55,26 @@ durable journals/receipts; see [Command and history](../reference/COMMAND_AND_HI
 These do not cover every table/settings mutation. A retained dirty snapshot
 is not itself a crash-durable record of an unconfirmed edit.
 
+## Table deletion storage contract
+
+`TableDeletionService` stages the table and dependent-resource deletion, clears
+matching session-member active-table pointers, and writes the original
+actor/session/domain request receipt and `TableDeletionTombstone` in one commit.
+Linked character sources and completed encounter histories remain. An active
+combat or choice encounter prevents deletion until it ends. A missing table is
+accepted only when this session already retains its tombstone; a foreign or
+unknown identity is rejected. Reusing a request identity with changed input fails.
+
+A commit-response failure is resolved from a fresh session under the shared
+session-row settlement barrier. An unavailable lookup reports an unknown outcome.
+Internal recovery can use a retained tombstone after actor/receipt removal to
+repair live state, without exposing an original receipt to a revoked actor.
+Snapshot staging and explicit table creation reject retired UUIDs. Tombstones
+survive actor/receipt removal and process restart for the retained session's
+lifetime; they are not age-pruned. Historical deletions before migration 0014
+cannot be reconstructed automatically. Regression owner:
+`apps/server/tests/unit/test_table_deletion_service.py`.
+
 ## Snapshot admission guard
 
 `TableManager.persistence_guard` is an optional application callback. When it

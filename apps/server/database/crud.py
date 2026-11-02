@@ -459,6 +459,7 @@ def delete_expired_chat_messages(db: Session, cutoff: datetime) -> int:
 # Virtual Table operations
 def create_virtual_table(db: Session, table_data: schemas.VirtualTableCreate, *, commit: bool = True) -> models.VirtualTable:
     """Create a new virtual table in the database"""
+    _reject_retired_table(db, table_data.table_id)
     layer_visibility_json = json.dumps(table_data.layer_visibility) if table_data.layer_visibility else json.dumps({
         'map': True, 'tokens': True, 'dungeon_master': True, 'light': True, 'height': True, 'obstacles': True
     })
@@ -541,9 +542,23 @@ def delete_virtual_table(db: Session, table_id: str) -> bool:
     if not db_table:
         return False
 
-    db.delete(db_table)
+    stage_table_deletion(db, db_table, None)
     db.commit()
     return True
+
+
+def stage_table_deletion(db: Session, table: models.VirtualTable, actor_id: int | None) -> None:
+    """Flush table resources, member pointers and retirement in one borrowed transaction."""
+    db.query(models.GamePlayer).filter_by(session_id=table.session_id, active_table_id=table.table_id).update(
+        {models.GamePlayer.active_table_id: None}, synchronize_session=False)
+    db.add(models.TableDeletionTombstone(table_id=table.table_id, session_id=table.session_id, deleted_by=actor_id))
+    db.delete(table)
+    db.flush()
+
+
+def _reject_retired_table(db: Session, table_id: str) -> None:
+    if db.get(models.TableDeletionTombstone, str(table_id)) is not None:
+        raise ValueError('Table identity was deleted and cannot be restored by a snapshot')
 
 # Entity operations
 def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: int, *, commit: bool = True, flush: bool = True) -> models.Entity:
@@ -661,6 +676,7 @@ def _stage_table_snapshot(db: Session, virtual_table_obj, session_id: int) -> Op
     """
     # Convert UUID to string if needed
     table_id_str = str(virtual_table_obj.table_id) if virtual_table_obj.table_id else str(uuid.uuid4())
+    _reject_retired_table(db, table_id_str)
 
     # Check if table already exists
     existing_table = get_virtual_table_by_id(db, table_id_str)

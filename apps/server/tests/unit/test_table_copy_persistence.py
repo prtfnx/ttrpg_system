@@ -1,6 +1,6 @@
 import asyncio
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from core_table.actions_core import ActionsCore
@@ -9,8 +9,11 @@ from core_table.protocol import Message, MessageType
 from core_table.server import TableManager
 from core_table.table import CoverZone, VirtualTable
 from database import crud, models
-from service.protocol.tables import _copy_table_data
 from service.server_protocol import ServerProtocol
+from service.session_operation_receipts import OperationOutcomeUnknown
+from service.table_creation_service import TableCreationService
+from service.table_creation_service import _copy_snapshot as _copy_table_data
+from sqlalchemy.orm import sessionmaker
 
 
 def test_copy_allocates_identities_without_changing_shared_links_or_source():
@@ -51,6 +54,8 @@ async def test_populated_table_copy_persists_reloads_and_deletes_independently(t
     session = SimpleNamespace(game_session_db_id=test_game_session.id, session_code="TEST01",
                               client_info={"dm": {"role": "owner", "user_id": test_game_session.owner_id}})
     protocol = ServerProtocol(manager, session_manager=session)
+    service = TableCreationService(sessionmaker(bind=test_db.get_bind()))
+    protocol._table_creation_service = lambda: service
     protocol.ensure_assets_in_r2 = AsyncMock()
     protocol.broadcast_to_session = AsyncMock()
 
@@ -133,19 +138,22 @@ async def test_cancelled_create_waits_for_draft_save_before_installing_live_stat
 
 
 @pytest.mark.asyncio
-async def test_unconfirmed_create_returns_reload_guidance(test_db, test_game_session):
+async def test_unconfirmed_create_returns_unknown_and_fences_session(test_db, test_game_session):
     manager = TableManager(test_db)
     manager.save_table_async = AsyncMock(return_value=False)
     session = SimpleNamespace(game_session_db_id=test_game_session.id, session_code="TEST01",
                               client_info={"dm": {"role": "owner", "user_id": test_game_session.owner_id}})
     protocol = ServerProtocol(manager, session_manager=session)
+    service = MagicMock()
+    service.execute.side_effect = OperationOutcomeUnknown('Lookup unavailable')
+    protocol._table_creation_service = lambda: service
     protocol.broadcast_to_session = AsyncMock()
     response = await protocol.handle_new_table_request(Message(MessageType.NEW_TABLE_REQUEST, {
         "table_name": "Draft", "width": 1000, "height": 1000,
     }), "dm")
     assert response.type == MessageType.ERROR
-    assert response.data["code"] == "table_creation_save_failed"
-    assert response.data["reload_required"] is True
-    assert "Reload before retrying" in response.data["error"]
+    assert response.data["code"] == "outcome_unknown"
+    assert response.data["resync_required"] is True
+    assert protocol._has_pending_table_creation() and not manager.persistence_allowed()
     protocol.broadcast_to_session.assert_not_awaited()
     assert not manager.tables_id

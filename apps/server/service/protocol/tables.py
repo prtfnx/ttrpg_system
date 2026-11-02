@@ -1,8 +1,5 @@
 import asyncio
-import json
 import math
-import uuid
-from copy import deepcopy
 from typing import Any
 
 from core_table.async_actions_protocol import Position
@@ -16,31 +13,13 @@ from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import get_visible_layers, is_dm
 
-from ._protocol_base import _ProtocolBase
+from .table_creation import _TableCreationMixin
 
 logger = setup_logger(__name__)
 
-_DEFAULT_TABLE_DIMENSION = 2000
 _MIN_TABLE_DIMENSION = 500
 _MAX_TABLE_DIMENSION = 10_000
 _MAX_TABLE_NAME_LENGTH = 50
-_MAX_IMPORTED_ENTITIES = 5_000
-_MAX_IMPORTED_TABLE_BYTES = 5 * 1024 * 1024
-
-
-def _copy_table_data(source: dict[str, Any]) -> dict[str, Any]:
-    """Copy snapshot content with new global identities; linked data stays shared."""
-    copied = deepcopy(source)
-    copied.pop('table_id', None)
-    for entities in copied.get('layers', {}).values():
-        for entity in entities.values() if isinstance(entities, dict) else entities:
-            entity['sprite_id'] = str(uuid.uuid4())
-    for wall in copied.get('walls', []):
-        wall['wall_id'] = str(uuid.uuid4())
-        wall.pop('table_id', None)
-    for zone in copied.get('cover_zones', []):
-        zone['zone_id'] = str(uuid.uuid4())
-    return copied
 
 
 def _validated_table_dimension(value: object) -> int | None:
@@ -52,7 +31,7 @@ def _validated_table_dimension(value: object) -> int | None:
     return dimension if _MIN_TABLE_DIMENSION <= dimension <= _MAX_TABLE_DIMENSION else None
 
 
-class _TablesMixin(_ProtocolBase):
+class _TablesMixin(_TableCreationMixin):
     """Handler methods for tables domain."""
 
     async def handle_delete_table(self, msg: Message, client_id: str) -> Message:
@@ -124,144 +103,6 @@ class _TablesMixin(_ProtocolBase):
         except Exception:
             logger.exception("Table list request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
-
-    async def handle_new_table_request(self, msg: Message, client_id: str) -> Message:
-        """Handle new table request"""
-        logger.debug("Table creation requested", extra={"event_name": "table.create.requested"})
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'Only DMs can create tables'})
-        if not msg.data:
-            return Message(MessageType.ERROR, {'error': 'No data provided in new table request'})
-        raw_table_name = msg.data.get('table_name', 'default')
-        if not isinstance(raw_table_name, str):
-            return Message(MessageType.ERROR, {'error': 'Table name must be text'})
-        table_name = raw_table_name.strip()
-        if not table_name:
-            return Message(MessageType.ERROR, {'error': 'Table name is required'})
-        if len(table_name) > _MAX_TABLE_NAME_LENGTH:
-            return Message(MessageType.ERROR, {'error': 'Table name must be 50 characters or fewer'})
-
-        width = _validated_table_dimension(msg.data.get('width', _DEFAULT_TABLE_DIMENSION))
-        height = _validated_table_dimension(msg.data.get('height', _DEFAULT_TABLE_DIMENSION))
-        if width is None or height is None:
-            return Message(MessageType.ERROR, {
-                'error': 'Table width and height must be whole numbers between 500 and 10000'
-            })
-        local_table_id = msg.data.get('local_table_id')  # BEST PRACTICE: Preserve local ID for sync mapping
-
-        source_table_id = msg.data.get('source_table_id')
-        initial_table_data = msg.data.get('table_data')
-        if source_table_id is not None and initial_table_data is not None:
-            return Message(MessageType.ERROR, {'error': 'Choose either source_table_id or table_data'})
-        if source_table_id is not None:
-            if not isinstance(source_table_id, str) or not source_table_id.strip():
-                return Message(MessageType.ERROR, {'error': 'source_table_id must be non-empty text'})
-            source_table = (
-                self.table_manager.tables_id.get(source_table_id.strip())
-                or self.table_manager.tables.get(source_table_id.strip())
-            )
-            if source_table is None:
-                return Message(MessageType.ERROR, {'error': 'Source table not found'})
-            initial_table_data = _copy_table_data(source_table.to_dict())
-        if initial_table_data is not None:
-            if not isinstance(initial_table_data, dict):
-                return Message(MessageType.ERROR, {'error': 'table_data must be an object'})
-            layers = initial_table_data.get('layers', {})
-            if not isinstance(layers, dict):
-                return Message(MessageType.ERROR, {'error': 'table_data.layers must be an object'})
-            entity_count = sum(
-                len(entities)
-                for entities in layers.values()
-                if isinstance(entities, (dict, list))
-            )
-            if entity_count > _MAX_IMPORTED_ENTITIES:
-                return Message(MessageType.ERROR, {'error': f'Table imports are limited to {_MAX_IMPORTED_ENTITIES} entities'})
-            try:
-                encoded_size = len(json.dumps(initial_table_data).encode('utf-8'))
-            except (TypeError, ValueError):
-                return Message(MessageType.ERROR, {'error': 'table_data must contain JSON-compatible values'})
-            if encoded_size > _MAX_IMPORTED_TABLE_BYTES:
-                return Message(MessageType.ERROR, {'error': 'Table import exceeds the 5 MB metadata limit'})
-
-        # Table creation must be durable. Validate all authenticated session
-        # context before adding anything to the in-memory table manager.
-        session_id = self._get_session_id(msg)
-        session_code = self._get_session_code()
-        user_id = self._get_user_id(msg, client_id)
-        if not session_id or not session_code or user_id is None:
-            return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
-        logger.debug("Persistent table creation requested", extra={"event_name": "table.create.persistent"})
-
-        if initial_table_data is not None:
-            result = await self.actions.create_table(
-                table_name,
-                width,
-                height,
-                session_id=session_id,
-                initial_data=initial_table_data,
-            )
-        else:
-            result = await self.actions.create_table(
-                table_name,
-                width,
-                height,
-                session_id=session_id,
-            )
-
-        if not result.success or not result.data or result.data.get('table') is None:
-            if result.data and result.data.get('reload_required'):
-                return Message(MessageType.ERROR, {
-                    'error': 'Could not confirm table creation. Reload before retrying.',
-                    'code': 'table_creation_save_failed',
-                    'reload_required': True,
-                })
-            return Message(MessageType.ERROR, {'error': 'Failed to create new table'})
-        else:
-            # Get table data and ensure assets are in R2
-            table_obj = (result.data or {}).get('table')
-            to_dict_fn = getattr(table_obj, 'to_dict', None)
-            table_data: dict = {}
-            if callable(to_dict_fn):
-                try:
-                    result_data = to_dict_fn()
-                    table_data = result_data if isinstance(result_data, dict) else {}
-                except Exception:
-                    pass
-            elif isinstance(table_obj, dict):
-                table_data = table_obj
-            await self.ensure_assets_in_r2(table_data, session_code, user_id)
-            logger.debug(
-                "Table creation processed",
-                extra={"event_name": "table.create.processed", "layer_count": len(table_data.get('layers', {}))},
-            )
-
-            if local_table_id:
-                logger.debug("Table identity synchronized", extra={"event_name": "table.identity.synchronized"})
-
-            # Creation announces the table, not its private scene contents.
-            # Recipients hydrate through the normal role-filtered table request.
-            table_metadata = {
-                name: table_data[name]
-                for name in ('table_id', 'table_name', 'width', 'height')
-                if name in table_data
-            }
-            update_message = Message(MessageType.TABLE_UPDATE, {
-                'operation': 'create',
-                'table_id': table_data.get('table_id'),
-                'table_name': table_name,
-                'table_data': table_metadata
-            })
-            await self.broadcast_to_session(update_message, client_id)
-
-            # BEST PRACTICE: Include local_table_id in response for client-side ID mapping
-            response_data = {
-                'name': table_name,
-                'client_id': client_id,
-                'table_data': table_data
-            }
-            if local_table_id:
-                response_data['local_table_id'] = local_table_id
-            return Message(MessageType.NEW_TABLE_RESPONSE, response_data)
 
     async def handle_table_request(self, msg: Message, client_id: str) -> Message:
         """Handle table request"""

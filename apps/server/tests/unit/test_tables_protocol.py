@@ -6,12 +6,16 @@ correct response message types. DB and WASM side-effects are mocked.
 """
 import asyncio
 import time
+import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from core_table.protocol import Message, MessageType
+from core_table.server import TableManager
+from core_table.table import VirtualTable
 from service.protocol.tables import _TablesMixin
+from service.table_creation_service import TableCreationAccepted
 
 # ---------------------------------------------------------------------------
 # Stub
@@ -21,7 +25,11 @@ class _ProtoStub(_TablesMixin):
     def __init__(self, role="owner"):
         self._role = role
         self.actions = MagicMock()
-        self.table_manager = MagicMock()
+        self.table_manager = TableManager()
+        self.actions._dirty_tables = {}
+        self.actions._add_to_history = AsyncMock()
+        self.creation = MagicMock()
+        self._table_creation_service = lambda: self.creation
         self.clients = {}
         self._rules_cache = {}
 
@@ -277,163 +285,45 @@ class TestNewTableRequest:
         assert "between 500 and 10000" in resp.data["error"]
         proto.actions.create_table.assert_not_awaited()
 
-    async def test_create_normalizes_name_and_uses_safe_dimension_defaults(self):
-        proto = _ProtoStub(role="owner")
-        table_mock = MagicMock()
-        table_mock.to_dict.return_value = {"table_id": "t-new", "table_name": "Dungeon", "layers": {}}
-        proto.actions.create_table = AsyncMock(return_value=_ok_result(table=table_mock))
-        proto.actions.set_active_table = AsyncMock(return_value=_ok_result())
+    async def test_create_normalizes_name_and_commits_before_metadata_announcement(self):
+        proto = _ProtoStub()
+        proto.broadcast_to_session = AsyncMock()
+        table = VirtualTable('Dungeon', 2000, 2000)
+        table.add_entity({'name': 'Secret', 'layer': 'dungeon_master', 'metadata': 'DM notes'})
 
-        resp = await proto.handle_new_table_request(
-            Message(MessageType.NEW_TABLE_REQUEST, {"table_name": "  Dungeon  "}),
-            "c1",
-        )
+        def accept(intent, *args):
+            table.table_id = uuid.UUID(intent.table_id)
+            return TableCreationAccepted({'table_id': intent.table_id, 'name': intent.name,
+                'operation_id': intent.identity.operation_id, 'local_table_id': intent.local_id}, table.to_dict(), False)
 
-        assert resp.type != MessageType.ERROR
-        proto.actions.create_table.assert_awaited_once_with(
-            "Dungeon",
-            2000,
-            2000,
-            session_id=1,
-        )
-
-    async def test_successful_create_returns_table_response(self):
-        proto = _ProtoStub(role="owner")
-        table_mock = MagicMock()
-        table_mock.to_dict.return_value = {"table_id": "t-new", "table_name": "Dungeon", "layers": {}}
-        result = MagicMock()
-        result.success = True
-        result.data = {"table": table_mock}
-        result.message = "ok"
-        proto.actions.create_table = AsyncMock(return_value=result)
-        proto.actions.set_active_table = AsyncMock(return_value=_ok_result())
-        msg = Message(MessageType.NEW_TABLE_REQUEST, {"table_name": "Dungeon"})
-        resp = await proto.handle_new_table_request(msg, "c1")
-        assert resp.type != MessageType.ERROR
+        proto.creation.execute.side_effect = accept
+        response = await proto.handle_new_table_request(Message(MessageType.NEW_TABLE_REQUEST,
+            {'table_name': '  Dungeon  ', 'local_table_id': 'draft'}), 'c1')
+        assert response.type == MessageType.NEW_TABLE_RESPONSE
+        assert response.data['local_table_id'] == 'draft'
+        intent = proto.creation.execute.call_args.args[0]
+        assert (intent.name, intent.width, intent.height) == ('Dungeon', 2000, 2000)
+        assert proto.broadcast_to_session.await_args is not None
+        broadcast = proto.broadcast_to_session.await_args.args[0]
+        assert set(broadcast.data['table_data']) == {'table_id', 'table_name', 'width', 'height'}
+        assert 'Secret' not in broadcast.to_json() and 'DM notes' not in broadcast.to_json()
+        assert proto.table_manager.tables_id[intent.table_id].find_entity_by_sprite_id(
+            next(iter(table.entities.values())).sprite_id) is not None
 
     async def test_missing_session_id_is_rejected_before_creation(self):
-        proto = _ProtoStub(role="owner")
+        proto = _ProtoStub()
         proto._get_session_id = MagicMock(return_value=None)
-        proto.actions.create_table = AsyncMock()
-
-        resp = await proto.handle_new_table_request(
-            Message(MessageType.NEW_TABLE_REQUEST, {"table_name": "Dungeon"}),
-            "c1",
-        )
-
-        assert resp.type == MessageType.ERROR
-        assert "session context" in resp.data["error"]
-        proto.actions.create_table.assert_not_awaited()
-
-    async def test_uncertain_creation_failure_has_a_valid_wire_response(self):
-        proto = _ProtoStub(role="owner")
-        failure = _fail_result()
-        failure.data = {"reload_required": True}
-        proto.actions.create_table = AsyncMock(return_value=failure)
-        response = await proto.handle_new_table_request(
-            Message(MessageType.NEW_TABLE_REQUEST, {"table_name": "Dungeon"}), "c1")
-        parsed = Message.from_json(response.to_json())
-        assert parsed.data["code"] == "table_creation_save_failed"
-        assert parsed.data["reload_required"]
-
-    async def test_create_broadcasts_authoritative_table_id(self):
-        proto = _ProtoStub(role="owner")
-        proto.broadcast_to_session = AsyncMock()
-        table_mock = MagicMock()
-        table_mock.to_dict.return_value = {
-            "table_id": "t-new",
-            "table_name": "Dungeon",
-            "width": 2000,
-            "height": 2000,
-            "layers": {},
-        }
-        proto.actions.create_table = AsyncMock(return_value=_ok_result(table=table_mock))
-
-        await proto.handle_new_table_request(
-            Message(MessageType.NEW_TABLE_REQUEST, {"table_name": "Dungeon"}),
-            "c1",
-        )
-
-        assert proto.broadcast_to_session.await_args is not None
-        broadcast = proto.broadcast_to_session.await_args.args[0]
-        assert broadcast.type == MessageType.TABLE_UPDATE
-        assert broadcast.data["table_id"] == "t-new"
-
-    async def test_import_announces_metadata_without_broadcasting_private_scene_contents(self):
-        proto = _ProtoStub(role="owner")
-        proto.broadcast_to_session = AsyncMock()
-        scene = {
-            "table_id": "t-new", "table_name": "Dungeon", "width": 2000, "height": 2000,
-            "layers": {"dungeon_master": {"1": {"name": "Secret enemy", "metadata": "DM notes"}}},
-            "walls": [{"is_secret": True}],
-        }
-        table = MagicMock()
-        table.to_dict.return_value = scene
-        proto.actions.create_table = AsyncMock(return_value=_ok_result(table=table))
-        response = await proto.handle_new_table_request(Message(MessageType.NEW_TABLE_REQUEST, {
-            "table_name": "Dungeon", "table_data": scene,
-        }), "c1")
-        assert proto.broadcast_to_session.await_args is not None
-        broadcast = proto.broadcast_to_session.await_args.args[0]
-        assert broadcast.data["table_data"] == {
-            "table_id": "t-new", "table_name": "Dungeon", "width": 2000, "height": 2000,
-        }
-        assert "Secret enemy" not in broadcast.to_json()
-        assert "DM notes" not in broadcast.to_json()
-        assert "is_secret" not in broadcast.to_json()
-        assert response.data["table_data"] == scene  # The requesting DM retains the complete scene.
-
-    async def test_duplicate_hydrates_from_a_session_table(self):
-        proto = _ProtoStub(role="owner")
-        source = MagicMock()
-        source.to_dict.return_value = {
-            "table_id": "source",
-            "table_name": "Original",
-            "width": 2000,
-            "height": 2000,
-            "layers": {"tokens": {"1": {"entity_id": 1}}},
-        }
-        proto.table_manager.tables_id = {"source": source}
-        table_mock = MagicMock()
-        table_mock.to_dict.return_value = {"table_id": "copy", "table_name": "Copy", "layers": {}}
-        proto.actions.create_table = AsyncMock(return_value=_ok_result(table=table_mock))
-
-        resp = await proto.handle_new_table_request(
-            Message(MessageType.NEW_TABLE_REQUEST, {
-                "table_name": "Copy",
-                "width": 2000,
-                "height": 2000,
-                "source_table_id": "source",
-            }),
-            "c1",
-        )
-
-        assert resp.type == MessageType.NEW_TABLE_RESPONSE
-        assert proto.actions.create_table.await_args is not None
-        copied = proto.actions.create_table.await_args.kwargs["initial_data"]
-        assert "table_id" not in copied
-        assert copied["layers"]["tokens"]["1"]["entity_id"] == 1
-        assert copied["layers"]["tokens"]["1"]["sprite_id"]
-        assert "sprite_id" not in source.to_dict.return_value["layers"]["tokens"]["1"]
+        response = await proto.handle_new_table_request(Message(MessageType.NEW_TABLE_REQUEST,
+            {'table_name': 'Dungeon'}), 'c1')
+        assert response.type == MessageType.ERROR and 'session context' in response.data['error']
+        proto.creation.execute.assert_not_called()
 
     async def test_import_rejects_excessive_entity_metadata(self):
-        proto = _ProtoStub(role="owner")
-        proto.actions.create_table = AsyncMock()
-        layers = {"tokens": [{}] * 5_001}
-
-        resp = await proto.handle_new_table_request(
-            Message(MessageType.NEW_TABLE_REQUEST, {
-                "table_name": "Import",
-                "width": 2000,
-                "height": 2000,
-                "table_data": {"layers": layers},
-            }),
-            "c1",
-        )
-
-        assert resp.type == MessageType.ERROR
-        assert "5000" in resp.data["error"]
-        proto.actions.create_table.assert_not_awaited()
+        proto = _ProtoStub()
+        response = await proto.handle_new_table_request(Message(MessageType.NEW_TABLE_REQUEST,
+            {'table_name': 'Import', 'table_data': {'layers': {'tokens': [{}] * 5001}}}), 'c1')
+        assert response.type == MessageType.ERROR and '5000' in response.data['error']
+        proto.creation.execute.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

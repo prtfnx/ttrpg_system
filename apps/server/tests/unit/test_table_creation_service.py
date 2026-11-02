@@ -1,6 +1,10 @@
+import asyncio
+import copy
 import json
+import threading
 from contextlib import contextmanager
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from core_table.table import VirtualTable
@@ -190,3 +194,212 @@ def test_commit_response_loss_and_lookup_outage_keep_one_original_intent(creatio
 def test_create_input_is_bounded_before_acceptance(data):
     with pytest.raises(OperationRejected):
         TableCreateIntent.create(1, 1, 'request', {'table_name': 'Scene', **data})
+
+
+@pytest.fixture
+def dispatch(creation):
+    from core_table.protocol import Message
+    from core_table.server import TableManager
+    from service.server_protocol import ServerProtocol
+
+    session = SimpleNamespace(game_session_db_id=1, session_code='TABLE1', client_info={
+        'dm': {'user_id': 1, 'role': 'owner'}, 'codm': {'user_id': 2, 'role': 'co_dm'},
+        'player': {'user_id': 3, 'role': 'player'},
+    })
+
+    def create():
+        proto = ServerProtocol(TableManager(True), session_manager=session)
+        proto._table_creation_service = lambda: creation.service
+        proto.send_to_client = AsyncMock()
+        proto.broadcast_to_session = AsyncMock()
+        proto.ensure_assets_in_r2 = AsyncMock(side_effect=lambda data, *_: data)
+        return proto
+
+    proto = create()
+
+    async def send(message, actor='dm', protocol=None):
+        target = protocol or proto
+        await target.handle_client(Message.from_json(message.to_json()), actor)
+        sender = target.send_to_client
+        assert isinstance(sender, AsyncMock)
+        return Message.from_json(sender.call_args.args[0].to_json())
+
+    return SimpleNamespace(proto=proto, create=create, send=send)
+
+
+@pytest.mark.asyncio
+async def test_real_dispatch_reconstructs_original_table_once_and_keeps_resident_state(creation, dispatch):
+    from core_table.protocol import Message, MessageType
+
+    request = Message(MessageType.NEW_TABLE_REQUEST, {'table_name': 'Scene', 'width': 1000, 'height': 1000})
+    retry = copy.deepcopy(request)
+    accepted = await dispatch.send(request)
+    table_id = accepted.data['table_id']
+    assert len(dispatch.proto.table_manager.tables) == len(dispatch.proto.actions.action_history) == 1
+    live = dispatch.proto.table_manager.tables_id[table_id]
+    live.display_name = 'Current resident name'
+    replay = await dispatch.send(retry)
+    assert replay.data['replayed'] and replay.data['table_data']['table_name'] == 'Current resident name'
+    assert dispatch.proto.table_manager.tables_id[table_id] is live
+    restarted = dispatch.create()
+    replay = await dispatch.send(retry, protocol=restarted)
+    assert replay.data['table_id'] == table_id and replay.data['replayed']
+    assert len(restarted.table_manager.tables) == 1
+    broadcast = restarted.broadcast_to_session
+    assert isinstance(broadcast, AsyncMock)
+    broadcast.assert_awaited_once()  # Uncached accepted table is announced on installation.
+    with creation.factory() as db:
+        assert db.query(models.VirtualTable).count() == db.query(models.SessionOperationReceipt).count() == 1
+
+
+@pytest.mark.asyncio
+async def test_copy_wire_replay_does_not_capture_source_again(creation, dispatch, monkeypatch):
+    from core_table.protocol import Message, MessageType
+
+    source = VirtualTable('Source', 1000, 1000)
+    source.add_entity({'name': 'Hidden', 'layer': 'dungeon_master'})
+    with creation.factory() as db:
+        crud.save_table_to_db(db, source, 1)
+    dispatch.proto.table_manager.add_table(source)
+    request = Message(MessageType.NEW_TABLE_REQUEST, {'table_name': 'Copy', 'source_table_id': str(source.table_id)})
+    assert (await dispatch.send(request)).type == MessageType.NEW_TABLE_RESPONSE
+
+    def invalid_snapshot():
+        raise AssertionError('A replay must not re-capture its source')
+
+    monkeypatch.setattr(source, 'to_dict', invalid_snapshot)
+    assert (await dispatch.send(request)).data['replayed']
+    with creation.factory() as db:
+        assert db.query(models.VirtualTable).count() == 2 and db.query(models.SessionOperationReceipt).count() == 1
+
+
+@pytest.mark.asyncio
+async def test_repeated_cancellation_waits_for_table_installation_and_publication(creation, dispatch, monkeypatch):
+    from core_table.protocol import Message, MessageType
+
+    entered, release = threading.Event(), threading.Event()
+    stage = table_creation_service.stage_receipt
+    loop_thread = threading.get_ident()
+
+    def delayed(*args):
+        assert threading.get_ident() != loop_thread
+        stage(*args)
+        entered.set()
+        assert release.wait(5)
+
+    monkeypatch.setattr(table_creation_service, 'stage_receipt', delayed)
+    request = Message(MessageType.NEW_TABLE_REQUEST, {'table_name': 'Scene'})
+    task = asyncio.create_task(dispatch.send(request))
+    try:
+        assert await asyncio.to_thread(entered.wait, 2)
+        for _ in range(2):
+            task.cancel()
+            await asyncio.sleep(0)
+        assert dispatch.proto._mutation_lock.locked() and not task.done()
+        assert (await dispatch.send(Message(MessageType.PING, {}))).type == MessageType.PONG
+    finally:
+        release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert len(dispatch.proto.table_manager.tables) == 1
+    broadcast = dispatch.proto.broadcast_to_session
+    assert isinstance(broadcast, AsyncMock)
+    broadcast.assert_awaited_once()
+    assert (await dispatch.send(request)).data['replayed']
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('committed', [False, True])
+async def test_unknown_table_commit_fences_reads_and_snapshots_until_verified(creation, dispatch, committed):
+    from core_table.protocol import Message, MessageType
+
+    class LostResponse(Session):
+        def commit(self):
+            if committed:
+                super().commit()
+            raise RuntimeError('Commit response lost')
+
+    calls, unavailable = 0, True
+
+    @contextmanager
+    def factory():
+        nonlocal calls
+        calls += 1
+        if calls > 1 and unavailable:
+            raise RuntimeError('Lookup unavailable')
+        current = sessionmaker(bind=creation.engine, class_=LostResponse) if calls == 1 else creation.factory
+        with current() as db:
+            yield db
+
+    creation.service = TableCreationService(factory)
+    request = Message(MessageType.NEW_TABLE_REQUEST, {'table_name': 'Scene'})
+    response = await dispatch.send(request)
+    assert response.data['outcome'] == 'unknown'
+    assert not dispatch.proto.table_manager.persistence_allowed()
+    assert not await dispatch.proto.table_manager.save_to_database_async(1)
+    assert not dispatch.proto.table_manager.tables
+    read = await dispatch.send(Message(MessageType.TABLE_LIST_REQUEST, {}))
+    assert read.data['outcome'] == 'unknown'
+    unavailable = False
+    recovered = await dispatch.send(request)
+    if committed:
+        assert recovered.type == MessageType.NEW_TABLE_RESPONSE and recovered.data['replayed']
+        assert len(dispatch.proto.table_manager.tables) == 1
+    else:
+        assert recovered.data['code'] == 'persistence_failed'
+        assert not dispatch.proto.table_manager.tables
+        assert (await dispatch.send(request)).type == MessageType.NEW_TABLE_RESPONSE
+    assert dispatch.proto.table_manager.persistence_allowed()
+    with creation.factory() as db:
+        assert db.query(models.VirtualTable).count() == db.query(models.SessionOperationReceipt).count() == 1
+
+
+@pytest.mark.asyncio
+async def test_failed_post_commit_installation_recovers_before_later_reads(creation, dispatch, monkeypatch):
+    from core_table.protocol import Message, MessageType
+
+    install = dispatch.proto._install_created_table
+    def failed_install(*args):
+        raise RuntimeError('Install failed')
+
+    monkeypatch.setattr(dispatch.proto, '_install_created_table', failed_install)
+    request = Message(MessageType.NEW_TABLE_REQUEST, {'table_name': 'Scene'})
+    assert (await dispatch.send(request)).data['outcome'] == 'unknown'
+    monkeypatch.setattr(dispatch.proto, '_install_created_table', install)
+    assert (await dispatch.send(Message(MessageType.TABLE_LIST_REQUEST, {}))).data['count'] == 1
+    assert not dispatch.proto._has_pending_table_creation()
+    assert len(dispatch.proto.actions.action_history) == 1
+
+
+@pytest.mark.asyncio
+async def test_recovery_repairs_cache_after_role_revocation_without_exposing_private_result(creation, dispatch):
+    from core_table.protocol import Message, MessageType
+
+    class LostResponse(Session):
+        def commit(self):
+            super().commit()
+            raise RuntimeError('Lost response')
+
+    calls, unavailable = 0, True
+
+    @contextmanager
+    def factory():
+        nonlocal calls
+        calls += 1
+        if calls > 1 and unavailable:
+            raise RuntimeError('Lookup unavailable')
+        current = sessionmaker(bind=creation.engine, class_=LostResponse) if calls == 1 else creation.factory
+        with current() as db:
+            yield db
+
+    creation.service = TableCreationService(factory)
+    request = Message(MessageType.NEW_TABLE_REQUEST, {'table_name': 'Secret scene'})
+    assert (await dispatch.send(request, actor='codm')).data['outcome'] == 'unknown'
+    with creation.factory() as db:
+        db.query(models.GamePlayer).one().role = 'player'
+        db.commit()
+    unavailable = False
+    response = await dispatch.send(request, actor='codm')
+    assert response.data['code'] == 'forbidden' and 'table_data' not in response.data
+    assert len(dispatch.proto.table_manager.tables) == 1
+    assert dispatch.proto.table_manager.persistence_allowed()

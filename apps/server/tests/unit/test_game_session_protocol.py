@@ -82,10 +82,11 @@ async def test_connection_messages_and_snapshots_share_one_ordered_socket_writer
 
 
 @pytest.mark.asyncio
-async def test_full_table_larger_than_ordinary_event_budget_can_resynchronize():
+@pytest.mark.parametrize('response_type', [MessageType.TABLE_RESPONSE, MessageType.NEW_TABLE_RESPONSE])
+async def test_full_table_larger_than_ordinary_event_budget_can_resynchronize(response_type):
     svc, ws = _make_service(), _ws()
     svc.clients["client"] = ws
-    response = Message(MessageType.TABLE_RESPONSE, {"table_data": {"name": "x" * (5 * 1024 * 1024)}})
+    response = Message(response_type, {"table_data": {"name": "x" * (5 * 1024 * 1024)}})
     await svc.send_to_client(response, "client")
     response.data["table_data"]["name"] = "changed after capture"
     await svc.drain_outbound()

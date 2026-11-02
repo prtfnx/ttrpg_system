@@ -15,7 +15,8 @@ Last source audit: 2026-10-21
 | Combat commands/start/end | Encounter journal and stable session barrier resolve uncertain commits; full lifecycle/browser acceptance remains a release gate. |
 | Character update/repair | Source/version/audit/linked projections share a transaction; exact in-process CAS recovery is not a durable request ledger across restart. |
 | XP award | Actor/session/domain-scoped original message identity; XP/version/audit/outcome share acceptance. See [Characters](../features/CHARACTERS_AND_COMPENDIUMS.md). |
-| Table create/copy/delete and settings | No general durable original-intent lookup; reload and reconcile before repeating an uncertain operation. R4 remains open here. |
+| Table create/copy/import | Original request receipts share table/paint-state acceptance; unknown commits fence serialized work and snapshots through verified installation. |
+| Table delete and settings | No general durable original-intent lookup; reload and reconcile before repeating an uncertain operation. R4 remains open here. |
 | Choice encounter transitions | Ordered snapshot/events with cancellation-safe publication; no durable retry receipt or general commit-uncertainty verifier yet. |
 
 The new `session_operation_receipts` adapter borrows the caller's transaction:
@@ -34,6 +35,17 @@ canonical reads; older advancement responses cannot lower a newer known version.
 The UI does not automatically replay uncertain XP or persist a cross-page retry
 queue. A character read alone does not prove whether one specific award committed;
 the retained original request identity is the receipt lookup key.
+
+`createNewTable` likewise returns its request identity and accepts that original
+identity for a deliberate same-input retry. Table receipt replay reconciles a
+local draft identity, refreshes the table list and requests active-table data;
+it does not reenter creation hydration or reset a newer form. Deleted receipts
+remove their obsolete draft without recreating a table. Copy/import retries can
+resend the original message through the generic protocol API. The UI still has
+no persisted cross-page queue for uncertain create/XP intents; do not mint a new
+operation merely because the connection or acknowledgement was lost. A retry
+also retains its original authenticated actor/session scope; changing context
+does not carry an operation's receipt into the new scope.
 
 ## Ownership
 

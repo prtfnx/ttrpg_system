@@ -628,13 +628,24 @@ describe('WebClientProtocol', () => {
   });
 
   describe('createNewTable', () => {
+    it('keeps the original table creation identity for a deliberate retry', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      const first = p.createNewTable('Arena', 1000, 800);
+      p.createNewTable('Arena', 1000, 800, first);
+      const next = p.createNewTable('Arena', 1000, 800);
+      const sent = (ws.send as Mock).mock.calls.map(call => JSON.parse(call[0]));
+      expect(sent.map(message => message.message_id)).toEqual([first, first, next]);
+      expect(first).not.toBe(next);
+    });
+
     it('sends new_table_request with name/dimensions', () => {
       const p = makeProtocol();
       const ws = makeOpenWs(p);
-      p.createNewTable('Arena', 30, 30);
+      p.createNewTable('Arena', 1000, 800);
       const msg = JSON.parse((ws.send as Mock).mock.calls[0][0]);
       expect(msg.type).toBe('new_table_request');
-      expect(msg.data).toMatchObject({ table_name: 'Arena', width: 30, height: 30 });
+      expect(msg.data).toMatchObject({ table_name: 'Arena', width: 1000, height: 800 });
     });
   });
 
@@ -1910,6 +1921,41 @@ describe('WebClientProtocol', () => {
       });
       expect(updateCharacter).not.toHaveBeenCalled();
       expect(load).toHaveBeenCalledWith('c-xp');
+    });
+
+    it('table creation replay reconciles the draft without reentering scene hydration', async () => {
+      const p = makeProtocol();
+      const reconcile = vi.fn();
+      mocks.storeState.tables = [{ table_id: 'local-draft', table_name: 'Draft', width: 1000, height: 800 }];
+      mocks.storeState.reconcileTableIdentity = reconcile;
+      const list = vi.spyOn(p, 'requestTableList');
+      const scene = vi.spyOn(p, 'requestTableData');
+      const event = vi.fn();
+      window.addEventListener('new-table-response', event);
+      await dispatch(p, 'new_table_response', {
+        table_id: 'server-table', local_table_id: 'local-draft', replayed: true,
+        table_data: { table_id: 'server-table', table_name: 'Current name', width: 1000, height: 800, layers: {} },
+      });
+      window.removeEventListener('new-table-response', event);
+      expect(reconcile).toHaveBeenCalledWith('local-draft', {
+        table_id: 'server-table', table_name: 'Current name', width: 1000, height: 800,
+      });
+      expect(list).toHaveBeenCalledOnce();
+      expect(scene).not.toHaveBeenCalled(); // A replay must not switch an unrelated active table.
+      expect(event).not.toHaveBeenCalled();
+    });
+
+    it('a deleted creation receipt removes its draft and cannot resurrect a scene', async () => {
+      const p = makeProtocol();
+      mocks.storeState.tables = [{ table_id: 'local-draft' }, { table_id: 'other' }];
+      const list = vi.spyOn(p, 'requestTableList');
+      const scene = vi.spyOn(p, 'requestTableData');
+      await dispatch(p, 'new_table_response', {
+        table_id: 'deleted', local_table_id: 'local-draft', replayed: true, table_deleted: true,
+      });
+      expect(mocks.storeState.tables).toEqual([{ table_id: 'other' }]);
+      expect(list).toHaveBeenCalledOnce();
+      expect(scene).not.toHaveBeenCalled();
     });
 
     it('an older advancement document cannot regress a newer character', async () => {

@@ -1351,6 +1351,31 @@ export class WebClientProtocol {
 
   private async handleNewTableResponse(message: Message): Promise<void> {
     logger.debug('New table created:', message.data);
+    const data = message.data as Record<string, unknown>;
+    if (data.replayed || data.table_deleted) {
+      const state = useGameStore.getState();
+      const tableId = typeof data.table_id === 'string' ? data.table_id : '';
+      const localId = typeof data.local_table_id === 'string' ? data.local_table_id : '';
+      const current = data.table_data as Record<string, unknown> | undefined;
+      if (data.table_deleted) {
+        useGameStore.setState(previous => ({
+          tables: previous.tables.filter(table => table.table_id !== tableId && table.table_id !== localId),
+          activeTableId: previous.activeTableId === tableId || previous.activeTableId === localId
+            ? null : previous.activeTableId,
+        }));
+      } else if (localId && state.tables.some(table => table.table_id === localId)
+        && tableId && typeof current?.table_name === 'string'
+        && typeof current.width === 'number' && typeof current.height === 'number') {
+        state.reconcileTableIdentity?.(localId, {
+          table_id: tableId, table_name: current.table_name, width: current.width, height: current.height,
+        });
+      }
+      this.requestTableList();
+      if (!data.table_deleted && tableId === useGameStore.getState().activeTableId) this.requestTableData(tableId);
+      // Receipt replay reconciles identity and asks for canonical state. It must
+      // not enter the creation/hydration event stream or reset a newer form.
+      return;
+    }
     emitProtocolEvent('new-table-response', message.data);
   }
 
@@ -2079,12 +2104,15 @@ export class WebClientProtocol {
     this.sendMessage(createMessage(MessageType.TABLE_LIST_REQUEST));
   }
 
-  createNewTable(name: string, width: number, height: number): void {
-    this.sendMessage(createMessage(MessageType.NEW_TABLE_REQUEST, {
+  createNewTable(name: string, width: number, height: number, requestId?: string): string | undefined {
+    const message = createMessage(MessageType.NEW_TABLE_REQUEST, {
       table_name: name,
       width,
       height
-    }));
+    });
+    if (requestId !== undefined) message.message_id = requestId;
+    this.sendMessage(message);
+    return message.message_id;
   }
 
   deleteTable(tableId: string): void {

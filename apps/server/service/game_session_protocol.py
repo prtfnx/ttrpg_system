@@ -360,7 +360,7 @@ class GameSessionProtocolService:
     # Utility Methods
 
     def _enqueue_message(self, websocket: WebSocket, message: Message):
-        if message.type in {MessageType.TABLE_RESPONSE, MessageType.TABLE_DATA}:
+        if message.type in {MessageType.TABLE_RESPONSE, MessageType.TABLE_DATA, MessageType.NEW_TABLE_RESPONSE}:
             snapshot = copy.deepcopy(message)
             return self._outbox(websocket).enqueue_snapshot(frame.to_json() for frame in (snapshot,))
         disposable = message.type in {MessageType.SPRITE_DRAG_PREVIEW, MessageType.SPRITE_RESIZE_PREVIEW,

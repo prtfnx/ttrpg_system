@@ -130,6 +130,37 @@ fields connect an accepted command to its response without trusting them for
 identity or authorization. Normal priority is `5`; lower numbers are more
 urgent in the existing comments.
 
+## Table creation identity and outcome
+
+`new_table_request` requires its original nonempty `message_id` (up to 128
+characters), bounded numeric timestamp and closed data. `table_name` is 1-50
+characters. Optional integer width/height are 500-10,000 (default 2,000),
+`local_table_id` is bounded to 128 characters, and exactly one of the optional
+`source_table_id` UUID or `table_data` object may supply content. Imports retain
+their 5 MiB/5,000-entity server bounds. Copy/import fields are admitted by both
+shared validators; connection identity supplies all authority and session scope.
+
+The normalized original request identifies `table_create` within the numeric
+session and actor scope. Import bodies contribute a canonical content digest;
+copy identity names the source, whose snapshot is captured only for first
+acceptance. A retry cannot recopy a changed/deleted source into another table.
+Table, paint-state initialization and receipt share one transaction. Reusing an
+accepted identity with changed input conflicts; different identities create
+different tables. Current database DM authority is checked before public replay.
+
+`new_table_response` includes `operation_id`, `table_id`, original local mapping,
+and the current table snapshot. Replays set `replayed` and `resync_required` and
+never overwrite a resident server table from an old read. A later-deleted target
+returns `table_deleted` without scene data. Receipts do not expire by age while
+the session is retained. An unknown commit returns `error` with `outcome_unknown`,
+original operation/target identities and `resync_required`. Serialized state work
+and background snapshots remain fenced until settlement/cache installation.
+
+Only requesting DMs receive scene contents. Installation announces public table
+metadata; resident duplicates do not rebroadcast. Large creation replies use the
+bounded ordered snapshot outbox. Notification failure after acceptance reports
+success requiring resync. See [Tables](../features/TABLES_AND_CANVAS.md).
+
 ## XP award identity and outcome
 
 `xp_award` requires the original nonempty envelope `message_id` (up to 128

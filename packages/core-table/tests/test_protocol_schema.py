@@ -9,6 +9,27 @@ SPRITE_MUTATIONS = {"sprite_create", "sprite_remove", "sprite_move", "sprite_sca
                     "compendium_sprite_add", "compendium_sprite_update", "compendium_sprite_remove"}
 
 
+@pytest.mark.parametrize('extra', [{}, {'source_table_id': '51f0094e-66af-4f2d-91e1-b0caef9d33ed'},
+    {'table_data': {'layers': {}}}])
+def test_table_create_copy_and_import_have_original_wire_identity(extra):
+    message = {'type': 'new_table_request', 'message_id': 'original', 'timestamp': 1,
+        'data': {'table_name': 'Scene', **extra}}
+    Message.from_dict(message)
+    for field in ('message_id', 'timestamp'):
+        missing = {key: value for key, value in message.items() if key != field}
+        with pytest.raises(ValueError, match='Invalid protocol message'):
+            Message.from_dict(missing)
+
+
+@pytest.mark.parametrize('extra', [{'width': 499}, {'height': True}, {'table_name': 'x' * 51},
+    {'source_table_id': 'not-a-uuid'}, {'table_data': []}, {'user_id': 99},
+    {'source_table_id': '51f0094e-66af-4f2d-91e1-b0caef9d33ed', 'table_data': {}}])
+def test_table_creation_closed_payload_rejects_invalid_or_ambiguous_input(extra):
+    with pytest.raises(ValueError, match='Invalid protocol message'):
+        Message.from_dict({'type': 'new_table_request', 'message_id': 'original', 'timestamp': 1,
+            'data': {'table_name': 'Scene', **extra}})
+
+
 @pytest.mark.parametrize('field,value', [('message_id', None), ('timestamp', None), ('amount', True),
     ('amount', 0), ('amount', 1.5), ('amount', '100'), ('amount', 1000001),
     ('source', 'x' * 51), ('description', 'x' * 301), ('character_id', ''), ('user_id', 7)])
@@ -173,6 +194,8 @@ def test_recovery_error_payloads_keep_the_closed_schema(updates):
     [
         {
             "type": "new_table_request",
+            "message_id": "original-table-create",
+            "timestamp": 1,
             "data": {"table_name": "Arena", "width": 2000, "height": 1200},
         },
         {"type": "table_request", "data": {"table_id": "table-1"}},
@@ -221,6 +244,8 @@ def test_message_from_json_accepts_table_command_payloads(message):
     [
         {
             "type": "new_table_request",
+            "message_id": "original-table-create",
+            "timestamp": 1,
             "data": {"table_name": "Arena", "width": 10001, "height": 1200},
         },
         {"type": "table_request", "data": {"table_id": ""}},

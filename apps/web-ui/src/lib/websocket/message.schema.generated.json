@@ -1325,33 +1325,44 @@
     "newTableRequestData": {
       "type": "object",
       "required": [
-        "table_name",
-        "width",
-        "height"
+        "table_name"
       ],
       "properties": {
         "table_name": {
           "type": "string",
           "minLength": 1,
-          "maxLength": 100
+          "maxLength": 50
         },
         "width": {
           "type": "integer",
-          "minimum": 1,
+          "minimum": 500,
           "maximum": 10000
         },
         "height": {
           "type": "integer",
-          "minimum": 1,
+          "minimum": 500,
           "maximum": 10000
         },
         "local_table_id": {
           "type": "string",
           "minLength": 1,
           "maxLength": 128
+        },
+        "source_table_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "table_data": {
+          "type": "object"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "not": {
+        "required": [
+          "source_table_id",
+          "table_data"
+        ]
+      }
     },
     "tableUpdateData": {
       "oneOf": [
@@ -2797,11 +2808,23 @@
       },
       "then": {
         "required": [
-          "data"
+          "data",
+          "timestamp",
+          "message_id"
         ],
         "properties": {
           "data": {
             "$ref": "#/$defs/newTableRequestData"
+          },
+          "timestamp": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 9007199254740.99
+          },
+          "message_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
           }
         }
       }

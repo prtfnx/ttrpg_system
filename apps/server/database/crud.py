@@ -644,6 +644,17 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
         raise
 
 
+def stage_new_table_snapshot(db: Session, virtual_table_obj, session_id: int) -> models.VirtualTable:
+    """Flush a new table without committing or overwriting an existing identity."""
+    if get_virtual_table_by_id(db, str(virtual_table_obj.table_id)) is not None:
+        raise ValueError('Table identity already exists; reconcile its original receipt')
+    table = _stage_table_snapshot(db, virtual_table_obj, session_id)
+    if table is None:
+        raise RuntimeError('New table could not be staged')
+    db.flush()
+    return table
+
+
 def _stage_table_snapshot(db: Session, virtual_table_obj, session_id: int) -> Optional[models.VirtualTable]:
     """
     Save a VirtualTable object from table.py to the database

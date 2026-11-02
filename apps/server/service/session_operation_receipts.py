@@ -5,7 +5,9 @@ import json
 from copy import deepcopy
 from dataclasses import dataclass
 
-from database.models import SessionOperationReceipt
+from database.models import GamePlayer, GameSession, SessionOperationReceipt
+from sqlalchemy import text
+from utils.roles import is_dm
 
 
 class OperationRejected(ValueError):
@@ -18,8 +20,32 @@ class OperationOutcomeUnknown(RuntimeError):
     """No outcome can yet be proved; retry only the same original intent."""
 
 
+def session_actor_is_dm(db, game, actor_id: int) -> bool:
+    role = db.query(GamePlayer.role).filter_by(session_id=game.id, user_id=actor_id).scalar()
+    return game.owner_id == actor_id or is_dm(role)
+
+
+def lock_operation_session(db, identity: 'OperationIdentity', *, require_dm: bool = True):
+    """Stable settlement barrier; internal cache recovery need not expose a result."""
+    connection = db.connection()
+    if connection.dialect.name == 'postgresql':
+        if connection.get_isolation_level() != 'READ COMMITTED':
+            raise OperationRejected('Operation acceptance requires READ COMMITTED')
+        db.execute(text("SET LOCAL lock_timeout = '5s'"))
+    game = db.query(GameSession).filter_by(id=identity.session_id).with_for_update().one_or_none()
+    if game is None or require_dm and not game.is_active:
+        raise OperationRejected('Active session not found', 'forbidden')
+    if require_dm:
+        if not session_actor_is_dm(db, game, identity.actor_id):
+            raise OperationRejected('Current session DM authority is required', 'forbidden')
+    return game
+
+
 def bounded_json(value, limit: int) -> str:
-    encoded = json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
+    try:
+        encoded = json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
+    except (ValueError, TypeError) as exc:
+        raise OperationRejected('Operation data must contain finite JSON values') from exc
     if len(encoded.encode('utf-8')) > limit:
         raise OperationRejected('Operation data exceeds its size limit')
     return encoded

@@ -80,8 +80,8 @@ Create table:
 
 1. `createNewTable()` adds a local optimistic table with a `local_` id.
 2. The store sends `new_table_request` with `local_table_id`.
-3. The server creates the table through table actions and confirms persistence
-   for the authenticated session before returning success.
+3. The server commits the detached table, initial paint state and scoped
+   operation receipt together, then installs it in live indexes before success.
 4. The server broadcasts `table_update` with `operation: create` containing
    only table ID, name, width, and height. Scene layers, walls, and metadata are
    excluded from this announcement. Other clients obtain scene contents through
@@ -102,11 +102,34 @@ table indexes or action history. A reported save failure leaves no phantom
 live table, dirty-table retry, or undo entry. Raw `table_data` imports retain
 their proposed sprite IDs and can fail on ownership conflicts.
 
-TODO: copying paint/previews and durable create receipts. A connection lost
-after commit can leave an uncertain database-only draft; reload before
-retrying an unconfirmed create. This is not universal create idempotency.
-`test_table_copy_persistence.py` covers populated copy/reload/delete and
-a conflicting import against a real SQLite database.
+Create, copy and import use the original envelope message identity, scoped
+to actor, numeric session and `table_create`. Current database DM authority is
+required before execution or replay. A reused identity with changed normalized
+input conflicts; different deliberate identities create different tables. A
+copy captures the source at first acceptance, not again on replay. Source and
+target table ownership prevents snapshot saves from overtaking capture or live
+installation. Copying a source with unresolved dirty persistence fails. Linked
+characters must be active in this session; their canonical stats replace stale
+import/copy hints inside acceptance without changing source versions.
+
+Receipts retain only bounded outcome metadata for the retained session lifetime.
+A replay reads the current table, never its original snapshot. It does not
+replace a resident live table or rebroadcast creation. A retained receipt for a
+later-deleted table reports `table_deleted` and cannot resurrect it. Imports
+retain proposed sprite identities and reject collisions atomically.
+
+Commit-response loss resolves behind the same session-row barrier. If lookup is
+unavailable, the session quarantines serialized state work and background table
+snapshots until recovery installs the verified outcome or proves rollback.
+Repeated cancellation retains ownership through settlement, installation and
+publication. Notifications failing after acceptance report success requiring
+resync. Only new requests accepted by this receipt path have this guarantee;
+do not blindly retry an unconfirmed create sent to an older server.
+
+TODO: copying paint/previews, durable delete/settings outcomes and persisted
+browser ownership of uncertain operations. This is not universal idempotency.
+`test_table_copy_persistence.py` covers standalone populated copy/reload/delete;
+`test_table_creation_service.py` owns the atomic receipt and recovery contracts.
 
 Switch table:
 

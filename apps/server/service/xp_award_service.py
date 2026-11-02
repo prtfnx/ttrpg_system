@@ -7,7 +7,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 
 from database.database import SessionLocal
-from database.models import CharacterLog, GamePlayer, GameSession, SessionCharacter
+from database.models import CharacterLog, SessionCharacter
 from service.character_rules import level_for_xp
 from service.character_schema import validate_character_document
 from service.session_operation_receipts import (
@@ -16,11 +16,10 @@ from service.session_operation_receipts import (
     OperationRejected,
     bounded_json,
     find_receipt,
+    lock_operation_session,
     stage_receipt,
 )
-from sqlalchemy import text
 from sqlalchemy.orm import Session
-from utils.roles import is_dm
 from utils.time import utc_now
 
 
@@ -92,15 +91,7 @@ class XPAwardService:
 
     @staticmethod
     def _authorize_and_lock(db, identity: OperationIdentity):
-        connection = db.connection()
-        if connection.dialect.name == 'postgresql':
-            if connection.get_isolation_level() != 'READ COMMITTED':
-                raise OperationRejected('XP acceptance requires READ COMMITTED')
-            db.execute(text("SET LOCAL lock_timeout = '5s'"))
-        game = db.query(GameSession).filter_by(id=identity.session_id, is_active=True).with_for_update().one_or_none()
-        role = db.query(GamePlayer.role).filter_by(session_id=identity.session_id, user_id=identity.actor_id).scalar()
-        if game is None or not (game.owner_id == identity.actor_id or is_dm(role)):
-            raise OperationRejected('Current session DM authority is required', 'forbidden')
+        return lock_operation_session(db, identity)
 
     def lookup(self, intent: XPAwardIntent) -> dict | None:
         # A stable session-row lock waits for the original transaction to settle.

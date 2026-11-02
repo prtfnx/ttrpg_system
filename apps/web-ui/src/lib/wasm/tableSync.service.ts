@@ -8,7 +8,7 @@ import { emitProtocolEvent, onProtocolEvent } from '@lib/websocket/protocolEvent
 import { logger } from '@shared/utils/logger';
 
 const DEFAULT_TABLE_BACKGROUND = '#1a1a1a';
-import { normalizeTableSnapshot } from './tableSnapshot';
+import { normalizeTableSnapshot, RENDERER_LAYER_NAMES } from './tableSnapshot';
 import { emitWasmEvent } from './wasmEvents';
 import type { RenderEngine } from './runtime';
 import type { SpriteSyncService } from './spriteSync.service';
@@ -48,12 +48,14 @@ export class TableSyncService {
   private cacheInvalidated = false;
   private freshSnapshotRequested = false;
   private hydratedTableId: string | null = null;
+  private readonly retiredTableIds = new Set<string>();
   private readonly tableDerivedLightIds = new Map<string, Set<string>>();
   private eventCleanups: Array<() => void> = [];
   private readonly getEngine: () => RenderEngine | null;
   private readonly spriteSync: SpriteSyncService;
   private readonly onHydrated: (tableId: string, textureIds: readonly string[]) => void;
   private readonly onHydrationError: (error: Error) => void;
+  private readonly onDeleted: (tableId: string) => void;
 
   constructor(
     getEngine: () => RenderEngine | null,
@@ -61,12 +63,14 @@ export class TableSyncService {
     callbacks: {
       onHydrated?: (tableId: string, textureIds: readonly string[]) => void;
       onHydrationError?: (error: Error) => void;
+      onDeleted?: (tableId: string) => void;
     } = {},
   ) {
     this.getEngine = getEngine;
     this.spriteSync = spriteSync;
     this.onHydrated = callbacks.onHydrated ?? (() => undefined);
     this.onHydrationError = callbacks.onHydrationError ?? (() => undefined);
+    this.onDeleted = callbacks.onDeleted ?? (() => undefined);
   }
 
   init(): void {
@@ -77,6 +81,7 @@ export class TableSyncService {
       onProtocolEvent('table-response', d => this.handleTableDataReceived((d ?? {}) as TablePayload)),
       onProtocolEvent('new-table-response', d => this.handleTableDataReceived((d ?? {}) as TablePayload)),
       onProtocolEvent('table-updated', d => this.handleTableUpdate((d ?? {}) as TablePayload)),
+      onProtocolEvent('table-deleted', d => this.handleTableDeletion((d ?? {}) as TablePayload)),
       ...(['sprite-created', 'sprite-updated', 'sprite-removed', 'sprite-response', 'sprite-moved',
         'sprite-scaled', 'sprite-rotated', 'compendium-sprite-added', 'compendium-sprite-updated',
         'compendium-sprite-removed', 'wall-data', 'table-settings-changed'] as const).map(type =>
@@ -98,6 +103,7 @@ export class TableSyncService {
     this.freshSnapshotRequested = false;
     this.hydratedTableId = null;
     this.tableDerivedLightIds.clear();
+    this.retiredTableIds.clear();
   }
 
   flushPending(): void {
@@ -128,6 +134,7 @@ export class TableSyncService {
     try {
       const snapshot = normalizeTableSnapshot(data);
       const tableId = snapshot.renderer.table_id;
+      if (this.retiredTableIds.has(tableId)) return;
       const gameStore = useGameStore.getState();
       const localTableId = data.local_table_id?.trim();
 
@@ -251,6 +258,10 @@ export class TableSyncService {
   }
 
   private handleTableUpdate(data: TablePayload): void {
+    if (data.operation === 'delete') {
+      this.handleTableDeletion(data);
+      return;
+    }
     const engine = this.getEngine();
     if (!engine) return;
     try {
@@ -263,6 +274,38 @@ export class TableSyncService {
     } catch (err) {
       logger.error('[TableSyncService] handleTableUpdate failed:', err);
     }
+  }
+
+  private handleTableDeletion(data: TablePayload): void {
+    const tableId = data.table_id;
+    if (!tableId) return;
+    this.retiredTableIds.add(tableId);
+    const payloadId = (payload: TablePayload | null) => (payload?.table_data ?? payload)?.table_id;
+    if (payloadId(this.pendingPayload) === tableId) this.pendingPayload = null;
+    if (payloadId(this.latestPayload) === tableId) this.latestPayload = null;
+    if (this.hydratedTableId === tableId) {
+      this.hydratedTableId = null;
+      this.cacheInvalidated = false;
+      this.freshSnapshotRequested = false;
+      const engine = this.getEngine();
+      if (engine) {
+        engine.cancel_current_operation();
+        engine.clear_selection();
+        engine.selection_clear_frame();
+        engine.paint_clear_object_selection();
+        engine.paint_clear_drafts();
+        engine.paint_replace_object_snapshot(tableId, engine.paint_object_revision(), '[]');
+        RENDERER_LAYER_NAMES.forEach(layer => engine.clear_layer(layer));
+        this.tableDerivedLightIds.get(tableId)?.forEach(lightId => engine.remove_light(lightId));
+        engine.clear_walls();
+        engine.clear_fog();
+        engine.clear_vision_polygons?.();
+        engine.set_grid_enabled(false);
+      }
+      this.spriteSync.retainTextSprites([]);
+    }
+    this.tableDerivedLightIds.delete(tableId);
+    this.onDeleted(tableId);
   }
 
 }

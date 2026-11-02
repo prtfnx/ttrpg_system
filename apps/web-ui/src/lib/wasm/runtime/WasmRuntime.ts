@@ -102,6 +102,12 @@ export class WasmRuntime implements WasmRuntimePort {
         tableHydrationError: null,
       }),
       onTableHydrationError: error => this.store.setSnapshot({ tableHydrationError: error }),
+      onTableDeleted: tableId => {
+        if (this.status.hydratedTableId === tableId) {
+          this.invalidateFramedPreview();
+          this.store.setSnapshot({ hydratedTableId: null, frameTableId: null, tableHydrationError: null });
+        }
+      },
     },
   );
   private readonly runtimeOperationHandler = (operation: WasmRuntimeOperation) => {

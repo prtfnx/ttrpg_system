@@ -379,3 +379,15 @@ confirmed. A deliberate `deleteTable(tableId, originalRequestId)` retry preserve
 the original request identity; this is not a persisted browser recovery queue.
 Regression owners: `src/lib/websocket/__tests__/clientProtocol.test.ts` and
 `tableSettingsBuffer.test.ts` in `apps/web-ui/`.
+
+The session-owned `TableSyncService` also retires the deleted identity and drops
+matching pending/latest renderer snapshots. Deleting its resident scene cancels
+the current interaction and clears sprites, paint objects/drafts, walls, derived
+lights, fog, vision and selection. Renderer reattachment and delayed hydration
+cannot restore that cached scene. Deleting an inactive table preserves the
+resident scene. The runtime clears matching hydration/frame readiness and
+invalidates preview capture; the sync coordinator releases its texture readiness.
+The existing generated WASM interface supplies these cleanup operations; this
+change does not replace generated artifacts. Regression owners:
+`tableSync.service.test.ts`, `WasmSyncCoordinator.test.ts` and `WasmRuntime.test.ts`
+under `apps/web-ui/src/lib/wasm/`.

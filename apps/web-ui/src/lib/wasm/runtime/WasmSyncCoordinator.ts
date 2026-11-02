@@ -25,6 +25,7 @@ export class WasmSyncCoordinator {
     callbacks: {
       onTableHydrated?: (tableId: string) => void;
       onTableHydrationError?: (error: Error) => void;
+      onTableDeleted?: (tableId: string) => void;
     } = {},
   ) {
     this.assetSync = new AssetSyncService(() => this.renderEngine, resolveDownloadedAsset);
@@ -37,6 +38,12 @@ export class WasmSyncCoordinator {
         callbacks.onTableHydrated?.(tableId);
       },
       onHydrationError: callbacks.onTableHydrationError,
+      onDeleted: tableId => {
+        if (this.tableTextureIds.delete(tableId)) {
+          this.assetSync.releaseTexturesExcept([...this.tableTextureIds.values()].flat());
+        }
+        callbacks.onTableDeleted?.(tableId);
+      },
     });
     this.remoteSync = new RemoteSyncService(this.spriteSync);
   }

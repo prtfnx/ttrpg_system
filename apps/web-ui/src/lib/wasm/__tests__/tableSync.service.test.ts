@@ -24,6 +24,15 @@ const mockEngine = {
   add_wall: vi.fn(),
   remove_light: vi.fn(),
   clear_fog: vi.fn(),
+  clear_vision_polygons: vi.fn(),
+  cancel_current_operation: vi.fn(),
+  clear_selection: vi.fn(),
+  selection_clear_frame: vi.fn(),
+  paint_clear_object_selection: vi.fn(),
+  paint_clear_drafts: vi.fn(),
+  paint_replace_object_snapshot: vi.fn(),
+  paint_object_revision: vi.fn(() => 7),
+  clear_layer: vi.fn(),
 };
 
 const mockSpriteSync = { addSpriteToWasm: vi.fn(), retainTextSprites: vi.fn() };
@@ -82,6 +91,57 @@ beforeEach(() => {
 });
 
 describe('TableSyncService', () => {
+  it('clears a retired resident scene and never rehydrates it after renderer reattachment', () => {
+    const deleted = vi.fn();
+    const service = new TableSyncService(() => mockEngine as never, mockSpriteSync as never, { onDeleted: deleted });
+    service.init();
+    try {
+      dispatch('table-response', { table_data: tableSnapshot() });
+      service.retainLatestForRenderer();
+      dispatch('table-deleted', { table_id: TABLE_A });
+      service.flushPending();
+      service.retainLatestForRenderer();
+      service.flushPending();
+      dispatch('table-response', { table_data: tableSnapshot() });
+      expect(mockEngine.handle_table_data).toHaveBeenCalledOnce();
+      expect(mockEngine.clear_layer).toHaveBeenCalledTimes(7);
+      expect(mockEngine.cancel_current_operation).toHaveBeenCalledOnce();
+      expect(mockEngine.clear_selection).toHaveBeenCalledOnce();
+      expect(mockEngine.paint_clear_drafts).toHaveBeenCalledOnce();
+      expect(mockEngine.paint_replace_object_snapshot).toHaveBeenCalledWith(TABLE_A, 7, '[]');
+      expect(mockEngine.clear_vision_polygons).toHaveBeenCalledOnce();
+      expect(mockSpriteSync.retainTextSprites).toHaveBeenLastCalledWith([]);
+      expect(deleted).toHaveBeenCalledWith(TABLE_A);
+    } finally { service.dispose(); }
+  });
+
+  it('drops a deleted pre-attachment payload and allows a different table to hydrate', () => {
+    let attached = false;
+    const service = new TableSyncService(() => attached ? mockEngine as never : null, mockSpriteSync as never);
+    service.init();
+    try {
+      dispatch('table-response', { table_data: tableSnapshot() });
+      dispatch('table-deleted', { table_id: TABLE_A });
+      attached = true;
+      service.flushPending();
+      dispatch('table-response', { table_data: tableSnapshot() });
+      expect(mockEngine.handle_table_data).not.toHaveBeenCalled();
+      dispatch('table-response', { table_data: tableSnapshot({ table_id: TABLE_B }) });
+      expect(mockEngine.handle_table_data).toHaveBeenCalledOnce();
+      expect(mockEngine.handle_table_data.mock.lastCall![0].table_id).toBe(TABLE_B);
+    } finally { service.dispose(); }
+  });
+
+  it('keeps a different resident table when an inactive table is deleted', () => {
+    const service = makeService(); service.init();
+    try {
+      dispatch('table-response', tableSnapshot());
+      dispatch('table-deleted', { table_id: TABLE_B });
+      expect(mockEngine.clear_layer).not.toHaveBeenCalled();
+      service.retainLatestForRenderer(); service.flushPending();
+      expect(mockEngine.handle_table_data).toHaveBeenCalledTimes(2);
+    } finally { service.dispose(); }
+  });
   it.each(['sprite-moved', 'compendium-sprite-added', 'compendium-sprite-updated',
     'compendium-sprite-removed', 'canvas-canonical-object'])('requests a fresh snapshot after detached %s instead of restoring stale state', type => {
     let attached = true;

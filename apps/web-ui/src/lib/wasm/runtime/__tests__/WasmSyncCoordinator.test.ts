@@ -15,7 +15,8 @@ const mockTableSync = vi.hoisted(() => ({
 }));
 const mockRemoteSync = vi.hoisted(() => ({ init: vi.fn(), dispose: vi.fn() }));
 const tableCallbacks = vi.hoisted(() => ({
-  value: null as null | { onHydrated?: (tableId: string, textureIds: readonly string[]) => void },
+  value: null as null | { onHydrated?: (tableId: string, textureIds: readonly string[]) => void;
+    onDeleted?: (tableId: string) => void },
 }));
 
 vi.mock('../../assetSync.service', () => ({ AssetSyncService: vi.fn(function () { return mockAssetSync; }) }));
@@ -38,6 +39,19 @@ beforeEach(() => {
 });
 
 describe('WasmSyncCoordinator', () => {
+  it('releases only retired table readiness and textures', () => {
+    const onTableDeleted = vi.fn();
+    const coordinator = new WasmSyncCoordinator(vi.fn(), { onTableDeleted });
+    tableCallbacks.value?.onHydrated?.('kept', ['kept-asset']);
+    mockAssetSync.areTexturesSettled.mockReturnValue(true);
+    tableCallbacks.value?.onDeleted?.('inactive');
+    expect(coordinator.isTableVisuallyReady('kept')).toBe(true);
+    expect(mockAssetSync.releaseTexturesExcept).toHaveBeenLastCalledWith(['kept-asset']);
+    tableCallbacks.value?.onDeleted?.('kept');
+    expect(coordinator.isTableVisuallyReady('kept')).toBe(false);
+    expect(mockAssetSync.releaseTexturesExcept).toHaveBeenLastCalledWith([]);
+    expect(onTableDeleted).toHaveBeenLastCalledWith('kept');
+  });
   it('does not frame a table while its derived text textures are pending', () => {
     const coordinator = new WasmSyncCoordinator(vi.fn());
     tableCallbacks.value?.onHydrated?.('text-table', []);

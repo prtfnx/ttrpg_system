@@ -72,6 +72,7 @@ const mocks = vi.hoisted(() => {
     coordinatorCallbacks: null as null | {
       onTableHydrated?: (tableId: string) => void;
       onTableHydrationError?: (error: Error) => void;
+      onTableDeleted?: (tableId: string) => void;
     },
     assetIntegrationInitialize: vi.fn(),
     assetIntegrationDispose: vi.fn(),
@@ -128,6 +129,18 @@ vi.mock('@features/assets', () => ({
 }));
 
 describe('WasmRuntime', () => {
+  it('invalidates retired scene framing and preview capture without affecting another table', () => {
+    const runtime = new WasmRuntime();
+    runtime.store.setSnapshot({ hydratedTableId: 'resident', frameTableId: 'resident' });
+    mocks.coordinatorCallbacks?.onTableDeleted?.('inactive');
+    expect(runtime.status.frameTableId).toBe('resident');
+    mocks.coordinatorCallbacks?.onTableDeleted?.('resident');
+    expect(runtime.status.hydratedTableId).toBeNull();
+    expect(runtime.status.frameTableId).toBeNull();
+    expect(emitWasmEvent).toHaveBeenCalledWith('table-preview-invalidated', { table_id: 'resident' });
+    expect(runtime.captureActiveTableThumbnail('resident', 100, 100)).toBeNull();
+    runtime.dispose();
+  });
   it('owns local sprite selection queries and previews without sending durable commands', async () => {
     await runtime.attachCanvas(canvas, { userId: 1, role: 'owner', activeLayer: 'map' });
     expect(runtime.hitTestSelectionSprite(10, 20)).toBe('sprite-1');

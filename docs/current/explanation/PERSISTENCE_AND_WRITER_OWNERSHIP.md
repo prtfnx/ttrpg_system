@@ -41,7 +41,9 @@ registered or queued for dirty-table retries. An unknown commit quarantines
 serialized state work and snapshots until a fresh session-row barrier resolves
 the receipt and installs the current table or proves rollback. Repeated caller
 cancellation cannot release session/table ownership early. Standalone core-table
-callers retain their explicit detached-snapshot contract without automatic receipts. Failed table deletion retains live state. On an
+callers retain their explicit detached-snapshot contract without automatic receipts.
+Production table deletion retains live state and dirty retry bookkeeping until
+its durable outcome is confirmed. On an
 ordinary final disconnect, the manager drains mutations and retains a session
 whose final save failed so it can retry.
 
@@ -75,6 +77,19 @@ lifetime; they are not age-pruned. Historical deletions before migration 0014
 cannot be reconstructed automatically. Regression owner:
 `apps/server/tests/unit/test_table_deletion_service.py`.
 
+Deletion dispatch holds session and table ownership through acceptance, live
+cache removal, dirty-save task cancellation and publication, including repeated
+caller cancellation. An unknown commit or failed post-commit cache removal
+quarantines serialized reads/writes and snapshots. The next serialized request
+first resolves the outcome under the stable session-row barrier, discards a
+confirmed retired table or preserves the original live/dirty state on rollback,
+then resumes. Recovery still clears retired state after actor removal but denies
+that actor the original result. Successful replies carry `operation: delete`,
+`operation_id`, `table_id`, `replayed` and `resync_required`; peers receive a
+table-update deletion event. Duplicate requests never delete another table.
+Regression owners: `test_table_deletion_service.py`, `test_tables_protocol.py`
+and `test_async_table_persistence.py` under `apps/server/tests/unit/`.
+
 ## Snapshot admission guard
 
 `TableManager.persistence_guard` is an optional application callback. When it
@@ -104,8 +119,8 @@ those remain part of general outcome-recovery work.
 
 ## Deferred consistency work
 
-TODO: extend durable receipts and outcome reconciliation to table deletion,
-settings, generic character and choice commands. Table creation and XP now commit
+TODO: extend durable receipts and outcome reconciliation to table settings,
+generic character and choice commands. Table creation, deletion and XP now commit
 their effects and receipts together; this does not add universal retry safety or
 a persisted browser recovery queue. Complete remaining legacy character/token
 repairs and qualify worker ownership on the release candidate. Combat lifecycle transitions

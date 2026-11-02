@@ -15,7 +15,9 @@ from core_table.protocol import Message, MessageType
 from core_table.server import TableManager
 from core_table.table import VirtualTable
 from service.protocol.tables import _TablesMixin
+from service.session_operation_receipts import OperationRejected
 from service.table_creation_service import TableCreationAccepted
+from service.table_deletion_service import TableDeletionAccepted
 
 # ---------------------------------------------------------------------------
 # Stub
@@ -30,6 +32,9 @@ class _ProtoStub(_TablesMixin):
         self.actions._add_to_history = AsyncMock()
         self.creation = MagicMock()
         self._table_creation_service = lambda: self.creation
+        self.deletion = MagicMock()
+        self._table_deletion_service = lambda: self.deletion
+        self.actions.discard_deleted_table = AsyncMock()
         self.clients = {}
         self._rules_cache = {}
 
@@ -159,16 +164,18 @@ class TestDeleteTable:
 
     async def test_successful_delete_returns_success(self):
         proto = _ProtoStub(role="owner")
-        proto.actions.delete_table = AsyncMock(return_value=_ok_result())
-        msg = Message(MessageType.TABLE_DELETE, {"table_id": "t1"})
+        table_id = str(uuid.uuid4())
+        proto.deletion.execute.return_value = TableDeletionAccepted({'table_id': table_id, 'operation': 'delete'}, False)
+        msg = Message(MessageType.TABLE_DELETE, {"table_id": table_id})
         resp = await proto.handle_delete_table(msg, "c1")
         assert resp.type == MessageType.SUCCESS
-        assert resp.data["table_id"] == "t1"
+        assert resp.data["table_id"] == table_id
+        proto.actions.discard_deleted_table.assert_awaited_once_with(table_id)
 
     async def test_failed_delete_returns_error(self):
         proto = _ProtoStub(role="owner")
-        proto.actions.delete_table = AsyncMock(return_value=_fail_result("table not found"))
-        msg = Message(MessageType.TABLE_DELETE, {"table_id": "missing"})
+        proto.deletion.execute.side_effect = OperationRejected('table not found', 'forbidden')
+        msg = Message(MessageType.TABLE_DELETE, {"table_id": str(uuid.uuid4())})
         resp = await proto.handle_delete_table(msg, "c1")
         assert resp.type == MessageType.ERROR
         assert "table not found" in resp.data["error"]

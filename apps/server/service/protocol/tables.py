@@ -13,7 +13,7 @@ from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import get_visible_layers, is_dm
 
-from .table_creation import _TableCreationMixin
+from .table_deletion import _TableDeletionMixin
 
 logger = setup_logger(__name__)
 
@@ -31,39 +31,8 @@ def _validated_table_dimension(value: object) -> int | None:
     return dimension if _MIN_TABLE_DIMENSION <= dimension <= _MAX_TABLE_DIMENSION else None
 
 
-class _TablesMixin(_TableCreationMixin):
+class _TablesMixin(_TableDeletionMixin):
     """Handler methods for tables domain."""
-
-    async def handle_delete_table(self, msg: Message, client_id: str) -> Message:
-        """Handle delete table request"""
-        logger.debug("Table delete requested", extra={"event_name": "table.delete.requested"})
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'Only DMs can delete tables'})
-        if not msg.data:
-            return Message(MessageType.ERROR, {'error': 'No data provided in delete table request'})
-
-        table_id = msg.data.get('table_id')
-        if not table_id:
-            return Message(MessageType.ERROR, {'error': 'Table ID is required'})
-
-        # Get session_id for database persistence
-        session_id = self._get_session_id(msg)
-
-        result = await self.actions.delete_table(table_id, session_id)
-        if result.success:
-            # Broadcast table deletion to all clients in the session
-            update_message = Message(MessageType.TABLE_UPDATE, {
-                'operation': 'delete',
-                'table_id': table_id
-            })
-            await self.broadcast_to_session(update_message, client_id)
-
-            return Message(MessageType.SUCCESS, {
-                'table_id': table_id,
-                'message': 'Table deleted successfully'
-            })
-        else:
-            return Message(MessageType.ERROR, {'error': f'Failed to delete table: {result.message}'})
 
     async def handle_table_list_request(self, msg: Message, client_id: str) -> Message:
         """Handle table list request"""

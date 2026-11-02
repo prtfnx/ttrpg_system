@@ -156,6 +156,21 @@ class ActionsCore(AsyncActionsProtocol):
                 self._schedule_save_retry(table_id)
         return success
 
+    async def discard_deleted_table(self, table_id: str) -> None:
+        """Forget confirmed deletion while the caller owns session/table locks.
+
+        A snapshot worker cannot still hold the table lock here. Cancel only
+        queued retries, then clear dirty bookkeeping and both resident indexes.
+        """
+        task = self._save_tasks.pop(table_id, None)
+        if task is not None and task is not asyncio.current_task():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        self._dirty_tables.pop(table_id, None)
+        self._dirty_generations.pop(table_id, None)
+        self.table_manager.remove_table(table_id)
+        self.table_manager.tables_id.pop(table_id, None)
+
     async def stop_persistence(self) -> None:
         tasks = list(self._save_tasks.values())
         for task in tasks:

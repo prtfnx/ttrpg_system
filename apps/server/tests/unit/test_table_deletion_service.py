@@ -1,5 +1,9 @@
+import asyncio
+import copy
+import threading
 from contextlib import contextmanager
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from core_table.table import VirtualTable
@@ -184,3 +188,180 @@ def test_commit_response_loss_and_lookup_outage_settle_original_delete(deletion,
     deletion.service.execute(deletion.intent())
     with deletion.factory() as db:
         assert db.query(models.TableDeletionTombstone).count() == db.query(models.SessionOperationReceipt).count() == 1
+
+
+@pytest.fixture
+def dispatch(deletion):
+    from core_table.protocol import Message
+    from core_table.server import TableManager
+    from service.server_protocol import ServerProtocol
+
+    session = SimpleNamespace(game_session_db_id=1, session_code='DELETE1', client_info={
+        'codm': {'user_id': 2, 'role': 'co_dm'}, 'player': {'user_id': 3, 'role': 'player'},
+    })
+
+    def create():
+        proto = ServerProtocol(TableManager(True), session_manager=session)
+        proto.table_manager.add_table(deletion.table)
+        proto._table_deletion_service = lambda: deletion.service
+        proto.send_to_client = AsyncMock()
+        proto.broadcast_to_session = AsyncMock()
+        return proto
+
+    proto = create()
+
+    async def send(message, actor='codm', protocol=None):
+        target = protocol or proto
+        await target.handle_client(Message.from_json(message.to_json()), actor)
+        sender = target.send_to_client
+        assert isinstance(sender, AsyncMock)
+        return Message.from_json(sender.call_args.args[0].to_json())
+
+    return SimpleNamespace(proto=proto, create=create, send=send)
+
+
+@pytest.mark.asyncio
+async def test_dispatch_deletes_once_and_discards_dirty_retry_only_after_acceptance(deletion, dispatch):
+    from core_table.protocol import Message, MessageType
+
+    actions = dispatch.proto.actions
+    actions._dirty_tables[deletion.table_id] = 1
+    actions._dirty_generations[deletion.table_id] = 1
+    retry = asyncio.create_task(asyncio.Event().wait())
+    actions._save_tasks[deletion.table_id] = retry
+    request = Message(MessageType.TABLE_DELETE, {'table_id': deletion.table_id})
+    accepted = await dispatch.send(request)
+    assert accepted.type == MessageType.SUCCESS and accepted.data['operation'] == 'delete'
+    assert not actions._dirty_tables and not actions._dirty_generations and not actions._save_tasks
+    assert retry.cancelled() and not dispatch.proto.table_manager.tables and not dispatch.proto.table_manager.tables_id
+    assert (await dispatch.send(copy.deepcopy(request))).data['replayed']
+    restarted = dispatch.create()
+    assert (await dispatch.send(request, protocol=restarted)).data['replayed']
+    assert not restarted.table_manager.tables_id
+    with deletion.factory() as db:
+        assert db.query(models.SessionOperationReceipt).count() == 1
+
+
+@pytest.mark.asyncio
+async def test_repeated_cancellation_holds_ownership_through_delete_cleanup_and_publication(deletion, dispatch, monkeypatch):
+    from core_table.protocol import Message, MessageType
+
+    entered, release = threading.Event(), threading.Event()
+    publishing, published = asyncio.Event(), asyncio.Event()
+    stage = table_deletion_service.stage_receipt
+    loop_thread = threading.get_ident()
+
+    def delayed(*args):
+        assert threading.get_ident() != loop_thread
+        stage(*args)
+        entered.set()
+        assert release.wait(5)
+
+    async def publish(*_):
+        publishing.set()
+        await published.wait()
+
+    monkeypatch.setattr(table_deletion_service, 'stage_receipt', delayed)
+    dispatch.proto.broadcast_to_session = AsyncMock(side_effect=publish)
+    request = Message(MessageType.TABLE_DELETE, {'table_id': deletion.table_id})
+    task = asyncio.create_task(dispatch.send(request))
+    try:
+        assert await asyncio.to_thread(entered.wait, 2)
+        for _ in range(2):
+            task.cancel()
+            await asyncio.sleep(0)
+        assert dispatch.proto._mutation_lock.locked() and not task.done()
+        assert deletion.table_id in dispatch.proto.table_manager.tables_id
+        assert (await dispatch.send(Message(MessageType.PING, {}))).type == MessageType.PONG
+        release.set()
+        await asyncio.wait_for(publishing.wait(), 3)
+        task.cancel()
+        await asyncio.sleep(0)
+        assert dispatch.proto._mutation_lock.locked() and not task.done()
+        assert not dispatch.proto.table_manager.tables_id
+    finally:
+        release.set()
+        published.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert (await dispatch.send(request)).data['replayed']
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('committed', [False, True])
+async def test_unknown_delete_fences_reads_snapshots_and_dirty_retries_until_settlement(deletion, dispatch, committed):
+    from core_table.protocol import Message, MessageType
+
+    class LostResponse(Session):
+        def commit(self):
+            if committed:
+                super().commit()
+            raise RuntimeError('Commit response lost')
+
+    calls, unavailable = 0, True
+
+    @contextmanager
+    def factory():
+        nonlocal calls
+        calls += 1
+        if calls > 1 and unavailable:
+            raise RuntimeError('Lookup unavailable')
+        current = sessionmaker(bind=deletion.engine, class_=LostResponse) if calls == 1 else deletion.factory
+        with current() as db:
+            yield db
+
+    deletion.service = TableDeletionService(factory)
+    dispatch.proto.actions._dirty_tables[deletion.table_id] = 1
+    dispatch.proto.actions._dirty_generations[deletion.table_id] = 1
+    request = Message(MessageType.TABLE_DELETE, {'table_id': deletion.table_id})
+    assert (await dispatch.send(request)).data['outcome'] == 'unknown'
+    assert not dispatch.proto.table_manager.persistence_allowed()
+    assert not await dispatch.proto.table_manager.save_to_database_async(1)
+    assert deletion.table_id in dispatch.proto.table_manager.tables_id
+    assert deletion.table_id in dispatch.proto.actions._dirty_tables
+    assert (await dispatch.send(Message(MessageType.TABLE_LIST_REQUEST, {}))).data['outcome'] == 'unknown'
+    unavailable = False
+    recovered = await dispatch.send(request)
+    if committed:
+        assert recovered.type == MessageType.SUCCESS and recovered.data['replayed']
+        assert not dispatch.proto.actions._dirty_tables and not dispatch.proto.table_manager.tables_id
+    else:
+        assert recovered.data['code'] == 'persistence_failed'
+        assert deletion.table_id in dispatch.proto.actions._dirty_tables
+        assert deletion.table_id in dispatch.proto.table_manager.tables_id
+        assert (await dispatch.send(request)).type == MessageType.SUCCESS
+    assert dispatch.proto.table_manager.persistence_allowed()
+
+
+@pytest.mark.asyncio
+async def test_committed_delete_cache_failure_recovers_before_reads_and_rejects_changed_retry(deletion, dispatch, monkeypatch):
+    from core_table.protocol import Message, MessageType
+
+    discard = dispatch.proto.actions.discard_deleted_table
+    monkeypatch.setattr(dispatch.proto.actions, 'discard_deleted_table', AsyncMock(side_effect=RuntimeError('Cache failed')))
+    request = Message(MessageType.TABLE_DELETE, {'table_id': deletion.table_id})
+    assert (await dispatch.send(request)).data['outcome'] == 'unknown'
+    monkeypatch.setattr(dispatch.proto.actions, 'discard_deleted_table', discard)
+    changed = copy.deepcopy(request)
+    changed.data['table_id'] = str(deletion.other.table_id)
+    assert (await dispatch.send(changed)).data['code'] == 'conflict'
+    assert not dispatch.proto.table_manager.tables_id
+    assert not dispatch.proto._has_pending_table_deletion()
+
+
+@pytest.mark.asyncio
+async def test_recovery_after_actor_removal_cleans_cache_without_exposing_original_result(deletion, dispatch, monkeypatch):
+    from core_table.protocol import Message, MessageType
+
+    discard = dispatch.proto.actions.discard_deleted_table
+    monkeypatch.setattr(dispatch.proto.actions, 'discard_deleted_table', AsyncMock(side_effect=RuntimeError('Cache failed')))
+    request = Message(MessageType.TABLE_DELETE, {'table_id': deletion.table_id})
+    assert (await dispatch.send(request)).data['outcome'] == 'unknown'
+    with deletion.factory() as db:
+        db.query(models.GamePlayer).filter_by(user_id=2).delete()
+        db.query(models.User).filter_by(id=2).delete()
+        db.commit()
+    monkeypatch.setattr(dispatch.proto.actions, 'discard_deleted_table', discard)
+    response = await dispatch.send(request)
+    assert response.data['code'] == 'forbidden' and 'success' not in response.data
+    assert not dispatch.proto.table_manager.tables_id and dispatch.proto.table_manager.persistence_allowed()

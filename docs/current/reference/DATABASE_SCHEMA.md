@@ -107,6 +107,7 @@ the runtime application.
 | `audit_logs` | `AuditLog` | security and audit events |
 | `character_logs` | `CharacterLog` | per-character action log entries |
 | `session_operation_receipts` | `SessionOperationReceipt` | retained accepted outcomes by numeric session, actor, domain and original request identity |
+| `table_deletion_tombstones` | `TableDeletionTombstone` | retired global table identities, retained with the session even after deleting actor/receipt history |
 | `chat_messages` | `ChatMessage` | persisted session chat messages |
 | `paint_strokes` | `PaintStroke` | read-only legacy source retained for verified cutover and rollback |
 | `paint_state` | `PaintState` | authoritative per-table paint revision and z-order allocator |
@@ -178,7 +179,7 @@ apps/server/database/alembic/versions/
 ```
 
 The PostgreSQL baseline is `0001_postgresql_baseline`; incremental revisions
-through the current `0013_session_operation_receipts` head add later behavior.
+through the current `0014_table_deletion_tombstones` head add later behavior.
 `0007_demo_guest_expiry` adds guest expiry and revokes the legacy demo host;
 `0008_application_writer` seeds the owner record and installs PostgreSQL
 statement triggers. `0009_table_previews` adds `preview_image`, `preview_etag`,
@@ -190,7 +191,7 @@ existing tables; application table creation seeds new rows in the same
 transaction. The active application reads and writes `paint_objects` through
 revisioned snapshots/events. Legacy `paint_strokes` remains read-only for the
 verified maintenance cutover and rollback window. There are
-35 application model tables, plus Alembic's revision ledger.
+36 application model tables, plus Alembic's revision ledger.
 `0011_selection_preferences` adds selection preferences, and
 `0012_canvas_command_journal` adds durable canvas/sprite receipts.
 `0013_session_operation_receipts` adds a writer-fenced receipt table with a
@@ -200,6 +201,12 @@ Receipts persist for the retained session lifetime; there is no age-based
 pruning or receipt-expiry retry window. Deleting the session or actor cascades
 its receipts. A migration downgrade drops this evidence and therefore ends the
 supported retry history; do not replay old operation identities after such a downgrade.
+`0014_table_deletion_tombstones` adds a writer-fenced retirement table. Its
+global table UUID is the primary key; session deletion cascades retirement,
+while deleting the actor sets `deleted_by` to null. New snapshot/create adapters
+reject retired identities even after process restart or actor receipt cleanup.
+Retirement is committed with deletion and is not expired by age. It does not
+backfill deletions accepted before this feature.
 Alembic records the deployed revision in `alembic_version`. The old numbered
 SQLite runner and ledger were retired; they are not an upgrade path for
 existing SQLite files.

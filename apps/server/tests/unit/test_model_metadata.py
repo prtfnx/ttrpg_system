@@ -33,6 +33,7 @@ EXPECTED_TABLES = {
     "session_characters",
     "session_invitations",
     "session_operation_receipts",
+    "table_deletion_tombstones",
     "shared_measurements",
     "users",
     "virtual_tables",

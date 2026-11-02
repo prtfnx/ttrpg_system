@@ -1077,6 +1077,16 @@ class SharedMeasurement(Base):
         }
 
 
+class TableDeletionTombstone(Base):
+    """Retire a global table identity for the retained session's lifetime."""
+    __tablename__ = "table_deletion_tombstones"
+
+    table_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    session_id: Mapped[int] = mapped_column(ForeignKey("game_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    deleted_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    deleted_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
+
+
 class SessionOperationReceipt(Base):
     """Retained outcome of one actor's accepted session operation."""
     __tablename__ = "session_operation_receipts"

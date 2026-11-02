@@ -15,7 +15,7 @@ Alembic is the only hosted schema authority:
 - revisions: `apps/server/database/alembic/versions/`;
 - deployed revision ledger: `alembic_version`;
 - baseline: `0001_postgresql_baseline`;
-- current head: `0013_session_operation_receipts`.
+- current head: `0014_table_deletion_tombstones`.
 
 Revision 0011 adds `game_players.selection_mode`, non-null with the default
 `separate`. Existing memberships keep separate selection. The authenticated
@@ -53,6 +53,14 @@ identities gain retry evidence. An unconfirmed award first sent to a version
 without XP receipts cannot safely be repeated through the new API; reconcile
 its source/audit state manually. A downgrade to 0012 removes that evidence while
 preserving awarded XP. Do not replay earlier identities after downgrading.
+
+Revision `0014_table_deletion_tombstones` retires global table identities with
+a session-owned, writer-fenced table. Deleting an actor preserves retirement
+with a null actor reference. Deploy this storage before the durable deletion
+handler. Only newly accepted deletes gain tombstones; there is no historical
+backfill. A downgrade removes anti-resurrection evidence without restoring
+deleted scene resources. Preserve receipts and tombstones in backups, and do
+not replay stale snapshots after downgrading or restoring an older backup.
 
 Run from `apps/server` with `DATABASE_MIGRATION_URL` set to the intended
 schema-owner connection. Alembic falls back to `DATABASE_URL` when the

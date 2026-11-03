@@ -429,7 +429,7 @@ class TestTableSettingsUpdate:
         proto.settings.execute.return_value = TableSettingsAccepted(
             {'table_id': self.table_id, 'operation_id': 'original', 'changed': changed},
             {**values, 'grid_cell_px': 75 if changed else 50, 'settings_revision': 1 if changed else 0}, False)
-        table.settings_revision = 0
+        setattr(table, 'settings_revision', 0)
         proto.broadcast_to_session = AsyncMock()
         return proto, table
 
@@ -438,7 +438,8 @@ class TestTableSettingsUpdate:
         response = await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_UPDATE,
             {'table_id': self.table_id, 'grid_cell_px': 75}), 'c1')
         assert response.type == MessageType.TABLE_SETTINGS_CHANGED
-        assert table.grid_cell_px == 75 and table.settings_revision == 1
+        assert table.grid_cell_px == 75 and getattr(table, 'settings_revision') == 1
+        assert isinstance(proto.broadcast_to_session, AsyncMock)
         proto.broadcast_to_session.assert_awaited_once()
 
     async def test_identical_settings_have_receipt_without_peer_broadcast(self):
@@ -447,6 +448,7 @@ class TestTableSettingsUpdate:
             {'table_id': self.table_id, 'grid_cell_px': 50}), 'c1')
         assert response.type == MessageType.TABLE_SETTINGS_CHANGED
         proto.settings.execute.assert_called_once()
+        assert isinstance(proto.broadcast_to_session, AsyncMock)
         proto.broadcast_to_session.assert_not_awaited()
 
     async def test_denied_storage_does_not_install_or_publish(self):
@@ -456,6 +458,7 @@ class TestTableSettingsUpdate:
             {'table_id': self.table_id, 'grid_cell_px': 75}), 'c1')
         assert response.type == MessageType.ERROR and response.data['code'] == 'persistence_failed'
         assert table.grid_cell_px == 50
+        assert isinstance(proto.broadcast_to_session, AsyncMock)
         proto.broadcast_to_session.assert_not_awaited()
 
     @pytest.mark.parametrize('role', ['player', 'spectator', 'trusted_player'])
@@ -467,7 +470,7 @@ class TestTableSettingsUpdate:
 
     async def test_missing_session_rejects_before_storage(self):
         proto, _ = self._proto()
-        proto._get_session_id = lambda _: None
+        proto._get_session_id = lambda msg: None
         assert (await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_UPDATE,
             {'table_id': self.table_id, 'grid_enabled': False}), 'c1')).type == MessageType.ERROR
         proto.settings.execute.assert_not_called()

@@ -130,7 +130,7 @@ publication. Notifications failing after acceptance report success requiring
 resync. Only new requests accepted by this receipt path have this guarantee;
 do not blindly retry an unconfirmed create sent to an older server.
 
-TODO: copying paint/previews, durable delete/settings outcomes and persisted
+TODO: copying paint/previews and persisted
 browser ownership of uncertain operations. This is not universal idempotency.
 `test_table_copy_persistence.py` covers standalone populated copy/reload/delete;
 `test_table_creation_service.py` owns the atomic receipt and recovery contracts.
@@ -391,3 +391,29 @@ The existing generated WASM interface supplies these cleanup operations; this
 change does not replace generated artifacts. Regression owners:
 `tableSync.service.test.ts`, `WasmSyncCoordinator.test.ts` and `WasmRuntime.test.ts`
 under `apps/web-ui/src/lib/wasm/`.
+
+## Durable settings outcomes and browser ordering
+
+Production settings patches use `TableSettingsService` and the session-owned
+settings protocol mixin. Current database DM authority and target session are
+checked in acceptance. The patch, settings revision and original scoped request
+receipt commit together. No-op patches retain an outcome without incrementing
+the counter or sending a redundant peer event. New settings reject while the
+table has unresolved dirty persistence. Generic CRUD/snapshot settings changes
+also advance the revision. Table hydration includes the current SQL revision.
+
+Unknown commits or failed live installation fence serialized session work and
+snapshots until the stable session-row lookup resolves them. Repeated cancellation
+cannot release ownership before installation and publication. Replays use current
+settings/revision, never an old receipt's patch; a later-deleted target instead
+reconciles deletion. Current authority is required to disclose an original result.
+
+The browser settings buffer rejects older revisions while retaining later local
+intent. An unknown request keeps its original message/body, pauses newer settings
+transmission and survives canonical snapshot reconciliation. After hydration it
+may send that exact original once for the current connection to obtain its
+receipt; accepted/rejected settlement releases newer queued settings. A later
+connection loss permits another original probe, with no replacement identity.
+This ownership is in memory; page reload still loses the recovery queue.
+Regression owners: `test_table_settings_service.py`, `test_tables_protocol.py`,
+`tableSettingsBuffer.test.ts` and `clientProtocol.test.ts`.

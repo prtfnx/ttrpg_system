@@ -386,6 +386,7 @@ export class WebClientProtocol {
         emitProtocolEvent('table-resync-completed', { tableId: table_id });
       }
       this.settingsBuffer.reapply(table_id);
+      this.settingsBuffer.retryUnknown(table_id);
     });
     const removeUncertain = onProtocolEvent('sprite-confirmation-uncertain', ({ tableId }) => this.resynchronizeTable(tableId));
     const removeProgress = onProtocolEvent('table-command-progress', ({ tableId }) => this.advanceTableRecovery(tableId));
@@ -764,7 +765,8 @@ export class WebClientProtocol {
           this.flushMessageQueue();
           if (this.websocket !== socket) { rejectConnection(new Error('Reconnect transmission failed')); return; }
           const activeTableId = useGameStore.getState().activeTableId;
-          if (activeTableId && this.commandTracking.watermark(activeTableId).length) this.resynchronizeTable(activeTableId);
+          if (activeTableId && (this.commandTracking.watermark(activeTableId).length
+            || this.settingsBuffer.hasUncertain(activeTableId))) this.resynchronizeTable(activeTableId);
           // Auto-start heartbeat for connection monitoring
           this.startPing();
           this.connecting = false;
@@ -787,6 +789,7 @@ export class WebClientProtocol {
           this.websocket = null;
           this.connectionAlive = false;
           this.markCharacterUpdatesUncertain();
+          this.settingsBuffer.connectionLost();
           this.lastCloseCode = event.code;
           this.lastCloseReason = this.sanitizeCloseReason(event.reason);
           this.notifyConnectionState('disconnected');
@@ -1963,6 +1966,11 @@ export class WebClientProtocol {
   }
 
   private async handleTableSettingsChanged(message: Message): Promise<void> {
+    if (message.data?.table_deleted) {
+      this.acceptTableDeletion(message.data);
+      return;
+    }
+    if (typeof message.data?.table_id === 'string' && this.retiredTableIds.has(message.data.table_id)) return;
     this.settingsBuffer.accept(message);
   }
 
@@ -2159,6 +2167,7 @@ export class WebClientProtocol {
   resynchronizeTable(tableId: string): void {
     if (tableId !== useGameStore.getState().activeTableId || this.resyncs.has(tableId)
       || this.websocket?.readyState !== WebSocket.OPEN) return;
+    this.settingsBuffer.markUncertain(this.commandTracking.watermark(tableId));
     this.settingsBuffer.flush();
     if (!this.sendBatch()) return;
     const request = createMessage(MessageType.TABLE_REQUEST, { table_id: tableId }, 2);

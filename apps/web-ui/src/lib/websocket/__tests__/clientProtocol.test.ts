@@ -1639,6 +1639,53 @@ describe('WebClientProtocol', () => {
   // ── Remaining simple event-dispatch handlers ─────────────────────────────
 
   describe('more incoming handlers', () => {
+    const settings = (size: number, revision: number) => ({ table_id: 'table-abc', grid_cell_px: size,
+      settings_revision: revision, dynamic_lighting_enabled: false, fog_exploration_mode: 'current_only',
+      ambient_light_level: 1, cell_distance: 5, distance_unit: 'ft', grid_enabled: true, snap_to_grid: true,
+      grid_color_hex: '#ffffff', background_color_hex: '#2a3441' });
+
+    it('fences older settings receipts and reconciles a replay for a deleted table', async () => {
+      const p = makeProtocol();
+      Object.assign(mocks.storeState, { tables: [{ table_id: 'table-abc' }] });
+      try {
+        await dispatch(p, 'table_settings_changed', settings(90, 2));
+        await dispatch(p, 'table_settings_changed', { ...settings(60, 1), operation_id: 'older', replayed: true });
+        expect(mockSetTableUnits).toHaveBeenLastCalledWith(expect.objectContaining({ gridCellPx: 90 }));
+        await dispatch(p, 'table_settings_changed', { table_id: 'table-abc', operation_id: 'older',
+          replayed: true, table_deleted: true });
+        expect(mocks.storeState.activeTableId).toBeNull();
+        expect(mocks.storeState.tables).toEqual([]);
+      } finally { p.disconnect(); }
+    });
+
+    it('retains an unknown settings intent through canonical hydration before one exact replay', async () => {
+      vi.useFakeTimers();
+      const p = makeProtocol(); const ws = makeOpenWs(p);
+      try {
+        p.sendTableSettingsUpdate('table-abc', { grid_cell_px: 60 });
+        vi.advanceTimersByTime(150); p.sendBatch();
+        const original = JSON.parse(ws.send.mock.calls[0][0]).data.messages[0];
+        await dispatch(p, 'error', { code: 'outcome_unknown', outcome: 'unknown', resync_required: true,
+          table_id: 'table-abc', operation_id: original.message_id, error: 'Unknown settings outcome' },
+          { causation_id: original.message_id });
+        p.sendTableSettingsUpdate('table-abc', { grid_cell_px: 90 });
+        vi.advanceTimersByTime(150); p.sendBatch();
+        const request = ws.send.mock.calls.map(call => JSON.parse(call[0])).find(item => item.type === MessageType.TABLE_REQUEST);
+        await dispatch(p, 'table_response', { table_data: settings(60, 1) },
+          { causation_id: request.message_id });
+        window.dispatchEvent(new CustomEvent('table-sprites-loaded', { detail: { table_id: 'table-abc', count: 0 } }));
+        p.sendBatch();
+        const sent = ws.send.mock.calls.flatMap(call => {
+          const frame = JSON.parse(call[0]); return frame.type === MessageType.BATCH_REQUEST ? frame.data.messages : [frame];
+        }).filter((message: Message) => message.type === MessageType.TABLE_SETTINGS_UPDATE);
+        expect(sent).toEqual([original, original]);
+        await dispatch(p, 'table_settings_changed', { ...settings(60, 1), replayed: true, operation_id: original.message_id },
+          { causation_id: original.message_id });
+        p.sendBatch();
+        expect(mockSetTableUnits).toHaveBeenLastCalledWith(expect.objectContaining({ gridCellPx: 90 }));
+      } finally { p.disconnect(); vi.useRealTimers(); }
+    });
+
     async function dispatch(
       p: WebClientProtocol,
       type: string,

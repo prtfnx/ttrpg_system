@@ -277,3 +277,14 @@ retry retains the original ID and table UUID; changing the target under that ID
 cannot accept another deletion. Python and browser validators use the generated
 copies of the canonical schema. Regression owner:
 `packages/core-table/tests/test_protocol_schema.py`.
+
+## Durable table settings wire identity
+
+`table_settings_update` requires an original nonempty `message_id` (up to 128
+characters), bounded nonnegative numeric timestamp and a closed nonempty patch
+targeting a table UUID. Actor/session and revision fields are server-owned.
+`table_settings_changed` admits receipt metadata, `accepted_revision` and current
+`settings_revision`; a retained receipt for a later-deleted table instead carries
+`table_deleted: true` without obsolete settings. The full settings shape remains
+required for ordinary events. Both validators are generated from the canonical
+schema. Regression owner: `packages/core-table/tests/test_protocol_schema.py`.

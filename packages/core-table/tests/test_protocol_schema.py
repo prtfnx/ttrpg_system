@@ -229,7 +229,8 @@ def test_recovery_error_payloads_keep_the_closed_schema(updates):
         },
         {
             "type": "table_settings_update",
-            "data": {"table_id": "table-1", "snap_to_grid": False},
+            "message_id": "settings-original", "timestamp": 1,
+            "data": {"table_id": "550e8400-e29b-41d4-a716-446655440000", "snap_to_grid": False},
         },
     ],
 )
@@ -587,6 +588,36 @@ def test_table_delete_missing_identity_cannot_be_synthesized(field):
     message = {'type': 'table_delete', 'message_id': 'original', 'timestamp': 1,
                'data': {'table_id': '11111111-1111-1111-1111-111111111111'}}
     del message[field]
+    with pytest.raises(ValueError):
+        Message.from_dict(message)
+
+
+@pytest.mark.parametrize('field,value', [('message_id', ''), ('message_id', 'x' * 129), ('timestamp', True),
+    ('timestamp', -1), ('data', {'table_id': 'scene', 'grid_enabled': True}),
+    ('data', {'table_id': '550e8400-e29b-41d4-a716-446655440000', 'settings_revision': 9})])
+def test_settings_requires_closed_patch_and_original_identity(field, value):
+    message = {'type': 'table_settings_update', 'message_id': 'original', 'timestamp': 1,
+        'data': {'table_id': '550e8400-e29b-41d4-a716-446655440000', 'grid_enabled': True}}
+    Message.from_dict(message)
+    message[field] = value
+    with pytest.raises(ValueError):
+        Message.from_dict(message)
+
+
+@pytest.mark.parametrize('field', ['message_id', 'timestamp'])
+def test_settings_missing_identity_is_not_synthesized(field):
+    message = {'type': 'table_settings_update', 'message_id': 'original', 'timestamp': 1,
+        'data': {'table_id': '550e8400-e29b-41d4-a716-446655440000', 'grid_enabled': True}}
+    del message[field]
+    with pytest.raises(ValueError):
+        Message.from_dict(message)
+
+
+def test_settings_receipt_can_reconcile_a_later_deleted_table_without_old_settings():
+    message = {'type': 'table_settings_changed', 'data': {'table_id': 'scene', 'table_deleted': True,
+        'operation_id': 'original', 'replayed': True}}
+    Message.from_dict(message)
+    del message['data']['table_deleted']
     with pytest.raises(ValueError):
         Message.from_dict(message)
 

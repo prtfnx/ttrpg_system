@@ -1530,8 +1530,7 @@
       "properties": {
         "table_id": {
           "type": "string",
-          "minLength": 1,
-          "maxLength": 128
+          "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
         },
         "dynamic_lighting_enabled": {
           "type": "boolean"
@@ -1581,20 +1580,23 @@
     },
     "tableSettingsChangedData": {
       "type": "object",
-      "required": [
-        "table_id",
-        "dynamic_lighting_enabled",
-        "fog_exploration_mode",
-        "ambient_light_level",
-        "grid_cell_px",
-        "cell_distance",
-        "distance_unit",
-        "grid_enabled",
-        "snap_to_grid",
-        "grid_color_hex",
-        "background_color_hex"
+      "required": ["table_id"],
+      "oneOf": [
+        {"required": ["dynamic_lighting_enabled", "fog_exploration_mode", "ambient_light_level",
+          "grid_cell_px", "cell_distance", "distance_unit", "grid_enabled", "snap_to_grid",
+          "grid_color_hex", "background_color_hex"],
+          "properties": {"table_deleted": {"const": false}}},
+        {"required": ["table_deleted", "operation_id", "replayed"], "properties": {"table_deleted": {"const": true}}}
       ],
       "properties": {
+        "operation_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "success": {"type": "boolean"},
+        "changed": {"type": "boolean"},
+        "replayed": {"type": "boolean"},
+        "resync_required": {"type": "boolean"},
+        "table_deleted": {"type": "boolean"},
+        "accepted_revision": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "settings_revision": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
         "table_id": {
           "type": "string",
           "minLength": 1
@@ -2932,9 +2934,11 @@
       },
       "then": {
         "required": [
-          "data"
+          "data", "message_id", "timestamp"
         ],
         "properties": {
+          "message_id": {"type": "string", "minLength": 1, "maxLength": 128},
+          "timestamp": {"type": "number", "minimum": 0, "maximum": 9007199254740.99},
           "data": {
             "$ref": "#/$defs/tableSettingsUpdateData"
           }

@@ -1654,11 +1654,13 @@ describe('WebClientProtocol', () => {
       afterEach(() => sessionStorage.clear());
 
       it.each([
-        [MessageType.NEW_TABLE_REQUEST, { table_name: 'Scene', local_table_id: 'local-original' }],
-        [MessageType.XP_AWARD, { character_id: 'hero', amount: 100 }],
-        [MessageType.TABLE_DELETE, { table_id: tableId }],
-        [MessageType.TABLE_SETTINGS_UPDATE, { table_id: tableId, grid_cell_px: 75 }],
-      ])('reconstructs the original %s envelope after reload and welcome', async (type, data) => {
+        ['table create', MessageType.NEW_TABLE_REQUEST, { table_name: 'Scene', local_table_id: 'local-original' }],
+        ['table copy', MessageType.NEW_TABLE_REQUEST, { table_name: 'Copied', source_table_id: tableId }],
+        ['table import', MessageType.NEW_TABLE_REQUEST, { table_name: 'Imported', table_data: { layers: { tokens: [] } } }],
+        ['XP award', MessageType.XP_AWARD, { character_id: 'hero', amount: 100 }],
+        ['table delete', MessageType.TABLE_DELETE, { table_id: tableId }],
+        ['table settings', MessageType.TABLE_SETTINGS_UPDATE, { table_id: tableId, grid_cell_px: 75 }],
+      ])('reconstructs the original %s envelope after reload and welcome', async (_label, type, data) => {
         const first = makeProtocol(); const ws = makeOpenWs(first);
         const restarted = makeProtocol(); const next = makeOpenWs(restarted);
         try {

@@ -346,7 +346,7 @@ export class WebClientProtocol {
    */
   setUserId(userId: number): void {
     if (this.userId !== null && this.userId !== userId) {
-      this.operationRecovery.connectionLost();
+      this.operationRecovery.clearContext();
       this.batchQueue = [];
       this.messageQueue = [];
       this.settingsBuffer.dispose();

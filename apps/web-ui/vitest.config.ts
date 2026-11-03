@@ -70,6 +70,7 @@ export default defineConfig({
           },
         },
         assetsInclude: ['**/*.wasm'],
+        optimizeDeps: { include: ['ajv/dist/runtime/equal.js'] },
         server: {
           fs: { strict: false },
         },
@@ -88,6 +89,7 @@ export default defineConfig({
       // ── browser-components: React components that need real browser APIs ──
       {
         plugins: [react(), messageValidatorPlugin()],
+        optimizeDeps: { include: ['ajv/dist/runtime/equal.js'] },
         test: {
           name: 'browser-components',
           include: ['src/**/*.browser-test.{ts,tsx}'],

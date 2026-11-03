@@ -14,6 +14,15 @@ function setup() {
 beforeEach(() => sessionStorage.clear());
 
 describe('authenticated operation recovery', () => {
+  it('cannot discard the previous actor records after the active context is cleared', () => {
+    const { owner } = setup(); owner.welcome(welcome);
+    const original = createMessage(MessageType.XP_AWARD, { character_id: 'hero', amount: 100 }); owner.admit(original);
+    owner.clearContext();
+    expect(owner.discard()).toBe(false);
+    expect(new OperationRecoveryJournal(scope).entries()).toHaveLength(1);
+    owner.welcome({ ...welcome, user_id: 2 }); owner.discard();
+    expect(new OperationRecoveryJournal(scope).entries()).toHaveLength(1);
+  });
   it('journals each high-risk batch member with its own original identity', () => {
     const { owner } = setup(); owner.welcome(welcome);
     const original = createMessage(MessageType.XP_AWARD, { character_id: 'hero', amount: 100 });

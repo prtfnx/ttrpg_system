@@ -169,6 +169,15 @@ export class OperationRecoveryController {
     this.attempted.clear();
   }
 
+  clearContext(): void {
+    this.connectionLost();
+    this.journal = null;
+    this.lastWelcome = null;
+    this.restored.clear();
+    this.error = null;
+    this.notify();
+  }
+
   discard(): boolean {
     if (!this.journal) return false;
     try { this.journal.discardAll(); this.error = null; }

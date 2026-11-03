@@ -1,4 +1,6 @@
 import { expect, test } from 'vitest';
+import { createMessage, MessageType } from './message';
+import { OperationRecoveryJournal } from './operationRecovery';
 
 test('imports and validates messages under the server script CSP', async () => {
   const frame = document.createElement('iframe');
@@ -36,3 +38,17 @@ test('imports and validates messages under the server script CSP', async () => {
     frame.remove();
   }
 }, 15_000);
+
+test('reconstructs exact request identity from native tab storage', () => {
+  const scope = { actorId: 1, sessionCode: `BROWSER-${crypto.randomUUID()}`,
+    sessionInstance: '1:created', domains: ['xp_award'] };
+  const first = new OperationRecoveryJournal(scope);
+  const original = createMessage(MessageType.XP_AWARD, { character_id: 'hero', amount: 100 });
+  try {
+    first.capture(original);
+    const reconstructed = new OperationRecoveryJournal(scope);
+    expect(reconstructed.entries()[0]?.message).toEqual(original);
+    reconstructed.complete(original.message_id!);
+    expect(first.entries()).toEqual([]);
+  } finally { first.discardAll(); }
+});

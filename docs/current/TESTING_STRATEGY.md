@@ -173,8 +173,7 @@ patch/revision/receipt acceptance and rollback, and observed stable session-lock
 waits through original commit/rollback. Skipped cases remain unqualified.
 Browser tests fence older revisions, preserve newer intent, retain unknown
 original messages through canonical hydration, and bound exact retries per
-connection before releasing newer patches. There is no cross-page persisted
-settings queue. The Chromium message validator test checks the generated schema
+connection before releasing newer patches. The supported settings queue now survives same-tab reloads under negotiated receipt scope. The Chromium message validator test checks the generated schema
 without runtime dynamic code generation.
 
 ### PostgreSQL integration contract
@@ -518,3 +517,26 @@ Record exact commands, runtime versions, pass/skip counts, and unexercised
 provider checks in a dated report outside current docs. Do not turn one run's
 pass count into a permanent architecture guarantee or mark skipped PostgreSQL
 tests as validation. No test result alone verifies the live deployment.
+
+## Persisted browser request recovery
+
+Recovery journal/controller units cover exact original envelopes, actor/session/
+instance isolation, stale owner writes, bounded capacity, corrupt or unavailable
+storage, unknown/denied evidence and domain-specific receipt settlement. Protocol
+tests reconstruct create/XP/delete/settings after page-owner replacement, confirm
+the same wire identities, preserve newer creation/character state and reject
+cross-scope replay. Settings buffer restoration retains original ownership.
+
+Join metadata tests verify stable retained-session scope and absent capability
+for legacy rows without a creation identity. Welcome tests verify explicit client
+opt-in so old closed validators remain compatible. Existing backend reconstructed
+service duplicate tests remain the effect-once boundary; browser mocks are not
+PostgreSQL or complete served acceptance evidence.
+
+The native Chromium validator suite also reconstructs a request using actual tab
+storage. Both browser projects prebundle `ajv/dist/runtime/equal.js`, used by the
+generated capability validator, so cold dependency optimization cannot reload a
+running CSP test. Saved-change notice tests cover retry, deliberate forgetting
+and protocol-owner replacement. Include receipt/authority loss and tab reload in
+the final served candidate workflow; tab closure and database rollback restore
+remain separate recovery limits.

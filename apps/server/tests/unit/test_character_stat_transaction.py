@@ -12,6 +12,8 @@ from managers import character_manager
 from service.combat_engine import CombatEngine
 from service.protocol import characters
 from service.protocol.base import ServerProtocol
+from service.session_operation_receipts import OperationIdentity, stage_receipt
+from sqlalchemy import event
 from sqlalchemy.orm import Session, sessionmaker
 
 
@@ -94,6 +96,38 @@ def saved_state(linked):
         return (character.version, json.loads(character.character_data),
                 [(e.hp, e.max_hp, e.ac) for e in db.query(models.Entity).order_by(models.Entity.id)],
                 db.query(models.CharacterLog).count())
+
+
+@pytest.mark.parametrize('commit', [False, True])
+def test_borrowed_character_stage_keeps_source_projections_audit_and_outer_receipt_together(linked, commit):
+    commits = []
+    manager = character_manager.get_server_character_manager()
+    with linked.factory() as db:
+        event.listen(db, 'after_commit', lambda _: commits.append(True))
+        result = manager.stage_character_update(db, linked.session_id, linked.character_id,
+            {'data': {'stats': {'hp': 5}}}, linked.owner, expected_version=1)
+        assert result['success'] and result['version'] == 2 and not commits
+        stage_receipt(db, OperationIdentity.create(linked.session_id, linked.owner, 'staging_test',
+                      'outer-original', {'character_id': linked.character_id}), {'success': True})
+        assert not commits
+        db.commit() if commit else db.rollback()
+    assert len(commits) == int(commit)
+    state = saved_state(linked)
+    assert state[0] == (2 if commit else 1)
+    assert state[2] == [(5 if commit else 20, 20, 12)] * 3
+    assert bool(state[3]) is commit
+    with linked.factory() as db:
+        assert db.query(models.SessionOperationReceipt).count() == int(commit)
+
+
+def test_borrowed_character_stage_raises_on_partial_permission_failure_so_owner_rolls_back(linked):
+    manager = character_manager.get_server_character_manager()
+    with pytest.raises(character_manager.StagedCharacterUpdateRejected, match='member'):
+        with linked.factory() as db:
+            manager.stage_character_update(db, linked.session_id, linked.character_id,
+                {'controlledBy': [999999], 'data': {'stats': {'hp': 5}}}, linked.owner, expected_version=1)
+    state = saved_state(linked)
+    assert state[0] == 1 and state[2] == [(20, 20, 12)] * 3 and state[3] == 0
 
 
 async def test_character_version_logs_and_loaded_unloaded_token_stats_commit_together(linked):

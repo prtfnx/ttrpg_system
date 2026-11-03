@@ -6,6 +6,7 @@ Handles character persistence in the database for game sessions
 
 import json
 import uuid
+from contextlib import nullcontext
 from copy import deepcopy
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -32,6 +33,7 @@ from service.character_update_recovery import (
     PendingCharacterUpdate,
     character_update_request_id,
 )
+from service.character_update_service import StagedCharacterUpdateRejected
 from sqlalchemy import and_, or_
 from utils.logger import setup_logger
 from utils.time import utc_now
@@ -318,6 +320,13 @@ class ServerCharacterManager:
         with SessionLocal() as db:
             return public_stat_report(inspect_stat_reconciliation(db, session_id, character_id, user_id))
 
+    def stage_character_update(self, db, *args, **kwargs) -> dict[str, Any]:
+        """Validate and flush under borrowed ownership; caller commits acceptance."""
+        result = self.update_character(*args, **kwargs, _transaction=db)
+        if not result.get('success'):
+            raise StagedCharacterUpdateRejected(result)
+        return result
+
     def update_character(
         self,
         session_id: int,
@@ -328,6 +337,7 @@ class ServerCharacterManager:
         bypass_owner_check: bool = False,
         allow_advancement_updates: bool = False,
         stat_reconciliation_digest: str | None = None,
+        *, _transaction=None,
     ) -> Dict[str, Any]:
         """Perform a versioned update of a character's JSON data in a single DB transaction.
         Merges JSON if appropriate and enforces optimistic concurrency if expected_version provided.
@@ -337,7 +347,7 @@ class ServerCharacterManager:
         try:
             if self.update_recovery.has_pending(session_id):
                 raise CharacterUpdateOutcomeUnknown('Resolve the pending character update first')
-            with SessionLocal() as db:
+            with (SessionLocal() if _transaction is None else nullcontext(_transaction)) as db:
                 # Validate session and character presence
                 session = db.query(GameSession).filter(GameSession.id == session_id).with_for_update().first()
                 if not session:
@@ -431,7 +441,8 @@ class ServerCharacterManager:
                 }, synchronize_session=False)
 
                 if affected != 1:
-                    db.rollback()
+                    if _transaction is None:
+                        db.rollback()
                     latest_version = db.query(SessionCharacter.version).filter(
                         SessionCharacter.character_id == character_id,
                         SessionCharacter.session_id == session_id,
@@ -451,7 +462,8 @@ class ServerCharacterManager:
                         user_id,
                     )
                     if permission_error:
-                        db.rollback()
+                        if _transaction is None:
+                            db.rollback()
                         return {'success': False, 'error': permission_error}
 
                 # Auto-log key character changes
@@ -473,12 +485,13 @@ class ServerCharacterManager:
                 }
                 if stat_reconciliation_digest is not None:
                     result['applied_updates'] = deepcopy(updates)
-                attempt = PendingCharacterUpdate(
-                    session_id, character_id, user_id, character_update_request_id.get(),
-                    int(current_version), str(char_payload), merged_json, deepcopy(result), deepcopy(updates),
-                    reconciliation_digest=stat_reconciliation_digest,
-                )
-                db.commit()
+                if _transaction is None:
+                    attempt = PendingCharacterUpdate(
+                        session_id, character_id, user_id, character_update_request_id.get(),
+                        int(current_version), str(char_payload), merged_json, deepcopy(result), deepcopy(updates),
+                        reconciliation_digest=stat_reconciliation_digest,
+                    )
+                    db.commit()
             return result
 
         except CharacterUpdateOutcomeUnknown:
@@ -489,6 +502,8 @@ class ServerCharacterManager:
             return {'success': False, 'error': str(e)}
 
         except Exception as e:
+            if _transaction is not None:
+                raise
             if attempt is not None:
                 return self._settle_failed_update(attempt, e)
             logger.error(f"Error updating character: {e}")

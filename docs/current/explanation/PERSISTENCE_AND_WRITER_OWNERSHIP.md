@@ -233,3 +233,16 @@ prove the original outcome. Browser records are not server effect storage, and
 tab closure/storage clearing can remove them. Existing server receipts remain
 the acceptance authority. Full restore and served-candidate qualification remain
 open release gates.
+
+## Borrowed character acceptance stage
+
+`ServerCharacterManager.stage_character_update` reuses the existing character
+validation, version check, sharing policy, audit and linked-token projection
+rules inside a caller-owned SQLAlchemy transaction. It flushes without committing
+or rolling back that transaction. A failed stage raises
+`StagedCharacterUpdateRejected`; the owner must roll back the whole acceptance.
+This prevents a late sharing-policy failure from leaving a provisional source
+version available for accidental commit. Standalone `update_character` keeps its
+existing transaction and in-process recovery behavior. Regression owner:
+`test_character_stat_transaction.py` verifies the stage and an outer receipt
+commit/rollback together with no nested commit.

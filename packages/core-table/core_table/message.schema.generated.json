@@ -672,6 +672,19 @@
         "choice_encounter"
       ],
       "properties": {
+        "operation_recovery": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "object", "required": ["contract", "session_instance", "domains"], "additionalProperties": false,
+              "properties": {
+                "contract": {"const": "session-operations-v1"},
+                "session_instance": {"type": "string", "minLength": 1, "maxLength": 128},
+                "domains": {"type": "array", "maxItems": 4, "uniqueItems": true,
+                  "items": {"enum": ["table_create", "table_delete", "table_settings", "xp_award"]}}
+              }
+            }
+          ]
+        },
         "message": {
           "type": "string",
           "minLength": 1

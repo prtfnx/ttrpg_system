@@ -288,3 +288,12 @@ targeting a table UUID. Actor/session and revision fields are server-owned.
 `table_deleted: true` without obsolete settings. The full settings shape remains
 required for ordinary events. Both validators are generated from the canonical
 schema. Regression owner: `packages/core-table/tests/test_protocol_schema.py`.
+
+## Advertised operation recovery scope
+
+The optional welcome `operation_recovery` object identifies the
+`session-operations-v1` contract, a bounded `session_instance` and supported
+domains (`table_create`, `table_delete`, `table_settings`, `xp_award`). Null or
+absent context does not authorize automatic durable replay. The existing welcome
+user/session fields supply authenticated scope; a stored request cannot supply
+it. Both generated validators reject unknown contracts, domains and fields.

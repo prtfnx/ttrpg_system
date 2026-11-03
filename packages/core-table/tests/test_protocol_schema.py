@@ -622,3 +622,16 @@ def test_settings_receipt_can_reconcile_a_later_deleted_table_without_old_settin
         Message.from_dict(message)
 
 
+@pytest.mark.parametrize('context', [None, {'contract': 'session-operations-v1',
+    'session_instance': '1:2026-10-30T00:00:00', 'domains': ['table_create', 'xp_award']}])
+def test_welcome_admits_only_explicit_bounded_recovery_context(context):
+    data = {'message': 'Welcome', 'client_id': 'client', 'user_id': 1, 'username': 'Owner',
+        'session_code': 'ROOM', 'connection_id': None, 'tables': [], 'role': 'owner', 'permissions': [],
+        'visible_layers': [], 'game_mode': 'free_roam', 'session_rules': {}, 'choice_encounter': None,
+        'operation_recovery': context}
+    Message.from_dict({'type': 'welcome', 'data': data})
+    data['operation_recovery'] = {'contract': 'old', 'session_instance': 'x', 'domains': ['xp_award']}
+    with pytest.raises(ValueError):
+        Message.from_dict({'type': 'welcome', 'data': data})
+
+

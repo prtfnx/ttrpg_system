@@ -222,3 +222,26 @@ its token version. Demo setup uses a disabled internal host, not a shared login.
 Verify with `test_demo_system.py`, `test_demo_guest_migration.py`, and the
 auth route and browser auth-service suites. See [Security](../operations/SECURITY.md)
 for the limits that also apply to guests.
+
+## Saved high-risk requests after reconnect or reload
+
+With negotiated receipt support, the browser retains original create/copy/import,
+delete, settings and XP requests in tab-scoped session storage. Recovery waits
+for the authenticated welcome and matches actor, session code and retained
+database session instance. Another account or replacement session cannot inherit
+those requests. Current database authority still gates every receipt replay;
+revoked lookup authority does not prove an earlier operation failed.
+
+The protocol provider shows an **Unconfirmed saved changes** notice while saved
+requests remain unresolved or storage needs attention. **Retry saved requests**
+keeps their original identities. An explicit second choice can forget the
+current scope's recovery records; the notice explains that forgetting does not
+cancel/undo a change or prove its outcome. Forgetting also removes unsent owned
+transport members. Storage errors pause supported high-risk sends while reads
+remain available. Reconnect is required before retrying offline records.
+
+Logout/navigation do not silently discard uncertain evidence. It remains scoped
+to the original actor and retained session, and can be recovered only under a
+matching authenticated welcome. Session storage is limited to the current tab;
+tab closure or browser storage clearing can remove it. No credentials are stored
+in the journal. Generic character-edit recovery remains a separate contract.

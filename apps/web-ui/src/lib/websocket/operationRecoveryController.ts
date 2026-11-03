@@ -114,6 +114,10 @@ export class OperationRecoveryController {
   }
 
   replay(manual = false): void {
+    if (manual && !this.options.isOpen()) {
+      this.error = 'Reconnect to confirm saved changes.';
+      this.notify(); return;
+    }
     if (manual && !this.journal && this.lastWelcome?.operation_recovery) this.welcome(this.lastWelcome);
     if (!this.verified || !this.journal || !this.options.isOpen()) return;
     if (!this.mayReplay) {

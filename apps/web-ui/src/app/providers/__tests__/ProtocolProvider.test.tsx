@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => {
     connect: vi.fn().mockResolvedValue(undefined),
     disconnect: vi.fn(),
     isConnected: vi.fn(() => true),
+    getOperationRecoveryStatus: vi.fn(() => ({ pending: 0, blocked: 0, error: null })),
+    retrySavedOperations: vi.fn(),
+    discardSavedOperations: vi.fn(),
     getConnectionDiagnostics: vi.fn(() => ({ instanceId: 'protocol-test', state: 'connected' })),
     onConnectionStateChange: vi.fn((listener) => {
       stateListener = listener;

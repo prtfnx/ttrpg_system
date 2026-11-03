@@ -1,4 +1,5 @@
 import { authService } from '@features/auth';
+import { OperationRecoveryNotice } from '@features/session/components/OperationRecoveryNotice';
 import { ProtocolService } from '@lib/api/ProtocolService';
 import { WebClientProtocol } from '@lib/websocket';
 import { logger } from '@shared/utils/logger';
@@ -167,6 +168,7 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
   return (
     <ProtocolContext.Provider value={value}>
       {children}
+      <OperationRecoveryNotice protocol={protocol} />
     </ProtocolContext.Provider>
   );
 }

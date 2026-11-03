@@ -115,6 +115,8 @@ def test_movement_policy_and_table_settings_round_trip(canvas_db):
         table = db.query(VirtualTable).filter_by(table_id="table-one").one()
         assert table.ambient_light_level == 0.25
         assert table.grid_enabled is False
+        assert table.settings_revision == 1
+    assert service.load_table_hydration('table-one').settings_revision == 1
 
 
 def test_entity_character_lookup_returns_only_scalar_data(canvas_db):

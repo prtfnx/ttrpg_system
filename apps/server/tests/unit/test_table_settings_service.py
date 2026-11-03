@@ -49,6 +49,7 @@ def test_patch_receipt_and_revision_accept_once_and_replay_reads_current_state(s
     accepted = settings.service.execute(settings.intent())
     assert accepted.settings is not None and accepted.settings['settings_revision'] == 1
     assert accepted.receipt['changed'] and accepted.receipt['accepted_revision'] == 1
+    assert settings.service.execute(settings.intent(grid_cell_px=75.0)).replayed
     settings.service.execute(settings.intent('later', grid_cell_px=90, background_color_hex='#ABCDEF'))
     replay = TableSettingsService(settings.factory).execute(settings.intent())
     assert replay.replayed and replay.receipt == accepted.receipt
@@ -69,6 +70,21 @@ def test_noop_still_has_durable_identity_without_incrementing_revision(settings)
         assert db.query(models.VirtualTable).filter_by(table_id=settings.table_id).one().settings_revision == 0
     with pytest.raises(OperationRejected, match='different input'):
         settings.service.execute(settings.intent())
+
+
+def test_legacy_nullable_settings_produce_a_valid_current_outcome(settings):
+    from core_table.protocol import Message, MessageType
+
+    with settings.factory() as db:
+        table = db.query(models.VirtualTable).filter_by(table_id=settings.table_id).one()
+        for field in ('fog_exploration_mode', 'distance_unit', 'grid_color_hex', 'background_color_hex'):
+            setattr(table, field, None)
+        db.commit()
+    accepted = settings.service.execute(settings.intent())
+    assert accepted.settings is not None
+    Message.from_json(Message(MessageType.TABLE_SETTINGS_CHANGED,
+                              {**accepted.receipt, **accepted.settings, 'replayed': False}).to_json())
+    assert accepted.settings['distance_unit'] == 'ft' and accepted.settings['grid_color_hex'] == '#ffffff'
 
 
 def test_scope_authority_and_dirty_source_are_checked_before_acceptance(settings):

@@ -20,6 +20,9 @@ from service.session_operation_receipts import (
 )
 from sqlalchemy.orm import Session
 
+_NULLABLE_DEFAULTS = {'fog_exploration_mode': 'current_only', 'distance_unit': 'ft',
+                      'grid_color_hex': '#ffffff', 'background_color_hex': '#2a3441'}
+
 
 @dataclass(frozen=True)
 class TableSettingsIntent:
@@ -57,6 +60,8 @@ class TableSettingsIntent:
                     patch[key] = value.lower()
             if not valid:
                 raise OperationRejected(f'Invalid setting: {key}')
+            if key in ('ambient_light_level', 'grid_cell_px', 'cell_distance'):
+                patch[key] = float(value)
         identity = OperationIdentity.create(session_id, actor_id, 'table_settings', request_id,
                                              {'table_id': table_id, **patch})
         return cls(identity, table_id, patch)
@@ -79,8 +84,11 @@ class TableSettingsService:
         table = db.query(models.VirtualTable).filter_by(table_id=intent.table_id,
             session_id=intent.identity.session_id).with_for_update().one_or_none()
         if table is not None:
-            return table, {**{name: getattr(table, name) for name in models.TABLE_SETTINGS_FIELDS},
-                           'settings_revision': table.settings_revision}
+            settings = {name: getattr(table, name) for name in models.TABLE_SETTINGS_FIELDS}
+            for name, default in _NULLABLE_DEFAULTS.items():
+                if settings[name] is None:
+                    settings[name] = default
+            return table, {**settings, 'settings_revision': table.settings_revision}
         retired = db.get(models.TableDeletionTombstone, intent.table_id)
         if retired is None or retired.session_id != intent.identity.session_id:
             raise OperationRejected('Table not found in this session', 'forbidden')

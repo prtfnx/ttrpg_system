@@ -340,6 +340,117 @@ def test_table_creation_lookup_waits_for_original_transaction(session_operations
 
 
 @pytest.fixture
+def table_settings_postgresql(session_operations_postgresql):
+    from core_table.table import VirtualTable
+    from database import crud
+    from service.table_settings_service import TableSettingsIntent, TableSettingsService
+
+    scope = session_operations_postgresql
+    table = VirtualTable('Settings contract', 1000, 1000)
+    with scope.factory() as db:
+        crud.save_table_to_db(db, table, scope.session_id)
+    intent = TableSettingsIntent.create(scope.session_id, scope.actor_id, 'settings-original',
+                                        {'table_id': str(table.table_id), 'grid_cell_px': 75})
+    return SimpleNamespace(**vars(scope) | {'table_id': str(table.table_id), 'intent': intent,
+                                           'service': TableSettingsService(scope.factory)})
+
+
+@pytest.mark.parametrize('fail_after_flush', [False, True])
+def test_settings_patch_revision_and_receipt_share_acceptance(table_settings_postgresql, monkeypatch, fail_after_flush):
+    from service import table_settings_service
+    from service.session_operation_receipts import OperationRejected
+
+    scope = table_settings_postgresql
+    if fail_after_flush:
+        stage = table_settings_service.stage_receipt
+
+        def fail(*args):
+            stage(*args)
+            raise RuntimeError('After settings/revision/receipt flush')
+
+        monkeypatch.setattr(table_settings_service, 'stage_receipt', fail)
+        with pytest.raises(OperationRejected):
+            scope.service.execute(scope.intent)
+    else:
+        assert not scope.service.execute(scope.intent).replayed
+        assert scope.service.execute(scope.intent).replayed
+    with scope.factory() as db:
+        table = db.query(models.VirtualTable).filter_by(table_id=scope.table_id).one()
+        assert (table.grid_cell_px, table.settings_revision) == ((50, 0) if fail_after_flush else (75, 1))
+        assert db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id).count() == int(not fail_after_flush)
+
+
+def test_concurrent_same_intent_settings_accept_once(table_settings_postgresql):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from service.table_settings_service import TableSettingsService
+
+    scope, barrier = table_settings_postgresql, threading.Barrier(2)
+
+    def execute():
+        barrier.wait(timeout=5)
+        return TableSettingsService(scope.factory).execute(scope.intent)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = [future.result(timeout=10) for future in [executor.submit(execute) for _ in range(2)]]
+    assert sorted(result.replayed for result in results) == [False, True]
+    with scope.factory() as db:
+        assert db.query(models.VirtualTable).filter_by(table_id=scope.table_id).one().settings_revision == 1
+        assert db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id).count() == 1
+
+
+@pytest.mark.parametrize('commit', [False, True])
+def test_settings_lookup_waits_for_original_transaction(table_settings_postgresql, postgresql_engine, commit):
+    from database import crud, schemas
+    from service.session_operation_receipts import lock_operation_session, stage_receipt
+    from service.table_settings_service import TableSettingsService
+
+    scope, ready = table_settings_postgresql, threading.Event()
+    writer, results, errors, pids = scope.factory(), [], [], []
+
+    def reader_factory():
+        db = scope.factory()
+        pids.append(db.execute(text('SELECT pg_backend_pid()')).scalar_one())
+        ready.set()
+        return db
+
+    def lookup():
+        try:
+            results.append(TableSettingsService(reader_factory).resolve(scope.intent))
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=lookup, daemon=True)
+    try:
+        lock_operation_session(writer, scope.intent.identity)
+        crud.update_virtual_table(writer, scope.table_id, schemas.VirtualTableUpdate(grid_cell_px=75), commit=False)
+        stage_receipt(writer, scope.intent.identity, {'success': True, 'table_id': scope.table_id})
+        writer_pid = writer.execute(text('SELECT pg_backend_pid()')).scalar_one()
+        reader.start()
+        assert ready.wait(3)
+        deadline, blocked = time.monotonic() + 3, False
+        with postgresql_engine.connect().execution_options(isolation_level='AUTOCOMMIT') as observer:
+            while time.monotonic() < deadline:
+                blockers = observer.execute(text('SELECT pg_blocking_pids(:pid)'), {'pid': pids[0]}).scalar_one()
+                if writer_pid in blockers:
+                    blocked = True
+                    break
+                time.sleep(.01)
+        assert blocked and not results and not errors
+        writer.commit() if commit else writer.rollback()
+        reader.join(timeout=5)
+        assert not reader.is_alive() and not errors and len(results) == 1
+        assert (results[0] is not None) is commit
+        if commit:
+            assert results[0].settings['settings_revision'] == 1
+    finally:
+        writer.rollback()
+        writer.close()
+        if reader.ident is not None:
+            reader.join(timeout=6)
+
+
+@pytest.fixture
 def table_deletion_postgresql(session_operations_postgresql):
     from core_table.table import VirtualTable
     from database import crud

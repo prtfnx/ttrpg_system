@@ -160,6 +160,23 @@ and wall removal, reattaches the renderer, rejects delayed deleted-scene hydrati
 and frames a different table. Run it against the candidate's generated artifacts;
 local uncommitted artifacts do not qualify a committed release candidate.
 
+Settings tests cover original-intent/current-state replay, no-op receipt
+acceptance, revision preservation after actor cleanup, changed-payload rejection,
+foreign/retired targets, unresolved dirty targets, strict values and normalized
+numeric/color input. Settings/revision/receipt flush failures roll back together.
+Real dispatch verifies unknown-outcome read/snapshot quarantine, post-commit
+cache recovery, role/actor removal and repeated cancellation through publication.
+Existing CRUD and hydration regressions verify revision propagation.
+
+PostgreSQL settings contracts exercise independent duplicate workers, atomic
+patch/revision/receipt acceptance and rollback, and observed stable session-lock
+waits through original commit/rollback. Skipped cases remain unqualified.
+Browser tests fence older revisions, preserve newer intent, retain unknown
+original messages through canonical hydration, and bound exact retries per
+connection before releasing newer patches. There is no cross-page persisted
+settings queue. The Chromium message validator test checks the generated schema
+without runtime dynamic code generation.
+
 ### PostgreSQL integration contract
 
 Database-sensitive integration tests use an explicitly disposable database from

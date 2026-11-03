@@ -15,7 +15,7 @@ Alembic is the only hosted schema authority:
 - revisions: `apps/server/database/alembic/versions/`;
 - deployed revision ledger: `alembic_version`;
 - baseline: `0001_postgresql_baseline`;
-- current head: `0014_table_deletion_tombstones`.
+- current head: `0015_table_settings_revision`.
 
 Revision 0011 adds `game_players.selection_mode`, non-null with the default
 `separate`. Existing memberships keep separate selection. The authenticated
@@ -222,3 +222,11 @@ Python context manager.
 See [Writer handover](WRITER_HANDOVER.md) for rollback and manual maintenance
 constraints. Schema-owner credentials do not make an uninstrumented DML
 transaction exempt from the trigger.
+
+Revision `0015_table_settings_revision` adds non-null
+`virtual_tables.settings_revision`, initialized to zero for existing tables.
+The existing table writer guard covers it. This durable counter orders settings
+state independently of actor receipt retention; it does not backfill historical
+request receipts. Deploy the migration before code that reads this field.
+Downgrading drops the counter while preserving settings values, so it discards
+revision ordering evidence. Preserve revision state with receipts in backups.

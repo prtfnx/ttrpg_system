@@ -115,6 +115,13 @@ class GamePlayer(Base):
     session = relationship("GameSession", back_populates="players")
     user = relationship("User")
 
+TABLE_SETTINGS_FIELDS = (
+    'dynamic_lighting_enabled', 'fog_exploration_mode', 'ambient_light_level',
+    'grid_cell_px', 'cell_distance', 'distance_unit', 'grid_enabled', 'snap_to_grid',
+    'grid_color_hex', 'background_color_hex',
+)
+
+
 class VirtualTable(Base):
     __tablename__ = "virtual_tables"
 
@@ -137,6 +144,7 @@ class VirtualTable(Base):
     layer_settings: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON: {"tokens": {"opacity": 1.0, "tint_color": [...], ...}}
 
     # Dynamic lighting (per-table, DM-controlled)
+    settings_revision: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
     dynamic_lighting_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     fog_exploration_mode: Mapped[Optional[str]] = mapped_column(String(20), default='current_only')
     ambient_light_level: Mapped[float] = mapped_column(Float, default=1.0)

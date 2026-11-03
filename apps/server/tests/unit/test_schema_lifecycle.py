@@ -31,4 +31,4 @@ def test_schema_lifecycle_tracks_repository_head(tmp_path):
 
 def test_repository_baseline_matches_all_model_tables():
     assert len(Base.metadata.tables) == 36
-    assert repository_heads() == ("0014_table_deletion_tombstones",)
+    assert repository_heads() == ("0015_table_settings_revision",)

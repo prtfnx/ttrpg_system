@@ -7,14 +7,14 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
-from database.models import Base, GameSession, User, VirtualTable
+from database.models import Base, GameSession, User
 from database.url import normalize_database_url
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session
 
 SERVER_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_INI = SERVER_ROOT / "alembic.ini"
-HEAD_REVISION = "0014_table_deletion_tombstones"
+HEAD_REVISION = "0015_table_settings_revision"
 
 
 def _config(monkeypatch, database_url: str) -> Config:
@@ -60,6 +60,34 @@ def test_baseline_upgrades_an_empty_database_to_model_head(tmp_path, monkeypatch
     command.check(config)
 
 
+def test_settings_revision_migration_preserves_existing_table_settings(tmp_path, monkeypatch):
+    database_url = f"sqlite:///{(tmp_path / 'settings-upgrade.db').as_posix()}"
+    config = _config(monkeypatch, database_url)
+    command.upgrade(config, '0014_table_deletion_tombstones')
+    engine = create_engine(database_url)
+    try:
+        with Session(engine) as db:
+            db.add(User(id=1, username='owner', hashed_password='unused'))
+            db.flush()
+            db.add(GameSession(id=1, name='Game', session_code='SETTINGS', owner_id=1))
+            db.flush()
+            _seed_old_table(db, 1, 'scene', 'Preserved', 75)
+            db.commit()
+        command.upgrade(config, 'head')
+        with engine.connect() as connection:
+            assert connection.execute(text('SELECT name, grid_cell_px, settings_revision FROM virtual_tables')).one() == ('Preserved', 75, 0)
+    finally:
+        engine.dispose()
+
+
+def _seed_old_table(db, session_id, table_id, name, grid_cell_px=50):
+    db.execute(text('INSERT INTO virtual_tables (table_id, name, width, height, session_id, '
+                    'position_x, position_y, scale_x, scale_y, dynamic_lighting_enabled, '
+                    'ambient_light_level, grid_cell_px, cell_distance, grid_enabled, snap_to_grid) '
+                    'VALUES (:table_id, :name, 1000, 1000, :session_id, 0, 0, 1, 1, 0, 1, :grid_cell_px, 5, 1, 1)'),
+               dict(table_id=table_id, name=name, session_id=session_id, grid_cell_px=grid_cell_px))
+
+
 def test_baseline_downgrade_drops_application_schema(tmp_path, monkeypatch):
     database_path = tmp_path / "downgrade.db"
     database_url = f"sqlite:///{database_path.as_posix()}"
@@ -94,13 +122,8 @@ def test_paint_migration_seeds_state_for_existing_tables(tmp_path, monkeypatch):
             )
             db.add(session)
             db.flush()
-            db.add(VirtualTable(
-                table_id="9e8ed60d-f18c-4f47-a5ce-fc04db50506a",
-                name="Existing table",
-                width=1000,
-                height=1000,
-                session_id=session.id,
-            ))
+            # Seed the old schema without relying on columns added to today's ORM.
+            _seed_old_table(db, session.id, '9e8ed60d-f18c-4f47-a5ce-fc04db50506a', 'Existing table')
             db.commit()
 
         command.upgrade(config, "head")

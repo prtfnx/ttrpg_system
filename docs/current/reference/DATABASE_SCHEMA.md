@@ -179,7 +179,7 @@ apps/server/database/alembic/versions/
 ```
 
 The PostgreSQL baseline is `0001_postgresql_baseline`; incremental revisions
-through the current `0014_table_deletion_tombstones` head add later behavior.
+through the current `0015_table_settings_revision` head add later behavior.
 `0007_demo_guest_expiry` adds guest expiry and revokes the legacy demo host;
 `0008_application_writer` seeds the owner record and installs PostgreSQL
 statement triggers. `0009_table_previews` adds `preview_image`, `preview_etag`,
@@ -235,3 +235,11 @@ coordination table is excluded. New tables need an explicit trigger migration;
 autogenerate/model drift checks do not verify triggers. See
 [Persistence and application ownership](../explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md)
 and [Add a database migration](../how-to/ADD_DATABASE_MIGRATION.md).
+
+Revision `0015_table_settings_revision` adds non-null
+`virtual_tables.settings_revision`, initialized to zero for existing tables.
+The existing table writer guard covers it. This durable counter orders settings
+state independently of actor receipt retention; it does not backfill historical
+request receipts. Deploy the migration before code that reads this field.
+Downgrading drops the counter while preserving settings values, so it discards
+revision ordering evidence. Preserve revision state with receipts in backups.

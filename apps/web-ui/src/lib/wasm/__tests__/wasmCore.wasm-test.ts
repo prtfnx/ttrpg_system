@@ -60,6 +60,55 @@ function hydrateEmptyTable(engine: RenderEngine, tableId: string): void {
 }
 
 describe('WASM module (real browser)', () => {
+  it('clears a deleted scene and cannot restore it after real renderer reattachment', async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 220; canvas.height = 140;
+    document.body.append(canvas);
+    const runtime = new WasmRuntime();
+    const tableId = '550e8400-e29b-41d4-a716-446655440029';
+    const nextId = '550e8400-e29b-41d4-a716-446655440030';
+    const payload = (id: string) => ({ table_data: {
+      table_id: id, table_name: 'Deletion lifecycle', width: 200, height: 120,
+      scale: 1, grid_enabled: false,
+      layers: { tokens: [{ sprite_id: 'retired-token', coord_x: 20, coord_y: 50, width: 20, height: 20 }] },
+      walls: [{ wall_id: 'retired-wall', x1: 50, y1: 20, x2: 50, y2: 100,
+        blocks_light: true, blocks_sight: true }],
+    } });
+    const previous = useGameStore.getState();
+    try {
+      runtime.start();
+      await runtime.attachCanvas(canvas, { userId: 1, role: 'owner', activeLayer: 'tokens' });
+      useGameStore.setState({ activeTableId: tableId });
+      emitProtocolEvent('table-response', payload(tableId));
+      await vi.waitFor(() => expect(runtime.status.frameTableId).toBe(tableId));
+      const engine = runtime.getRenderEngine()!;
+      expect(engine.get_layer_sprite_count('tokens')).toBe(1);
+      expect(engine.get_wall_ids()).toEqual(['retired-wall']);
+      // The protocol clears the active pointer before notifying runtime owners.
+      useGameStore.setState({ activeTableId: null, sprites: [], walls: [] });
+      emitProtocolEvent('table-deleted', { table_id: tableId });
+      engine.render();
+      expect(engine.get_layer_sprite_count('tokens')).toBe(0);
+      expect(engine.get_sprite_position('retired-token')).toBeUndefined();
+      expect(engine.get_wall_ids()).toEqual([]);
+      expect(runtime.status.hydratedTableId).toBeNull();
+      expect(runtime.status.frameTableId).toBeNull();
+      expect(runtime.captureActiveTableThumbnail(tableId, 100, 100)).toBeNull();
+
+      runtime.detachCanvas();
+      await runtime.attachCanvas(canvas, { userId: 1, role: 'owner', activeLayer: 'tokens' });
+      emitProtocolEvent('table-response', payload(tableId));
+      expect(runtime.status.hydratedTableId).toBeNull();
+      expect(runtime.getRenderEngine()?.get_layer_sprite_count('tokens')).toBe(0);
+      useGameStore.setState({ activeTableId: nextId });
+      emitProtocolEvent('table-response', payload(nextId));
+      await vi.waitFor(() => expect(runtime.status.frameTableId).toBe(nextId));
+      expect(runtime.getRenderEngine()?.get_layer_sprite_count('tokens')).toBe(1);
+    } finally {
+      runtime.dispose(); canvas.remove();
+      useGameStore.setState(previous);
+    }
+  });
   it('accepts a Python-serialized table only after canonical DTO conversion', () => {
     const snapshot = normalizeTableSnapshot({
       table_data: {

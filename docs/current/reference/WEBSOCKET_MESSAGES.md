@@ -342,3 +342,24 @@ implementation, rather than the reason text, decides retry behavior.
 
 See [Environment variables](ENVIRONMENT_VARIABLES.md) for settings and
 [Writer handover](../operations/WRITER_HANDOVER.md) for process replacement.
+
+## Table deletion identity and outcome
+
+`table_delete` requires an original `message_id` of 1-128 characters, a bounded
+nonnegative numeric timestamp, and a closed payload containing only `table_id`
+as a UUID. Authenticated connection context supplies the actor and session.
+Current database DM authority is checked before acceptance or receipt replay.
+Table resources, matching active-member pointers, permanent session-lifetime
+retirement and the `table_delete` domain receipt share one transaction. Active
+combat/choice encounters must end before deletion.
+
+The correlated `success` response carries `success: true`, `operation: delete`,
+`operation_id`, `table_id`, `already_deleted`, `replayed` and `resync_required`.
+Peers receive `table_update` with `operation: delete` and the table UUID.
+Reusing an accepted request ID with changed input returns `conflict`. A different
+deliberate deletion of an already-retired table in the same session accepts a
+no-op outcome; unknown/foreign identities reject. An unavailable commit lookup
+returns `outcome_unknown` and quarantines serialized state work and snapshots
+until recovery proves deletion or rollback. Notification failure after acceptance
+requires resync rather than another newly identified delete. The browser API can
+retain the original request ID, but has no persisted uncertain-deletion queue.

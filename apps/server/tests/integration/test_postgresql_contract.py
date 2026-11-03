@@ -137,6 +137,7 @@ def session_operations_postgresql(postgresql_engine):
                 db.delete(table)
             db.flush()
             db.query(models.CharacterLog).filter_by(session_id=session_id).delete()
+            db.query(models.GamePlayer).filter_by(session_id=session_id).delete()
             db.query(models.SessionCharacter).filter_by(character_id=character_id).delete()
             db.query(models.GameSession).filter_by(id=session_id).delete()
             db.query(models.User).filter_by(id=actor_id).delete()
@@ -315,6 +316,135 @@ def test_table_creation_lookup_waits_for_original_transaction(session_operations
         lock_operation_session(writer, intent.identity)
         stage_new_table_snapshot(writer, VirtualTable('Scene', 2000, 2000, table_id=intent.table_id), scope.session_id)
         stage_receipt(writer, intent.identity, {'success': True, 'table_id': intent.table_id})
+        writer_pid = writer.execute(text('SELECT pg_backend_pid()')).scalar_one()
+        reader.start()
+        assert ready.wait(3)
+        deadline, blocked = time.monotonic() + 3, False
+        with postgresql_engine.connect().execution_options(isolation_level='AUTOCOMMIT') as observer:
+            while time.monotonic() < deadline:
+                blockers = observer.execute(text('SELECT pg_blocking_pids(:pid)'), {'pid': pids[0]}).scalar_one()
+                if writer_pid in blockers:
+                    blocked = True
+                    break
+                time.sleep(.01)
+        assert blocked and not results and not errors
+        writer.commit() if commit else writer.rollback()
+        reader.join(timeout=5)
+        assert not reader.is_alive() and not errors and len(results) == 1
+        assert (results[0] is not None) is commit
+    finally:
+        writer.rollback()
+        writer.close()
+        if reader.ident is not None:
+            reader.join(timeout=6)
+
+
+@pytest.fixture
+def table_deletion_postgresql(session_operations_postgresql):
+    from core_table.table import VirtualTable
+    from database import crud
+    from service.table_deletion_service import TableDeleteIntent, TableDeletionService
+
+    scope = session_operations_postgresql
+    table = VirtualTable('Delete contract', 1000, 1000)
+    table.add_entity({'sprite_id': str(uuid.uuid4()), 'character_id': scope.character_id})
+    table_id = str(table.table_id)
+    with scope.factory() as db:
+        crud.save_table_to_db(db, table, scope.session_id)
+        db.add_all([
+            models.GamePlayer(session_id=scope.session_id, user_id=scope.actor_id, role='owner', active_table_id=table_id),
+            models.Wall(wall_id=str(uuid.uuid4()), table_id=table_id, x1=0, y1=0, x2=1, y2=1),
+            models.PaintObject(id=str(uuid.uuid4()), table_id=table_id, kind='line', geometry={},
+                               transform={}, style={}, created_by=scope.actor_id, z_order=1),
+            models.CanvasCommandJournal(table_id=table_id, actor_id=scope.actor_id, operation_id=str(uuid.uuid4()),
+                                        kind='paint', state='accepted', request_hash='a' * 64, result_json={}),
+        ])
+        db.commit()
+    intent = TableDeleteIntent.create(scope.session_id, scope.actor_id, 'delete-original', {'table_id': table_id})
+    return SimpleNamespace(**vars(scope) | {'table': table, 'table_id': table_id, 'intent': intent,
+                                           'service': TableDeletionService(scope.factory)})
+
+
+@pytest.mark.parametrize('fail_after_flush', [False, True])
+def test_table_deletion_resources_pointers_retirement_and_receipt_share_acceptance(table_deletion_postgresql, monkeypatch, fail_after_flush):
+    from database import crud
+    from service import table_deletion_service
+    from service.session_operation_receipts import OperationRejected
+
+    scope = table_deletion_postgresql
+    if fail_after_flush:
+        stage = table_deletion_service.stage_receipt
+
+        def fail(*args):
+            stage(*args)
+            raise RuntimeError('After table deletion/tombstone/receipt flush')
+
+        monkeypatch.setattr(table_deletion_service, 'stage_receipt', fail)
+        with pytest.raises(OperationRejected):
+            scope.service.execute(scope.intent)
+    else:
+        assert not scope.service.execute(scope.intent).replayed
+        assert scope.service.execute(scope.intent).replayed
+        with scope.factory() as db, pytest.raises(ValueError, match='deleted'):
+            crud.save_table_to_db(db, scope.table, scope.session_id)
+    with scope.factory() as db:
+        for model in (models.VirtualTable, models.Wall, models.PaintState, models.PaintObject, models.CanvasCommandJournal):
+            assert db.query(model).filter_by(table_id=scope.table_id).count() == int(fail_after_flush)
+        assert db.query(models.TableDeletionTombstone).filter_by(table_id=scope.table_id).count() == int(not fail_after_flush)
+        assert db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id).count() == int(not fail_after_flush)
+        member = db.query(models.GamePlayer).filter_by(session_id=scope.session_id).one()
+        assert member.active_table_id == (scope.table_id if fail_after_flush else None)
+        assert db.query(models.SessionCharacter).filter_by(character_id=scope.character_id).one().version == 1
+
+
+def test_concurrent_table_deletions_with_one_identity_accept_once(table_deletion_postgresql):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from service.table_deletion_service import TableDeletionService
+
+    scope, barrier = table_deletion_postgresql, threading.Barrier(2)
+
+    def execute():
+        barrier.wait(timeout=5)
+        return TableDeletionService(scope.factory).execute(scope.intent)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(execute) for _ in range(2)]
+        results = [future.result(timeout=10) for future in futures]
+    assert sorted(result.replayed for result in results) == [False, True]
+    with scope.factory() as db:
+        assert db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id).count() == 1
+        assert db.query(models.TableDeletionTombstone).filter_by(table_id=scope.table_id).count() == 1
+        assert db.query(models.VirtualTable).filter_by(table_id=scope.table_id).count() == 0
+
+
+@pytest.mark.parametrize('commit', [False, True])
+def test_table_deletion_lookup_waits_for_original_transaction(table_deletion_postgresql, postgresql_engine, commit):
+    from database.crud import stage_table_deletion
+    from service.session_operation_receipts import lock_operation_session, stage_receipt
+    from service.table_deletion_service import TableDeletionService
+
+    scope, ready = table_deletion_postgresql, threading.Event()
+    writer, results, errors, pids = scope.factory(), [], [], []
+
+    def reader_factory():
+        db = scope.factory()
+        pids.append(db.execute(text('SELECT pg_backend_pid()')).scalar_one())
+        ready.set()
+        return db
+
+    def lookup():
+        try:
+            results.append(TableDeletionService(reader_factory).resolve(scope.intent))
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=lookup, daemon=True)
+    try:
+        lock_operation_session(writer, scope.intent.identity)
+        table = writer.query(models.VirtualTable).filter_by(table_id=scope.table_id).one()
+        stage_table_deletion(writer, table, scope.actor_id)
+        stage_receipt(writer, scope.intent.identity, scope.service._result(scope.intent))
         writer_pid = writer.execute(text('SELECT pg_backend_pid()')).scalar_one()
         reader.start()
         assert ready.wait(3)

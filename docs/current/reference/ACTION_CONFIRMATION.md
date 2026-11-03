@@ -16,7 +16,8 @@ Last source audit: 2026-10-21
 | Character update/repair | Source/version/audit/linked projections share a transaction; exact in-process CAS recovery is not a durable request ledger across restart. |
 | XP award | Actor/session/domain-scoped original message identity; XP/version/audit/outcome share acceptance. See [Characters](../features/CHARACTERS_AND_COMPENDIUMS.md). |
 | Table create/copy/import | Original request receipts share table/paint-state acceptance; unknown commits fence serialized work and snapshots through verified installation. |
-| Table delete and settings | No general durable original-intent lookup; reload and reconcile before repeating an uncertain operation. R4 remains open here. |
+| Table delete | Table resources, active-member pointers, retirement tombstone and original actor/session receipt share acceptance. Unknown commits fence state work and snapshots until settlement and cache cleanup. |
+| Table settings | No general durable original-intent lookup; reload and reconcile before repeating an uncertain operation. R4 remains open here. |
 | Choice encounter transitions | Ordered snapshot/events with cancellation-safe publication; no durable retry receipt or general commit-uncertainty verifier yet. |
 
 The new `session_operation_receipts` adapter borrows the caller's transaction:
@@ -46,6 +47,17 @@ no persisted cross-page queue for uncertain create/XP intents; do not mint a new
 operation merely because the connection or acknowledgement was lost. A retry
 also retains its original authenticated actor/session scope; changing context
 does not carry an operation's receipt into the new scope.
+
+`deleteTable` returns its request identity and accepts the original ID for a
+deliberate same-target retry. A typed deletion receipt or peer event retires the
+table in browser/protocol/renderer state, clears matching unsent settings and
+commands, and cancels matching recovery timeouts. Delayed snapshots and renderer
+reattachment cannot restore it. The server retains retirement independently of
+the deleting actor's receipt, so stale background snapshots cannot recreate a
+deleted table after actor cleanup or restart. Current DM authority is still
+required to obtain an original receipt; internal cleanup does not grant it.
+There is no automatic cross-page deletion retry queue or backfill of historical
+deletions. See [Tables](../features/TABLES_AND_CANVAS.md).
 
 ## Ownership
 

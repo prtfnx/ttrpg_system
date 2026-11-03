@@ -141,6 +141,25 @@ receipt reconciliation from initial creation hydration. PostgreSQL adds concurre
 same-intent creation and observed settlement-lock waits; skipped cases are not
 database qualification. Large creation replies use the ordered snapshot outbox.
 
+Table deletion regressions in `test_table_deletion_service.py` enable SQLite
+foreign keys and cover dependent-resource/pointer/receipt/tombstone acceptance,
+rollback after flush, retained character sources and completed histories,
+active-encounter rejection, duplicate/conflicting requests, and current authority.
+Retired UUIDs cannot be reinserted by snapshots or explicit creation, including
+after actor/receipt removal. Real dispatch covers repeated cancellation through
+publication, unknown-outcome read/snapshot quarantine, dirty retry retention on
+rollback and cancellation on confirmed deletion, and post-commit cache recovery.
+PostgreSQL adds independent duplicate deleters and observed settlement-lock waits
+through commit/rollback; skips leave this acceptance gate open.
+
+Browser deletion tests cover actor receipts, inactive/active peer events, original
+retry identity, delayed snapshots and settings cancellation. Runtime tests cover
+retired pending/latest snapshots, scoped scene clearing and texture/frame/preview
+readiness. The real Chromium/WASM suite deletes a rendered scene, verifies token
+and wall removal, reattaches the renderer, rejects delayed deleted-scene hydration
+and frames a different table. Run it against the candidate's generated artifacts;
+local uncommitted artifacts do not qualify a committed release candidate.
+
 ### PostgreSQL integration contract
 
 Database-sensitive integration tests use an explicitly disposable database from

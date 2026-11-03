@@ -28,12 +28,49 @@ working files. Saved original history on
 push published exactly the oldest 11 through `8820d458`; 11 remained local
 before new work. See the [commit map](audit/release-2026-10-27/commit-map.json)
 for old/new identifiers. Short references below use the redated history.
-Next implementation target: remaining R4 durable table delete/settings outcomes
+Next implementation target: remaining R4 durable table settings outcomes
 and persisted browser ownership of uncertain create/XP intents. Create/copy/import
 receipts and session recovery are now implemented. Generic character and
 sprite/choice outcome gaps remain separate work. PostgreSQL/served qualification
 remains open alongside R2/R7; R6 restore rehearsal remains open. Encounter
 completion retains its no-automatic-write-back policy.
+
+October 29 table-deletion continuation: migration 0014 adds writer-fenced
+session-lifetime retirement independently of actor-scoped receipts. Production
+deletion commits dependent resources, active-member pointers, tombstone and
+original-intent receipt together. It preserves character sources and completed
+encounter histories and rejects deletion during active combat/choice encounters.
+Current database DM authority gates public execution/replay. Snapshot staging
+and explicit creation reject retired UUIDs after restart and actor/receipt
+removal; historical pre-migration deletions are not backfilled.
+
+Lost commit responses use the stable session-row settlement barrier. Unknown
+outcomes and post-commit cache failures fence serialized state work and snapshots.
+Confirmed deletion removes live indexes and cancels dirty retries; rollback
+retains the original live/dirty state. Repeated cancellation holds session/table
+ownership through cleanup and publication. Internal recovery can clear retired
+state after actor removal without exposing that actor's original receipt.
+
+Typed actor receipts and peer events remove active or inactive browser tables.
+Active deletion clears scene mirrors without echoing an active-table change.
+Delayed snapshots/list/active replies and renderer reattachment cannot restore
+retired identities. Runtime cleanup removes scene geometry/interactions and
+invalidates frame, texture and preview readiness. The delete API accepts the
+original request ID for deliberate retries; a persisted high-risk retry queue
+remains open, alongside settings and general character/choice outcomes.
+
+Validation: 712 server/workflow/writer cases, 670 browser/store/renderer cases,
+183 shared schema cases and 40 real Chromium/WASM cases pass. Pinned Pyright,
+TypeScript, targeted Ruff/ESLint, generated-schema drift and current-doc checks
+pass. There are 46 PostgreSQL-dependent skips (41 contract, one Alembic, four
+multi-client) and one opt-in renderer measurement skip. The new PostgreSQL
+deletion tests cover atomic acceptance/rollback, competing duplicates and
+observed settlement waits, but have not executed locally. Existing dirty WASM
+artifacts were used for local browser tests and remain uncommitted; these results
+do not qualify a reproducible release candidate. See
+[deletion validation evidence](audit/release-2026-10-29/table-deletion-validation.md).
+Work remains local in commits of at most seven files. R4 remains partial; R5-R7
+and real database/provider/restore qualification remain open.
 
 October 29 table-creation continuation: production create/copy/import now commits
 a detached table, initial paint state and actor/session/domain/original-request
@@ -324,7 +361,7 @@ For a public production service, also require automated independent backups, res
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
-| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import now have atomic receipts, original-intent replay and settlement recovery. Table delete/settings and general character/choice outcomes remain open. Canvas/sprite/paint/chat/combat retain domain mechanisms. | Finish remaining R4 domains and persisted browser recovery, then real PostgreSQL/served acceptance; do not infer universal exactly-once delivery. |
+| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete now have atomic receipts, original-intent replay and settlement recovery. Table settings and general character/choice outcomes remain open. Canvas/sprite/paint/chat/combat retain domain mechanisms. | Finish remaining R4 domains and persisted browser recovery, then real PostgreSQL/served acceptance; do not infer universal exactly-once delivery. |
 | A9: core-table imports server infrastructure | Still present. | Defer extraction; introduce only the transaction/worker adapters needed by R1-R3. |
 | A10: browser dependency cycles | Research recorded 39 cycles; the count was not rerun for this plan. | Defer wholesale cleanup. Fix a cycle only when a reproducible release workflow requires it. |
 | A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `efe187ac`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |

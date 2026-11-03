@@ -257,3 +257,21 @@ patches and survive canonical hydration. One original probe per connection can
 obtain the receipt before releasing newer patches. Neither a read nor loss of an
 acknowledgement justifies a newly identified replacement write. These settings
 records remain in memory; persisted cross-page high-risk ownership is still open.
+
+## Tab-scoped recovery journal primitives
+
+`operationRecovery.ts` retains validated original envelopes in session storage,
+one key per request. Scope includes origin (browser storage), authenticated actor,
+session code and server-advertised retained session instance. A scope is bounded
+to 64 unresolved records and 512 KiB; full or corrupt storage never evicts older
+evidence to admit a new request. Reads validate schema and key/request identity.
+No age-based cleanup turns an unresolved request into a new intent. Session
+storage survives reloads in the same tab; closing the tab or clearing browser
+storage can remove it. This does not provide a browser-restart or offline queue.
+
+`operationRecoveryController.ts` gates automatic probes on an authenticated
+matching welcome and current DM role. It keeps unknown responses, holds denied
+lookups for review and clears only correlated domain-specific acceptance. A table
+or character read is not receipt settlement. Corrupt/unavailable storage pauses
+new supported high-risk sends; explicit scoped discard does not undo a change.
+Unit owners: `operationRecovery.test.ts` and `operationRecoveryController.test.ts`.

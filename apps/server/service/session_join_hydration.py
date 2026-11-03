@@ -9,7 +9,7 @@ from utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
-def load_join_metadata(session_id: int, session_code: str, user_id: str, username: str) -> tuple[str, dict]:
+def load_join_metadata(session_id: int, session_code: str, user_id: str, username: str) -> tuple[str, dict, dict | None]:
     with SessionLocal() as db:
         session = db.get(GameSession, session_id)
         if session is None or not session.is_active or session.session_code != session_code:
@@ -26,4 +26,9 @@ def load_join_metadata(session_id: int, session_code: str, user_id: str, usernam
             logger.warning("Stored session rules are invalid", extra={
                 "event_name": "game_session.rules.invalid", "outcome": "rejected"})
             rules = {}
-        return session.game_mode or 'free_roam', rules
+        recovery = None
+        if session.created_at is not None:
+            recovery = {'contract': 'session-operations-v1',
+                'session_instance': f'{session.id}:{session.created_at.isoformat()}',
+                'domains': ['table_create', 'table_delete', 'table_settings', 'xp_award']}
+        return session.game_mode or 'free_roam', rules, recovery

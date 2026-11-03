@@ -150,19 +150,20 @@ class GameSessionProtocolService:
         """Add a client to this game session. Raises PermissionError if the player is banned."""
         game_mode = 'free_roam'
         rules_dict: dict = {}
+        recovery: dict | None = None
         # External lifecycle entry point: hold the same session lock through
         # metadata read, encounter restore, registration and welcome enqueue.
         # Already serialized handlers must not acquire this lock recursively.
         async with self.server_protocol._mutation_lock:
             if self.db_session and self.game_session_db_id:
-                game_mode, rules_dict = await run_blocking(
+                game_mode, rules_dict, recovery = await run_blocking(
                     load_join_metadata, self.game_session_db_id, self.session_code,
                     str(user_info.get('user_id', '')), user_info.get('username', ''),
                 )
-            await self._register_client(websocket, client_id, user_info, game_mode, rules_dict)
+            await self._register_client(websocket, client_id, user_info, game_mode, rules_dict, recovery)
         await self._outboxes[websocket].drain()
 
-    async def _register_client(self, websocket, client_id, user_info, game_mode, rules_dict):
+    async def _register_client(self, websocket, client_id, user_info, game_mode, rules_dict, recovery=None):
         role = user_info.get('role', 'player')
         active_encounter = await self.server_protocol._load_active_choice_encounter(self.session_code)
         choice_encounter = active_encounter.to_dict(dm=_is_dm(role)) if active_encounter else None
@@ -192,6 +193,7 @@ class GameSessionProtocolService:
                 "game_mode": game_mode,
                 "session_rules": rules_dict,
                 "choice_encounter": choice_encounter,
+                "operation_recovery": recovery,
             },
             version="0.2",
         ))

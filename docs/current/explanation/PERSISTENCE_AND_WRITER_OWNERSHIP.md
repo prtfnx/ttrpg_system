@@ -215,3 +215,11 @@ counter; browser owners reject older revisions and retain unknown original
 messages through hydration rather than treating a snapshot as an operation receipt.
 The supported in-memory settings probe is bounded to one original message per
 connection; it is not a persisted browser recovery queue.
+
+Welcome recovery capability is loaded with join metadata in the blocking worker.
+It binds the supported receipt contract to the numeric session identity and its
+stored creation timestamp. Reconstructing a live session retains that instance;
+replacing a session changes it. Legacy rows without a creation identity advertise
+no recovery capability. This is not a backup/restore generation: restoring a
+matching historical database may remove newer receipts and requires explicit
+recovery invalidation under the restore procedure before clients resume.

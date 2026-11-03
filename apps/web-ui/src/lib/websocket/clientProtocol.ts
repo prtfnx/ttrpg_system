@@ -755,7 +755,8 @@ export class WebClientProtocol {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
     protocolLogger.connection('WebSocket URL', `${protocol}//${host}/ws/game/${this.sessionCode}`);
-    const wsUrl = `${protocol}//${host}/ws/game/${this.sessionCode}${demoQuery(this.sessionCode)}`;
+    const demo = demoQuery(this.sessionCode);
+    const wsUrl = `${protocol}//${host}/ws/game/${this.sessionCode}${demo}${demo ? '&' : '?'}operation_recovery=session-operations-v1`;
     // Debug: report the exact session code the browser will use for the WS connect
     protocolLogger.connection('Connecting to session code', this.sessionCode);
 

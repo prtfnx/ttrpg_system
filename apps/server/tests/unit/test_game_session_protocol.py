@@ -101,6 +101,19 @@ async def test_full_table_larger_than_ordinary_event_budget_can_resynchronize(re
 
 @pytest.mark.asyncio
 class TestClientLifecycle:
+    @pytest.mark.parametrize('contract', [None, 'session-operations-v1'])
+    async def test_recovery_capability_requires_client_opt_in(self, contract):
+        svc, ws = _make_service(), _ws()
+        ws.scope = {'type': 'websocket', 'query_string': f'operation_recovery={contract}'.encode() if contract else b''}
+        capability = {'contract': 'session-operations-v1', 'session_instance': '1:created', 'domains': ['xp_award']}
+        await svc._register_client(ws, 'client', {'user_id': 1, 'role': 'owner'}, 'free_roam', {}, capability)
+        await svc.drain_outbound()
+        data = json.loads(ws.send_text.call_args.args[0])['data']
+        if contract:
+            assert data['operation_recovery'] == capability
+        else:
+            assert 'operation_recovery' not in data
+
     async def test_add_client_sends_welcome(self):
         svc = _make_service()
         ws = _ws()

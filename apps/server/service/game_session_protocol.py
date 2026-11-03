@@ -16,6 +16,7 @@ from core_table.server import TableManager
 from database import models as db_models
 from database.crud import append_ban_to_session
 from fastapi import WebSocket
+from starlette.datastructures import QueryParams
 from utils.blocking import run_blocking
 from utils.logger import log_context, setup_logger
 from utils.roles import can_modify_role, get_permissions, get_visible_layers
@@ -177,6 +178,9 @@ class GameSessionProtocolService:
         self.websocket_to_client[websocket] = client_id
 
         logger.info(f"Client {client_id} ({user_info.get('username', 'unknown')}) added to session {self.session_code}")
+        scope = getattr(websocket, 'scope', {})
+        query = QueryParams(scope.get('query_string', b'') if isinstance(scope, dict) else b'')
+        welcome_data = {'operation_recovery': recovery} if query.get('operation_recovery') == 'session-operations-v1' else {}
         self._enqueue_message(websocket, Message(
             MessageType.WELCOME,
             {
@@ -193,7 +197,7 @@ class GameSessionProtocolService:
                 "game_mode": game_mode,
                 "session_rules": rules_dict,
                 "choice_encounter": choice_encounter,
-                "operation_recovery": recovery,
+                **welcome_data,
             },
             version="0.2",
         ))

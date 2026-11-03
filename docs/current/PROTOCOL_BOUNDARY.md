@@ -297,3 +297,10 @@ domains (`table_create`, `table_delete`, `table_settings`, `xp_award`). Null or
 absent context does not authorize automatic durable replay. The existing welcome
 user/session fields supply authenticated scope; a stored request cannot supply
 it. Both generated validators reject unknown contracts, domains and fields.
+
+Clients opt in with the WebSocket query parameter
+`operation_recovery=session-operations-v1`. The server omits the welcome field
+for older clients, whose closed validators would reject an unknown property.
+The query requests wire capability only; it grants no authority or receipt scope.
+Unsupported servers leave stored intents untouched. Current clients still wait
+for the authenticated welcome before sending/restoring supported high-risk work.

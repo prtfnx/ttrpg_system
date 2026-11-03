@@ -4,6 +4,16 @@ Date: 2026-10-26, Europe/Kiev.
 
 Status: proposed implementation backlog; this document does not declare the remaining work complete.
 
+Continuation: 2026-10-30. Redated all 30 unpublished commits for author and
+committer in Europe/Kyiv, preserving raw identities, messages, trees and order.
+Original history remains on `backup/unpublished-before-redate-2026-10-30-55b2b006`.
+A normal fast-forward push published exactly the oldest 17 through `15e35197`;
+13 remained local before further implementation. See the
+[October 30 commit map](audit/release-2026-10-30/commit-map.json).
+Earlier short references remain historical; use the mapping for current IDs.
+Existing dirty generated WASM and untracked audit files were preserved.
+New implementation remains local in commits of at most seven files.
+
 Continuation: 2026-10-29. Redated all 24 unpublished commits for both author
 and committer in Europe/Kyiv, preserving content, identities, messages and order.
 Original history is retained on `backup/unpublished-before-redate-2026-10-29-fbe0966c`.

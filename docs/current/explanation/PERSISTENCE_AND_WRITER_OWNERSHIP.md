@@ -185,3 +185,21 @@ and rollback rules.
 - `apps/server/tests/unit/test_combat_movement_transaction.py`: atomic movement acceptance, restart, stale positions, and cancellation.
 - `apps/server/tests/unit/test_combat_persistence.py`: borrowed transactions, scope, and revision conflicts.
 - `apps/server/tests/integration/test_postgresql_contract.py`: movement/journal atomicity and duplicate replay on PostgreSQL.
+
+## Settings acceptance storage
+
+`TableSettingsService` authorizes current database DM ownership and locks the
+trusted numeric session before reading or accepting a table-scoped settings
+patch. The patch, revision and original actor/session/domain request receipt
+share one commit. Foreign or retired targets reject new intents. An identical
+patch still receives a durable receipt without incrementing the revision.
+Unresolved dirty targets reject new patches until their persistence settles.
+
+Receipt replay reads current SQL settings and revision, rather than reinstalling
+an old accepted patch. A deleted-target replay returns retirement evidence.
+Commit-response loss uses a fresh session-row barrier; unavailable evidence is
+explicitly unknown. Actor removal can remove a receipt while internal recovery
+still reads canonical state to repair the cache without disclosing an original
+outcome. `update_virtual_table` increments settings revision for actual settings
+changes, including generic CRUD/snapshot paths; the counter survives receipt
+cleanup. Regression owner: `apps/server/tests/unit/test_table_settings_service.py`.

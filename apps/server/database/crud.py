@@ -518,6 +518,11 @@ def update_virtual_table(db: Session, table_id: str, table_update: schemas.Virtu
         return None
 
     update_data = table_update.model_dump(exclude_unset=True)
+    if any(name in update_data and getattr(db_table, name) != update_data[name]
+           for name in models.TABLE_SETTINGS_FIELDS):
+        db_table.settings_revision += 1
+        if db_table.settings_revision > 9007199254740991:
+            raise ValueError('Table settings revision exceeds the protocol limit')
     for field, value in update_data.items():
         if field in ('layer_visibility', 'layer_settings') and value is not None:
             setattr(db_table, field, json.dumps(value))

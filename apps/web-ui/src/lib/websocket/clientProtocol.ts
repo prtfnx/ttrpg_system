@@ -35,6 +35,8 @@ import { validateTableId } from './tableProtocolAdapter';
 import { TableSettingsBuffer } from './tableSettingsBuffer';
 import { CommandTracking, MUTATION_MESSAGES, PREVIEW_MESSAGES } from './commandTracking';
 import { WallCommandSync } from './wallCommandSync';
+import { isRecoveryType } from './operationRecovery';
+import { OperationRecoveryController, type OperationRecoveryStatus } from './operationRecoveryController';
 
 type WallCreateInput = Pick<WallData, 'x1' | 'y1' | 'x2' | 'y2'>
   & Partial<Omit<WallData, 'wall_id' | 'table_id' | 'x1' | 'y1' | 'x2' | 'y2'>>;
@@ -79,6 +81,9 @@ export class WebClientProtocol {
   private userId: number | null = null;
   private canvasPipelining = false;
   private readonly retiredTableIds = new Set<string>();
+  private readonly operationRecovery: OperationRecoveryController;
+  private readonly recoveredTableResponses = new WeakSet<Message>();
+  private awaitingWelcome = false;
 
   // Reconnection with exponential backoff
   private reconnectAttempts = 0;
@@ -145,7 +150,7 @@ export class WebClientProtocol {
     },
     apply: (tableId, settings) => this.applyTableSettings({ ...settings, table_id: tableId }),
     send: message => this.sendMessage(message),
-    connected: () => this.websocket?.readyState === WebSocket.OPEN,
+    connected: () => this.websocket?.readyState === WebSocket.OPEN && !this.awaitingWelcome && this.operationRecovery.ready(),
   });
 
   /** Queue message for batching, flush after short delay or if batch is large */
@@ -197,7 +202,8 @@ export class WebClientProtocol {
         const messages: Message[] = [];
         const batchMessage = createMessage(MessageType.BATCH_REQUEST, { messages }, 1);
         let bytes = new TextEncoder().encode(JSON.stringify(batchMessage)).length;
-        for (const message of this.batchQueue.slice(0, this.MAX_BATCH_SIZE)) {
+        for (const queued of this.batchQueue.slice(0, this.MAX_BATCH_SIZE)) {
+          const message = this.operationRecovery.admit(queued);
           const memberBytes = new TextEncoder().encode(JSON.stringify(message)).length + (messages.length ? 1 : 0);
           if (bytes + memberBytes > this.MAX_OUTBOUND_FRAME_BYTES) break;
           messages.push(message);
@@ -205,7 +211,7 @@ export class WebClientProtocol {
         }
         // A valid single message can fit the frame budget while its additional
         // batch envelope does not. Send it directly, retaining causal order.
-        const sent = messages.length ? messages : [this.batchQueue[0]!];
+        const sent = messages.length ? messages : [this.operationRecovery.admit(this.batchQueue[0]!)];
         this.websocket.send(JSON.stringify(messages.length ? batchMessage : sent[0]));
         for (const message of sent) {
           this.commandTracking.markSent(message.message_id);
@@ -245,8 +251,10 @@ export class WebClientProtocol {
 
   /** Override sendMessage to use batching for non-critical messages */
   sendMessage(message: Message): boolean {
+    if (isRecoveryType(message.type) && this.awaitingWelcome) return false;
     if (message.type !== MessageType.TABLE_DELETE && typeof message.data?.table_id === 'string'
-      && this.retiredTableIds.has(message.data.table_id)) return false;
+      && this.retiredTableIds.has(message.data.table_id)
+      && !(message.type === MessageType.TABLE_SETTINGS_UPDATE && this.operationRecovery.owns(message.message_id))) return false;
     this.prepareSpritePreviewScope(message);
     if (new TextEncoder().encode(JSON.stringify(message)).length > this.MAX_OUTBOUND_FRAME_BYTES) {
       logger.error('Protocol message exceeds the 64 KiB frame limit', message.type);
@@ -256,6 +264,7 @@ export class WebClientProtocol {
     // Critical messages (table, actions, player, assets) sent immediately
     const critical = [
       'table_data', 'table_update_request', 'table_list_request', 'table_request', 'new_table_request', 'table_delete',
+      'batch_request',
       'player_kick_request', 'player_ban_request', 'player_list_request',
       'character_save', 'character_load', 'character_roll', 'xp_award', 'multiclass_request',
       'character_draft_create_request', 'character_draft_update_request',
@@ -281,6 +290,12 @@ export class WebClientProtocol {
     if (!this.commandTracking.track(message,
       typeof message.data?.table_id === 'string' ? message.data.table_id : null,
       tableId => this.resynchronizeTable(tableId))) return false;
+    try { message = this.operationRecovery.admit(message); }
+    catch {
+      this.commandTracking.forgetUnsent(message.message_id);
+      showToast.error('The change could not be queued safely. Review saved changes before retrying.');
+      return false;
+    }
     this.previewSpriteCommand(message);
     if (new Set<MessageType>([MessageType.WALL_CREATE, MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE]).has(message.type)) {
       queueMicrotask(() => { if (message.message_id && this.commandTracking.has(message.message_id)) this.wallSync.stage(message); });
@@ -313,6 +328,14 @@ export class WebClientProtocol {
   constructor(sessionCode: string, userId?: number) {
     this.sessionCode = sessionCode;
     this.userId = userId ?? null;
+    this.operationRecovery = new OperationRecoveryController(sessionCode, {
+      isOpen: () => this.websocket?.readyState === WebSocket.OPEN,
+      send: message => this.sendMessage(message),
+      restore: message => {
+        if (message.type === MessageType.TABLE_SETTINGS_UPDATE) this.settingsBuffer.restore(message);
+      },
+      changed: status => emitProtocolEvent('operation-recovery-changed', status),
+    });
     this.registerBuiltInHandlers();
     this.setupProtocolMessageSender();
   }
@@ -322,7 +345,29 @@ export class WebClientProtocol {
    * Should be called after authentication
    */
   setUserId(userId: number): void {
+    if (this.userId !== null && this.userId !== userId) {
+      this.operationRecovery.connectionLost();
+      this.batchQueue = [];
+      this.messageQueue = [];
+      this.settingsBuffer.dispose();
+    }
     this.userId = userId;
+  }
+
+  getOperationRecoveryStatus(): OperationRecoveryStatus { return this.operationRecovery.status(); }
+  retrySavedOperations(): void { this.operationRecovery.replay(true); }
+  discardSavedOperations(): void {
+    if (this.operationRecovery.discard()) {
+      this.batchQueue = this.batchQueue.filter(message => {
+        if (!isRecoveryType(message.type)) return true;
+        this.commandTracking.forgetUnsent(message.message_id);
+        return false;
+      });
+      this.messageQueue = this.messageQueue.filter(message => !isRecoveryType(message.type));
+      this.settingsBuffer.dispose();
+      const tableId = useGameStore.getState().activeTableId;
+      if (tableId) this.resynchronizeTable(tableId);
+    }
   }
 
   /**
@@ -748,6 +793,7 @@ export class WebClientProtocol {
         };
         this.rejectPendingConnection = rejectConnection;
 
+        this.awaitingWelcome = true;
         socket.onopen = () => {
           if (this.websocket !== socket) return;
           protocolLogger.connection('WebSocket connected to authenticated session', this.sessionCode);
@@ -790,6 +836,12 @@ export class WebClientProtocol {
           this.connectionAlive = false;
           this.markCharacterUpdatesUncertain();
           this.settingsBuffer.connectionLost();
+          this.operationRecovery.connectionLost();
+          this.awaitingWelcome = true;
+          if (this.operationRecovery.usesJournal()) {
+            this.batchQueue = this.batchQueue.filter(message => !isRecoveryType(message.type));
+            this.messageQueue = this.messageQueue.filter(message => !isRecoveryType(message.type));
+          }
           this.lastCloseCode = event.code;
           this.lastCloseReason = this.sanitizeCloseReason(event.reason);
           this.notifyConnectionState('disconnected');
@@ -868,6 +920,11 @@ export class WebClientProtocol {
   }
 
   private observeOutcome(message: Message): void {
+    if (this.operationRecovery.wasRestored(message.causation_id ?? message.correlation_id)
+      && message.type === MessageType.NEW_TABLE_RESPONSE) {
+      this.recoveredTableResponses.add(message);
+    }
+    this.operationRecovery.outcome(message);
     const request = this.commandTracking.settle(message);
     if (!request) return;
     if (typeof request.data?.table_id === 'string') {
@@ -1088,6 +1145,13 @@ export class WebClientProtocol {
 
   private closeForReconnect(reason: string): void {
     this.markCharacterUpdatesUncertain();
+    this.operationRecovery.connectionLost();
+    this.awaitingWelcome = true;
+    this.settingsBuffer.connectionLost();
+    if (this.operationRecovery.usesJournal()) {
+      this.batchQueue = this.batchQueue.filter(message => !isRecoveryType(message.type));
+      this.messageQueue = this.messageQueue.filter(message => !isRecoveryType(message.type));
+    }
     for (const request of this.resyncs.values()) clearTimeout(request.timer);
     this.resyncs.clear();
     const socket = this.websocket;
@@ -1145,6 +1209,11 @@ export class WebClientProtocol {
 
     const data = message.data as Record<string, unknown>;
     this.canvasPipelining = message.version === '0.2';
+    if (typeof data.user_id === 'number' && this.userId !== null && this.userId !== data.user_id) {
+      this.batchQueue = [];
+      this.messageQueue = [];
+      this.settingsBuffer.dispose();
+    }
     if (data.user_id) {
       this.userId = data.user_id as number;
       useGameStore.getState().setUserId(this.userId);
@@ -1177,9 +1246,12 @@ export class WebClientProtocol {
       }
     }
 
+    this.awaitingWelcome = false;
+    this.operationRecovery.welcome(data);
     this.requestTableList();
     this.requestPlayerList();
     if (this.userId) this.requestActiveTable();
+    this.operationRecovery.replay();
     // Signal to all listeners that protocol is connected and ready
     emitProtocolEvent('protocol-connected');
   }
@@ -1361,7 +1433,7 @@ export class WebClientProtocol {
     logger.debug('New table created:', message.data);
     const data = message.data as Record<string, unknown>;
     if (typeof data.table_id === 'string' && this.retiredTableIds.has(data.table_id)) return;
-    if (data.replayed || data.table_deleted) {
+    if (data.replayed || data.table_deleted || this.recoveredTableResponses.has(message)) {
       const state = useGameStore.getState();
       const tableId = typeof data.table_id === 'string' ? data.table_id : '';
       const localId = typeof data.local_table_id === 'string' ? data.local_table_id : '';
@@ -2145,8 +2217,7 @@ export class WebClientProtocol {
       height
     });
     if (requestId !== undefined) message.message_id = requestId;
-    this.sendMessage(message);
-    return message.message_id;
+    return this.sendMessage(message) ? message.message_id : undefined;
   }
 
   deleteTable(tableId: string, requestId?: string): string | undefined {
@@ -2154,8 +2225,7 @@ export class WebClientProtocol {
       table_id: tableId
     });
     if (requestId !== undefined) message.message_id = requestId;
-    this.sendMessage(message);
-    return message.message_id;
+    return this.sendMessage(message) ? message.message_id : undefined;
   }
 
   requestTableData(tableId: string): void {
@@ -2705,8 +2775,7 @@ export class WebClientProtocol {
     // A caller retrying the same intent keeps its original ID and body.
     // A fresh deliberate award leaves requestId unset to create a new identity.
     if (requestId !== undefined) message.message_id = requestId;
-    this.sendMessage(message);
-    return message.message_id;
+    return this.sendMessage(message) ? message.message_id : undefined;
   }
 
   requestCharacterMulticlass(characterId: string, newClass: string): void {
@@ -2790,6 +2859,7 @@ export class WebClientProtocol {
 
   disconnect(): void {
     this.markCharacterUpdatesUncertain();
+    this.operationRecovery.connectionLost();
     this.canvasPipelining = false;
     if (this.batchTimer) clearTimeout(this.batchTimer);
     this.batchTimer = null;

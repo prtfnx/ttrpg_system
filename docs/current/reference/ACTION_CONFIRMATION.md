@@ -33,8 +33,8 @@ The browser's `awardCharacterXP` API returns its message identity and accepts
 that identity as an optional final argument when deliberately retrying the same
 input. Leaving it unset creates a separate award. Replay/unknown results trigger
 canonical reads; older advancement responses cannot lower a newer known version.
-The UI does not automatically replay uncertain XP or persist a cross-page retry
-queue. A character read alone does not prove whether one specific award committed;
+With advertised receipt recovery, original XP requests survive same-tab reloads
+and are probed only under matching authenticated scope. A character read alone does not prove whether one specific award committed;
 the retained original request identity is the receipt lookup key.
 
 `createNewTable` likewise returns its request identity and accepts that original
@@ -42,8 +42,7 @@ identity for a deliberate same-input retry. Table receipt replay reconciles a
 local draft identity, refreshes the table list and requests active-table data;
 it does not reenter creation hydration or reset a newer form. Deleted receipts
 remove their obsolete draft without recreating a table. Copy/import retries can
-resend the original message through the generic protocol API. The UI still has
-no persisted cross-page queue for uncertain create/XP intents; do not mint a new
+resend the original message through the generic protocol API. The supported create/XP queue now survives same-tab page reloads; do not mint a new
 operation merely because the connection or acknowledgement was lost. A retry
 also retains its original authenticated actor/session scope; changing context
 does not carry an operation's receipt into the new scope.
@@ -56,8 +55,8 @@ reattachment cannot restore it. The server retains retirement independently of
 the deleting actor's receipt, so stale background snapshots cannot recreate a
 deleted table after actor cleanup or restart. Current DM authority is still
 required to obtain an original receipt; internal cleanup does not grant it.
-There is no automatic cross-page deletion retry queue or backfill of historical
-deletions. See [Tables](../features/TABLES_AND_CANVAS.md).
+Supported deletion requests survive same-tab reloads under the advertised
+receipt contract. Historical deletions are not backfilled. See [Tables](../features/TABLES_AND_CANVAS.md).
 
 ## Ownership
 
@@ -255,8 +254,8 @@ a later-deleted table returns retirement instead. Current authority gates replay
 Unknown settings retain their original body/ID in the browser buffer, pause later
 patches and survive canonical hydration. One original probe per connection can
 obtain the receipt before releasing newer patches. Neither a read nor loss of an
-acknowledgement justifies a newly identified replacement write. These settings
-records remain in memory; persisted cross-page high-risk ownership is still open.
+acknowledgement justifies a newly identified replacement write. Supported settings requests are also retained in the tab-scoped journal,
+including across page reloads.
 
 ## Tab-scoped recovery journal primitives
 
@@ -275,3 +274,16 @@ lookups for review and clears only correlated domain-specific acceptance. A tabl
 or character read is not receipt settlement. Corrupt/unavailable storage pauses
 new supported high-risk sends; explicit scoped discard does not undo a change.
 Unit owners: `operationRecovery.test.ts` and `operationRecoveryController.test.ts`.
+
+Production `WebClientProtocol` saves supported high-risk requests before sending
+bytes, including settings batches and flat explicit batches. It waits for welcome
+scope before restoring saved requests, then probes each original at most once per
+connection (manual review can retry). Restored settings retain their buffer
+ownership. Even a first accepted response to a restored create uses receipt
+reconciliation and cannot reset a newer scene/form. Actor/instance changes and
+unsupported server capabilities never carry saved intents into another scope.
+Storage failure prevents that high-risk transmission; ordinary reads remain
+available. Server receipts, not snapshots, complete journal records. Rejected or
+revoked lookups remain available for review rather than silently discarding an
+uncertain earlier acceptance. Generic character, asset and offline mutation queues
+are outside this journal. Regression owner: `clientProtocol.test.ts`.

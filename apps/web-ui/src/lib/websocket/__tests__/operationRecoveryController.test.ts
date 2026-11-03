@@ -14,6 +14,13 @@ function setup() {
 beforeEach(() => sessionStorage.clear());
 
 describe('authenticated operation recovery', () => {
+  it('journals each high-risk batch member with its own original identity', () => {
+    const { owner } = setup(); owner.welcome(welcome);
+    const original = createMessage(MessageType.XP_AWARD, { character_id: 'hero', amount: 100 });
+    const batch = createMessage(MessageType.BATCH_REQUEST, { messages: [original] });
+    expect(owner.admit(batch).data?.messages).toEqual([original]);
+    expect(new OperationRecoveryJournal(scope).entries().map(entry => entry.message)).toEqual([original]);
+  });
   it('reconstructs and probes one exact original XP request only after a matching welcome', () => {
     const first = setup(); first.owner.welcome(welcome);
     const original = createMessage(MessageType.XP_AWARD, { character_id: 'hero', amount: 100 });

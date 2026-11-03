@@ -113,6 +113,14 @@ export class TableSettingsBuffer {
     }
   }
 
+  restore(message: Message): void {
+    const tableId = message.data?.table_id;
+    if (typeof tableId !== 'string' || !message.message_id) return;
+    const scope = this.scope(tableId);
+    scope.pending.set(message.message_id, message);
+    scope.uncertain.add(message.message_id);
+  }
+
   retryUnknown(tableId: string): void {
     const scope = this.scopes.get(tableId);
     if (!scope || !this.options.connected()) return;

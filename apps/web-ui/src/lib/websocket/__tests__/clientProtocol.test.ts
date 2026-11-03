@@ -1639,6 +1639,99 @@ describe('WebClientProtocol', () => {
   // ── Remaining simple event-dispatch handlers ─────────────────────────────
 
   describe('more incoming handlers', () => {
+    describe('persisted high-risk recovery', () => {
+      const tableId = '550e8400-e29b-41d4-a716-446655440000';
+      const capability = { contract: 'session-operations-v1', session_instance: '1:2026-10-30',
+        domains: ['table_create', 'table_delete', 'table_settings', 'xp_award'] };
+      const welcome = (patch: Record<string, unknown> = {}) => ({ message: 'Welcome', client_id: 'client',
+        user_id: 1, username: 'Owner', session_code: 'TEST123', connection_id: 'connection', tables: [],
+        role: 'owner', permissions: [], visible_layers: [], game_mode: 'free_roam', session_rules: {},
+        choice_encounter: null, operation_recovery: capability, ...patch });
+      const sent = (ws: ReturnType<typeof makeOpenWs>) => ws.send.mock.calls.flatMap(call => {
+        const frame = JSON.parse(call[0]); return frame.type === MessageType.BATCH_REQUEST ? frame.data.messages : [frame];
+      }) as Message[];
+      beforeEach(() => sessionStorage.clear());
+      afterEach(() => sessionStorage.clear());
+
+      it.each([
+        [MessageType.NEW_TABLE_REQUEST, { table_name: 'Scene', local_table_id: 'local-original' }],
+        [MessageType.XP_AWARD, { character_id: 'hero', amount: 100 }],
+        [MessageType.TABLE_DELETE, { table_id: tableId }],
+        [MessageType.TABLE_SETTINGS_UPDATE, { table_id: tableId, grid_cell_px: 75 }],
+      ])('reconstructs the original %s envelope after reload and welcome', async (type, data) => {
+        const first = makeProtocol(); const ws = makeOpenWs(first);
+        const restarted = makeProtocol(); const next = makeOpenWs(restarted);
+        try {
+          await dispatch(first, 'welcome', welcome()); ws.send.mockClear();
+          const original = createMessage(type as MessageType, data);
+          expect(first.sendMessage(original)).toBe(true); first.sendBatch();
+          const transmitted = sent(ws).find(message => message.type === type)!;
+          expect(first.getOperationRecoveryStatus().pending).toBe(1);
+          first.disconnect();
+          expect(sent(next)).toEqual([]);
+          await dispatch(restarted, 'welcome', welcome()); restarted.sendBatch();
+          expect(sent(next).filter(message => message.type === type)).toEqual([transmitted]);
+          expect(restarted.getOperationRecoveryStatus().pending).toBe(1);
+        } finally { first.disconnect(); restarted.disconnect(); }
+      });
+
+      it('does not hydrate a recovered creation when its first accepted response arrives after reload', async () => {
+        const first = makeProtocol(); makeOpenWs(first);
+        const restarted = makeProtocol(); makeOpenWs(restarted);
+        const created = vi.fn(); window.addEventListener('new-table-response', created);
+        try {
+          await dispatch(first, 'welcome', welcome());
+          const id = first.createNewTable('Old scene', 1000, 1000)!; first.disconnect();
+          await dispatch(restarted, 'welcome', welcome());
+          Object.assign(mocks.storeState, { tables: [], activeTableId: 'newer-current-scene' });
+          await dispatch(restarted, 'new_table_response', { success: true, operation_id: id, table_id: tableId,
+            replayed: false, table_data: { table_id: tableId, table_name: 'Old scene', width: 1000, height: 1000 } },
+            { causation_id: id });
+          expect(created).not.toHaveBeenCalled();
+          expect(mocks.storeState.activeTableId).toBe('newer-current-scene');
+          expect(restarted.getOperationRecoveryStatus().pending).toBe(0);
+        } finally { window.removeEventListener('new-table-response', created); first.disconnect(); restarted.disconnect(); }
+      });
+
+      it.each([{ user_id: 2 }, { operation_recovery: { ...capability, session_instance: 'replacement' } },
+        { operation_recovery: null }])('does not replay another actor, instance or unsupported contract', async patch => {
+        const first = makeProtocol(); makeOpenWs(first);
+        const restarted = makeProtocol(); const next = makeOpenWs(restarted);
+        try {
+          await dispatch(first, 'welcome', welcome()); first.awardCharacterXP('hero', 100, 'quest'); first.disconnect();
+          await dispatch(restarted, 'welcome', welcome(patch)); restarted.sendBatch();
+          expect(sent(next).some(message => message.type === MessageType.XP_AWARD)).toBe(false);
+          expect(sessionStorage.length).toBe(1);
+        } finally { first.disconnect(); restarted.disconnect(); }
+      });
+
+      it('retains unknown and denied evidence instead of treating a read as receipt settlement', async () => {
+        const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+        try {
+          await dispatch(protocol, 'welcome', welcome()); ws.send.mockClear();
+          const id = protocol.awardCharacterXP('hero', 100, 'quest')!;
+          await dispatch(protocol, 'error', { code: 'outcome_unknown', outcome: 'unknown', error: 'Unknown' }, { causation_id: id });
+          await dispatch(protocol, 'table_response', { table_data: { table_id: tableId } }, { causation_id: id });
+          expect(protocol.getOperationRecoveryStatus().pending).toBe(1);
+          await dispatch(protocol, 'error', { code: 'forbidden', error: 'Current authority required' }, { causation_id: id });
+          expect(protocol.getOperationRecoveryStatus().blocked).toBe(1);
+          ws.send.mockClear(); protocol.retrySavedOperations();
+          expect(sent(ws).find(message => message.type === MessageType.XP_AWARD)?.message_id).toBe(id);
+        } finally { protocol.disconnect(); }
+      });
+
+      it('does not transmit a high-risk request when its storage write fails', async () => {
+        const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+        try {
+          await dispatch(protocol, 'welcome', welcome()); protocol.sendBatch(); ws.send.mockClear();
+          vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Quota exceeded'); });
+          expect(protocol.awardCharacterXP('hero', 100, 'quest')).toBeUndefined();
+          expect(ws.send).not.toHaveBeenCalled();
+          expect(protocol.getOperationRecoveryStatus().error).not.toBeNull();
+        } finally { protocol.disconnect(); }
+      });
+    });
+
     const settings = (size: number, revision: number) => ({ table_id: 'table-abc', grid_cell_px: size,
       settings_revision: revision, dynamic_lighting_enabled: false, fog_exploration_mode: 'current_only',
       ambient_light_level: 1, cell_distance: 5, distance_unit: 'ft', grid_enabled: true, snap_to_grid: true,

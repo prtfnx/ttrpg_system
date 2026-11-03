@@ -1,5 +1,6 @@
 import type { CharacterDraft } from '@features/character/characterDraft';
 import type { Sprite } from '@/types';
+import type { OperationRecoveryStatus } from './operationRecoveryController';
 import type {
   PaintObjectEvent,
   PaintOperationRejection,
@@ -11,6 +12,7 @@ import type {
 type ProtocolRecord = Record<string, unknown> | undefined;
 
 export type ProtocolEventMap = {
+  'operation-recovery-changed': OperationRecoveryStatus;
   'canvas-command-result': ProtocolRecord;
   'canvas-canonical-object': { operationId?: string; tableId: string; kind: 'sprite' | 'paint'; id: string; object: unknown | null };
   'optimistic-sprite-command': { requestId: string; tableId: string; spriteId: string; kind: 'remove' | 'update'; patch: Partial<Sprite>; handled?: boolean };

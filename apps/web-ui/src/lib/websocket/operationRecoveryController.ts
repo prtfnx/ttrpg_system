@@ -1,4 +1,4 @@
-import { MessageType, type Message } from './message';
+import { MessageType, parseMessage, type Message } from './message';
 import { isRecoveryType, OperationRecoveryJournal, type RecoveryEntry, type RecoveryScope } from './operationRecovery';
 
 export interface OperationRecoveryStatus {
@@ -79,10 +79,27 @@ export class OperationRecoveryController {
 
   ready(): boolean { return !this.enabled || this.verified; }
   usesJournal(): boolean { return this.enabled; }
+  owns(id: string | undefined): boolean { return Boolean(id && this.readEntries().some(entry => entry.message.message_id === id)); }
 
   wasRestored(id: string | undefined): boolean { return this.verified && Boolean(id && this.restored.has(id)); }
 
   admit(message: Message): Message {
+    if (message.type === MessageType.BATCH_REQUEST && this.enabled) {
+      const batch = parseMessage(JSON.stringify(message));
+      const admitted: Message[] = [];
+      try {
+        for (const member of batch.data?.messages as Message[]) {
+          if (member.type === MessageType.BATCH_REQUEST) throw new Error('Recovery requires a flat batch');
+          admitted.push(this.admit(member));
+        }
+      } catch (error) {
+        for (const member of admitted) if (isRecoveryType(member.type) && member.message_id) {
+          try { this.journal?.block(member.message_id, 'Batch preparation did not complete; review before retrying.'); } catch { /* Evidence remains retained. */ }
+        }
+        throw error;
+      }
+      return { ...batch, data: { ...batch.data, messages: admitted } };
+    }
     if (!isRecoveryType(message.type) || !this.enabled) return message;
     if (!this.verified || !this.journal || this.error) throw new Error('Saved request recovery is unavailable');
     try {

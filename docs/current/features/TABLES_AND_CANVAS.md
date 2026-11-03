@@ -376,7 +376,7 @@ snapshots, active-table replies, create notifications and table-list entries
 cannot restore those identities. Buffered settings and unsent table commands
 are discarded, and a table recovery timeout is cancelled when deletion is
 confirmed. A deliberate `deleteTable(tableId, originalRequestId)` retry preserves
-the original request identity; this is not a persisted browser recovery queue.
+the original request identity; its original is retained by the negotiated tab-scoped recovery journal.
 Regression owners: `src/lib/websocket/__tests__/clientProtocol.test.ts` and
 `tableSettingsBuffer.test.ts` in `apps/web-ui/`.
 
@@ -414,6 +414,23 @@ transmission and survives canonical snapshot reconciliation. After hydration it
 may send that exact original once for the current connection to obtain its
 receipt; accepted/rejected settlement releases newer queued settings. A later
 connection loss permits another original probe, with no replacement identity.
-This ownership is in memory; page reload still loses the recovery queue.
+This ownership is restored from the negotiated tab-scoped journal after same-tab reloads.
 Regression owners: `test_table_settings_service.py`, `test_tables_protocol.py`,
 `tableSettingsBuffer.test.ts` and `clientProtocol.test.ts`.
+
+## Saved table requests across page reloads
+
+Supported create/copy/import, delete and settings envelopes are saved before
+transmission in the current tab. Welcome negotiation binds recovery to the
+authenticated actor and retained session instance. Restoring a create reconciles
+identity and requests canonical state, even if its first acceptance occurs after
+reload; it never hydrates an older scene over a newer active table or resets the
+creation form. Restored settings rejoin their original buffer ownership and keep
+newer local intent behind uncertain originals. A later-deleted target follows
+the existing retirement path.
+
+The provider's saved-change notice exposes retry and explicit forgetting. Full,
+corrupt or unavailable storage prevents supported high-risk transmission instead
+of dropping older evidence. Tab closure, storage clearing and unsupported server
+contracts do not gain automatic replay guarantees. Generic table transforms and
+character/choice commands retain their separate recovery contracts.

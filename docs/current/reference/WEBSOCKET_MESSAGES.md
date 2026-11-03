@@ -362,7 +362,7 @@ no-op outcome; unknown/foreign identities reject. An unavailable commit lookup
 returns `outcome_unknown` and quarantines serialized state work and snapshots
 until recovery proves deletion or rollback. Notification failure after acceptance
 requires resync rather than another newly identified delete. The browser API can
-retain the original request ID, but has no persisted uncertain-deletion queue.
+retain the original request ID in the negotiated tab-scoped recovery journal.
 
 ## Settings identity, revisions and outcome recovery
 
@@ -386,7 +386,24 @@ state work/snapshots until recovery; notification failure after acceptance sets
 
 Browser buffers preserve unknown original messages through hydration and can
 probe that exact request once per connection; later patches wait for settlement.
-Older settings revisions cannot replace newer confirmed browser state. This does
-not persist retry ownership across page reload. Regression owners are
+Older settings revisions cannot replace newer confirmed browser state. The negotiated journal also retains that ownership across same-tab reloads. Regression owners are
 `test_table_settings_service.py`, `tableSettingsBuffer.test.ts`,
 `clientProtocol.test.ts` and the PostgreSQL settings contracts.
+
+## Browser recovery negotiation and settlement
+
+New clients request `operation_recovery=session-operations-v1` on the WebSocket
+URL. Only opted-in clients receive the optional welcome capability; older closed
+validators keep their existing welcome shape. The capability names supported
+domains and the retained session instance. Its welcome actor/session are the
+recovery scope; a saved payload supplies no authority. Unknown or absent capability
+never authorizes replay of stored requests.
+
+The browser retains exact supported envelopes before transmission, including
+settings members and flat explicit batches. A reconnect/reconstructed owner
+waits for welcome before probing saved originals once per connection; manual
+review may retry again. Domain-specific correlated acceptance completes local
+records. Unknown outcomes remain pending, denied lookups remain held for review,
+and snapshots alone cannot settle these requests. A restored create response
+uses reconciliation rather than initial scene hydration. General offline and
+generic character/choice replay remain outside this contract.

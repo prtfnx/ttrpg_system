@@ -489,3 +489,20 @@ Run:
 - `tests/unit/test_compendium_manifest_tool.py`;
 - character and compendium Vitest suites;
 - `src/lib/websocket/__tests__/clientProtocol.test.ts`.
+
+## XP request ownership across reloads
+
+The generic character-edit queue described above remains page-memory state.
+XP is separately supported by the negotiated tab-scoped operation journal:
+the original award envelope is saved before transmission and restored only for
+the same authenticated actor, session code and retained database instance.
+Automatic probes keep the original message identity/body; a new deliberate award
+still uses a new identity. Only correlated XP receipt acceptance clears that
+record. A current character read cannot prove one award's outcome, and old award
+responses cannot lower a newer known character version.
+
+Revoked or rejected lookups remain visible for review; they do not silently erase
+an uncertain earlier award. The saved-change notice can retry the original or
+explicitly forget its recovery record without cancelling/undoing an award.
+Closing the tab or clearing storage can remove local evidence. Multiclass and
+generic character-edit commands are not automatically replayed by this journal.

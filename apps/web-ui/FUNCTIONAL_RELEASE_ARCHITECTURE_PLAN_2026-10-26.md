@@ -14,6 +14,41 @@ Earlier short references remain historical; use the mapping for current IDs.
 Existing dirty generated WASM and untracked audit files were preserved.
 New implementation remains local in commits of at most seven files.
 
+October 30 browser-recovery continuation: negotiated welcome capability binds
+supported create/copy/import/delete/settings/XP recovery to the authenticated
+actor, session code and retained database session instance. Explicit opt-in keeps
+older closed welcome validators compatible. Join metadata reads the stable scope
+in its worker; legacy sessions without creation identity advertise no recovery.
+
+The journal now retains original envelopes before transmission in tab-scoped
+session storage, including reloads and protocol-owner reconstruction. Each request
+has its own key; capacity is bounded to 64 records/512 KiB without silent eviction.
+Storage/schema/key failures pause supported high-risk sends. A new actor or
+replacement session cannot inherit or discard a previous scope's evidence.
+Only correlated domain acceptance completes records. Unknown responses remain
+pending and denied lookups remain held for review. Snapshots are not receipts.
+
+Automatic probes retain the exact original identity/body and are bounded per
+connection. Restored settings rejoin buffer ownership; restored creates never
+hydrate an old scene over a newer active table or reset a current form. The
+provider exposes retry and a separate explicit forgetting choice that explains
+it does not cancel/undo an operation or prove its outcome. Tab closure/browser
+storage clearing can remove local records; this is not browser-restart durability
+or a generic offline queue. Rollback restore still needs separate invalidation
+and rehearsal under R6.
+
+Validation: 686 server/workflow/writer cases, 747 browser/store cases plus two
+additional copy/import reload cases (749 distinct), 194 shared schema cases and
+two native Chromium storage/CSP cases pass. Pinned Pyright, TypeScript, targeted
+Ruff/ESLint/Stylelint, production UI build, generated-schema drift and docs checks pass. PostgreSQL
+qualification remains open with 51 dependent skips. Existing modified WASM and
+unrelated audits remain preserved. See
+[browser recovery evidence](audit/release-2026-10-30/browser-recovery-validation.md).
+Work remains local in commits of at most seven files. This closes the supported
+same-tab persistence slice; R4 generic character/choice and generic table outcomes
+remain open, alongside R5-R7 and real provider/restore qualification. Next:
+durable general character/choice outcomes using the existing receipt seams.
+
 October 30 settings continuation: migration 0015 retains a table settings
 revision independently of actor receipt cleanup. Production settings patches
 now recheck current database DM authority and session ownership, then commit
@@ -72,8 +107,9 @@ working files. Saved original history on
 push published exactly the oldest 11 through `8820d458`; 11 remained local
 before new work. See the [commit map](audit/release-2026-10-27/commit-map.json)
 for old/new identifiers. Short references below use the redated history.
-Next implementation target: persisted browser ownership of uncertain
-create/XP/delete/settings intents. Create/copy/import/delete/settings
+Next implementation target: remaining R4 general character/choice outcomes.
+Supported create/XP/delete/settings originals now survive same-tab reloads.
+Create/copy/import/delete/settings
 receipts and session recovery are now implemented. Generic character and
 sprite/choice outcome gaps remain separate work. PostgreSQL/served qualification
 remains open alongside R2/R7; R6 restore rehearsal remains open. Encounter
@@ -405,7 +441,7 @@ For a public production service, also require automated independent backups, res
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
-| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings now have atomic receipts, original-intent replay and settlement recovery. General character/choice outcomes and persisted browser ownership remain open. Canvas/sprite/paint/chat/combat retain domain mechanisms. | Finish remaining R4 domains and persisted browser recovery, then real PostgreSQL/served acceptance; do not infer universal exactly-once delivery. |
+| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals now survive same-tab reloads. General character/choice and generic table outcomes remain open. Canvas/sprite/paint/chat/combat retain domain mechanisms. | Finish remaining R4 domains, then real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
 | A9: core-table imports server infrastructure | Still present. | Defer extraction; introduce only the transaction/worker adapters needed by R1-R3. |
 | A10: browser dependency cycles | Research recorded 39 cycles; the count was not rerun for this plan. | Defer wholesale cleanup. Fix a cycle only when a reproducible release workflow requires it. |
 | A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `efe187ac`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |

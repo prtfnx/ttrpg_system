@@ -121,8 +121,8 @@ those remain part of general outcome-recovery work.
 
 TODO: extend durable receipts and outcome reconciliation to generic character
 and choice commands. Table creation, deletion, settings and XP now commit
-their effects and receipts together; this does not add universal retry safety or
-a persisted browser recovery queue. Complete remaining legacy character/token
+their effects and receipts together. Their supported browser originals are
+retained in the tab-scoped recovery journal; this does not add universal retry safety. Complete remaining legacy character/token
 repairs and qualify worker ownership on the release candidate. Combat lifecycle transitions
 are calculated without implicit engine commits; accepted snapshot and journal
 share one transaction. Combat command cancellation retains ownership through
@@ -213,8 +213,8 @@ without exposing an original receipt. Nullable legacy unit/mode/color fields use
 the established effective defaults in response DTOs. Migration 0015 retains the
 counter; browser owners reject older revisions and retain unknown original
 messages through hydration rather than treating a snapshot as an operation receipt.
-The supported in-memory settings probe is bounded to one original message per
-connection; it is not a persisted browser recovery queue.
+The supported settings probe retains its original in the tab-scoped journal,
+including across reloads, and automatic recovery is bounded per connection.
 
 Welcome recovery capability is loaded with join metadata in the blocking worker.
 It binds the supported receipt contract to the numeric session identity and its
@@ -223,3 +223,13 @@ replacing a session changes it. Legacy rows without a creation identity advertis
 no recovery capability. This is not a backup/restore generation: restoring a
 matching historical database may remove newer receipts and requires explicit
 recovery invalidation under the restore procedure before clients resume.
+
+Persisted browser recovery now covers advertised table create/copy/import/delete,
+settings and XP requests. The synchronous journal writes/validates the original
+before transmission, with 64-record/512-KiB scope limits and no silent eviction.
+Actor, session code and retained database instance isolate ownership. Correlated
+domain acceptance clears a record; a snapshot, timeout, or revoked lookup cannot
+prove the original outcome. Browser records are not server effect storage, and
+tab closure/storage clearing can remove them. Existing server receipts remain
+the acceptance authority. Full restore and served-candidate qualification remain
+open release gates.

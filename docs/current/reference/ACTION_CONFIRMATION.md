@@ -17,7 +17,7 @@ Last source audit: 2026-10-21
 | XP award | Actor/session/domain-scoped original message identity; XP/version/audit/outcome share acceptance. See [Characters](../features/CHARACTERS_AND_COMPENDIUMS.md). |
 | Table create/copy/import | Original request receipts share table/paint-state acceptance; unknown commits fence serialized work and snapshots through verified installation. |
 | Table delete | Table resources, active-member pointers, retirement tombstone and original actor/session receipt share acceptance. Unknown commits fence state work and snapshots until settlement and cache cleanup. |
-| Table settings | No general durable original-intent lookup; reload and reconcile before repeating an uncertain operation. R4 remains open here. |
+| Table settings | Patch/revision/original-request receipt share acceptance under current database authority. Unknown outcomes fence session state work through current-state recovery; browser revisions reject older state. |
 | Choice encounter transitions | Ordered snapshot/events with cancellation-safe publication; no durable retry receipt or general commit-uncertainty verifier yet. |
 
 The new `session_operation_receipts` adapter borrows the caller's transaction:
@@ -123,7 +123,7 @@ Journal rows use a bulk insert and retention runs once per actor/table. Each
 gesture still checks database authorization inside the transaction. Receipts
 report final committed history availability while retaining separate undo steps. Validation denials are independent within
 a run. A failed shared transaction publishes none of that run's provisional state.
-Identical table settings confirm without another write or redundant broadcast.
+Identical table settings retain a receipt without rewriting settings values or broadcasting redundant state.
 Wall writes use worker-owned transactions before replacing live state.
 
 Success means the database committed. There is no multi-second memory-only
@@ -246,3 +246,14 @@ to separate queue, lock, worker, SQL and delivery delays.
 See [Canvas commands and history](COMMAND_AND_HISTORY.md),
 [Protocol boundary](../PROTOCOL_BOUNDARY.md), and
 [Measurement and painting](../features/MEASUREMENT_AND_PAINTING.md).
+
+Settings request identity is scoped to the trusted actor, numeric session and
+`table_settings` domain. Reusing it with changed normalized input conflicts.
+No-op intents still have receipts. Replay carries current SQL settings and
+revision, with the original `accepted_revision` retained for outcome evidence;
+a later-deleted table returns retirement instead. Current authority gates replay.
+Unknown settings retain their original body/ID in the browser buffer, pause later
+patches and survive canonical hydration. One original probe per connection can
+obtain the receipt before releasing newer patches. Neither a read nor loss of an
+acknowledgement justifies a newly identified replacement write. These settings
+records remain in memory; persisted cross-page high-risk ownership is still open.

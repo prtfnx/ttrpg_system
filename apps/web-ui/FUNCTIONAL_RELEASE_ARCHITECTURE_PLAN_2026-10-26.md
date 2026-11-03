@@ -14,6 +14,40 @@ Earlier short references remain historical; use the mapping for current IDs.
 Existing dirty generated WASM and untracked audit files were preserved.
 New implementation remains local in commits of at most seven files.
 
+October 30 settings continuation: migration 0015 retains a table settings
+revision independently of actor receipt cleanup. Production settings patches
+now recheck current database DM authority and session ownership, then commit
+the patch/revision/original actor-session-domain receipt together. No-op patches
+retain an outcome without rewriting settings or incrementing revision. New
+intents reject foreign/retired or unresolved dirty targets. Generic CRUD/snapshot
+settings changes also advance the revision, and hydration includes it.
+
+Unknown outcomes and failed post-commit installation quarantine serialized
+state work and snapshots. Stable session-row recovery installs current SQL
+settings or proves rollback; repeated cancellation holds ownership through live
+installation and publication. Replays cannot reinstall an old patch or recreate
+a later-deleted target. Internal recovery can repair state after actor removal
+without exposing an original receipt. Nullable legacy settings have valid
+effective response defaults. Numeric/color normalization preserves equal intent.
+
+Browser settings owners reject older revisions, retain unknown original messages
+through canonical hydration and pause newer patches until original settlement.
+One exact original probe is allowed per connection; a later connection loss can
+probe again. The queue is still in memory. Persisted cross-page ownership for
+create/XP/delete/settings and generic character/choice outcomes remain R4 work.
+
+Validation: 681 broad server/workflow/writer cases plus one additional nullable
+legacy-settings regression pass (682 distinct server cases); 675 browser/store
+cases, 192 shared schema cases and the Chromium message-validator case pass.
+Pinned Pyright reports zero errors/warnings; TypeScript, targeted Ruff/ESLint,
+generated-schema drift and current-doc checks pass. All 51 PostgreSQL-dependent
+cases skip locally: 46 contract, one Alembic and four multi-client cases. Added
+settings contracts collect but do not establish real database qualification.
+Existing generated WASM artifacts and unrelated audits remain preserved.
+See [settings validation evidence](audit/release-2026-10-30/table-settings-validation.md).
+New work remains local; R4 is partial, and R5-R7/provider/restore acceptance
+remain open. Next: persisted browser high-risk recovery ownership.
+
 Continuation: 2026-10-29. Redated all 24 unpublished commits for both author
 and committer in Europe/Kyiv, preserving content, identities, messages and order.
 Original history is retained on `backup/unpublished-before-redate-2026-10-29-fbe0966c`.
@@ -38,8 +72,8 @@ working files. Saved original history on
 push published exactly the oldest 11 through `8820d458`; 11 remained local
 before new work. See the [commit map](audit/release-2026-10-27/commit-map.json)
 for old/new identifiers. Short references below use the redated history.
-Next implementation target: remaining R4 durable table settings outcomes
-and persisted browser ownership of uncertain create/XP intents. Create/copy/import
+Next implementation target: persisted browser ownership of uncertain
+create/XP/delete/settings intents. Create/copy/import/delete/settings
 receipts and session recovery are now implemented. Generic character and
 sprite/choice outcome gaps remain separate work. PostgreSQL/served qualification
 remains open alongside R2/R7; R6 restore rehearsal remains open. Encounter
@@ -371,7 +405,7 @@ For a public production service, also require automated independent backups, res
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
-| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete now have atomic receipts, original-intent replay and settlement recovery. Table settings and general character/choice outcomes remain open. Canvas/sprite/paint/chat/combat retain domain mechanisms. | Finish remaining R4 domains and persisted browser recovery, then real PostgreSQL/served acceptance; do not infer universal exactly-once delivery. |
+| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings now have atomic receipts, original-intent replay and settlement recovery. General character/choice outcomes and persisted browser ownership remain open. Canvas/sprite/paint/chat/combat retain domain mechanisms. | Finish remaining R4 domains and persisted browser recovery, then real PostgreSQL/served acceptance; do not infer universal exactly-once delivery. |
 | A9: core-table imports server infrastructure | Still present. | Defer extraction; introduce only the transaction/worker adapters needed by R1-R3. |
 | A10: browser dependency cycles | Research recorded 39 cycles; the count was not rerun for this plan. | Defer wholesale cleanup. Fix a cycle only when a reproducible release workflow requires it. |
 | A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `efe187ac`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |

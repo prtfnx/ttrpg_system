@@ -363,3 +363,30 @@ returns `outcome_unknown` and quarantines serialized state work and snapshots
 until recovery proves deletion or rollback. Notification failure after acceptance
 requires resync rather than another newly identified delete. The browser API can
 retain the original request ID, but has no persisted uncertain-deletion queue.
+
+## Settings identity, revisions and outcome recovery
+
+`table_settings_update` requires original `message_id` (1-128 characters),
+bounded nonnegative numeric timestamp and a closed, nonempty settings patch
+with a UUID target. The trusted connection supplies actor/session authority.
+Current database DM authority and same-session table ownership are checked in
+the transaction; new requests for retired or unresolved dirty targets reject.
+Settings, monotonic revision and original `table_settings` receipt commit together.
+No-op patches retain a receipt without a settings revision increment.
+
+`table_settings_changed` keeps the full settings shape and adds optional
+`operation_id`, `success`, `changed`, `accepted_revision`, `settings_revision`,
+`replayed` and `resync_required`. Peer events carry current settings/revision.
+Replays return current SQL values rather than an old accepted patch. A retained
+receipt for a later-deleted target carries `table_deleted: true`, original
+`operation_id` and `replayed` without obsolete settings. Changed-input reuse
+conflicts. Commit lookup failure reports `outcome_unknown` and fences serialized
+state work/snapshots until recovery; notification failure after acceptance sets
+`resync_required`. Recovery replies remain scoped to current DM authority.
+
+Browser buffers preserve unknown original messages through hydration and can
+probe that exact request once per connection; later patches wait for settlement.
+Older settings revisions cannot replace newer confirmed browser state. This does
+not persist retry ownership across page reload. Regression owners are
+`test_table_settings_service.py`, `tableSettingsBuffer.test.ts`,
+`clientProtocol.test.ts` and the PostgreSQL settings contracts.

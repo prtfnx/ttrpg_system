@@ -238,8 +238,8 @@ All settings controls share `tableSettingsBuffer.ts`: local preview is
 immediate; only unsent same-table patches merge. A 150 ms trailing debounce
 and 500 ms maximum wait bound accumulation. A dependent command flushes older
 settings first. Accepted settings update the baseline underneath later intent;
-denial removes its matching patch. Identical validated settings confirm without
-another database write. See [Action confirmation](../reference/ACTION_CONFIRMATION.md).
+denial removes its matching patch. Identical validated settings receive a durable receipt without
+rewriting settings values or incrementing their revision. See [Action confirmation](../reference/ACTION_CONFIRMATION.md).
 
 ## State and persistence
 

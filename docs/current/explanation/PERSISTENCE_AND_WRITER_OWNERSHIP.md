@@ -119,8 +119,8 @@ those remain part of general outcome-recovery work.
 
 ## Deferred consistency work
 
-TODO: extend durable receipts and outcome reconciliation to table settings,
-generic character and choice commands. Table creation, deletion and XP now commit
+TODO: extend durable receipts and outcome reconciliation to generic character
+and choice commands. Table creation, deletion, settings and XP now commit
 their effects and receipts together; this does not add universal retry safety or
 a persisted browser recovery queue. Complete remaining legacy character/token
 repairs and qualify worker ownership on the release candidate. Combat lifecycle transitions
@@ -138,7 +138,7 @@ protocol quarantines authoritative reads/writes and snapshots until recovery
 installs the verified outcome. Empty dirty queues cannot discard this cache.
 See [Battle flow](../BATTLE_FLOW.md) for retry and cancellation rules. This does
 not make character-sheet/token/encounter stats one transaction or add universal
-operation receipts for table/settings/XP commands.
+operation receipts for every table or gameplay command.
 Pre-combat environment saves use the async detached-snapshot path and retain
 table ordering through cancellation. The TODO guarantees above remain incomplete.
 Environment commands are limited to a single
@@ -203,3 +203,15 @@ still reads canonical state to repair the cache without disclosing an original
 outcome. `update_virtual_table` increments settings revision for actual settings
 changes, including generic CRUD/snapshot paths; the counter survives receipt
 cleanup. Regression owner: `apps/server/tests/unit/test_table_settings_service.py`.
+
+Production settings dispatch holds session/table ownership through the worker,
+canonical live installation and notification. Unknown outcomes or failed
+installation quarantine state reads/writes and snapshots until fresh session-row
+recovery proves the outcome. Rollback keeps prior live settings; accepted replay
+reads current SQL values. Recovery after actor removal repairs canonical state
+without exposing an original receipt. Nullable legacy unit/mode/color fields use
+the established effective defaults in response DTOs. Migration 0015 retains the
+counter; browser owners reject older revisions and retain unknown original
+messages through hydration rather than treating a snapshot as an operation receipt.
+The supported in-memory settings probe is bounded to one original message per
+connection; it is not a persisted browser recovery queue.

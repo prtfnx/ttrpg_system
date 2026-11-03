@@ -5,6 +5,7 @@ import json
 import threading
 import time
 from collections import Counter
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
@@ -488,17 +489,19 @@ async def test_burst_sql_work_does_not_scale_with_unrelated_sprites(protocol, te
 
 
 async def test_repeated_settings_cancellation_keeps_the_lock_through_commit_and_publication(protocol, monkeypatch):
-    from service.canvas_persistence_service import persist_table_settings
+    from service.table_settings_service import TableSettingsService
     proto, table, factory = protocol
     started, release = threading.Event(), threading.Event()
     proto.broadcast_to_session = AsyncMock()
 
+    service = TableSettingsService(factory)
+
     def slow(*args):
         started.set()
         assert release.wait(3)
-        return persist_table_settings(*args)
+        return service.execute(*args)
 
-    monkeypatch.setattr("service.protocol.tables.persist_table_settings", slow)
+    proto._table_settings_service = lambda: SimpleNamespace(execute=slow)
     task = asyncio.create_task(proto.handle_client(Message(MessageType.TABLE_SETTINGS_UPDATE,
         {"table_id": str(table.table_id), "grid_cell_px": 60}), "client"))
     while not started.is_set():

@@ -1,5 +1,9 @@
+import asyncio
+import copy
+import threading
 from contextlib import contextmanager
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from core_table.table import VirtualTable
@@ -168,3 +172,159 @@ def test_lost_commit_response_and_unavailable_lookup_settle_original_intent(sett
 def test_invalid_or_unowned_fields_reject_before_storage(patch):
     with pytest.raises(OperationRejected):
         TableSettingsIntent.create(1, 1, 'original', {'table_id': '550e8400-e29b-41d4-a716-446655440000', **patch})
+
+
+@pytest.fixture
+def dispatch(settings):
+    from core_table.protocol import Message
+    from core_table.server import TableManager
+    from service.server_protocol import ServerProtocol
+
+    context = SimpleNamespace(game_session_db_id=1, session_code='SETTING1',
+                              client_info={'dm': {'user_id': 2, 'role': 'co_dm'}})
+    proto = ServerProtocol(TableManager(True), session_manager=context)
+    proto.table_manager.add_table(settings.table)
+    proto._table_settings_service = lambda: settings.service
+    proto.send_to_client = AsyncMock()
+    proto.broadcast_to_session = AsyncMock()
+
+    async def send(message):
+        await proto.handle_client(Message.from_json(message.to_json()), 'dm')
+        sender = proto.send_to_client
+        assert isinstance(sender, AsyncMock)
+        return Message.from_json(sender.call_args.args[0].to_json())
+
+    return SimpleNamespace(proto=proto, send=send)
+
+
+@pytest.mark.asyncio
+async def test_dispatch_receipt_replay_keeps_current_settings_and_later_deleted_state(settings, dispatch):
+    from core_table.protocol import Message, MessageType
+
+    original = Message(MessageType.TABLE_SETTINGS_UPDATE, {'table_id': settings.table_id, 'grid_cell_px': 75})
+    first = await dispatch.send(original)
+    assert first.type == MessageType.TABLE_SETTINGS_CHANGED and first.data['settings_revision'] == 1
+    later = Message(MessageType.TABLE_SETTINGS_UPDATE, {'table_id': settings.table_id, 'grid_cell_px': 90})
+    assert (await dispatch.send(later)).data['settings_revision'] == 2
+    replay = await dispatch.send(original)
+    assert replay.data['replayed'] and replay.data['grid_cell_px'] == settings.table.grid_cell_px == 90
+    with settings.factory() as db:
+        crud.delete_virtual_table(db, settings.table_id)
+    replay = await dispatch.send(original)
+    assert replay.data['table_deleted'] and 'grid_cell_px' not in replay.data
+    assert settings.table_id not in dispatch.proto.table_manager.tables_id
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('committed', [False, True])
+async def test_unknown_settings_quarantine_reads_and_snapshots_until_verified(settings, dispatch, committed):
+    from core_table.protocol import Message, MessageType
+
+    class LostResponse(Session):
+        def commit(self):
+            if committed:
+                super().commit()
+            raise RuntimeError('Commit response lost')
+
+    calls, unavailable = 0, True
+
+    @contextmanager
+    def factory():
+        nonlocal calls
+        calls += 1
+        if calls > 1 and unavailable:
+            raise RuntimeError('Lookup unavailable')
+        current = sessionmaker(bind=settings.engine, class_=LostResponse) if calls == 1 else settings.factory
+        with current() as db:
+            yield db
+
+    settings.service = TableSettingsService(factory)
+    original = Message(MessageType.TABLE_SETTINGS_UPDATE, {'table_id': settings.table_id, 'grid_cell_px': 75})
+    assert (await dispatch.send(original)).data['outcome'] == 'unknown'
+    assert settings.table.grid_cell_px == 50 and not dispatch.proto.table_manager.persistence_allowed()
+    assert not await dispatch.proto.table_manager.save_to_database_async(1)
+    assert (await dispatch.send(Message(MessageType.TABLE_LIST_REQUEST, {}))).data['outcome'] == 'unknown'
+    unavailable = False
+    recovered = await dispatch.send(original)
+    if committed:
+        assert recovered.data['replayed'] and settings.table.grid_cell_px == 75
+    else:
+        assert recovered.data['code'] == 'persistence_failed' and settings.table.grid_cell_px == 50
+        assert (await dispatch.send(original)).type == MessageType.TABLE_SETTINGS_CHANGED
+    assert dispatch.proto.table_manager.persistence_allowed()
+
+
+@pytest.mark.asyncio
+async def test_settings_repeated_cancellation_holds_ownership_through_install_and_publication(settings, dispatch, monkeypatch):
+    from core_table.protocol import Message, MessageType
+
+    entered, release = threading.Event(), threading.Event()
+    publishing, published = asyncio.Event(), asyncio.Event()
+    stage = table_settings_service.stage_receipt
+    loop_thread = threading.get_ident()
+
+    def delayed(*args):
+        assert threading.get_ident() != loop_thread
+        stage(*args)
+        entered.set()
+        assert release.wait(5)
+
+    async def publish(*_):
+        publishing.set()
+        await published.wait()
+
+    monkeypatch.setattr(table_settings_service, 'stage_receipt', delayed)
+    dispatch.proto.broadcast_to_session = AsyncMock(side_effect=publish)
+    request = Message(MessageType.TABLE_SETTINGS_UPDATE, {'table_id': settings.table_id, 'grid_enabled': False})
+    task = asyncio.create_task(dispatch.send(request))
+    try:
+        assert await asyncio.to_thread(entered.wait, 2)
+        for _ in range(2):
+            task.cancel()
+            await asyncio.sleep(0)
+        assert dispatch.proto._mutation_lock.locked() and not task.done() and settings.table.grid_enabled
+        assert (await dispatch.send(Message(MessageType.PING, {}))).type == MessageType.PONG
+        release.set()
+        await asyncio.wait_for(publishing.wait(), 3)
+        task.cancel()
+        await asyncio.sleep(0)
+        assert dispatch.proto._mutation_lock.locked() and not task.done() and not settings.table.grid_enabled
+    finally:
+        release.set()
+        published.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert (await dispatch.send(request)).data['replayed']
+
+
+@pytest.mark.asyncio
+async def test_install_failure_recovers_current_state_before_rejecting_changed_original_request(settings, dispatch, monkeypatch):
+    from core_table.protocol import Message, MessageType
+
+    install = dispatch.proto._install_table_settings
+    monkeypatch.setattr(dispatch.proto, '_install_table_settings', AsyncMock(side_effect=RuntimeError('Cache failed')))
+    request = Message(MessageType.TABLE_SETTINGS_UPDATE, {'table_id': settings.table_id, 'grid_cell_px': 75})
+    assert (await dispatch.send(request)).data['outcome'] == 'unknown'
+    monkeypatch.setattr(dispatch.proto, '_install_table_settings', install)
+    changed = copy.deepcopy(request)
+    changed.data['grid_cell_px'] = 90
+    assert (await dispatch.send(changed)).data['code'] == 'conflict'
+    assert settings.table.grid_cell_px == 75 and dispatch.proto.table_manager.persistence_allowed()
+
+
+@pytest.mark.asyncio
+async def test_actor_removal_reconciles_cache_without_disclosing_original_receipt(settings, dispatch, monkeypatch):
+    from core_table.protocol import Message, MessageType
+
+    install = dispatch.proto._install_table_settings
+    monkeypatch.setattr(dispatch.proto, '_install_table_settings', AsyncMock(side_effect=RuntimeError('Cache failed')))
+    request = Message(MessageType.TABLE_SETTINGS_UPDATE, {'table_id': settings.table_id, 'grid_cell_px': 75})
+    assert (await dispatch.send(request)).data['outcome'] == 'unknown'
+    with settings.factory() as db:
+        db.query(models.GamePlayer).filter_by(user_id=2).delete()
+        db.query(models.User).filter_by(id=2).delete()
+        db.commit()
+    monkeypatch.setattr(dispatch.proto, '_install_table_settings', install)
+    response = await dispatch.send(request)
+    assert response.data['code'] == 'forbidden' and 'grid_cell_px' not in response.data
+    assert settings.table.grid_cell_px == 75 and dispatch.proto.table_manager.persistence_allowed()

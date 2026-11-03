@@ -138,7 +138,8 @@ class ServerProtocol(
 
     def _has_pending_writes(self) -> bool:
         return (self._has_pending_combat() or self._has_pending_character_update()
-                or self._has_pending_table_creation() or self._has_pending_table_deletion())
+                or self._has_pending_table_creation() or self._has_pending_table_deletion()
+                or self._has_pending_table_settings())
 
     def register_handler(self, msg_type: MessageType, handler: Callable):
         """Extension point for custom message handlers."""
@@ -318,7 +319,7 @@ class ServerProtocol(
             return await self._invoke_handler_in_scope(msg, client_id)
 
     async def _invoke_handler_in_scope(self, msg: Message, client_id: str):
-        if self._has_pending_writes() or msg.type in CHOICE_ENCOUNTER_MUTATIONS | {MessageType.COMBAT_COMMAND, MessageType.XP_AWARD, MessageType.NEW_TABLE_REQUEST, MessageType.TABLE_DELETE} or (msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
+        if self._has_pending_writes() or msg.type in CHOICE_ENCOUNTER_MUTATIONS | {MessageType.COMBAT_COMMAND, MessageType.XP_AWARD, MessageType.NEW_TABLE_REQUEST, MessageType.TABLE_DELETE, MessageType.TABLE_SETTINGS_UPDATE} or (msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
                 MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE,
                 MessageType.TABLE_SETTINGS_UPDATE, MessageType.CHARACTER_UPDATE} and getattr(
                     getattr(self, "table_manager", None), "db_session", None)):
@@ -333,6 +334,9 @@ class ServerProtocol(
             deletion_outcome = await self._recover_pending_table_deletion(msg, client_id)
             if deletion_outcome is not None:
                 return deletion_outcome
+            settings_outcome = await self._recover_pending_table_settings(msg, client_id)
+            if settings_outcome is not None:
+                return settings_outcome
             table_outcome = await self._recover_pending_table_creation(msg, client_id)
             if table_outcome is not None:
                 return table_outcome

@@ -18,6 +18,7 @@ from service.protocol.tables import _TablesMixin
 from service.session_operation_receipts import OperationRejected
 from service.table_creation_service import TableCreationAccepted
 from service.table_deletion_service import TableDeletionAccepted
+from service.table_settings_service import TableSettingsAccepted
 
 # ---------------------------------------------------------------------------
 # Stub
@@ -35,6 +36,8 @@ class _ProtoStub(_TablesMixin):
         self.deletion = MagicMock()
         self._table_deletion_service = lambda: self.deletion
         self.actions.discard_deleted_table = AsyncMock()
+        self.settings = MagicMock()
+        self._table_settings_service = lambda: self.settings
         self.clients = {}
         self._rules_cache = {}
 
@@ -413,190 +416,61 @@ class TestTableRequest:
 
 @pytest.mark.unit
 class TestTableSettingsUpdate:
-    async def test_identical_settings_confirm_without_storage_or_peer_broadcast(self):
-        proto = self._proto()
+    table_id = '550e8400-e29b-41d4-a716-446655440000'
+
+    def _proto(self, role='owner', *, changed=True):
+        proto = _ProtoStub(role)
+        table = VirtualTable('Settings', 1000, 1000, table_id=self.table_id)
+        proto.table_manager.add_table(table)
+        values = {name: getattr(table, name) for name in (
+            'dynamic_lighting_enabled', 'fog_exploration_mode', 'ambient_light_level',
+            'grid_cell_px', 'cell_distance', 'distance_unit', 'grid_enabled', 'snap_to_grid',
+            'grid_color_hex', 'background_color_hex')}
+        proto.settings.execute.return_value = TableSettingsAccepted(
+            {'table_id': self.table_id, 'operation_id': 'original', 'changed': changed},
+            {**values, 'grid_cell_px': 75 if changed else 50, 'settings_revision': 1 if changed else 0}, False)
+        table.settings_revision = 0
         proto.broadcast_to_session = AsyncMock()
-        with patch("service.protocol.tables.persist_table_settings") as save:
-            response = await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_UPDATE, {
-                "table_id": "t1", "grid_cell_px": 50,
-            }), "c1")
-        save.assert_not_called()
-        proto.broadcast_to_session.assert_not_awaited()
+        return proto, table
+
+    async def test_current_patch_is_installed_and_published_after_acceptance(self):
+        proto, table = self._proto()
+        response = await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_UPDATE,
+            {'table_id': self.table_id, 'grid_cell_px': 75}), 'c1')
         assert response.type == MessageType.TABLE_SETTINGS_CHANGED
-        assert response.data["grid_cell_px"] == 50
-
-    def _table_stub(self):
-        t = MagicMock()
-        t.dynamic_lighting_enabled = False
-        t.fog_exploration_mode = "current_only"
-        t.ambient_light_level = 1.0
-        t.grid_cell_px = 50.0
-        t.cell_distance = 5.0
-        t.distance_unit = "ft"
-        t.grid_enabled = True
-        t.snap_to_grid = True
-        t.grid_color_hex = "#ffffff"
-        t.background_color_hex = "#2a3441"
-        return t
-
-    def _proto(self, role="owner"):
-        p = _ProtoStub(role=role)
-        t = self._table_stub()
-        p.table_manager.tables_id = {"t1": t}
-        p.table_manager.tables = {}
-        return p
-
-    async def test_player_cannot_change_settings(self):
-        proto = self._proto("player")
-        msg = Message(MessageType.TABLE_SETTINGS_CHANGED, {"table_id": "t1", "dynamic_lighting_enabled": True})
-        resp = await proto.handle_table_settings_update(msg, "c1")
-        assert resp.type == MessageType.ERROR
-
-    async def test_missing_table_id_returns_error(self):
-        proto = self._proto()
-        resp = await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_CHANGED, {}), "c1")
-        assert resp.type == MessageType.ERROR
-
-    async def test_table_not_found_returns_error(self):
-        proto = self._proto()
-        proto.table_manager.tables_id = {}
-        msg = Message(MessageType.TABLE_SETTINGS_CHANGED, {"table_id": "unknown"})
-        resp = await proto.handle_table_settings_update(msg, "c1")
-        assert resp.type == MessageType.ERROR
-
-    async def test_invalid_fog_mode_returns_error(self):
-        proto = self._proto()
-        msg = Message(MessageType.TABLE_SETTINGS_CHANGED, {"table_id": "t1", "fog_exploration_mode": "invalid"})
-        resp = await proto.handle_table_settings_update(msg, "c1")
-        assert resp.type == MessageType.ERROR
-
-    async def test_ambient_out_of_range_returns_error(self):
-        proto = self._proto()
-        msg = Message(MessageType.TABLE_SETTINGS_CHANGED, {"table_id": "t1", "ambient_light_level": 2.5})
-        resp = await proto.handle_table_settings_update(msg, "c1")
-        assert resp.type == MessageType.ERROR
-
-    async def test_invalid_hex_color_returns_error(self):
-        proto = self._proto()
-        msg = Message(MessageType.TABLE_SETTINGS_CHANGED, {"table_id": "t1", "grid_color_hex": "not-a-color"})
-        resp = await proto.handle_table_settings_update(msg, "c1")
-        assert resp.type == MessageType.ERROR
-
-    @pytest.mark.parametrize(
-        ("field_name", "invalid_value"),
-        [
-            ("dynamic_lighting_enabled", "false"),
-            ("dynamic_lighting_enabled", 0),
-            ("dynamic_lighting_enabled", None),
-            ("grid_enabled", "false"),
-            ("grid_enabled", 1),
-            ("grid_enabled", None),
-            ("snap_to_grid", "true"),
-            ("snap_to_grid", 0),
-            ("snap_to_grid", None),
-        ],
-    )
-    async def test_non_boolean_table_flags_are_rejected(self, field_name, invalid_value):
-        proto = self._proto()
-        proto.broadcast_to_session = AsyncMock()
-        table = proto.table_manager.tables_id["t1"]
-        original_values = (
-            table.dynamic_lighting_enabled,
-            table.grid_enabled,
-            table.snap_to_grid,
-        )
-
-        resp = await proto.handle_table_settings_update(
-            Message(
-                MessageType.TABLE_SETTINGS_CHANGED,
-                {"table_id": "t1", field_name: invalid_value},
-            ),
-            "c1",
-        )
-
-        assert resp.type == MessageType.ERROR
-        assert resp.data["error"] == f"{field_name} must be a boolean"
-        assert (
-            table.dynamic_lighting_enabled,
-            table.grid_enabled,
-            table.snap_to_grid,
-        ) == original_values
-        proto.broadcast_to_session.assert_not_awaited()
-
-    async def test_valid_settings_applied_and_broadcast(self):
-        proto = self._proto()
-        broadcasts = []
-        proto.broadcast_to_session = AsyncMock(side_effect=lambda m, c: broadcasts.append(m))
-        msg = Message(MessageType.TABLE_SETTINGS_CHANGED, {
-            "table_id": "t1",
-            "dynamic_lighting_enabled": True,
-            "fog_exploration_mode": "persist_dimmed",
-            "ambient_light_level": 0.5,
-            "grid_enabled": False,
-            "snap_to_grid": False,
-        })
-        with patch("service.protocol.tables.persist_table_settings", return_value=True):
-            resp = await proto.handle_table_settings_update(msg, "c1")
-        assert resp.type == MessageType.TABLE_SETTINGS_CHANGED
-        assert resp.data["dynamic_lighting_enabled"] is True
-        assert resp.data["grid_enabled"] is False
-        assert resp.data["snap_to_grid"] is False
-        assert len(broadcasts) == 1
-
-    @pytest.mark.parametrize("outcome", [False, RuntimeError("database unavailable")])
-    async def test_failed_save_keeps_live_settings_and_does_not_broadcast(self, outcome):
-        proto = self._proto()
-        proto.broadcast_to_session = AsyncMock()
-        table = proto.table_manager.tables_id["t1"]
-        save = MagicMock(side_effect=outcome) if isinstance(outcome, Exception) else MagicMock(return_value=outcome)
-        with patch("service.protocol.tables.persist_table_settings", new=save):
-            response = await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_CHANGED, {
-                "table_id": "t1", "dynamic_lighting_enabled": True,
-                "ambient_light_level": 0.25, "grid_enabled": False,
-            }), "c1")
-        assert response.type == MessageType.ERROR
-        assert response.data["code"] == "table_settings_save_failed"
-        assert table.dynamic_lighting_enabled is False
-        assert table.ambient_light_level == 1.0
-        assert table.grid_enabled is True
-        proto.broadcast_to_session.assert_not_awaited()
-
-    async def test_missing_session_identity_never_attempts_save(self):
-        proto = self._proto()
-        proto._get_session_id = lambda msg: None
-        with patch("service.protocol.tables.persist_table_settings") as save:
-            response = await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_CHANGED, {
-                "table_id": "t1", "dynamic_lighting_enabled": True,
-            }), "c1")
-        assert response.type == MessageType.ERROR
-        save.assert_not_called()
-        assert proto.table_manager.tables_id["t1"].dynamic_lighting_enabled is False
-
-    async def test_cancelled_save_settles_before_publishing_committed_values(self):
-        proto = self._proto()
-        proto.broadcast_to_session = AsyncMock()
-        table = proto.table_manager.tables_id["t1"]
-        entered, release = asyncio.Event(), asyncio.Event()
-
-        async def slow_save(*_args):
-            entered.set()
-            await release.wait()
-            return True
-
-        with patch("service.protocol.tables.run_blocking", side_effect=slow_save):
-            task = asyncio.create_task(proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_CHANGED, {
-                "table_id": "t1", "dynamic_lighting_enabled": True,
-            }), "c1"))
-            await entered.wait()
-            assert table.dynamic_lighting_enabled is False
-            task.cancel()
-            await asyncio.sleep(0)
-            assert not task.done()
-            release.set()
-            with pytest.raises(asyncio.CancelledError):
-                await task
-        assert table.dynamic_lighting_enabled is True
+        assert table.grid_cell_px == 75 and table.settings_revision == 1
         proto.broadcast_to_session.assert_awaited_once()
+
+    async def test_identical_settings_have_receipt_without_peer_broadcast(self):
+        proto, _ = self._proto(changed=False)
+        response = await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_UPDATE,
+            {'table_id': self.table_id, 'grid_cell_px': 50}), 'c1')
+        assert response.type == MessageType.TABLE_SETTINGS_CHANGED
+        proto.settings.execute.assert_called_once()
+        proto.broadcast_to_session.assert_not_awaited()
+
+    async def test_denied_storage_does_not_install_or_publish(self):
+        proto, table = self._proto()
+        proto.settings.execute.side_effect = OperationRejected('Save rejected', 'persistence_failed')
+        response = await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_UPDATE,
+            {'table_id': self.table_id, 'grid_cell_px': 75}), 'c1')
+        assert response.type == MessageType.ERROR and response.data['code'] == 'persistence_failed'
+        assert table.grid_cell_px == 50
+        proto.broadcast_to_session.assert_not_awaited()
+
+    @pytest.mark.parametrize('role', ['player', 'spectator', 'trusted_player'])
+    async def test_only_dm_may_change_settings(self, role):
+        proto, _ = self._proto(role)
+        assert (await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_UPDATE,
+            {'table_id': self.table_id, 'grid_enabled': False}), 'c1')).type == MessageType.ERROR
+        proto.settings.execute.assert_not_called()
+
+    async def test_missing_session_rejects_before_storage(self):
+        proto, _ = self._proto()
+        proto._get_session_id = lambda _: None
+        assert (await proto.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_UPDATE,
+            {'table_id': self.table_id, 'grid_enabled': False}), 'c1')).type == MessageType.ERROR
+        proto.settings.execute.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

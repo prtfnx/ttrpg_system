@@ -21,6 +21,7 @@ from service import (
     session_join_hydration,
     sprite_control,
     table_creation_service,
+    table_settings_service,
 )
 from service.choice_encounter_persistence_service import ChoiceEncounterPersistenceService
 from service.combat_engine import CombatEngine
@@ -63,7 +64,7 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
     monkeypatch.setattr(character_manager, "SessionLocal", factory)
     monkeypatch.setattr(character_manager, "_server_character_manager", character_manager.ServerCharacterManager())
     for module in (database, canvas_persistence_service, base, canvas, combat, session,
-                   session_join_hydration, sprite_control, table_creation_service):
+                   session_join_hydration, sprite_control, table_creation_service, table_settings_service):
         monkeypatch.setattr(module, "SessionLocal", factory)
     asset_provider = SimpleNamespace(request_session_assets=AsyncMock(return_value=[]))
     monkeypatch.setattr(game_session_protocol, "get_server_asset_manager", lambda: asset_provider)

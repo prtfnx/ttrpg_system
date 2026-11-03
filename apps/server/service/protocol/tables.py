@@ -1,4 +1,3 @@
-import asyncio
 import math
 from typing import Any
 
@@ -7,13 +6,12 @@ from core_table.protocol import Message, MessageType
 from service.canvas_persistence_service import (
     load_table_hydration,
     load_table_preview_metadata,
-    persist_table_settings,
 )
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import get_visible_layers, is_dm
 
-from .table_deletion import _TableDeletionMixin
+from .table_settings import _TableSettingsMixin
 
 logger = setup_logger(__name__)
 
@@ -31,7 +29,7 @@ def _validated_table_dimension(value: object) -> int | None:
     return dimension if _MIN_TABLE_DIMENSION <= dimension <= _MAX_TABLE_DIMENSION else None
 
 
-class _TablesMixin(_TableDeletionMixin):
+class _TablesMixin(_TableSettingsMixin):
     """Handler methods for tables domain."""
 
     async def handle_table_list_request(self, msg: Message, client_id: str) -> Message:
@@ -124,6 +122,7 @@ class _TablesMixin(_TableDeletionMixin):
                     if not walls_list:
                         walls_list = hydration.walls
                     layer_settings_data = hydration.layer_settings
+                    table_data_with_hashes["settings_revision"] = getattr(hydration, 'settings_revision', 0)
                 except Exception as _e:
                     logger.warning(f"Could not hydrate table {table_id} from DB: {_e}")
 
@@ -131,135 +130,6 @@ class _TablesMixin(_TableDeletionMixin):
                                                             'table_data': table_data_with_hashes,
                                                             'walls': walls_list,
                                                             'layer_settings': layer_settings_data})
-
-    async def handle_table_settings_update(self, msg: Message, client_id: str) -> Message:
-        """Handle DM request to change dynamic lighting / fog exploration settings for a table."""
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'Only DMs can change table lighting settings'})
-        if not msg.data:
-            return Message(MessageType.ERROR, {'error': 'No data provided'})
-
-        table_id = msg.data.get('table_id')
-        if not table_id:
-            return Message(MessageType.ERROR, {'error': 'table_id is required'})
-
-        VALID_FOG_MODES = {'current_only', 'persist_dimmed'}
-        dynamic_lighting = msg.data.get('dynamic_lighting_enabled')
-        fog_mode = msg.data.get('fog_exploration_mode')
-        ambient = msg.data.get('ambient_light_level')
-        grid_cell_px = msg.data.get('grid_cell_px')
-        cell_distance = msg.data.get('cell_distance')
-        distance_unit = msg.data.get('distance_unit')
-        grid_enabled = msg.data.get('grid_enabled')
-        snap_to_grid = msg.data.get('snap_to_grid')
-        grid_color_hex = msg.data.get('grid_color_hex')
-        background_color_hex = msg.data.get('background_color_hex')
-
-        boolean_fields = (
-            'dynamic_lighting_enabled',
-            'grid_enabled',
-            'snap_to_grid',
-        )
-        for field_name in boolean_fields:
-            if field_name in msg.data and not isinstance(msg.data[field_name], bool):
-                return Message(MessageType.ERROR, {'error': f'{field_name} must be a boolean'})
-
-        if fog_mode is not None and fog_mode not in VALID_FOG_MODES:
-            return Message(MessageType.ERROR, {'error': f'fog_exploration_mode must be one of {VALID_FOG_MODES}'})
-        if ambient is not None:
-            try:
-                ambient = float(ambient)
-            except (ValueError, TypeError):
-                return Message(MessageType.ERROR, {'error': 'ambient_light_level must be a number between 0.0 and 1.0'})
-            if not (0.0 <= ambient <= 1.0):
-                return Message(MessageType.ERROR, {'error': 'ambient_light_level must be between 0.0 and 1.0'})
-        if grid_cell_px is not None:
-            try:
-                grid_cell_px = float(grid_cell_px)
-            except (ValueError, TypeError):
-                return Message(MessageType.ERROR, {'error': 'grid_cell_px must be a number between 10 and 500'})
-            if not (10.0 <= grid_cell_px <= 500.0):
-                return Message(MessageType.ERROR, {'error': 'grid_cell_px must be between 10 and 500'})
-        if cell_distance is not None:
-            try:
-                cell_distance = float(cell_distance)
-            except (ValueError, TypeError):
-                return Message(MessageType.ERROR, {'error': 'cell_distance must be a positive number'})
-            if cell_distance <= 0:
-                return Message(MessageType.ERROR, {'error': 'cell_distance must be positive'})
-        if distance_unit is not None and distance_unit not in ('ft', 'm'):
-            return Message(MessageType.ERROR, {'error': 'distance_unit must be ft or m'})
-
-        HEX_PATTERN = r'^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$'
-        import re as _re
-        if grid_color_hex is not None:
-            if not isinstance(grid_color_hex, str) or not _re.match(HEX_PATTERN, grid_color_hex):
-                return Message(MessageType.ERROR, {'error': 'grid_color_hex must be a valid hex color'})
-        if background_color_hex is not None:
-            if not isinstance(background_color_hex, str) or not _re.match(HEX_PATTERN, background_color_hex):
-                return Message(MessageType.ERROR, {'error': 'background_color_hex must be a valid hex color'})
-
-        session_id = self._get_session_id(msg)
-        if not session_id:
-            return Message(MessageType.ERROR, {'error': 'Session identity is required to save table settings'})
-
-        # Stage values without exposing an uncommitted change to the live table.
-        table = self.table_manager.tables_id.get(table_id)
-        if table is None:
-            table = self.table_manager.tables.get(table_id)
-        if table is None:
-            return Message(MessageType.ERROR, {'error': 'Table not found'})
-
-        changes = {
-            'dynamic_lighting_enabled': dynamic_lighting,
-            'fog_exploration_mode': fog_mode,
-            'ambient_light_level': ambient,
-            'grid_cell_px': grid_cell_px,
-            'cell_distance': cell_distance,
-            'distance_unit': distance_unit,
-            'grid_enabled': grid_enabled,
-            'snap_to_grid': snap_to_grid,
-            'grid_color_hex': grid_color_hex,
-            'background_color_hex': background_color_hex,
-        }
-        settings = {
-            name: value if value is not None else getattr(table, name)
-            for name, value in changes.items()
-        }
-        if all(getattr(table, name) == value for name, value in settings.items()):
-            # Confirm the request without another write or redundant peer event.
-            return Message(MessageType.TABLE_SETTINGS_CHANGED, {'table_id': table_id, **settings})
-        worker = asyncio.create_task(run_blocking(persist_table_settings, str(table.table_id), settings))
-        cancelled = False
-        try:
-            try:
-                persisted = await asyncio.shield(worker)
-            except asyncio.CancelledError:
-                # Synchronous SQL cannot be cancelled. Keep session mutation
-                # ownership until it settles and install any committed values.
-                cancelled = True
-                persisted = await worker
-            if not persisted:
-                raise RuntimeError('Table settings were not persisted')
-        except Exception:
-            logger.exception("Table settings persistence could not be confirmed")
-            if cancelled:
-                raise asyncio.CancelledError
-            return Message(MessageType.ERROR, {
-                'code': 'table_settings_save_failed',
-                'error': 'Could not confirm the settings save. Reload the table before retrying.',
-                'table_id': table_id,
-            })
-
-        for name, value in settings.items():
-            setattr(table, name, value)
-        broadcast_data = {'table_id': table_id, **settings}
-        await self.broadcast_to_session(
-            Message(MessageType.TABLE_SETTINGS_CHANGED, broadcast_data), client_id
-        )
-        if cancelled:
-            raise asyncio.CancelledError
-        return Message(MessageType.TABLE_SETTINGS_CHANGED, broadcast_data)
 
     async def handle_table_update(self, msg: Message, client_id: str) -> Message:
         """Handle and broadcast table update with sprite movement support"""

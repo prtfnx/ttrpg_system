@@ -4,6 +4,26 @@ Date: 2026-10-26, Europe/Kiev.
 
 Status: proposed implementation backlog; this document does not declare the remaining work complete.
 
+November 2 history/report continuation: all 37 unpublished commits were redated
+for both author and committer to November 2 in Europe/Kyiv, retaining identities,
+messages, trees, order and original local times of day. A backup remains on
+`backup/unpublished-before-redate-2026-11-02-673523d8`. A normal fast-forward push
+published exactly the oldest 12 through `6d344d97` (renderer scene retirement).
+There were 25 rewritten commits left local before the separate report commit.
+Existing modified WASM and unrelated audits remain preserved. See the
+[commit map](audit/release-2026-11-02/commit-map.json) for rewritten references.
+
+The [November 2 remaining-work report](ARCHITECTURE_REMAINING_2026-11-02.md)
+rechecks the latest local implementation, rather than treating historical
+continuation paragraphs as current missing work. R1 atomic combat and the named
+R3 worker migrations are implemented locally and need candidate qualification.
+R4 still needs choice/multiclass receipts, compatible persisted character
+ownership and remaining generic mutation settlement. R2 active-combat stat
+authority, R5 auth/private-producer acceptance, R6 paired restore and R0/R7 real
+PostgreSQL/artifact/served/load evidence remain open. This task changes history
+and records findings; it does not implement another runtime change or establish
+a successful current deployment.
+
 October 30 character-outcome continuation: general character protocol updates and
 guarded stat-reconciliation applies now commit source/version/sharing/audit/token
 projections with an actor/session/domain-scoped original-intent receipt. Current

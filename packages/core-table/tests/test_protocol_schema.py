@@ -106,7 +106,8 @@ def test_message_type_schema_matches_python_enum():
 
 @pytest.mark.parametrize('options', [{'mode': 'dry_run'}, {'mode': 'apply', 'expected_digest': 'a' * 64}])
 def test_reconciliation_request_has_one_closed_explicit_mode(options):
-    parsed = Message.from_dict({'type': 'character_update', 'data': {'character_id': 'hero', 'stat_reconciliation': options}})
+    parsed = Message.from_dict({'type': 'character_update', 'message_id': 'original', 'timestamp': 1,
+        'data': {'character_id': 'hero', 'stat_reconciliation': options}})
     assert parsed.data['stat_reconciliation'] == options
 
 
@@ -120,7 +121,20 @@ def test_reconciliation_request_has_one_closed_explicit_mode(options):
 ])
 def test_reconciliation_cannot_mix_mutations_or_omit_its_exact_precondition(data):
     with pytest.raises(ValueError, match='Invalid protocol message'):
-        Message.from_dict({'type': 'character_update', 'data': data})
+        Message.from_dict({'type': 'character_update', 'message_id': 'original', 'timestamp': 1, 'data': data})
+
+
+@pytest.mark.parametrize('data', [{'character_id': 'hero', 'updates': {'name': 'Hero'}, 'version': 1},
+    {'character_id': 'hero', 'character_data': {'name': 'Hero'}},
+    {'character_id': 'hero', 'stat_reconciliation': {'mode': 'apply', 'expected_digest': 'a' * 64}}])
+@pytest.mark.parametrize('field,value', [('message_id', None), ('message_id', ''), ('message_id', 'x' * 129),
+    ('timestamp', None), ('timestamp', -1), ('timestamp', True), ('timestamp', 9007199254741)])
+def test_character_mutation_requires_bounded_original_wire_identity(data, field, value):
+    wire = {'type': 'character_update', 'message_id': 'original', 'timestamp': 1, 'data': data}
+    assert Message.from_dict(wire).message_id == 'original'
+    wire.pop(field) if value is None else wire.update({field: value})
+    with pytest.raises(ValueError, match='Invalid protocol message'):
+        Message.from_dict(wire)
 
 
 def test_packaged_schema_matches_canonical_schema():

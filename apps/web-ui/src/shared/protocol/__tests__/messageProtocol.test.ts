@@ -3,6 +3,15 @@ import { describe, expect, it } from 'vitest';
 
 describe('Protocol Message Utilities', () => {
 
+  it.each([
+    { message_id: undefined }, { message_id: '' }, { message_id: 'x'.repeat(129) },
+    { timestamp: undefined }, { timestamp: -1 }, { timestamp: true }, { timestamp: 9007199254741 },
+  ])('rejects character edits without a bounded original identity: %j', (invalid) => {
+    const original = createMessage(MessageType.CHARACTER_UPDATE, { character_id: 'hero', updates: { name: 'Hero' } });
+    expect(parseMessage(JSON.stringify(original)).message_id).toBe(original.message_id);
+    expect(() => parseMessage(JSON.stringify({ ...original, ...invalid }))).toThrow(/Invalid message/);
+  });
+
   it('should serialize and deserialize a basic message', () => {
     const msg = createMessage(MessageType.CHARACTER_UPDATE, { id: 'c1', name: 'Hero' });
     const json = JSON.stringify(msg);
@@ -332,12 +341,12 @@ describe('Protocol Message Utilities', () => {
       },
       {
         type: MessageType.TABLE_SETTINGS_UPDATE,
-        data: { table_id: 'table-1', snap_to_grid: false },
+        data: { table_id: '51f0094e-66af-4f2d-91e1-b0caef9d33ed', snap_to_grid: false },
       },
     ];
 
     for (const message of validMessages) {
-      expect(parseMessage(JSON.stringify(message)).type).toBe(message.type);
+      expect(parseMessage(JSON.stringify(createMessage(message.type, message.data))).type).toBe(message.type);
     }
 
     const invalidMessages = [
@@ -378,7 +387,7 @@ describe('Protocol Message Utilities', () => {
     ];
 
     for (const message of invalidMessages) {
-      expect(() => parseMessage(JSON.stringify(message))).toThrow(/Invalid message/);
+      expect(() => parseMessage(JSON.stringify(createMessage(message.type, message.data)))).toThrow(/Invalid message/);
     }
   });
 

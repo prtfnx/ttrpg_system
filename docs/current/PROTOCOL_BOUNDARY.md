@@ -304,3 +304,24 @@ for older clients, whose closed validators would reject an unknown property.
 The query requests wire capability only; it grants no authority or receipt scope.
 Unsupported servers leave stored intents untouched. Current clients still wait
 for the authenticated welcome before sending/restoring supported high-risk work.
+
+
+## Durable character wire identity
+
+`character_update` now requires the original nonempty `message_id` (up to 128
+characters) and bounded nonnegative numeric timestamp. This also covers the
+legacy `character_data` patch alias and guarded reconciliation envelopes; decoding
+cannot invent a new identity for an uncertain retry. Python and browser validators
+are generated from the canonical schema. The service binds character, complete
+finite JSON patch (up to 512 KiB), expected positive safe-integer version and
+reconciliation digest to authenticated actor/session identity. Mutation and
+reconciliation payloads retain their existing validation rules.
+
+Correlated acceptance reports `operation_id`, `accepted_version` and current
+`version`. Replayed receipts request resync and may report `character_archived`;
+they never carry an obsolete private source document. Receipt replay rechecks
+current database edit authority. `character_update` is not added to the negotiated
+four-domain `session-operations-v1` browser journal; live-page reconnect preserves
+its original in-memory envelope. Choice/multiclass receipts and character reload
+ownership remain separate release work. Regression owner:
+`packages/core-table/tests/test_protocol_schema.py`.

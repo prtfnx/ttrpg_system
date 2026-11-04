@@ -459,6 +459,9 @@ async def test_post_commit_installation_failure_keeps_snapshots_fenced_until_cur
     sync = linked.proto._sync_character_stats_to_tokens
 
     async def broken(*_args, **_kwargs):
+        # A socket can disappear while the admitted database worker is settling.
+        # Cache repair must retain the captured actor, not look it up again here.
+        linked.proto.session_manager.client_info.clear()
         raise RuntimeError('Live cache installation failed')
 
     monkeypatch.setattr(linked.proto, '_sync_character_stats_to_tokens', broken)
@@ -466,6 +469,9 @@ async def test_post_commit_installation_failure_keeps_snapshots_fenced_until_cur
     assert uncertain.type == MessageType.ERROR and uncertain.data['outcome'] == 'unknown'
     assert saved_state(linked)[0] == 2 and linked.proto._has_pending_writes()
     assert not await linked.proto.table_manager.save_to_database_async(linked.session_id)
+    resolved = character_manager.get_server_character_manager().update_recovery.resolve(linked.session_id)
+    assert resolved is not None and resolved.attempt.user_id == linked.owner
+    linked.proto.session_manager.client_info['dm'] = {'user_id': linked.owner, 'role': 'owner'}
     monkeypatch.setattr(linked.proto, '_sync_character_stats_to_tokens', sync)
     await linked.proto.handle_client(Message(MessageType.TABLE_REQUEST, {'table_id': str(linked.tables[0].table_id)}), 'dm')
     receipts = [reply for reply in linked.responses if reply.type == MessageType.CHARACTER_UPDATE_RESPONSE

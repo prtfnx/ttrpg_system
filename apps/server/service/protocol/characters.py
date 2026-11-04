@@ -700,7 +700,7 @@ class _CharactersMixin(_CharacterOutcomesMixin):
                 return recovered or self._character_uncertain_response(character_id)
             if result.success and result_data.get('operation_id'):
                 applied = result_data.get('applied_updates', updates) if reconciliation_digest is not None else updates
-                return await self._accept_durable_character_result(msg, client_id, result_data, applied)
+                return await self._accept_durable_character_result(msg, client_id, result_data, applied, session_id, user_id)
 
             if result.success:
                 # New managers return projections committed with the source.

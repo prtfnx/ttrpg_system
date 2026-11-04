@@ -36,20 +36,18 @@ class _CharacterOutcomesMixin(_ProtocolBase):
                             current_version=data.get('version'), not_accepted=True)
         return Message(MessageType.CHARACTER_UPDATE_RESPONSE, response)
 
-    def _remember_character_installation(self, request, client_id, data):
+    def _remember_character_installation(self, request, data, session_id, user_id):
         from managers.character_manager import get_server_character_manager
 
         payload = request.data
         options = payload.get('stat_reconciliation') or {}
-        intent = CharacterUpdateIntent.create(self._get_session_id(request), self._get_user_id(request, client_id),
+        intent = CharacterUpdateIntent.create(session_id, user_id,
             request.message_id, payload['character_id'], {} if options else payload.get('updates') or payload.get('character_data'),
             payload.get('version'), options.get('expected_digest'))
         get_server_character_manager().update_operations._remember(intent, result=data)
 
-    async def _accept_durable_character_result(self, request, client_id, data, updates):
+    async def _accept_durable_character_result(self, request, client_id, data, updates, session_id, user_id):
         character_id = request.data['character_id']
-        session_id = self._get_session_id(request)
-        assert session_id is not None
         replayed = data.get('replayed', False)
         try:
             resync = await self._sync_character_stats_to_tokens(session_id, character_id, updates,
@@ -57,7 +55,7 @@ class _CharacterOutcomesMixin(_ProtocolBase):
                 strict_install=True, publish=not replayed)
         except Exception:
             logger.exception('Committed character projections need cache recovery')
-            self._remember_character_installation(request, client_id, data)
+            self._remember_character_installation(request, data, session_id, user_id)
             return self._character_uncertain_response(character_id)
         if not replayed and updates:
             try:

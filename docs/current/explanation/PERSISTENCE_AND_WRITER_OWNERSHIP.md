@@ -275,3 +275,24 @@ Post-commit character cache repair retains the actor/session captured at command
 admission. Removing a socket during worker settlement cannot erase that recovery
 identity or release the pending snapshot fence. Current database authority still
 gates public outcome disclosure during the later lookup.
+
+
+## Choice operation acceptance service
+
+`ChoiceOperationService` stages a detached prompt transition, its ordered event
+and an actor/session/original-intent receipt in one transaction. Current database
+membership/interactive role is required; start/end require current DM authority.
+The stable session-row lock serializes competing acceptance and fresh lookup.
+After receipt lookup, the original explicit encounter target and participant
+rules are checked before evaluating a new transition or rolling dice.
+
+Receipts retain accepted version and small outcome (including actual rolled
+dice), not full private snapshots. Replay reads the current active SQL snapshot,
+including a newer prompt or no active prompt after completion; it cannot reroll,
+recreate an old prompt or clear a newer one. Lost commit responses remain unknown
+until a fresh receipt lookup behind the same barrier proves acceptance/rollback.
+Internal lookup can repair state after authority loss without disclosing private
+outcomes. The protocol must hold its pending ownership until current installation.
+No new migration is required. Regression owner:
+`test_choice_operation_service.py` covers all four transitions, rollback, restart,
+later prompts, preserved dice, authority loss and payload conflicts.

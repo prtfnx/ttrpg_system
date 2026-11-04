@@ -2466,6 +2466,51 @@ describe('WebClientProtocol', () => {
       expect(types).not.toContain(MessageType.CHARACTER_UPDATE);
     });
 
+    it('hydrates a recovery hint instead of treating an empty old patch as current character data', async () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      const update = mocks.storeState.updateCharacter as Mock; update.mockClear();
+      await dispatch(p, 'character_update', { character_id: 'c1', updates: {}, version: 3,
+        source: 'recovery', resync_required: true });
+      p.sendBatch();
+      expect(update).not.toHaveBeenCalled();
+      expect(JSON.parse(ws.send.mock.calls[0][0]).data.messages.map((message: Message) => message.type))
+        .toContain(MessageType.CHARACTER_LOAD_REQUEST);
+    });
+
+    it('defers a peer recovery hint until every local edit to the character settles', async () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      p.updateCharacter('c1', { hp: 10 }, 2); p.updateCharacter('c1', { ac: 16 }, 2); p.sendBatch();
+      const [first, second] = JSON.parse(ws.send.mock.calls[0][0]).data.messages;
+      ws.send.mockClear();
+      await dispatch(p, 'character_update', { character_id: 'c1', updates: {}, version: 3, resync_required: true });
+      await dispatch(p, 'character_update_response', { success: true, character_id: 'c1', version: 3 },
+        { causation_id: first.message_id }); p.sendBatch();
+      expect(ws.send).not.toHaveBeenCalled();
+      await dispatch(p, 'character_update_response', { success: true, character_id: 'c1', version: 4 },
+        { causation_id: second.message_id }); p.sendBatch();
+      const sent = JSON.parse(ws.send.mock.calls[0][0]).data.messages;
+      expect(sent.filter((message: Message) => message.type === MessageType.CHARACTER_LOAD_REQUEST)).toHaveLength(1);
+      expect(sent.some((message: Message) => message.type === MessageType.CHARACTER_UPDATE)).toBe(false);
+    });
+
+    it('removes an archived character on retained acceptance without requesting its obsolete source', async () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      p.updateCharacter('c1', { hp: 10 }, 2); p.sendBatch();
+      const request = JSON.parse(ws.send.mock.calls[0][0]).data.messages[0]; ws.send.mockClear();
+      await dispatch(p, 'character_update_response', { success: true, character_id: 'c1', version: 3,
+        character_archived: true, resync_required: true }, { causation_id: request.message_id }); p.sendBatch();
+      expect(mocks.storeState.removeCharacter).toHaveBeenCalledWith('c1');
+      const sent = ws.send.mock.calls.flatMap(call => JSON.parse(call[0]).data.messages ?? []);
+      expect(sent.some((message: Message) => message.type === MessageType.CHARACTER_LOAD_REQUEST)).toBe(false);
+    });
+
+    it('does not apply an older delta after a newer character version', async () => {
+      mocks.storeState.characters = [{ id: 'c1', version: 5 }];
+      const update = mocks.storeState.updateCharacter as Mock; update.mockClear();
+      await dispatch(makeProtocol(), 'character_update', { character_id: 'c1', updates: { name: 'Old' }, version: 3 });
+      expect(update).not.toHaveBeenCalled();
+    });
+
     it('does not turn an unknown outcome into a new conflict retry after restart', async () => {
       const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
       p.updateCharacter('c1', { hp: 10 }, 2); p.sendBatch();
@@ -2474,13 +2519,28 @@ describe('WebClientProtocol', () => {
         error: 'Character outcome is uncertain. Reload to check before retrying.' },
         { causation_id: request.message_id }); p.sendBatch(); ws.send.mockClear();
       await dispatch(p, 'character_update_response',
-        { success: false, character_id: 'c1', error: 'Version conflict', current_version: 3 },
+        { success: false, character_id: 'c1', error: 'Version conflict', current_version: 3, not_accepted: true },
         { causation_id: request.message_id }); p.sendBatch();
       const sent = ws.send.mock.calls.flatMap(call => {
         const message = JSON.parse(call[0]); return message.type === MessageType.BATCH_REQUEST ? message.data.messages : [message];
       });
       expect(sent.some((message: Message) => message.type === MessageType.CHARACTER_UPDATE)).toBe(false);
       expect(sent.some((message: Message) => message.type === MessageType.CHARACTER_LOAD_REQUEST)).toBe(true);
+    });
+
+    it.each(['forbidden', 'conflict'])('retains a denied %s lookup until the original outcome can be confirmed', async (code) => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      p.updateCharacter('c1', { hp: 10 }, 2); p.sendBatch();
+      const request = JSON.parse(ws.send.mock.calls[0][0]).data.messages[0]; ws.send.mockClear();
+      await dispatch(p, 'character_update_response', { success: false, character_id: 'c1', code, error: 'Lookup denied' },
+        { causation_id: request.message_id }); p.sendBatch();
+      expect(ws.send).not.toHaveBeenCalled();
+      expect(mocks.storeState.updateCharacter).toHaveBeenLastCalledWith('c1', { syncStatus: 'syncing' });
+      await dispatch(p, 'character_update_response', { success: true, character_id: 'c1', version: 3,
+        replayed: true, resync_required: true }, { causation_id: request.message_id }); p.sendBatch();
+      expect(mocks.storeState.updateCharacter).toHaveBeenLastCalledWith('c1', { syncStatus: 'synced', version: 3 });
+      expect(JSON.parse(ws.send.mock.calls[0][0]).data.messages.map((message: Message) => message.type))
+        .toContain(MessageType.CHARACTER_LOAD_REQUEST);
     });
 
     it('defers recovery hydration until later edits to that character settle', async () => {
@@ -2516,7 +2576,7 @@ describe('WebClientProtocol', () => {
       const request = JSON.parse(ws.send.mock.calls[0][0]).data.messages[0];
       p.disconnect(); const resumed = makeOpenWs(p);
       await dispatch(p, 'character_update_response',
-        { success: false, character_id: 'c1', error: 'Version conflict', current_version: 3 },
+        { success: false, character_id: 'c1', error: 'Version conflict', current_version: 3, not_accepted: true },
         { causation_id: request.message_id }); p.sendBatch();
       const sent = resumed.send.mock.calls.flatMap(call => {
         const message = JSON.parse(call[0]); return message.type === MessageType.BATCH_REQUEST ? message.data.messages : [message];

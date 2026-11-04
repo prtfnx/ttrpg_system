@@ -403,9 +403,9 @@ behind the same session-row barrier. An unavailable lookup remains explicitly
 input; a new identity denotes another award. Admitted production dispatch keeps
 session ownership through SQL settlement and role-filtered publication despite
 repeated cancellation. Publication failure reports accepted state requiring
-resync. Players see XP as read-only state. Generic character, table and choice
-commands do not inherit these guarantees; PostgreSQL/served qualification remains
-an open release gate.
+resync. Players see XP as read-only state. Generic character and selected table
+commands have their own receipt boundaries; choice/multiclass commands remain
+separate work. PostgreSQL/served qualification remains an open release gate.
 
 Multiclass changes use `multiclass_request`. The server validates the pinned
 prerequisites, preserves a legacy primary class when normalizing the class
@@ -510,3 +510,26 @@ an uncertain earlier award. The saved-change notice can retry the original or
 explicitly forget its recovery record without cancelling/undoing an award.
 Closing the tab or clearing storage can remove local evidence. Multiclass and
 generic character-edit commands are not automatically replayed by this journal.
+
+
+## Character recovery hydration
+
+The browser treats `resync_required` character notifications as a request for a
+canonical source/table read, without applying an empty recovered patch or its old
+version. Hydration waits until all local edits for that character settle. Retained
+acceptance cannot lower a newer known version; older peer deltas are ignored.
+An archived-source acceptance removes the character without loading obsolete
+source data. Exact request correlation still owns settlement, so an old receipt
+cannot clear a later edit. `clientProtocol.test.ts` covers these boundaries.
+
+Generic character originals remain in page memory and can be retried unchanged
+on live-page reconnect; their server receipts survive process restart. Reloading
+or closing the page loses those local originals. The persisted journal still
+covers only advertised table creation/deletion/settings and XP. Canonical reads
+are not proof that a particular unrecorded request was accepted.
+
+Denied lookups do not prove rollback. A correlated forbidden/conflicting lookup,
+or another failure for an already uncertain original, retains that original in
+page memory unless the server explicitly proves `not_accepted`. Later correlated
+acceptance can settle it. Reconnect keeps its exact envelope; a reload still loses
+this page-memory evidence. Proven rollback permits canonical hydration and review.

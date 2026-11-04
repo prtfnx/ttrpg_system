@@ -1873,11 +1873,20 @@ export class WebClientProtocol {
       }
       return;
     }
+
+    if (characterId && data.resync_required === true) {
+      this.characterResyncNeeded.add(characterId);
+      this.resyncCharacterWhenSettled(characterId);
+      emitProtocolEvent('character-updated', { character_id: characterId, resync_required: true });
+      return;
+    }
     
     // Delta update (partial changes)
     const updates = data.updates;
     if (characterId && updates && typeof updates === 'object' && !Array.isArray(updates)) {
       const version = data.version as number | undefined;
+      const currentVersion = store.characters.find(character => character.id === characterId)?.version;
+      if (version !== undefined && currentVersion !== undefined && version < currentVersion) return;
       const updatePayload: Partial<Character> = { ...(updates as Partial<Character>) };
       if (Object.hasOwn(updates, 'data')) {
         const existing = store.characters.find(character => character.id === characterId);
@@ -1894,6 +1903,14 @@ export class WebClientProtocol {
       logger.debug(`Character updated (delta): ${characterId}`, updates);
       emitProtocolEvent('character-updated', { character_id: characterId, updates });
     }
+  }
+
+  private resyncCharacterWhenSettled(characterId: string, archived = false): void {
+    if (Array.from(this.pendingCharacterUpdates.values()).some(item => item.characterId === characterId)
+      || !this.characterResyncNeeded.delete(characterId)) return;
+    if (!archived) this.loadCharacter(characterId);
+    const tableId = useGameStore.getState().activeTableId;
+    if (tableId) this.resynchronizeTable(tableId);
   }
 
   private async handleCharacterUpdateResponse(message: Message): Promise<void> {
@@ -1921,6 +1938,16 @@ export class WebClientProtocol {
     const pendingKey = correlatedPending ? replyId : fallbackPendingEntry?.[0];
     const pending = correlatedPending ?? fallbackPendingEntry?.[1];
     if (message.data?.resync_required === true && characterId) this.characterResyncNeeded.add(characterId);
+
+    if (!success && pending && message.data?.not_accepted !== true
+      && (pending.outcomeUnknown || message.data?.code === 'forbidden' || message.data?.code === 'conflict')) {
+      pending.outcomeUnknown = true;
+      this.characterResyncNeeded.add(characterId);
+      useGameStore.getState().updateCharacter(characterId, { syncStatus: 'syncing' });
+      showToast.warning('The previous character update could not be confirmed. Its original request is retained for reconnect.');
+      emitProtocolEvent('character-update-response', message.data);
+      return;
+    }
     
     if (success && characterId) {
       // Update successful - update version and sync status
@@ -1938,6 +1965,7 @@ export class WebClientProtocol {
         }
       }
       store.updateCharacter(characterId, updatePayload);
+      if (message.data?.character_archived === true) store.removeCharacter(characterId);
     } else if (!success && characterId) {
       // Update failed - handle version conflict or other errors
       const store = useGameStore.getState();
@@ -1988,12 +2016,7 @@ export class WebClientProtocol {
         } else showToast.error(`Failed to update character: ${error || 'Unknown error'}`);
       }
     }
-    if (characterId && !Array.from(this.pendingCharacterUpdates.values()).some(item => item.characterId === characterId)
-      && this.characterResyncNeeded.delete(characterId)) {
-      this.loadCharacter(characterId);
-      const tableId = useGameStore.getState().activeTableId;
-      if (tableId) this.resynchronizeTable(tableId);
-    }
+    if (characterId) this.resyncCharacterWhenSettled(characterId, message.data?.character_archived === true);
     
     emitProtocolEvent('character-update-response', message.data);
   }

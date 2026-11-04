@@ -631,12 +631,13 @@
             "history_conflict", "unsupported", "movement_rejected",
             "combat_required", "paint_disabled", "history_unavailable",
             "text_version_conflict", "table_creation_save_failed",
-            "combat_outcome_unknown", "character_outcome_unknown", "operation_id_conflict"
+            "combat_outcome_unknown", "character_outcome_unknown", "choice_outcome_unknown", "operation_id_conflict"
           ]
         },
         "current_object": {
           "type": "object"
         },
+        "not_accepted": {"type": "boolean"},
         "current_version": {
           "type": "integer",
           "minimum": 1
@@ -3246,6 +3247,63 @@
           }
         }
       }
+    },
+    {
+      "if": {"properties": {"type": {"enum": ["encounter_start", "encounter_end", "encounter_choice", "encounter_roll"]}}, "required": ["type"]},
+      "then": {
+        "required": ["message_id", "timestamp", "data"],
+        "properties": {
+          "message_id": {"type": "string", "minLength": 1, "maxLength": 128},
+          "timestamp": {"type": "number", "minimum": 0, "maximum": 9007199254740.99}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"type": {"const": "encounter_start"}}, "required": ["type"]},
+      "then": {"properties": {"data": {
+        "type": "object", "required": ["choices"], "additionalProperties": false,
+        "properties": {
+          "title": {"type": "string", "minLength": 1, "maxLength": 255},
+          "description": {"type": "string", "maxLength": 16000},
+          "dm_notes": {"type": "string", "maxLength": 16000},
+          "table_id": {"type": "string", "maxLength": 36},
+          "participants": {"type": "array", "maxItems": 100, "items": {"type": "string", "minLength": 1, "maxLength": 128}},
+          "choices": {"type": "array", "minItems": 1, "maxItems": 64, "items": {
+            "type": "object", "required": ["text"], "additionalProperties": false,
+            "properties": {
+              "choice_id": {"type": "string", "minLength": 1, "maxLength": 64},
+              "text": {"type": "string", "minLength": 1, "maxLength": 4000},
+              "requires_roll": {"type": "boolean"},
+              "roll_ability": {"type": ["string", "null"], "maxLength": 64},
+              "roll_skill": {"type": ["string", "null"], "maxLength": 64},
+              "roll_dc": {"type": ["integer", "null"], "minimum": 1, "maximum": 100}
+            },
+            "allOf": [{"if": {"properties": {"requires_roll": {"const": true}}, "required": ["requires_roll"]},
+              "then": {"required": ["roll_dc"], "properties": {"roll_dc": {"type": "integer"}}}}]
+          }}
+        }
+      }}}
+    },
+    {
+      "if": {"properties": {"type": {"enum": ["encounter_end", "encounter_choice", "encounter_roll"]}}, "required": ["type"]},
+      "then": {"properties": {"data": {
+        "type": "object", "required": ["encounter_id"],
+        "properties": {"encounter_id": {"type": "string", "minLength": 1, "maxLength": 36},
+          "choice_id": {"type": "string", "minLength": 1, "maxLength": 64},
+          "bonus": {"type": "integer", "minimum": -1000, "maximum": 1000}}
+      }}}
+    },
+    {
+      "if": {"properties": {"type": {"const": "encounter_end"}}, "required": ["type"]},
+      "then": {"properties": {"data": {"propertyNames": {"enum": ["encounter_id"]}}}}
+    },
+    {
+      "if": {"properties": {"type": {"const": "encounter_choice"}}, "required": ["type"]},
+      "then": {"properties": {"data": {"required": ["choice_id"], "propertyNames": {"enum": ["encounter_id", "choice_id"]}}}}
+    },
+    {
+      "if": {"properties": {"type": {"const": "encounter_roll"}}, "required": ["type"]},
+      "then": {"properties": {"data": {"propertyNames": {"enum": ["encounter_id", "choice_id", "bonus"]}}}}
     },
     {
       "if": {"properties": {"type": {"const": "character_update"}}, "required": ["type"]},

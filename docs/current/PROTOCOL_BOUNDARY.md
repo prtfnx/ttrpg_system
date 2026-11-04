@@ -325,3 +325,21 @@ four-domain `session-operations-v1` browser journal; live-page reconnect preserv
 its original in-memory envelope. Choice/multiclass receipts and character reload
 ownership remain separate release work. Regression owner:
 `packages/core-table/tests/test_protocol_schema.py`.
+
+
+## Original choice encounter identities
+
+`encounter_start/end/choice/roll` require original nonempty message identities
+and bounded nonnegative timestamps. Mutations have closed payloads; start accepts
+bounded prompt/choice/participant fields, while every subsequent mutation requires
+its explicit original `encounter_id`. Roll bonus is an integer in [-1000, 1000];
+boolean/coerced bonuses reject. Roll DC is required for choices requiring a roll.
+No client actor/session/role fields are accepted. Direct service callers repeat
+validation and current database authority checks. Both generated validators share
+the schema; old implicit-target clients must upgrade before submitting mutations.
+
+Errors distinguish `choice_outcome_unknown` with `outcome: unknown` from a proved
+rejection carrying `not_accepted: true`. Unknown never means rollback. Keep the
+original identity/body when checking an earlier intent. Choice operations are not
+added to the closed four-domain persisted v1 browser journal. Regression owner:
+`packages/core-table/tests/test_choice_protocol_schema.py`.

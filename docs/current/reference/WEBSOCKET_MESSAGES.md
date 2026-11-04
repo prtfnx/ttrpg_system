@@ -10,7 +10,7 @@ Last source audit: 2026-10-16
 ## Envelope identities
 
 Sprite create/remove/move/scale/rotate/update and compendium sprite
-add/update/remove require a nonempty `message_id` and the original envelope
+add/update/remove, and `character_update`, require a nonempty `message_id` and the original envelope
 `timestamp` in epoch seconds. Resends preserve both.
 Missing/null timestamps and identities reject instead of creating fresh retry
 intent at decode time. This is separate from paint/canvas `issued_at`, which uses
@@ -36,7 +36,16 @@ contains only `character_id` and `stat_reconciliation`. The latter is exactly
 It cannot mix ordinary `updates`, a supplied source version, or extra fields
 into this branch. The shared schema validates both modes before dispatch;
 authorization and current-state preconditions remain server responsibilities.
-Normal character deltas retain their existing shape.
+Normal character deltas retain their existing shape, with original identity/time
+required. Atomic actor/session-scoped receipts bind the complete patch, expected
+version and reconciliation digest. Acceptance exposes `accepted_version` and
+current `version`; replay asks for resync and may report `character_archived`.
+Current database edit authority gates receipt disclosure. Unknown commit/cache
+outcomes remain fenced until current projections install. A denied lookup cannot
+prove rollback; the browser retains its uncertain original unless `not_accepted`
+is explicitly proved. Character originals are in page memory only and are outside
+the four-domain persisted v1 journal. See
+[Characters](../features/CHARACTERS_AND_COMPENDIUMS.md).
 
 ## Uncertain persistence outcomes
 

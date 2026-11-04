@@ -6,14 +6,14 @@ Status: usable.
 
 Last source audit: 2026-10-21
 
-## Durable outcome inventory (October 29)
+## Durable outcome inventory (October 30)
 
 | Operation | Current acceptance and recovery boundary |
 | --- | --- |
 | Canvas/sprite/compendium placement | Existing actor/table receipts; NPC source, token and receipt share acceptance. Generic sprite commit-response uncertainty still needs reconciliation. |
 | Paint and chat | Existing domain operation identities and durable results; retain those contracts. |
 | Combat commands/start/end | Encounter journal and stable session barrier resolve uncertain commits; full lifecycle/browser acceptance remains a release gate. |
-| Character update/repair | Source/version/audit/linked projections share a transaction; exact in-process CAS recovery is not a durable request ledger across restart. |
+| Character update/repair | Original actor/session/message/patch/version/digest receipts share source/version/sharing/audit/token acceptance. Restart replay installs current persisted projections, with quarantine through installation. Browser originals remain page memory; reload ownership is open. Standalone identity-free calls retain legacy CAS recovery. |
 | XP award | Actor/session/domain-scoped original message identity; XP/version/audit/outcome share acceptance. See [Characters](../features/CHARACTERS_AND_COMPENDIUMS.md). |
 | Table create/copy/import | Original request receipts share table/paint-state acceptance; unknown commits fence serialized work and snapshots through verified installation. |
 | Table delete | Table resources, active-member pointers, retirement tombstone and original actor/session receipt share acceptance. Unknown commits fence state work and snapshots until settlement and cache cleanup. |

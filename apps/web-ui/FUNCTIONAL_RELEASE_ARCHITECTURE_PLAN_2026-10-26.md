@@ -4,6 +4,43 @@ Date: 2026-10-26, Europe/Kiev.
 
 Status: proposed implementation backlog; this document does not declare the remaining work complete.
 
+October 30 character-outcome continuation: general character protocol updates and
+guarded stat-reconciliation applies now commit source/version/sharing/audit/token
+projections with an actor/session/domain-scoped original-intent receipt. Current
+database authority precedes acceptance and replay. Reconstructed managers replay
+without another write, returning accepted and current versions while installing
+each current persisted projection rather than obsolete source stats. Missing
+source/history or unavailable lookup remains unknown. Source archival is explicit.
+
+Commit-response loss and post-commit cache failures retain session/snapshot
+quarantine until current-state installation. Revoked actors receive no private
+receipt/version data during internal repair. Browser recovery hints defer source/
+table hydration until local edits settle, ignore older deltas, and retain denied
+uncertain originals. Original wire identity/time is now mandatory for character
+updates in both generated validators. No new migration is needed (head 0015).
+
+General character originals remain page-memory state: live-page reconnect keeps
+the original envelope, but reload loses it. The four-domain v1 persisted journal
+is unchanged. Extending it needs an explicitly compatible negotiated contract;
+do not silently add a domain rejected by older closed validators.
+
+Validation: 340 server cases and 215 shared-schema cases pass. The affected
+browser suites cover 939 cases; two native Chromium CSP/storage cases pass.
+There are 51 PostgreSQL contract skips without a disposable database URL; new
+atomicity/competing-duplicate/observed-lock-wait cases do not establish real
+PostgreSQL qualification. Pinned Pyright, TypeScript, targeted Ruff/ESLint,
+production browser build, schema drift and current-doc checks pass. The existing
+large-chunk warning and modified WASM remain; no reproducible served candidate
+is qualified. See [character outcome evidence](audit/release-2026-10-30/character-outcome-validation.md).
+
+Remaining R4: choice transition and multiclass outcomes, compatible persisted
+character ownership across reloads, and remaining generic table/sprite uncertainty
+paths. Next implementation slice: give choice transitions atomic original-intent
+receipts and a stable settlement lookup before extending browser persistence.
+R5 private-producer acceptance, R6 paired restore rehearsal and R7 exact-candidate
+workflows/load evidence remain open. This continuation adds eight local commits,
+each with at most seven files; no additional push/history rewrite is performed.
+
 Continuation: 2026-10-30. Redated all 30 unpublished commits for author and
 committer in Europe/Kyiv, preserving raw identities, messages, trees and order.
 Original history remains on `backup/unpublished-before-redate-2026-10-30-55b2b006`.
@@ -441,7 +478,7 @@ For a public production service, also require automated independent backups, res
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
-| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals now survive same-tab reloads. General character/choice and generic table outcomes remain open. Canvas/sprite/paint/chat/combat retain domain mechanisms. | Finish remaining R4 domains, then real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
+| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals now survive same-tab reloads. General character protocol/repair now has atomic receipts and current-state replay, with originals still in page memory. Choice/multiclass and generic table/sprite uncertainty remain open. Canvas/sprite/paint/chat/combat retain domain mechanisms. | Finish remaining R4 domains and compatible persisted character ownership, then real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
 | A9: core-table imports server infrastructure | Still present. | Defer extraction; introduce only the transaction/worker adapters needed by R1-R3. |
 | A10: browser dependency cycles | Research recorded 39 cycles; the count was not rerun for this plan. | Defer wholesale cleanup. Fix a cycle only when a reproducible release workflow requires it. |
 | A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `efe187ac`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |
@@ -530,6 +567,14 @@ Done when: the named gameplay paths perform no blocking SQL on the server loop, 
 ### R4. Make high-risk retries resolve to one durable outcome
 
 Priority: release blocker for supported retry flows. Dependencies: R1/R2 transaction boundaries; contract design can start alongside R1. Estimate: 4-7 days.
+
+October 30 status: supported table create/copy/import/delete/settings and XP
+receipts plus scoped tab persistence are implemented. General character protocol
+and repair receipts now survive server restart with current-state replay and
+quarantine through installation. Character originals still need compatible
+cross-page ownership. Choice/multiclass and remaining generic table/sprite
+uncertainty paths are unfinished. PostgreSQL/served acceptance remains required;
+the earlier estimate is the original workstream estimate, not a refreshed total.
 
 At plan creation, source evidence: XP handling in [character protocol](../server/service/protocol/characters.py) computes and commits the increment before separately recording the award; it has no durable award identity. Table creation and settings do not share a complete durable outcome lookup contract. Existing canvas history and combat sequence handling should be reused and reviewed, not replaced wholesale.
 

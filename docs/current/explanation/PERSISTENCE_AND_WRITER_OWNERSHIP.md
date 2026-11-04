@@ -119,10 +119,13 @@ those remain part of general outcome-recovery work.
 
 ## Deferred consistency work
 
-TODO: extend durable receipts and outcome reconciliation to generic character
-and choice commands. Table creation, deletion, settings and XP now commit
-their effects and receipts together. Their supported browser originals are
-retained in the tab-scoped recovery journal; this does not add universal retry safety. Complete remaining legacy character/token
+TODO: extend durable receipts and outcome reconciliation to choice/multiclass
+and remaining generic mutation paths. General character protocol/repair, table
+creation/deletion/settings and XP now commit their effects and receipts together.
+Supported table/XP browser originals are
+retained in the tab-scoped recovery journal; character originals remain page
+memory across live-page reconnect, with reload ownership still open. These
+boundaries do not add universal retry safety. Complete remaining legacy character/token
 repairs and qualify worker ownership on the release candidate. Combat lifecycle transitions
 are calculated without implicit engine commits; accepted snapshot and journal
 share one transaction. Combat command cancellation retains ownership through
@@ -266,3 +269,9 @@ current projections are installed. Legacy standalone calls without protocol
 identity retain exact before/after recovery. The receipt table and migration head
 remain unchanged (`0015_table_settings_revision`). Regression owners:
 `test_character_update_receipts.py` and `test_character_update_recovery.py`.
+
+
+Post-commit character cache repair retains the actor/session captured at command
+admission. Removing a socket during worker settlement cannot erase that recovery
+identity or release the pending snapshot fence. Current database authority still
+gates public outcome disclosure during the later lookup.

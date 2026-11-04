@@ -144,6 +144,141 @@ def session_operations_postgresql(postgresql_engine):
             db.commit()
 
 
+@pytest.fixture
+def character_updates_postgresql(session_operations_postgresql, monkeypatch):
+    from core_table.table import VirtualTable
+    from database import crud
+    from managers import character_manager
+    from service.character_update_recovery import CharacterUpdateRecovery
+    from service.character_update_service import CharacterUpdateIntent, CharacterUpdateService
+
+    scope = session_operations_postgresql
+    monkeypatch.setattr(character_manager, 'SessionLocal', scope.factory)
+    with scope.factory() as db:
+        source = db.query(models.SessionCharacter).filter_by(character_id=scope.character_id).one()
+        source.character_data = json.dumps({'character_id': scope.character_id, 'name': 'Hero', 'schemaVersion': 1,
+                                           'data': {'stats': {'hp': 20, 'maxHp': 20, 'ac': 12}}})
+        db.commit()
+        table = VirtualTable('Character receipt', 1000, 1000)
+        table.add_entity({'sprite_id': 'character-receipt-token', 'character_id': scope.character_id,
+                          'hp': 20, 'max_hp': 20, 'ac': 12})
+        crud.save_table_to_db(db, table, scope.session_id)
+    scope.character_intent = CharacterUpdateIntent.create(scope.session_id, scope.actor_id, 'character-original',
+        scope.character_id, {'data': {'stats': {'hp': 5}}}, 1)
+
+    def construct(factory=scope.factory):
+        manager = character_manager.ServerCharacterManager()
+        manager.update_recovery = CharacterUpdateRecovery(factory)
+        return manager, CharacterUpdateService(factory, manager.stage_character_update, manager.update_recovery)
+
+    scope.construct_character_service = construct
+    return scope
+
+
+@pytest.mark.parametrize('fail_after_flush', [False, True])
+def test_character_source_projection_audit_receipt_atomicity(character_updates_postgresql, monkeypatch, fail_after_flush):
+    from service import character_update_service
+
+    scope = character_updates_postgresql
+    _, service = scope.construct_character_service()
+    if fail_after_flush:
+        stage = character_update_service.stage_receipt
+
+        def fail(*args):
+            stage(*args)
+            raise RuntimeError('After source/projection/audit/receipt flush')
+
+        monkeypatch.setattr(character_update_service, 'stage_receipt', fail)
+    result = service.execute(scope.character_intent)
+    assert result['success'] is not fail_after_flush
+    if not fail_after_flush:
+        _, restarted = scope.construct_character_service()
+        assert restarted.execute(scope.character_intent)['replayed']
+    with scope.factory() as db:
+        assert db.query(models.SessionCharacter).filter_by(character_id=scope.character_id).one().version == (1 if fail_after_flush else 2)
+        token = db.query(models.Entity).filter_by(character_id=scope.character_id).one()
+        assert token.hp == (20 if fail_after_flush else 5)
+        assert bool(db.query(models.CharacterLog).filter_by(session_id=scope.session_id).count()) is not fail_after_flush
+        assert db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id).count() == int(not fail_after_flush)
+
+
+def test_concurrent_character_duplicates_across_independent_services_accept_once(character_updates_postgresql):
+    from concurrent.futures import ThreadPoolExecutor
+
+    scope, barrier = character_updates_postgresql, threading.Barrier(2)
+
+    def execute():
+        _, service = scope.construct_character_service()
+        barrier.wait(timeout=5)
+        return service.execute(scope.character_intent)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(execute) for _ in range(2)]
+        results = [future.result(timeout=10) for future in futures]
+    assert sorted(result['replayed'] for result in results) == [False, True]
+    with scope.factory() as db:
+        assert db.query(models.SessionCharacter).filter_by(character_id=scope.character_id).one().version == 2
+        assert db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id).count() == 1
+        assert db.query(models.Entity).filter_by(character_id=scope.character_id).one().hp == 5
+
+
+@pytest.mark.parametrize('commit', [False, True])
+def test_character_receipt_recovery_observes_original_transaction_lock(character_updates_postgresql, postgresql_engine, commit):
+    from service.session_operation_receipts import lock_operation_session, stage_receipt
+
+    scope = character_updates_postgresql
+    intent, writer = scope.character_intent, scope.factory()
+    ready, results, errors, pids = threading.Event(), [], [], []
+
+    def reader_factory():
+        db = scope.factory()
+        pids.append(db.execute(text('SELECT pg_backend_pid()')).scalar_one())
+        ready.set()
+        return db
+
+    reader_manager, reader_service = scope.construct_character_service(reader_factory)
+    reader_service._remember(intent)
+
+    def lookup():
+        try:
+            results.append(reader_manager.update_recovery.resolve(scope.session_id))
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=lookup, daemon=True)
+    try:
+        lock_operation_session(writer, intent.identity, require_dm=False)
+        manager, _ = scope.construct_character_service()
+        staged = manager.stage_character_update(writer, scope.session_id, scope.character_id,
+            intent.updates, scope.actor_id, expected_version=1, bypass_owner_check=True)
+        stage_receipt(writer, intent.identity, {'success': True, 'character_id': scope.character_id,
+            'operation_id': intent.identity.operation_id, 'accepted_version': staged['version'], 'reconciliation': False})
+        writer_pid = writer.execute(text('SELECT pg_backend_pid()')).scalar_one()
+        reader.start()
+        assert ready.wait(3)
+        deadline, blocked = time.monotonic() + 3, False
+        with postgresql_engine.connect().execution_options(isolation_level='AUTOCOMMIT') as observer:
+            while time.monotonic() < deadline:
+                blockers = observer.execute(text('SELECT pg_blocking_pids(:pid)'), {'pid': pids[0]}).scalar_one()
+                if writer_pid in blockers:
+                    blocked = True
+                    break
+                time.sleep(.01)
+        assert blocked and not results and not errors
+        writer.commit() if commit else writer.rollback()
+        reader.join(timeout=5)
+        assert not reader.is_alive() and not errors and len(results) == 1
+        resolved = results[0]
+        assert resolved is not None and resolved.committed is commit
+        assert resolved.current_result['version'] == (2 if commit else 1)
+        assert resolved.current_result['token_updates'][0]['stats']['hp'] == (5 if commit else 20)
+    finally:
+        writer.rollback()
+        writer.close()
+        if reader.ident is not None:
+            reader.join(timeout=6)
+
+
 @pytest.mark.parametrize('fail_after_flush', [False, True])
 def test_xp_source_audit_and_receipt_share_acceptance(session_operations_postgresql, monkeypatch, fail_after_flush):
     from service import xp_award_service

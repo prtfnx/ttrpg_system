@@ -540,3 +540,21 @@ running CSP test. Saved-change notice tests cover retry, deliberate forgetting
 and protocol-owner replacement. Include receipt/authority loss and tab reload in
 the final served candidate workflow; tab closure and database rollback restore
 remain separate recovery limits.
+
+
+## Durable character receipt qualification
+
+`test_character_update_receipts.py` covers original replay across reconstructed
+managers, later source edits and independently changed token projections, payload/
+version conflicts, current permissions, source archival, atomic rollback and lost
+commit responses. `test_character_stat_transaction.py` exercises the real protocol,
+cache installation failure, pending snapshot fencing and revoked-actor recovery.
+The browser protocol suite verifies resync hints, pending edit hydration ordering,
+archival and older deltas; shared schema tests require original wire identities.
+
+The PostgreSQL contract suite additionally stages source/projection/audit/receipt
+acceptance and rollback, executes duplicate intents on independent services, and
+observes `pg_blocking_pids` while a recovery lookup waits for the original commit
+or rollback. A configured disposable `TEST_POSTGRESQL_DATABASE_URL` is required.
+Skipped PostgreSQL cases do not qualify these locks, and unit/browser mocks do
+not close complete served-candidate acceptance. No new migration is introduced.

@@ -95,7 +95,7 @@ real manager, ActionsCore, protocol dispatch, SQLite transaction, and queued
 snapshot path. PostgreSQL execution and browser resync acceptance remain release
 gates. The token panel now uses the same source transaction for linked stats;
 active encounter writes remain separate. Durable character request identity
-across restart and real PostgreSQL/served qualification remain open. Canonical
+is implemented below; real PostgreSQL/served qualification remains open. Canonical
 NPC creation and guarded repair are implemented below; conflicting or invalid
 legacy sources still require an explicit decision. This is not a universal
 stat-ownership or receipt guarantee.
@@ -104,7 +104,7 @@ Current field boundaries must remain explicit:
 
 | State | Current owner | Remaining consistency work |
 | --- | --- | --- |
-| Character document, version, XP and advancement | Character manager and advancement commands | Sheet/token-panel edits and guarded stat repairs include linked projections atomically; XP has its own atomic receipt transaction; generic character updates still lack a cross-restart request ledger. |
+| Character document, version, XP and advancement | Character manager and advancement commands | Sheet/token-panel edits and guarded stat repairs include linked projections atomically; XP has its own atomic receipt transaction; generic character protocol updates include durable actor-scoped receipts. |
 | Token HP/max-HP/AC outside combat | Character projection when linked; independent token fields otherwise | Canonical NPC placement and guarded legacy/projection repair are implemented; qualify PostgreSQL, served creation and recovery. |
 | Active encounter HP, resources and turn state | Combat command snapshot/journal | Define sheet edits during combat and any encounter-completion write-back before unifying these fields. |
 
@@ -191,12 +191,12 @@ are followed by current database DM checks in preview and guarded acceptance.
 The existing serialized character command holds session and loaded-table
 ownership through commit, installation and role/layer-filtered publication.
 Apply rechecks the digest and combat state under SQL locks. Fresh clean apply
-does not write, broadcast, increment the source version, or add an audit row.
+records its receipt without changing source version, projections or audit rows.
 Stale apply rejects and requires a new preview. Unknown commit responses retain
 quarantine; later recovery verifies and installs the original repair, including
 its exact digest identity, before allowing work to resume. It cannot apply that
-repair twice during recovery. Cross-restart request receipts remain a separate
-limitation, and a changed digest still fails closed after restart.
+repair twice during recovery. Durable receipts preserve the original digest
+across restart; a changed digest under the same identity rejects.
 
 Legacy NPC normalization also places actions, abilities, resistances, and other
 feature data on the nested path used by combat consumers, preserving current
@@ -264,40 +264,44 @@ open. Encounter completion still does not write HP back to the character.
 
 ## Character commit verification adapter
 
-`service/character_update_recovery.py` can verify one admitted, in-process CAS
-attempt using the stable session-row lock and a fresh READ COMMITTED snapshot.
-The exact accepted version/document/modifier proves commit; the unchanged source
-version/document proves rollback after the original transaction has settled.
-Unavailable, missing, archived, or otherwise changed sources stay unknown.
-Lookup does not clear quarantine until its caller installs the verified outcome.
-The PostgreSQL lock wait is bounded to five seconds. Regression owner:
-`tests/unit/test_character_update_recovery.py`.
+Protocol character updates use `character_update` receipts in the same transaction
+as the source, version, sharing policy, audit and linked-token projections.
+Identity includes authenticated actor, numeric session, original message ID,
+character, complete patch, expected version and optional reconciliation digest.
+Current database membership/edit authority precedes both acceptance and replay;
+cached DM roles cannot grant access to a retained private outcome. Reusing an ID
+with changed input rejects. A duplicate after process restart returns the accepted
+version plus current source version and requests resync, without reapplying an
+old patch or incrementing the version again. Replies omit private source copies.
 
-Generic character acceptance now takes the same stable session-row lock before
-validation and records the exact before/after CAS state before attempting commit.
-A failed commit response closes its original ORM session, then resolves on a
-fresh connection while session/loaded-table ownership is still held. Confirmed
-commit returns success; a proven rollback permits failure. A different source
-version/document/modifier, archive, missing row, or failed lookup remains unknown.
+Replay reads each current persisted linked-token projection. It installs those
+values without rewriting SQL or replacing a later mismatch with obsolete source
+stats. Archived characters retain receipts and return `character_archived=true`.
+Missing sources/history or unavailable lookups remain unknown when a current
+cache cannot be reconstructed. This path does not repair unrelated divergence.
+
+Failed commit responses close the original transaction and resolve against a
+fresh READ COMMITTED receipt lookup under the stable session-row lock (five-second
+lock timeout). Until verified current projections are installed, session work,
+snapshots and empty-session cleanup remain quarantined; heartbeats stay available.
+Proven rollback returns failure, retained acceptance returns success. A later
+serialized request can complete repair. Recovery cancellation retains ownership.
+If the original actor loses edit authority, internal cache repair still completes
+but that actor receives only a forbidden response, without receipt/version details.
 
 Unavailable outcomes return `ERROR` with `code=character_outcome_unknown`,
-`outcome=unknown`, and `resync_required=true`. Session authoritative work, table
-snapshots, and empty-session cleanup share quarantine with combat; heartbeats
-remain available. A later serialized request attempts recovery and installs
-committed projections before resuming. Recovery cancellation retains ownership.
-The result uses the original actor and request correlation; current-authority
-viewers receive the separate character event. Replaying that original request
-during recovery returns its settled result without another source update;
-reusing its identity for different update data rejects.
+`outcome=unknown`, and `resync_required=true`. The original identity crosses the
+worker in a scoped ContextVar reset after dispatch. Post-commit cache installation
+failure also retains quarantine. Recovery notifications ask viewers to reload
+current state rather than broadcasting the original old patch. Ordinary peer
+role/layer producer qualification remains an R5 release gate.
 
-The request identity crosses the worker through a scoped ContextVar and is reset
-after dispatch. `tests/unit/test_character_stat_transaction.py` covers committed
-and rolled-back response loss, lookup outages, snapshot fencing, exact replay,
-payload mismatch, and cancellation. This is an in-process CAS verifier, not a
-durable retry ledger across process restart. A superseding or missing source
-cannot be guessed into success/failure; operator reconciliation or clean restart
-is required if ordinary recovery cannot establish it. PostgreSQL and complete
-browser acceptance remain release gates.
+Standalone manager calls without a protocol identity retain the existing exact
+before/after CAS verifier; they do not gain durable request ownership. Specialized
+multiclass/choice operations remain separate work. Regression owners:
+`test_character_update_receipts.py`, `test_character_update_recovery.py` and
+`test_character_stat_transaction.py` cover restart, later edits, revoked authority,
+atomic rollback, commit-response loss, cache failure, fencing and cancellation.
 
 The mandatory `tests/integration/test_postgresql_contract.py` suite includes
 source/version/log/token atomic commit and rollback, recovery waiting on the

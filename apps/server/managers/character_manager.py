@@ -33,7 +33,11 @@ from service.character_update_recovery import (
     PendingCharacterUpdate,
     character_update_request_id,
 )
-from service.character_update_service import StagedCharacterUpdateRejected
+from service.character_update_service import (
+    CharacterUpdateIntent,
+    CharacterUpdateService,
+    StagedCharacterUpdateRejected,
+)
 from sqlalchemy import and_, or_
 from utils.logger import setup_logger
 from utils.time import utc_now
@@ -116,6 +120,7 @@ class ServerCharacterManager:
     def __init__(self):
         logger.info("ServerCharacterManager initialized")
         self.update_recovery = CharacterUpdateRecovery(lambda: SessionLocal())
+        self.update_operations = CharacterUpdateService(lambda: SessionLocal(), self.stage_character_update, self.update_recovery)
         # No need to manually create table - SQLAlchemy migrations handle this
 
     def _settle_failed_update(self, attempt: PendingCharacterUpdate, error: Exception) -> dict[str, Any]:
@@ -347,6 +352,14 @@ class ServerCharacterManager:
         try:
             if self.update_recovery.has_pending(session_id):
                 raise CharacterUpdateOutcomeUnknown('Resolve the pending character update first')
+            request_id = character_update_request_id.get()
+            if _transaction is None and request_id is not None and not allow_advancement_updates:
+                try:
+                    intent = CharacterUpdateIntent.create(session_id, user_id, request_id, character_id,
+                        updates, expected_version, stat_reconciliation_digest)
+                except ValueError as exc:
+                    return {'success': False, 'error': str(exc), 'code': 'invalid_payload'}
+                return self.update_operations.execute(intent)
             with (SessionLocal() if _transaction is None else nullcontext(_transaction)) as db:
                 # Validate session and character presence
                 session = db.query(GameSession).filter(GameSession.id == session_id).with_for_update().first()

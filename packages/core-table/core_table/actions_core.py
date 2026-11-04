@@ -1215,12 +1215,16 @@ class ActionsCore(AsyncActionsProtocol):
                 **({'stat_reconciliation_digest': stat_reconciliation_digest} if stat_reconciliation_digest is not None else {}),
             )
 
+            outcome = {name: result[name] for name in ('operation_id', 'accepted_version', 'replayed',
+                'resync_required', 'recovery_required', 'not_accepted', 'character_archived', 'code') if name in result}
+
             if result.get('success'):
                 logger.info(f"Character {character_id} updated to version {result.get('version')}")
                 return ActionResult(
                     success=True,
                     message='Character updated',
                     data={
+                        **outcome,
                         'character_id': character_id,
                         'version': result.get('version'),
                         'character_data': result.get('character_data'),
@@ -1235,6 +1239,7 @@ class ActionsCore(AsyncActionsProtocol):
                     success=False,
                     message=result.get('error', 'Character update failed'),
                     data={
+                        **outcome,
                         'character_id': character_id,
                         'current_version': result.get('current_version'),
                         'character_data': result.get('character_data'),

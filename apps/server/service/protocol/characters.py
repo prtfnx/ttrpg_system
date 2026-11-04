@@ -12,12 +12,12 @@ from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import is_dm
 
-from ._protocol_base import _ProtocolBase
+from .character_outcomes import _CharacterOutcomesMixin
 
 logger = setup_logger(__name__)
 
 
-class _CharactersMixin(_ProtocolBase):
+class _CharactersMixin(_CharacterOutcomesMixin):
     """Handler methods for characters domain."""
 
     def _has_pending_character_update(self) -> bool:
@@ -27,15 +27,7 @@ class _CharactersMixin(_ProtocolBase):
         from managers.character_manager import get_server_character_manager
         return get_server_character_manager().update_recovery.has_pending(session_id)
 
-    @staticmethod
-    def _character_uncertain_response(character_id=None) -> Message:
-        data = {'code': 'character_outcome_unknown', 'outcome': 'unknown', 'resync_required': True,
-                'error': 'Character outcome is uncertain. Reload to check before retrying.'}
-        if character_id is not None:
-            data['character_id'] = character_id
-        return Message(MessageType.ERROR, data)
-
-    async def _recover_pending_character_update(self, request: Message, client_id: str) -> Message | None:
+    async def _recover_pending_character_update(self, request: Message, client_id: str, *, tables_owned=False) -> Message | None:
         if not self._has_pending_character_update():
             return None
         from managers.character_manager import get_server_character_manager
@@ -49,6 +41,8 @@ class _CharactersMixin(_ProtocolBase):
             return self._character_uncertain_response()
         if resolved is None:
             return None
+        if resolved.attempt.operation is not None:
+            return await self._finish_durable_character_recovery(resolved, request, client_id, tables_owned=tables_owned)
         attempt = resolved.attempt
         if resolved.committed:
             async with AsyncExitStack() as ownership:
@@ -700,6 +694,14 @@ class _CharactersMixin(_ProtocolBase):
             finally:
                 character_update_request_id.reset(request_scope)
 
+            result_data = result.data if isinstance(result.data, dict) else {}
+            if result_data.get('recovery_required'):
+                recovered = await self._recover_pending_character_update(msg, client_id, tables_owned=True)
+                return recovered or self._character_uncertain_response(character_id)
+            if result.success and result_data.get('operation_id'):
+                applied = result_data.get('applied_updates', updates) if reconciliation_digest is not None else updates
+                return await self._accept_durable_character_result(msg, client_id, result_data, applied)
+
             if result.success:
                 # New managers return projections committed with the source.
                 # Compatibility callers without that receipt use the old helper.
@@ -743,6 +745,7 @@ class _CharactersMixin(_ProtocolBase):
                     'character_id': character_id,
                     'current_version': result_data.get('current_version'),
                     'character_data': result_data.get('character_data'),
+                    **{key: result_data[key] for key in ('operation_id', 'not_accepted', 'code') if key in result_data},
                 })
 
         except CharacterUpdateOutcomeUnknown:
@@ -953,6 +956,7 @@ class _CharactersMixin(_ProtocolBase):
     async def _sync_character_stats_to_tokens(
         self, session_id: int, character_id: str, updates: dict,
         *, committed_updates=None, committed_stats=None,
+        strict_install=False, publish=True,
     ):
         """
         Sync character stat changes (HP, max HP, AC) to all tokens linked to this character.
@@ -974,7 +978,7 @@ class _CharactersMixin(_ProtocolBase):
             if committed_stats is not None:
                 updated_stats = committed_stats
 
-            if not updated_stats:
+            if not updated_stats and not any(update.get('stats') for update in committed_updates or []):
                 return  # No stats to sync
 
             logger.debug(
@@ -990,6 +994,7 @@ class _CharactersMixin(_ProtocolBase):
                 )
             events = []
             for token_update in token_updates:
+                token_stats = token_update.stats if token_update.stats is not None else updated_stats
                 layer = token_update.layer
                 table = self.table_manager.tables.get(token_update.table_id)
                 if table:
@@ -997,7 +1002,7 @@ class _CharactersMixin(_ProtocolBase):
                     in_memory_entity = table.entities.get(entity_id)
                     if in_memory_entity:
                         layer = in_memory_entity.layer
-                        for field, value in updated_stats.items():
+                        for field, value in token_stats.items():
                             setattr(in_memory_entity, field, value)
 
                 # Unloaded tables retain the transaction's authoritative layer;
@@ -1005,7 +1010,7 @@ class _CharactersMixin(_ProtocolBase):
                 events.append((Message(MessageType.SPRITE_UPDATE, {
                     'sprite_id': token_update.sprite_id,
                     'table_id': token_update.table_id,
-                    'updates': updated_stats,
+                    'updates': token_stats,
                     'operation': 'update',
                     'source': 'character_sync',
                 }), layer))
@@ -1013,6 +1018,8 @@ class _CharactersMixin(_ProtocolBase):
             # One failed peer notification must not leave later live tokens old.
             resync_required = False
             for event, layer in events:
+                if not publish:
+                    continue
                 try:
                     await self.broadcast_filtered(event, layer, '')
                 except Exception:
@@ -1030,4 +1037,6 @@ class _CharactersMixin(_ProtocolBase):
 
         except Exception:
             logger.exception("Character-to-token synchronization failed")
+            if strict_install:
+                raise
             return True

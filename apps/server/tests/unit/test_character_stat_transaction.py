@@ -432,3 +432,70 @@ async def test_recovery_cannot_reuse_original_identity_for_different_updates(lin
     response = linked.responses[-1]
     assert response.type == MessageType.ERROR and response.data['code'] == 'operation_id_conflict'
     assert saved_state(linked)[0] == 2 and saved_state(linked)[2] == [(5, 20, 12)] * 3
+
+
+async def test_character_original_survives_restart_and_replays_current_per_token_state(linked, monkeypatch):
+    request = Message(MessageType.CHARACTER_UPDATE,
+        {'character_id': linked.character_id, 'updates': {'data': {'stats': {'hp': 5}}}, 'version': 1})
+    await linked.proto.handle_client(request, 'dm')
+    assert linked.responses[-1].data['accepted_version'] == 2
+    assert (await linked.update({'data': {'stats': {'hp': 9}}}, version=2)).data['version'] == 3
+    with linked.factory() as db:
+        db.query(models.Entity).filter_by(sprite_id='linked-0').one().hp = 0
+        db.commit()
+    before = saved_state(linked)
+    linked.events.clear()
+    monkeypatch.setattr(character_manager, '_server_character_manager', character_manager.ServerCharacterManager())
+    await linked.proto.handle_client(request, 'dm')
+    outcome = linked.responses[-1].data
+    assert outcome['success'] and outcome['replayed'] and outcome['resync_required']
+    assert outcome['accepted_version'] == 2 and outcome['version'] == 3
+    assert [token.hp for token in linked.tokens[:2]] == [0, 9]
+    assert not linked.events and saved_state(linked) == before
+    assert 'character_data' not in outcome and 'token_updates' not in outcome
+
+
+async def test_post_commit_installation_failure_keeps_snapshots_fenced_until_current_state_is_installed(linked, monkeypatch):
+    sync = linked.proto._sync_character_stats_to_tokens
+
+    async def broken(*_args, **_kwargs):
+        raise RuntimeError('Live cache installation failed')
+
+    monkeypatch.setattr(linked.proto, '_sync_character_stats_to_tokens', broken)
+    uncertain = await linked.update({'data': {'stats': {'hp': 5}}})
+    assert uncertain.type == MessageType.ERROR and uncertain.data['outcome'] == 'unknown'
+    assert saved_state(linked)[0] == 2 and linked.proto._has_pending_writes()
+    assert not await linked.proto.table_manager.save_to_database_async(linked.session_id)
+    monkeypatch.setattr(linked.proto, '_sync_character_stats_to_tokens', sync)
+    await linked.proto.handle_client(Message(MessageType.TABLE_REQUEST, {'table_id': str(linked.tables[0].table_id)}), 'dm')
+    receipts = [reply for reply in linked.responses if reply.type == MessageType.CHARACTER_UPDATE_RESPONSE
+                and reply.causation_id == uncertain.causation_id]
+    assert len(receipts) == 1 and receipts[0].data['success'] and receipts[0].data['resync_required']
+    assert [token.hp for token in linked.tokens[:2]] == [5, 5] and not linked.proto._has_pending_writes()
+    assert saved_state(linked)[0] == 2
+
+
+async def test_revoked_actor_pending_receipt_repairs_internal_cache_without_disclosing_private_outcome(linked, monkeypatch):
+    with linked.factory() as db:
+        actor = models.User(username='former-character-dm', hashed_password='unused')
+        db.add(actor)
+        db.flush()
+        actor_id = actor.id
+        db.add(models.GamePlayer(session_id=linked.session_id, user_id=actor_id, role='co_dm'))
+        db.commit()
+    linked.proto.session_manager.client_info['dm'] = {'user_id': actor_id, 'role': 'co_dm'}
+    recovery, lookup = lose_character_commit_response(linked, monkeypatch, True, unavailable=True)
+    uncertain = await linked.update({'data': {'stats': {'hp': 5}}})
+    assert uncertain.type == MessageType.ERROR
+    with linked.factory() as db:
+        db.query(models.GamePlayer).filter_by(session_id=linked.session_id, user_id=actor_id).one().role = 'player'
+        db.commit()
+    monkeypatch.setattr(recovery, '_lookup', lookup)
+    linked.events.clear()
+    await linked.proto.handle_client(Message(MessageType.TABLE_REQUEST, {'table_id': str(linked.tables[0].table_id)}), 'dm')
+    receipts = [reply for reply in linked.responses if reply.type == MessageType.CHARACTER_UPDATE_RESPONSE
+                and reply.causation_id == uncertain.causation_id]
+    assert len(receipts) == 1 and receipts[0].data['code'] == 'forbidden'
+    assert 'version' not in receipts[0].data and 'accepted_version' not in receipts[0].data
+    assert not linked.events and [token.hp for token in linked.tokens[:2]] == [5, 5]
+    assert not linked.proto._has_pending_writes()

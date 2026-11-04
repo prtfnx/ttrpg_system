@@ -139,7 +139,7 @@ class ServerProtocol(
     def _has_pending_writes(self) -> bool:
         return (self._has_pending_combat() or self._has_pending_character_update()
                 or self._has_pending_table_creation() or self._has_pending_table_deletion()
-                or self._has_pending_table_settings())
+                or self._has_pending_table_settings() or self._has_pending_choice())
 
     def register_handler(self, msg_type: MessageType, handler: Callable):
         """Extension point for custom message handlers."""
@@ -346,6 +346,9 @@ class ServerProtocol(
             outcome = await self._recover_pending_character_update(msg, client_id)
             if outcome is not None:
                 return outcome
+            choice_outcome = await self._recover_pending_choice(msg, client_id)
+            if choice_outcome is not None:
+                return choice_outcome
         return await self._invoke_handler_body(msg, client_id)
 
     async def _invoke_handler_body(self, msg: Message, client_id: str):

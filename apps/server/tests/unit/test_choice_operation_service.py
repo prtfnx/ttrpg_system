@@ -44,6 +44,7 @@ def choices(tmp_path):
         if kind == 'encounter_start':
             return intent()
         started = service.execute(intent())
+        assert started.receipt is not None
         target = started.receipt['encounter_id']
         if kind == 'encounter_roll':
             service.execute(intent('encounter_choice', 'choose', actor=3, encounter_id=target, choice_id='go'))

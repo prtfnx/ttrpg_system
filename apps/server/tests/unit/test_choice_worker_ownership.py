@@ -62,7 +62,11 @@ def game(tmp_path, monkeypatch):
         async def capture(response, _client):
             responses.append(response)
         proto._transport_send = capture
-        await proto.handle_client(Message(kind, data or {}), client)
+        data = dict(data or {})
+        active = EncounterEngine.get('WORK')
+        if kind in {MessageType.ENCOUNTER_END, MessageType.ENCOUNTER_CHOICE, MessageType.ENCOUNTER_ROLL} and active:
+            data.setdefault('encounter_id', active.encounter_id)
+        await proto.handle_client(Message(kind, data), client)
         return responses[-1]
 
     yield SimpleNamespace(svc=svc, proto=proto, store=store, factory=factory, send=send,
@@ -89,17 +93,18 @@ async def test_repeated_cancellation_keeps_mutation_until_worker_and_publication
     if kind == MessageType.ENCOUNTER_ROLL:
         await game.send(MessageType.ENCOUNTER_CHOICE, {'choice_id': 'go'})
     entered, release = threading.Event(), threading.Event()
-    save = game.store.save_snapshot
+    save = game.store.stage_snapshot
 
-    def delayed(**kwargs):
+    def delayed(*args, **kwargs):
         entered.set()
         assert release.wait(5)
-        save(**kwargs)
+        save(*args, **kwargs)
 
-    monkeypatch.setattr(game.store, 'save_snapshot', delayed)
+    monkeypatch.setattr(game.store, 'stage_snapshot', delayed)
     publication = AsyncMock()
     monkeypatch.setattr(game.svc, 'broadcast_to_session', publication)
-    data = {'choices': [{'choice_id': 'go', 'text': 'Go'}]} if kind == MessageType.ENCOUNTER_START else {'choice_id': 'go'}
+    data = ({'choices': [{'choice_id': 'go', 'text': 'Go'}]} if kind == MessageType.ENCOUNTER_START
+            else {} if kind == MessageType.ENCOUNTER_END else {'choice_id': 'go'})
     task = asyncio.create_task(game.send(kind, data))
     try:
         assert await asyncio.to_thread(entered.wait, 2)
@@ -193,10 +198,10 @@ async def test_failed_selection_restores_detached_before_state(game, monkeypatch
     assert active is not None
     before = copy.deepcopy(active.to_dict(dm=True))
 
-    def fail(**kwargs):
+    def fail(*args, **kwargs):
         raise ChoiceEncounterPersistenceError('SQL unavailable')
 
-    monkeypatch.setattr(game.store, 'save_snapshot', fail)
+    monkeypatch.setattr(game.store, 'stage_snapshot', fail)
     publication = AsyncMock()
     monkeypatch.setattr(game.svc, 'broadcast_to_session', publication)
     assert (await game.send(MessageType.ENCOUNTER_CHOICE, {'choice_id': 'go'})).type == MessageType.ERROR

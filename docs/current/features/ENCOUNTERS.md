@@ -5,7 +5,7 @@ Audience: contributors changing choice prompts or combat encounters.
 Status: current. Choice prompts and combat encounters are separate durable
 flows.
 
-Last source audit: 2026-07-21
+Last source audit: 2026-11-02
 
 ## Two encounter systems
 
@@ -28,22 +28,25 @@ The browser and server use one shape: `choice_id`, `roll_skill`,
 2. The server validates the prompt and rejects a second active prompt.
 3. One authoritative snapshot and an ordered `EncounterStarted` event commit
    before success is broadcast.
-4. A permitted player submits one choice. Duplicate and stale submissions fail.
+4. A permitted player submits one choice. Same-intent receipt replay succeeds; new duplicate or stale submissions fail.
 5. When required, the server resolves the configured roll and records
    `RollResolved`.
 6. A DM ends the prompt and records `EncounterEnded`.
 
 Start and end are DM-only. Invalid transitions and invalid bonuses fail closed.
-A reported persistence failure restores a detached copy of the prior engine
-state and is not broadcast as success. Choice loads and snapshot/event writes
+Rules evaluate a detached draft loaded from SQL; rejected transitions leave
+live state unchanged and are not broadcast as success. Choice loads and writes
 run through the bounded blocking-worker adapter; each worker creates and closes
 its own SQLAlchemy session. Write inputs are detached before submission.
 
 Production dispatch holds session mutation ownership through SQL settlement,
 live-state installation/rollback and publication, including repeated caller
 cancellation. Heartbeats and other sessions remain responsive during storage
-waits. These ordering guarantees do not add durable retry receipts or resolve
-commit-response uncertainty across process restart; those remain release work.
+waits. All four protocol transitions now commit their snapshot, ordered event and
+original actor/session/intent receipt together. Membership and interactive role
+come from the current database; start/end require current DM authority. An
+explicit encounter target is required after start. Retries retain the original
+message identity/body. A new identity denotes a new deliberate action.
 
 Player broadcasts are built from a player-safe snapshot. Private DM notes are
 stored but appear only in the DM response.
@@ -92,3 +95,38 @@ restored inputs; discarded drafts cannot mutate live prompts. These seams suppor
 atomic receipt acceptance without introducing another rule implementation.
 Regression owners: `test_choice_encounter_persistence_service.py` and
 `test_encounter_engine.py` verify outer commit/rollback and detached isolation.
+
+
+## Durable choice settlement and live recovery
+
+The `choice_encounter` receipt domain includes transition kind and the complete
+bounded normalized payload. Changed input under one identity rejects. Receipts
+retain accepted version and original small result/dice, excluding private notes
+and full historical snapshots. Reconstructing a service can replay accepted
+start/choice/roll/end after completion without creating, selecting or rolling
+again. A replay installs the current active SQL prompt (possibly newer or empty),
+and does not rebroadcast its old result. End replay cannot clear a newer prompt.
+
+A lost commit response triggers fresh READ COMMITTED lookup under the stable
+session-row lock (five-second PostgreSQL lock timeout). Until lookup and current
+live installation finish, serialized state work, snapshots and session cleanup
+remain fenced. Cache installation failure retains the captured admitted intent,
+including when its socket disappears. Join hydration also attempts settlement,
+so recovery does not require an earlier socket to remain connected. Repeated
+cancellation cannot release admitted mutation ownership before settlement.
+
+Unavailable outcomes return `choice_outcome_unknown` and never claim rollback.
+Proven missing acceptance returns `not_accepted: true`; retained acceptance returns
+the original receipt with current role-filtered state. Authority revocation permits
+internal cache repair while withholding private outcome details. Peer recovery
+publishes only a public current snapshot. Notification failure after installation
+reports accepted state requiring resync. Receipts follow the existing retained
+session/actor lifetime; no new table or migration is introduced.
+
+These server receipts do not add choice commands to the four-domain persisted
+v1 browser journal. Cross-page choice intent ownership and complete served
+PostgreSQL/provider qualification remain separate work. Source/event staging
+wrappers used without the operation service do not gain protocol retry ownership.
+Regression owners: `test_choice_operation_service.py`, `test_encounter_protocol.py`
+and `test_choice_worker_ownership.py`, covering actual SQL/protocol, unknown commit
+outages, current roles, private notes, later prompts, join, fencing and cancellation.

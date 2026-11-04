@@ -79,3 +79,16 @@ Run:
 A deployed multi-client smoke test remains part of release acceptance because
 repository tests cannot prove platform restart behavior or production payload
 privacy.
+
+
+## Borrowed choice transition staging
+
+`ChoiceEncounterPersistenceService.stage_snapshot` flushes the snapshot and
+ordered event inside a caller-owned transaction without committing or rolling
+it back. The caller must roll back every provisional write on failure.
+`save_snapshot` remains the standalone committing wrapper. `EncounterEngine.detached`
+prepares transitions with the same rules in an isolated registry and deep-copies
+restored inputs; discarded drafts cannot mutate live prompts. These seams support
+atomic receipt acceptance without introducing another rule implementation.
+Regression owners: `test_choice_encounter_persistence_service.py` and
+`test_encounter_engine.py` verify outer commit/rollback and detached isolation.

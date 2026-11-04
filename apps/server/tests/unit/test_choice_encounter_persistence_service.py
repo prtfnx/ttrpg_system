@@ -97,6 +97,28 @@ def test_snapshot_round_trip_and_ordered_events(persistence):
         ]
 
 
+@pytest.mark.parametrize('commit', [False, True])
+def test_borrowed_stage_and_outer_receipt_share_transaction_without_nested_commit(persistence, commit):
+    from database.models import SessionOperationReceipt
+    from service.session_operation_receipts import OperationIdentity, stage_receipt
+    from sqlalchemy import event
+
+    service, factory = persistence
+    commits = []
+    with factory() as db:
+        event.listen(db, 'after_commit', lambda _: commits.append(True))
+        service.stage_snapshot(db, session_code='TST', encounter=_snapshot(), event_type='EncounterStarted',
+            actor_id='1', payload={}, created_by=1)
+        stage_receipt(db, OperationIdentity.create(1, 1, 'choice_test', 'original', {}), {'success': True})
+        assert not commits
+        db.commit() if commit else db.rollback()
+    assert len(commits) == int(commit)
+    with factory() as db:
+        assert db.query(ChoiceEncounter).count() == int(commit)
+        assert db.query(ChoiceEncounterEvent).count() == int(commit)
+        assert db.query(SessionOperationReceipt).count() == int(commit)
+
+
 @pytest.mark.unit
 def test_completed_encounter_is_not_restored_as_active(persistence):
     service, _ = persistence

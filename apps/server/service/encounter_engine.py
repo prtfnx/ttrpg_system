@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from copy import deepcopy
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Optional
@@ -105,6 +106,16 @@ class EncounterState:
 
 class EncounterEngine:
     _active: dict[str, EncounterState] = {}
+
+    @classmethod
+    def detached(cls, snapshot: dict[str, Any] | None = None) -> type[EncounterEngine]:
+        """Use the same transition rules without changing the live registry."""
+        class DraftEngine(cls):
+            _active: dict[str, EncounterState] = {}
+
+        if snapshot is not None:
+            DraftEngine.restore(deepcopy(snapshot))
+        return DraftEngine
 
     @classmethod
     def create(

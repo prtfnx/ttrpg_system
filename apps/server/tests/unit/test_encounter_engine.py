@@ -28,6 +28,19 @@ def test_create_encounter():
     assert EncounterEngine.get('sess1') is enc
 
 
+def test_detached_transitions_do_not_change_live_registry_or_input():
+    live = EncounterEngine.create('sess1', 'Live', 'Keep', CHOICES, ['p1'])
+    snapshot = live.to_dict(dm=True)
+    draft = EncounterEngine.detached(snapshot)
+    assert draft.submit_choice('sess1', 'p1', 'c1')['status'] == 'choice_recorded'
+    assert not live.player_choices and not snapshot['player_choices']
+    ended = draft.end_encounter('sess1')
+    assert ended is not None and ended.phase == EncounterPhase.COMPLETED
+    assert EncounterEngine.get('sess1') is live
+    other = EncounterEngine.detached()
+    assert other.get('sess1') is None
+
+
 def test_submit_simple_choice():
     EncounterEngine.create('sess1', 'Test', 'A test.', CHOICES, ['p1'])
     result = EncounterEngine.submit_choice('sess1', 'p1', 'c1')

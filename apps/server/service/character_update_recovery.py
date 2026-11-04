@@ -5,7 +5,8 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from database.models import GameSession, SessionCharacter
+from database.models import GameSession, SessionCharacter, User
+from service.session_operation_receipts import OperationIdentity, find_receipt
 from sqlalchemy import text
 
 character_update_request_id: ContextVar[str | None] = ContextVar("character_update_request_id", default=None)
@@ -27,19 +28,30 @@ class PendingCharacterUpdate:
     result: dict[str, Any]
     updates: dict[str, Any]
     reconciliation_digest: str | None = None
+    operation: OperationIdentity | None = None
 
 
 @dataclass(frozen=True)
 class ResolvedCharacterUpdate:
     attempt: PendingCharacterUpdate
     committed: bool
+    current_result: dict | None = None
+    actor_authorized: bool = True
+
+
+@dataclass(frozen=True)
+class DurableCharacterResolution:
+    committed: bool
+    result: dict
+    actor_authorized: bool
 
 
 class CharacterUpdateRecovery:
     """Access is serialized by session ownership and the stable session-row lock.
 
-    This verifies one in-process CAS attempt. It is not a durable operation ledger
-    and must never infer failure from an arbitrary newer or missing source row.
+    Protocol attempts settle against durable receipts and read current projections.
+    Legacy standalone attempts retain exact before/after CAS verification and
+    never infer failure from an arbitrary newer or missing source row.
     """
 
     def __init__(self, session_factory: Callable):
@@ -69,9 +81,11 @@ class CharacterUpdateRecovery:
             raise
         except Exception as exc:
             raise CharacterUpdateOutcomeUnknown("Character outcome lookup is unavailable") from exc
+        if isinstance(committed, DurableCharacterResolution):
+            return ResolvedCharacterUpdate(attempt, committed.committed, committed.result, committed.actor_authorized)
         return ResolvedCharacterUpdate(attempt, committed)
 
-    def _lookup(self, attempt: PendingCharacterUpdate) -> bool:
+    def _lookup(self, attempt: PendingCharacterUpdate) -> bool | DurableCharacterResolution:
         with self._factory() as db:
             connection = db.connection()
             if connection.dialect.name == "postgresql":
@@ -81,6 +95,15 @@ class CharacterUpdateRecovery:
             session = db.query(GameSession).filter_by(id=attempt.session_id).with_for_update().one_or_none()
             if session is None:
                 raise CharacterUpdateOutcomeUnknown("Character session disappeared during recovery")
+            if attempt.operation is not None:
+                from service.character_update_service import read_character_update_outcome
+                receipt = find_receipt(db, attempt.operation)
+                if receipt is None and db.get(User, attempt.user_id) is None:
+                    raise CharacterUpdateOutcomeUnknown('Actor receipt history disappeared during recovery')
+                outcome, authorized = read_character_update_outcome(db, session, attempt.operation,
+                    receipt or {'character_id': attempt.character_id,
+                                'reconciliation': attempt.reconciliation_digest is not None}, internal=True)
+                return DurableCharacterResolution(receipt is not None, outcome, authorized)
             source = db.query(SessionCharacter).filter_by(
                 session_id=attempt.session_id, character_id=attempt.character_id, archived_at=None,
             ).one_or_none()

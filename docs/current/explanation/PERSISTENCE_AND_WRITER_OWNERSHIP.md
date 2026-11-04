@@ -246,3 +246,23 @@ version available for accidental commit. Standalone `update_character` keeps its
 existing transaction and in-process recovery behavior. Regression owner:
 `test_character_stat_transaction.py` verifies the stage and an outer receipt
 commit/rollback together with no nested commit.
+
+
+## Durable character acceptance storage
+
+`CharacterUpdateService` owns the borrowed character stage and its
+`character_update` operation receipt in one transaction. The original actor,
+numeric session, message identity, character, patch, expected version and optional
+reconciliation digest bind acceptance. The bounded canonical patch is hashed for
+receipt identity; receipts retain the accepted version, not private source copies.
+Current database membership and edit authority are required before acceptance or
+receipt disclosure, including when the connection still caches an old DM role.
+
+A duplicate reads the current source and each current persisted linked-token
+projection in the same session. It neither reapplies its old patch nor repairs a
+later projection mismatch. Commit-response loss resolves under the stable session
+row lock against a fresh receipt lookup; cache ownership remains pending until
+current projections are installed. Legacy standalone calls without protocol
+identity retain exact before/after recovery. The receipt table and migration head
+remain unchanged (`0015_table_settings_revision`). Regression owners:
+`test_character_update_receipts.py` and `test_character_update_recovery.py`.

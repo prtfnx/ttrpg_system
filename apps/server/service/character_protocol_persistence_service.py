@@ -14,6 +14,7 @@ class TokenStatUpdate:
     sprite_id: str
     table_id: str
     layer: str
+    stats: dict[str, object] | None = None
 
 
 def persist_character_token_stats(

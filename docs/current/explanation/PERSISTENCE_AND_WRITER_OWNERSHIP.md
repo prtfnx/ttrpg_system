@@ -119,9 +119,10 @@ now add atomic choice receipts and fresh settlement, as described below.
 
 ## Deferred consistency work
 
-TODO: extend durable receipts and outcome reconciliation to multiclass and
-remaining generic mutation paths. Choice transitions, general character protocol/
-repair, table creation/deletion/settings and XP now commit effects and receipts together.
+TODO: finish outcome reconciliation for remaining generic mutation paths and
+compatible persisted original ownership. Multiclass, choice transitions, general
+character protocol/repair, table creation/deletion/settings and XP now commit
+effects and receipts together.
 Supported table/XP browser originals are
 retained in the tab-scoped recovery journal; character originals remain page
 memory across live-page reconnect, with reload ownership still open. Choice
@@ -323,3 +324,12 @@ restore historical stats. Unknown outcomes retain the shared character recovery
 owner until current installation. No new table or migration is required.
 Regression owner: `test_multiclass_service.py`, including real SQL, restart,
 late rollback, current grants, legacy normalization and commit-response loss.
+
+
+Production multiclass dispatch uses the service above through the bounded worker
+and shared character recovery owner. All loaded-table locks and session ownership
+span settlement, current projection installation and publication. Its typed small
+response triggers deferred canonical browser reads; diagnostic tracking/read probes
+do not persist originals. The v1 journal still covers only supported table and XP
+domains. Character/choice/multiclass reload ownership and restore invalidation
+remain separate work.

@@ -323,8 +323,8 @@ they never carry an obsolete private source document. Receipt replay rechecks
 current database edit authority. `character_update` is not added to the negotiated
 four-domain `session-operations-v1` browser journal; live-page reconnect preserves
 its original in-memory envelope. Choice receipts now have the explicit-target
-contract below. Multiclass receipts and persisted character/choice original
-ownership remain separate release work. Regression owner:
+contract below, as does multiclass. Persisted character/choice/multiclass
+original ownership remains separate release work. Regression owner:
 `packages/core-table/tests/test_protocol_schema.py`.
 
 
@@ -362,3 +362,13 @@ leaving identity unset denotes a new deliberate request. It omits client session
 routing fields. Automatic cross-page multiclass replay is not part of the
 four-domain persisted v1 journal. Regression owners:
 `test_multiclass_protocol_schema.py` and browser protocol tests.
+
+
+`multiclass_response` separates original `new_class`, `accepted_level` and
+`accepted_version` from current `version`, `character_archived` and resync hints.
+It carries no historical class list/source document. Unknown initial outcomes use
+`success: false`, `outcome: unknown`, `code: character_outcome_unknown` and the
+original operation identity. Proven rollback carries `not_accepted: true`.
+Current database authority gates public replay; internal repair can finish without
+disclosing private outcomes to a revoked actor. Canonical reads are deferred behind
+pending local edits. No new persisted-journal domain/capability is advertised.

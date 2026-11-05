@@ -4,6 +4,48 @@ Date: 2026-10-26, Europe/Kiev.
 
 Status: proposed implementation backlog; this document does not declare the remaining work complete.
 
+November 2 multiclass continuation: the protocol now prepares advancement from the
+locked source using the shared character acceptance/recovery owner. Source/class
+list/total level, ordinary logs, explicit multiclass audit and original-intent
+receipt commit together. Identity binds actor, session, character, normalized new
+class and optional expected version. Current database edit authority precedes
+receipt disclosure; replay precedes class/prerequisite/version revalidation.
+
+Pinned target prerequisites, fighter OR semantics and level cap are retained.
+Single-primary legacy levels are preserved and flat advancement fields normalize
+into `data`. Ambiguous splits, duplicate classes and inconsistent declared totals
+reject rather than silently dropping levels. Pending XP resolution and new class
+feature/resource mechanics are not added. Unrelated source data and token stats
+remain intact.
+
+Lost commit responses and cache failures retain character/session/snapshot
+quarantine through fresh stable-barrier lookup and current installation. Domain
+responses retain accepted class/level/version metadata separately from current
+source/version; they omit full historical classes/source. Revocation and socket
+removal cannot discard admitted repair ownership or expose private outcomes.
+Cancellation retains ownership through settlement/publication.
+
+The browser API exposes original retry identity and optional version. Unknown
+responses retain diagnostic tracking and schedule bounded serialized read probes.
+Receipt hydration waits for local character edits to settle; archived receipts
+remove the old source without loading it. The four-domain persisted v1 journal
+is unchanged. Cross-page character/choice/multiclass originals remain unfinished.
+
+Validation: 633 server cases, 1,263 browser cases, 326 shared-schema cases and two
+native Chromium checks pass (2,224 distinct cases). There are 65 PostgreSQL
+dependent skips (64 contract cases and one Alembic case); five new multiclass
+contracts collect but do not qualify real locking. Pinned Pyright reports zero
+errors/warnings; TypeScript, targeted Ruff/ESLint, production browser build,
+generated-binding drift and docs checks pass. Existing modified WASM and the
+large-chunk warning remain; no reproducible served candidate is qualified. See
+[multiclass evidence](audit/release-2026-11-02/multiclass-validation.md).
+
+Six focused local commits (at most seven files each) implement/document this
+continuation. No push/history rewrite is performed. Next: compatible persisted
+character/choice/multiclass intent ownership, then remaining generic mutation
+settlement. R2 active-combat authority, R5 auth/private-producer acceptance,
+R6 paired restore and R0/R7 provider/candidate/load gates remain open.
+
 November 2 choice-outcome implementation: all four choice transitions now evaluate
 in detached registries and commit snapshot/event/original-intent receipt atomically.
 Current database membership/interactive role precedes acceptance or public lookup;
@@ -535,7 +577,7 @@ For a public production service, also require automated independent backups, res
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
-| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals survive same-tab reloads. General character protocol/repair and choice transitions have atomic receipts and current-state replay. Character/choice cross-page originals, multiclass and generic table/sprite uncertainty remain open. Canvas/sprite/paint/chat/combat retain domain mechanisms. | Finish remaining R4 domains and compatible persisted original ownership, then real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
+| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals survive same-tab reloads. General character protocol/repair, choice and multiclass have atomic receipts and current-state replay. Cross-page character/choice/multiclass originals and generic table/sprite uncertainty remain open. Canvas/sprite/paint/chat/combat retain domain mechanisms. | Finish remaining R4 domains and compatible persisted original ownership, then real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
 | A9: core-table imports server infrastructure | Still present. | Defer extraction; introduce only the transaction/worker adapters needed by R1-R3. |
 | A10: browser dependency cycles | Research recorded 39 cycles; the count was not rerun for this plan. | Defer wholesale cleanup. Fix a cycle only when a reproducible release workflow requires it. |
 | A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `efe187ac`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |
@@ -624,6 +666,13 @@ Done when: the named gameplay paths perform no blocking SQL on the server loop, 
 ### R4. Make high-risk retries resolve to one durable outcome
 
 Priority: release blocker for supported retry flows. Dependencies: R1/R2 transaction boundaries; contract design can start alongside R1. Estimate: 4-7 days.
+
+Latest November 2 status: multiclass now shares atomic source/audit/receipt
+acceptance and current-state recovery through the character owner. Current roles,
+optional source versions, original class identity, normalization and rejected
+inconsistent totals are covered. Browser reads reconcile small receipts safely.
+Persisted character/choice/multiclass originals and remaining generic mutation
+settlement still need implementation; real PostgreSQL/served gates remain open.
 
 November 2 status: choice start/choice/roll/end now share original-intent receipt
 acceptance and current-state settlement through completion/restart. Browser

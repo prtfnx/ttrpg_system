@@ -43,9 +43,9 @@ See [Tables](../features/TABLES_AND_CANVAS.md),
 
 These are remaining limitations, not completed architecture guarantees:
 
-- Finish multiclass and remaining generic mutation settlement, plus compatible
-  persisted character/choice original ownership. Supported table creation/copy/
-  import/deletion/settings, XP, general character/repair and choice transitions
+- Finish remaining generic mutation settlement and compatible persisted
+  character/choice/multiclass original ownership. Supported table creation/copy/
+  import/deletion/settings, XP, general character/repair, multiclass and choice transitions
   now have atomic receipt boundaries and current-state settlement. The scoped
   persisted journal covers only table create/delete/settings and XP. Complete
   PostgreSQL/served browser acceptance remains to verify.

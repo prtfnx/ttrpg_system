@@ -45,7 +45,7 @@ session and use normal authorized sprite broadcasts.
 The character and draft managers intentionally keep short-lived synchronous
 SQLAlchemy transactions, but async protocol actions run those I/O-bound calls
 through a worker thread. Recipient permission checks, draft operations, XP
-load/update/logging, multiclass load/update, and linked-token stat writes use
+load/update/logging, multiclass acceptance, and linked-token stat writes use
 the same boundary. Each direct persistence helper creates and closes its own
 worker-owned session and returns detached data. Do not pass ORM sessions or
 rows across the boundary. Apply returned token updates to the in-memory table
@@ -297,7 +297,8 @@ current state rather than broadcasting the original old patch. Ordinary peer
 role/layer producer qualification remains an R5 release gate.
 
 Standalone manager calls without a protocol identity retain the existing exact
-before/after CAS verifier; they do not gain durable request ownership. Multiclass now shares the durable character transaction/recovery owner;
+before/after CAS verifier; they do not gain durable request ownership.
+Multiclass now shares the durable character transaction/recovery owner;
 choice transitions retain their separate receipt domain. Regression owners:
 `test_character_update_receipts.py`, `test_character_update_recovery.py` and
 `test_character_stat_transaction.py` cover restart, later edits, revoked authority,
@@ -410,8 +411,9 @@ originals remain separate work. PostgreSQL/served qualification remains an open 
 
 Multiclass changes use `multiclass_request`. The server validates the pinned
 prerequisites, preserves a legacy primary class when normalizing the class
-array, enforces the total-level cap, and returns the canonical document. The
-browser does not carry fallback prerequisite tables.
+array, enforces the total-level cap, and returns a durable small receipt.
+The browser then reads current canonical state; it does not carry fallback
+prerequisite tables.
 
 ## Import and export
 

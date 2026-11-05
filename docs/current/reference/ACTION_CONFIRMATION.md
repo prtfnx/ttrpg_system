@@ -14,6 +14,7 @@ Last source audit: 2026-10-21
 | Paint and chat | Existing domain operation identities and durable results; retain those contracts. |
 | Combat commands/start/end | Encounter journal and stable session barrier resolve uncertain commits; full lifecycle/browser acceptance remains a release gate. |
 | Character update/repair | Original actor/session/message/patch/version/digest receipts share source/version/sharing/audit/token acceptance. Restart replay installs current persisted projections, with quarantine through installation. Browser originals remain page memory; reload ownership is open. Standalone identity-free calls retain legacy CAS recovery. |
+| Multiclass | Source/classes/level/audit and original actor/session/class/version receipt share acceptance. Shared character quarantine retains ownership through fresh settlement and current installation. Browser originals are not persisted across reloads. |
 | XP award | Actor/session/domain-scoped original message identity; XP/version/audit/outcome share acceptance. See [Characters](../features/CHARACTERS_AND_COMPENDIUMS.md). |
 | Table create/copy/import | Original request receipts share table/paint-state acceptance; unknown commits fence serialized work and snapshots through verified installation. |
 | Table delete | Table resources, active-member pointers, retirement tombstone and original actor/session receipt share acceptance. Unknown commits fence state work and snapshots until settlement and cache cleanup. |
@@ -295,3 +296,12 @@ the server to settle it; correlated state/receipt responses complete tracking.
 Tracker timeouts remain bounded diagnostics, not durable intent ownership. Choice
 commands are outside the four-domain persisted journal; canonical reads alone do
 not prove an unrecorded original's acceptance after process/page replacement.
+
+
+Multiclass uses its own `character_multiclass` receipt domain and the shared
+character settlement fence. Unknown/denied responses do not prove rejection;
+diagnostic tracking is retained until correlated acceptance or proved rollback.
+One bounded read probe asks for settlement, and canonical hydration waits behind
+local character edits. Accepted class/level/version metadata is historical outcome
+information, never a replacement for current character source data. The request
+API returns/accepts original identity with the same target and optional version.

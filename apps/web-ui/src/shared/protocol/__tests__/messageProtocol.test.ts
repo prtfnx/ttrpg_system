@@ -4,6 +4,19 @@ import { describe, expect, it } from 'vitest';
 describe('Protocol Message Utilities', () => {
 
   it.each([
+    [MessageType.ENCOUNTER_START, { choices: [{ text: 'Go' }] }],
+    [MessageType.ENCOUNTER_END, { encounter_id: 'target' }],
+    [MessageType.ENCOUNTER_CHOICE, { encounter_id: 'target', choice_id: 'go' }],
+    [MessageType.ENCOUNTER_ROLL, { encounter_id: 'target', choice_id: 'go', bonus: 0 }],
+  ] as const)('keeps the original wire identity for %s', (kind, data) => {
+    const original = createMessage(kind, data);
+    expect(parseMessage(JSON.stringify(original)).message_id).toBe(original.message_id);
+    expect(() => parseMessage(JSON.stringify({ ...original, message_id: undefined }))).toThrow(/Invalid message/);
+    expect(() => parseMessage(JSON.stringify({ ...original, timestamp: undefined }))).toThrow(/Invalid message/);
+    expect(() => parseMessage(JSON.stringify({ ...original, data: { ...data, user_id: 99 } }))).toThrow(/Invalid message/);
+  });
+
+  it.each([
     { message_id: undefined }, { message_id: '' }, { message_id: 'x'.repeat(129) },
     { timestamp: undefined }, { timestamp: -1 }, { timestamp: true }, { timestamp: 9007199254741 },
   ])('rejects character edits without a bounded original identity: %j', (invalid) => {

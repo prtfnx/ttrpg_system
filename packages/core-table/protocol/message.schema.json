@@ -3295,15 +3295,15 @@
     },
     {
       "if": {"properties": {"type": {"const": "encounter_end"}}, "required": ["type"]},
-      "then": {"properties": {"data": {"propertyNames": {"enum": ["encounter_id"]}}}}
+      "then": {"properties": {"data": {"type": "object", "propertyNames": {"enum": ["encounter_id"]}}}}
     },
     {
       "if": {"properties": {"type": {"const": "encounter_choice"}}, "required": ["type"]},
-      "then": {"properties": {"data": {"required": ["choice_id"], "propertyNames": {"enum": ["encounter_id", "choice_id"]}}}}
+      "then": {"properties": {"data": {"type": "object", "required": ["choice_id"], "propertyNames": {"enum": ["encounter_id", "choice_id"]}}}}
     },
     {
       "if": {"properties": {"type": {"const": "encounter_roll"}}, "required": ["type"]},
-      "then": {"properties": {"data": {"propertyNames": {"enum": ["encounter_id", "choice_id", "bonus"]}}}}
+      "then": {"properties": {"data": {"type": "object", "propertyNames": {"enum": ["encounter_id", "choice_id", "bonus"]}}}}
     },
     {
       "if": {"properties": {"type": {"const": "character_update"}}, "required": ["type"]},

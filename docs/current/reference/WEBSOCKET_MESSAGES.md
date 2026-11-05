@@ -416,3 +416,28 @@ records. Unknown outcomes remain pending, denied lookups remain held for review,
 and snapshots alone cannot settle these requests. A restored create response
 uses reconciliation rather than initial scene hydration. General offline and
 generic character/choice replay remain outside this contract.
+
+
+## Durable choice outcomes (November 2)
+
+`encounter_start/end/choice/roll` require bounded original message identity/time
+and closed payloads; every post-start request names its original encounter.
+Actor/session authority comes from the connection and current database role,
+not payload fields. The canonical schema defines prompt, choice, target and
+integer bonus bounds. A required roll needs its DC.
+
+Snapshot/event/receipt acceptance is atomic. `accepted`, `operation_id`, original
+`encounter_id`, transition `kind` and `accepted_version` identify the small outcome;
+roll receipts retain their actual dice. A failed game roll (`success: false`) can
+still be an accepted transition. Replay uses `encounter_state` and current
+role-filtered `encounter` state with `replayed`/`resync_required`; explicit
+`state_authoritative: true` plus `encounter: null` clears stale browser prompts.
+An old receipt must not reinstall its historical snapshot or close a newer prompt.
+
+`choice_outcome_unknown` is not rejection. Fresh lookup behind the original
+session-row barrier and current installation precede release of serialized state
+work/snapshots. Proven rejection carries `not_accepted: true`. Revoked actors
+receive no private receipt details; recovery peers get public current state.
+Unknown browser outcomes request a bounded serialized read without inventing
+another mutation. The four-domain persisted v1 journal still excludes choice.
+See [Encounters](../features/ENCOUNTERS.md) for recovery and qualification limits.

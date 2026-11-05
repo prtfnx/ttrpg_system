@@ -114,17 +114,19 @@ the lock. A cancelled read cannot install its eventual worker result. This
 prevents a delayed join from restoring a completed prompt. Connection-manager
 admission rolls back provisional socket/user/client indexes on failure or
 cancellation while retaining lifecycle ownership through cleanup. It does not give
-choice commands durable request receipts or resolve commit-response uncertainty;
-those remain part of general outcome-recovery work.
+choice commands durable receipts by itself. The operation service and protocol
+now add atomic choice receipts and fresh settlement, as described below.
 
 ## Deferred consistency work
 
-TODO: extend durable receipts and outcome reconciliation to choice/multiclass
-and remaining generic mutation paths. General character protocol/repair, table
-creation/deletion/settings and XP now commit their effects and receipts together.
+TODO: extend durable receipts and outcome reconciliation to multiclass and
+remaining generic mutation paths. Choice transitions, general character protocol/
+repair, table creation/deletion/settings and XP now commit effects and receipts together.
 Supported table/XP browser originals are
 retained in the tab-scoped recovery journal; character originals remain page
-memory across live-page reconnect, with reload ownership still open. These
+memory across live-page reconnect, with reload ownership still open. Choice
+originals are not persisted by the v1 journal; in-process recovery retains their
+admitted identities until settlement. These
 boundaries do not add universal retry safety. Complete remaining legacy character/token
 repairs and qualify worker ownership on the release candidate. Combat lifecycle transitions
 are calculated without implicit engine commits; accepted snapshot and journal

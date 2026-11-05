@@ -404,8 +404,8 @@ input; a new identity denotes another award. Admitted production dispatch keeps
 session ownership through SQL settlement and role-filtered publication despite
 repeated cancellation. Publication failure reports accepted state requiring
 resync. Players see XP as read-only state. Generic character and selected table
-commands have their own receipt boundaries; choice/multiclass commands remain
-separate work. PostgreSQL/served qualification remains an open release gate.
+commands have their own receipt boundaries, as do choice transitions. Multiclass
+commands and persisted character/choice originals remain separate work. PostgreSQL/served qualification remains an open release gate.
 
 Multiclass changes use `multiclass_request`. The server validates the pinned
 prerequisites, preserves a legacy primary class when normalizing the class

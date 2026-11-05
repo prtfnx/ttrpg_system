@@ -4,6 +4,43 @@ Date: 2026-10-26, Europe/Kiev.
 
 Status: proposed implementation backlog; this document does not declare the remaining work complete.
 
+November 2 choice-outcome implementation: all four choice transitions now evaluate
+in detached registries and commit snapshot/event/original-intent receipt atomically.
+Current database membership/interactive role precedes acceptance or public lookup;
+start/end require current DM authority. Explicit original encounter targets and
+closed bounded wire payloads prevent a delayed intent from selecting another
+prompt. Accepted rolls replay their recorded dice without another roll.
+
+Lost commit responses and failed cache installation retain session/snapshot
+quarantine until fresh stable-session-row lookup and current SQL installation.
+Recovery installs a newer prompt or explicit empty state, never an old receipt
+snapshot. Join hydration also settles pending writes after socket removal.
+Repeated cancellation holds ownership through settlement/publication. Revoked
+actors cannot receive private receipt/state details; peer recovery uses public
+current snapshots. Publication failure reports accepted state requiring resync.
+
+The browser probes unknown choices with bounded serialized reads, without a new
+mutation or false rejection settlement. Explicit authoritative empty snapshots
+clear stale prompts, older same-prompt versions reject, and old end receipts
+cannot close newer prompt state. Choice is still outside the four-domain v1
+persisted journal; full cross-page character/choice ownership is unfinished.
+
+Validation: 596 broad server cases, 683 browser cases, 304 shared-schema cases
+and two native Chromium CSP/storage cases pass (1,585 distinct cases). Pinned
+Pyright has zero errors/warnings; TypeScript, targeted Ruff/ESLint, production
+browser build, generated bindings and current-doc checks pass. All 59 PostgreSQL
+contract cases and one PostgreSQL Alembic case skip without a disposable URL;
+the eight new choice contracts do not establish real locking qualification.
+The existing large-chunk warning and modified WASM remain; no reproducible served
+candidate is qualified. See [choice validation evidence](audit/release-2026-11-02/choice-outcome-validation.md).
+
+Next: atomic multiclass original-intent acceptance and recovery, then compatible
+persisted character/choice originals and remaining generic mutation settlement.
+R2 active-combat field authority, R5 auth/private-producer acceptance, R6 paired
+restore and R0/R7 real provider/candidate/load evidence remain open. Nine focused
+local commits (at most seven files each) implement and document this continuation.
+No push or history rewrite is performed; unrelated WASM/audit changes remain.
+
 November 2 history/report continuation: all 37 unpublished commits were redated
 for both author and committer to November 2 in Europe/Kyiv, retaining identities,
 messages, trees, order and original local times of day. A backup remains on
@@ -498,7 +535,7 @@ For a public production service, also require automated independent backups, res
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
-| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals now survive same-tab reloads. General character protocol/repair now has atomic receipts and current-state replay, with originals still in page memory. Choice/multiclass and generic table/sprite uncertainty remain open. Canvas/sprite/paint/chat/combat retain domain mechanisms. | Finish remaining R4 domains and compatible persisted character ownership, then real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
+| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals survive same-tab reloads. General character protocol/repair and choice transitions have atomic receipts and current-state replay. Character/choice cross-page originals, multiclass and generic table/sprite uncertainty remain open. Canvas/sprite/paint/chat/combat retain domain mechanisms. | Finish remaining R4 domains and compatible persisted original ownership, then real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
 | A9: core-table imports server infrastructure | Still present. | Defer extraction; introduce only the transaction/worker adapters needed by R1-R3. |
 | A10: browser dependency cycles | Research recorded 39 cycles; the count was not rerun for this plan. | Defer wholesale cleanup. Fix a cycle only when a reproducible release workflow requires it. |
 | A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `efe187ac`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |
@@ -587,6 +624,13 @@ Done when: the named gameplay paths perform no blocking SQL on the server loop, 
 ### R4. Make high-risk retries resolve to one durable outcome
 
 Priority: release blocker for supported retry flows. Dependencies: R1/R2 transaction boundaries; contract design can start alongside R1. Estimate: 4-7 days.
+
+November 2 status: choice start/choice/roll/end now share original-intent receipt
+acceptance and current-state settlement through completion/restart. Browser
+read-probing/current-snapshot reconciliation is implemented, with persisted choice
+ownership still open. Next domain: multiclass. Character/choice cross-page
+recovery, remaining generic mutation settlement and real PostgreSQL/served gates
+remain unfinished; do not reopen implemented combat/worker refactors wholesale.
 
 October 30 status: supported table create/copy/import/delete/settings and XP
 receipts plus scoped tab persistence are implemented. General character protocol

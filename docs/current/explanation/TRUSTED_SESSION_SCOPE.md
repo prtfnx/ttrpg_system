@@ -14,7 +14,8 @@ architecture extraction is required to use this scope.
 ## Current fixes and visible effects
 
 - Table settings install live values and publish changes after a confirmed
-  database save. Failed or uncertain saves report an error and ask for reload.
+  database/receipt acceptance. Unknown outcomes fence state work until current
+  SQL installation, and revisions prevent older settings from replacing newer state.
 - Full runtime disposal removes session subscriptions and owned objects.
   Late initialization/attachment cannot recreate a stopped canvas; normal
   detach retains snapshots for reattachment.
@@ -42,14 +43,17 @@ See [Tables](../features/TABLES_AND_CANVAS.md),
 
 These are remaining limitations, not completed architecture guarantees:
 
-- Extend durable operation receipts beyond existing canvas/sprite/paint/chat
-  and combat mechanisms, especially table creation and XP awards. Reconcile
-  unknown table/settings/XP outcomes; reload before retrying an unconfirmed
-  create. Combat receipt recovery and snapshot quarantine already handle
-  ambiguous commit responses; complete browser acceptance remains to verify.
-- Transactions or durable repair for linked character/token/encounter stats
-  and other resources beyond combat movement, including terrain changes
-  during combat (currently prohibited).
+- Finish multiclass and remaining generic mutation settlement, plus compatible
+  persisted character/choice original ownership. Supported table creation/copy/
+  import/deletion/settings, XP, general character/repair and choice transitions
+  now have atomic receipt boundaries and current-state settlement. The scoped
+  persisted journal covers only table create/delete/settings and XP. Complete
+  PostgreSQL/served browser acceptance remains to verify.
+- Qualify character/token/encounter field authority during active combat and
+  resolve conflicting legacy data explicitly. Shared source/projection writes,
+  canonical NPC creation and guarded unambiguous repairs are implemented;
+  automatic encounter-end sheet write-back is not guaranteed. Terrain edits
+  during active combat remain prohibited.
 - Settlement review for remaining worker migrations. Combat commands retain
   ownership through SQL settlement, cache installation, and protocol publication;
   pre-combat environment saves already capture detached snapshots on the loop.
@@ -77,7 +81,7 @@ persistence. `apps/server/tests/integration/test_trusted_session_workflow.py`
 uses the production session dispatcher and validated JSON envelopes with
 recorded DM/player transports. It covers join, create/switch tables,
 create/move tokens, private-layer hydration, walls/lighting, pre-combat
-terrain, move/attack and compensating movement, duplicate replay, end turn,
+terrain, atomic move/attack acceptance, duplicate replay, end turn,
 reconnect, and reconstruction of saved table/combat state. It uses real
 SQLite and controls asset listing and dice; it does not run HTTP
 authentication or a live socket server. The real-browser WASM suite

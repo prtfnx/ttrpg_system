@@ -322,7 +322,8 @@ Correlated acceptance reports `operation_id`, `accepted_version` and current
 they never carry an obsolete private source document. Receipt replay rechecks
 current database edit authority. `character_update` is not added to the negotiated
 four-domain `session-operations-v1` browser journal; live-page reconnect preserves
-its original in-memory envelope. Choice/multiclass receipts and character reload
+its original in-memory envelope. Choice receipts now have the explicit-target
+contract below. Multiclass receipts and persisted character/choice original
 ownership remain separate release work. Regression owner:
 `packages/core-table/tests/test_protocol_schema.py`.
 

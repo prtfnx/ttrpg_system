@@ -344,3 +344,21 @@ rejection carrying `not_accepted: true`. Unknown never means rollback. Keep the
 original identity/body when checking an earlier intent. Choice operations are not
 added to the closed four-domain persisted v1 browser journal. Regression owner:
 `packages/core-table/tests/test_choice_protocol_schema.py`.
+
+
+## Original multiclass request identity
+
+`multiclass_request` requires the original nonempty message identity (up to 128
+characters), bounded nonnegative timestamp and a closed payload containing only
+`character_id`, `new_class` and optional positive safe-integer `version`.
+Client actor/session fields and supplied class lists/levels reject. The service
+normalizes and validates the target against pinned rules, then checks current
+database edit authority. The original target/version define receipt identity;
+changing either under the same request identity rejects.
+
+The browser API returns the request identity and accepts it for a deliberate
+same-intent retry. Retain the same optional expected version as well as target;
+leaving identity unset denotes a new deliberate request. It omits client session
+routing fields. Automatic cross-page multiclass replay is not part of the
+four-domain persisted v1 journal. Regression owners:
+`test_multiclass_protocol_schema.py` and browser protocol tests.

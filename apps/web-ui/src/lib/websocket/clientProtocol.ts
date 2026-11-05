@@ -2817,13 +2817,15 @@ export class WebClientProtocol {
     return this.sendMessage(message) ? message.message_id : undefined;
   }
 
-  requestCharacterMulticlass(characterId: string, newClass: string): void {
+  requestCharacterMulticlass(characterId: string, newClass: string, requestId?: string, expectedVersion?: number): string | undefined {
     if (this.userId === null) return;
-    this.sendMessage(createMessage(MessageType.MULTICLASS_REQUEST, {
+    const message = createMessage(MessageType.MULTICLASS_REQUEST, {
       character_id: characterId,
-      new_class: newClass,
-      session_code: this.sessionCode,
-    }));
+      new_class: newClass.trim().toLowerCase(),
+      ...(expectedVersion !== undefined ? { version: expectedVersion } : {}),
+    });
+    if (requestId !== undefined) message.message_id = requestId;
+    return this.sendMessage(message) ? message.message_id : undefined;
   }
 
   rollSkill(characterId: string, skill: string, modifier: number, advantage = false, disadvantage = false): void {

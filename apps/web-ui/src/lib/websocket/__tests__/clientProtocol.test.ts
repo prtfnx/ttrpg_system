@@ -815,6 +815,19 @@ describe('WebClientProtocol', () => {
       expect(sent[1].data).toEqual(sent[0].data);
     });
 
+    it('keeps multiclass retry identity and explicit version without client authority fields', () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      const id = p.requestCharacterMulticlass('hero', ' ROGUE ', undefined, 3);
+      p.requestCharacterMulticlass('hero', 'rogue', id, 3);
+      const next = p.requestCharacterMulticlass('hero', 'wizard');
+      const sent = (ws.send as Mock).mock.calls.map(call => JSON.parse(call[0]));
+      expect(id).toBeTruthy(); expect(next).not.toBe(id);
+      expect(sent.map(message => message.message_id)).toEqual([id, id, next]);
+      expect(sent[0].data).toEqual({ character_id: 'hero', new_class: 'rogue', version: 3 });
+      expect(sent[1].data).toEqual(sent[0].data);
+      expect(sent[2].data).toEqual({ character_id: 'hero', new_class: 'wizard' });
+    });
+
     it('sends XP awards and multiclass requests immediately', () => {
       const p = makeProtocol('ROOM', 7);
       const ws = makeOpenWs(p);

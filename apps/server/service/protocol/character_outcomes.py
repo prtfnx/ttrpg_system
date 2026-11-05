@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from core_table.protocol import Message, MessageType
 from service.character_update_service import CharacterUpdateIntent
+from service.multiclass_service import MulticlassIntent
 from utils.logger import setup_logger
 
 from ._protocol_base import _ProtocolBase
@@ -25,28 +26,37 @@ class _CharacterOutcomesMixin(_ProtocolBase):
         return Message(MessageType.ERROR, data)
 
     @staticmethod
-    def _character_receipt_response(data, character_id, *, committed=True):
+    def _character_receipt_response(data, character_id, *, committed=True,
+                                    message_type=MessageType.CHARACTER_UPDATE_RESPONSE):
         response = {'success': committed, 'character_id': character_id,
             **{key: data[key] for key in ('operation_id', 'accepted_version', 'replayed',
-                'resync_required', 'character_archived') if key in data}}
+                'resync_required', 'character_archived', 'new_class', 'accepted_level') if key in data}}
         if committed:
             response['version'] = data.get('version')
         else:
             response.update(error='Character update did not commit', code='persistence_failed',
                             current_version=data.get('version'), not_accepted=True)
-        return Message(MessageType.CHARACTER_UPDATE_RESPONSE, response)
+        if message_type == MessageType.MULTICLASS_RESPONSE:
+            response['resync_required'] = True
+        return Message(message_type, response)
+
+    @staticmethod
+    def _character_intent_for_request(request, session_id, user_id):
+        if request.type == MessageType.MULTICLASS_REQUEST:
+            return MulticlassIntent.from_request(session_id, user_id, request.message_id, request.data)
+        payload, options = request.data, request.data.get('stat_reconciliation') or {}
+        return CharacterUpdateIntent.create(session_id, user_id, request.message_id, payload['character_id'],
+            {} if options else payload.get('updates') or payload.get('character_data'),
+            payload.get('version'), options.get('expected_digest'))
 
     def _remember_character_installation(self, request, data, session_id, user_id):
         from managers.character_manager import get_server_character_manager
 
-        payload = request.data
-        options = payload.get('stat_reconciliation') or {}
-        intent = CharacterUpdateIntent.create(session_id, user_id,
-            request.message_id, payload['character_id'], {} if options else payload.get('updates') or payload.get('character_data'),
-            payload.get('version'), options.get('expected_digest'))
+        intent = self._character_intent_for_request(request, session_id, user_id)
         get_server_character_manager().update_operations._remember(intent, result=data)
 
-    async def _accept_durable_character_result(self, request, client_id, data, updates, session_id, user_id):
+    async def _accept_durable_character_result(self, request, client_id, data, updates, session_id, user_id,
+                                              *, message_type=MessageType.CHARACTER_UPDATE_RESPONSE):
         character_id = request.data['character_id']
         replayed = data.get('replayed', False)
         try:
@@ -65,12 +75,15 @@ class _CharacterOutcomesMixin(_ProtocolBase):
             except Exception:
                 logger.exception('Character notification failed after acceptance')
                 resync = True
-        return self._character_receipt_response({**data, 'resync_required': bool(resync or replayed)}, character_id)
+        return self._character_receipt_response({**data, 'resync_required': bool(resync or replayed)}, character_id,
+                                                message_type=message_type)
 
     async def _finish_durable_character_recovery(self, resolved, request, client_id, *, tables_owned=False):
         from managers.character_manager import get_server_character_manager
 
         attempt, data = resolved.attempt, resolved.current_result
+        multiclass = attempt.operation is not None and attempt.operation.domain == 'character_multiclass'
+        message_type = MessageType.MULTICLASS_RESPONSE if multiclass else MessageType.CHARACTER_UPDATE_RESPONSE
         if data is None:
             return self._character_uncertain_response(attempt.character_id)
         try:
@@ -94,9 +107,9 @@ class _CharacterOutcomesMixin(_ProtocolBase):
             except Exception:
                 logger.exception('Recovered character notification failed')
         outcome = self._character_receipt_response({**data, 'operation_id': attempt.request_id}, attempt.character_id,
-                                                   committed=resolved.committed)
+                                                   committed=resolved.committed, message_type=message_type)
         if not resolved.actor_authorized:
-            outcome = Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'code': 'forbidden',
+            outcome = Message(message_type, {'success': False, 'code': 'forbidden',
                 'character_id': attempt.character_id, 'operation_id': attempt.request_id,
                 'error': 'Current character edit authority is required'})
         matching = request.message_id == attempt.request_id and self._get_user_id(request, client_id) == attempt.user_id
@@ -111,13 +124,11 @@ class _CharacterOutcomesMixin(_ProtocolBase):
         if not matching:
             return None
         try:
-            payload, options = request.data, request.data.get('stat_reconciliation') or {}
-            replay = CharacterUpdateIntent.create(attempt.session_id, attempt.user_id, request.message_id,
-                payload.get('character_id'), {} if options else payload.get('updates') or payload.get('character_data'),
-                payload.get('version'), options.get('expected_digest'))
-            if request.type != MessageType.CHARACTER_UPDATE or replay.identity != attempt.operation:
+            replay = self._character_intent_for_request(request, attempt.session_id, attempt.user_id)
+            expected_type = MessageType.MULTICLASS_REQUEST if multiclass else MessageType.CHARACTER_UPDATE
+            if request.type != expected_type or replay.identity != attempt.operation:
                 raise ValueError('Recovered request identity belongs to different input')
-        except (ValueError, TypeError, AttributeError):
+        except (ValueError, TypeError, AttributeError, KeyError):
             return Message(MessageType.ERROR, {'code': 'operation_id_conflict',
                 'error': 'The recovered request identity belongs to different character updates'})
         return outcome

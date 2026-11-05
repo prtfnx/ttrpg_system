@@ -864,94 +864,45 @@ class _CharactersMixin(_CharacterOutcomesMixin):
         return Message(MessageType.XP_AWARD_RESPONSE, result)
 
     async def handle_multiclass_request(self, msg: Message, client_id: str) -> Message:
-        """Player or DM requests adding a new class (multiclassing)."""
-        if not msg.data:
-            return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': 'No data provided'})
-
-        character_id = msg.data.get('character_id')
-        new_class = msg.data.get('new_class', '')
-        session_id = self._get_session_id(msg)
-        user_id = self._get_user_id(msg, client_id) or 0
-
-        if not character_id or not new_class:
-            return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': 'character_id and new_class required'})
-        if not session_id:
-            return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': 'Session not found'})
-
         from managers.character_manager import get_server_character_manager
-        char_mgr = get_server_character_manager()
+        from service.multiclass_service import MulticlassIntent
 
-        is_dm_client = is_dm(self._get_client_role(client_id))
-        load_result = await run_blocking(
-            char_mgr.load_character,
-            session_id,
-            character_id,
-            user_id,
-            is_dm_client,
-        )
-        if not load_result.get('success'):
-            return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': load_result.get('error', 'Character not found')})
-
-        char_data = load_result['character_data']
-        valid, error = char_mgr.validate_multiclass(char_data, new_class)
-        if not valid:
-            return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': error})
-
-        inner = char_data.get('data', char_data)
-        classes = list(inner.get('classes', []))
-        if not classes:
-            primary_classes = [
-                name.strip().lower()
-                for name in str(inner.get('class', '')).split('/')
-                if name.strip()
-            ]
-            if len(primary_classes) == 1:
-                classes = [{'name': primary_classes[0], 'level': int(inner.get('level', 1))}]
-            elif primary_classes:
-                return Message(
-                    MessageType.MULTICLASS_RESPONSE,
-                    {
-                        'success': False,
-                        'error': 'Legacy multiclass data must be normalized before adding another class',
-                    },
-                )
-        classes.append({'name': new_class.lower(), 'level': 1})
-        total_level = sum(int(character_class.get('level', 1)) for character_class in classes)
-
-        updates: dict = {}
-        if 'data' in char_data:
-            updates = {'data': {**inner, 'classes': classes, 'level': total_level}}
-        else:
-            updates = {**char_data, 'classes': classes, 'level': total_level}
-
-        save_result = await run_blocking(
-            char_mgr.update_character,
-            session_id,
-            character_id,
-            updates,
-            user_id=user_id,
-            expected_version=load_result.get('version'),
-            bypass_owner_check=is_dm_client,
-            allow_advancement_updates=True,
-        )
-        if not save_result.get('success'):
-            return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': save_result.get('error', 'Save failed')})
-
-        resp_data = {
-            'success': True,
-            'character_id': character_id,
-            'new_class': new_class,
-            'classes': classes,
-            'version': save_result.get('version'),
-            'character_data': save_result.get('character_data'),
-        }
-        await self._broadcast_character_event(
-            Message(MessageType.MULTICLASS_RESPONSE, resp_data),
-            session_id,
-            character_id,
-            client_id,
-        )
-        return Message(MessageType.MULTICLASS_RESPONSE, resp_data)
+        data = msg.data if isinstance(msg.data, dict) else {}
+        character_id = data.get('character_id')
+        session_id, user_id = self._get_session_id(msg), self._get_user_id(msg, client_id)
+        if not session_id or user_id is None:
+            return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': 'Session not found'})
+        try:
+            Message.from_dict(msg.to_dict())
+            intent = MulticlassIntent.from_request(session_id, user_id, msg.message_id, data)
+        except (ValueError, TypeError) as exc:
+            return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'character_id': character_id,
+                'operation_id': msg.message_id, 'error': str(exc), 'code': 'invalid_payload'})
+        manager = get_server_character_manager()
+        try:
+            async with AsyncExitStack() as ownership:
+                for table_id in sorted(self.table_manager.tables):
+                    await ownership.enter_async_context(self.table_manager.table_write_lock(table_id))
+                result = await run_blocking(manager.multiclass_operations.execute, intent)
+                if result.get('recovery_required'):
+                    response = await self._recover_pending_character_update(msg, client_id, tables_owned=True)
+                elif result.get('success'):
+                    response = await self._accept_durable_character_result(msg, client_id, result,
+                        result.get('applied_updates', {}), session_id, user_id,
+                        message_type=MessageType.MULTICLASS_RESPONSE)
+                else:
+                    return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'character_id': character_id,
+                        **{key: result[key] for key in ('operation_id', 'error', 'code', 'not_accepted', 'current_version')
+                           if key in result}})
+                if response is not None and response.type != MessageType.ERROR:
+                    return response
+                if response is not None and response.data.get('code') != 'character_outcome_unknown':
+                    return response
+        except CharacterUpdateOutcomeUnknown:
+            pass
+        return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'character_id': character_id,
+            'operation_id': msg.message_id, 'outcome': 'unknown', 'code': 'character_outcome_unknown',
+            'resync_required': True, 'error': 'Multiclass outcome is uncertain. Check the original request before retrying.'})
 
     async def _sync_character_stats_to_tokens(
         self, session_id: int, character_id: str, updates: dict,

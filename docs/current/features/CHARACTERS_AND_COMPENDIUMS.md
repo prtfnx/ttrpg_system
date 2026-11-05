@@ -297,8 +297,8 @@ current state rather than broadcasting the original old patch. Ordinary peer
 role/layer producer qualification remains an R5 release gate.
 
 Standalone manager calls without a protocol identity retain the existing exact
-before/after CAS verifier; they do not gain durable request ownership. Specialized
-multiclass/choice operations remain separate work. Regression owners:
+before/after CAS verifier; they do not gain durable request ownership. Multiclass now shares the durable character transaction/recovery owner;
+choice transitions retain their separate receipt domain. Regression owners:
 `test_character_update_receipts.py`, `test_character_update_recovery.py` and
 `test_character_stat_transaction.py` cover restart, later edits, revoked authority,
 atomic rollback, commit-response loss, cache failure, fencing and cancellation.
@@ -405,7 +405,8 @@ session ownership through SQL settlement and role-filtered publication despite
 repeated cancellation. Publication failure reports accepted state requiring
 resync. Players see XP as read-only state. Generic character and selected table
 commands have their own receipt boundaries, as do choice transitions. Multiclass
-commands and persisted character/choice originals remain separate work. PostgreSQL/served qualification remains an open release gate.
+now has its own receipt domain too; persisted character/choice/advancement
+originals remain separate work. PostgreSQL/served qualification remains an open release gate.
 
 Multiclass changes use `multiclass_request`. The server validates the pinned
 prerequisites, preserves a legacy primary class when normalizing the class
@@ -533,3 +534,43 @@ or another failure for an already uncertain original, retains that original in
 page memory unless the server explicitly proves `not_accepted`. Later correlated
 acceptance can settle it. Reconnect keeps its exact envelope; a reload still loses
 this page-memory evidence. Proven rollback permits canonical hydration and review.
+
+
+## Durable multiclass advancement
+
+`multiclass_request` now binds the original actor/session/message identity to
+character, normalized target class and optional expected version. Validation reads
+the locked source in the same acceptance transaction; the handler no longer loads
+and validates in one transaction before updating in another. Current database
+membership and source edit authority (owner, edit grant or session DM) precede both
+acceptance and public replay. Client class lists, totals and authority fields reject.
+
+The `character_multiclass` receipt commits with source/version, ordinary change
+logs, an explicit multiclass audit row and any staged projections. Legacy primary
+levels are retained, flat advancement fields migrate into canonical `data`, and
+ambiguous splits, duplicate classes or disagreeing declared totals reject without
+partial writes. Existing pinned target prerequisites, fighter OR rule and level
+cap remain. This command does not finish pending XP advancement or introduce new
+automatic class-feature/HP/resource effects.
+
+Replays are looked up before class/version/prerequisite revalidation and do not
+add another level or install historical source/token state. The correlated
+`multiclass_response` reports original `new_class`, `accepted_level` and
+`accepted_version`, current `version`, and `resync_required`; it omits full source
+copies/classes so the browser reads current canonical state. Missing/archived
+source rules and current per-token recovery follow the general character contract;
+archived receipts remain explicit and cannot recreate a character.
+
+Lost commit responses and cache failures retain shared character/session/snapshot
+quarantine until fresh receipt lookup and current installation. Cancellation keeps
+admitted ownership through publication. Internal recovery can finish after socket
+removal or authority revocation without exposing private receipt details. An
+unavailable initial response uses `multiclass_response` with `success: false`,
+`outcome: unknown` and the original operation identity; it is not proof of rollback.
+Proven rollback carries `not_accepted: true`. Peer recovery asks for current source
+state instead of broadcasting a historical class patch.
+
+Regression owners: `test_multiclass_service.py` and the real protocol/SQLite
+multiclass cases in `test_character_stat_transaction.py`; obsolete mocked load/save
+multiclass expectations were replaced by these acceptance-boundary cases. Full
+PostgreSQL/served qualification and persisted cross-page originals remain open.

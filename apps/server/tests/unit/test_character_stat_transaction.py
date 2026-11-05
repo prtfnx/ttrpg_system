@@ -98,6 +98,140 @@ def saved_state(linked):
                 db.query(models.CharacterLog).count())
 
 
+def multiclass_source(linked):
+    with linked.factory() as db:
+        source = db.query(models.SessionCharacter).one()
+        document = json.loads(source.character_data)
+        document['data'].update({'class': 'fighter', 'classes': [{'name': 'fighter', 'level': 3}], 'level': 3,
+                                'abilityScores': {'strength': 15, 'dexterity': 15, 'intelligence': 14}})
+        source.character_data = json.dumps(document)
+        db.commit()
+
+
+async def advance(linked, target='rogue', version=1, original=None):
+    request = original or Message(MessageType.MULTICLASS_REQUEST,
+        {'character_id': linked.character_id, 'new_class': target, 'version': version})
+    await linked.proto.handle_client(request, 'dm')
+    return request, next(response for response in reversed(linked.responses) if response.causation_id == request.message_id)
+
+
+async def test_multiclass_protocol_returns_small_receipt_and_replay_installs_later_current_stats(linked, monkeypatch):
+    multiclass_source(linked)
+    request, accepted = await advance(linked)
+    assert accepted.type == MessageType.MULTICLASS_RESPONSE and accepted.data['success']
+    assert accepted.data['accepted_level'] == 4 and accepted.data['accepted_version'] == 2
+    assert accepted.data['resync_required'] and 'character_data' not in accepted.data and 'classes' not in accepted.data
+    assert (await advance(linked, 'wizard', 2))[1].data['success']
+    with linked.factory() as db:
+        db.query(models.Entity).filter_by(sprite_id='linked-0').one().hp = 0
+        db.commit()
+    before = saved_state(linked)
+    linked.events.clear()
+    monkeypatch.setattr(character_manager, '_server_character_manager', character_manager.ServerCharacterManager())
+    _, replay = await advance(linked, original=request)
+    assert replay.data['replayed'] and replay.data['accepted_level'] == 4 and replay.data['version'] == 3
+    assert [token.hp for token in linked.tokens[:2]] == [0, 20]
+    assert not linked.events and saved_state(linked) == before
+    with linked.factory() as db:
+        assert db.query(models.CharacterLog).filter_by(action_type='multiclass').count() == 2
+
+
+@pytest.mark.parametrize('committed', [False, True])
+@pytest.mark.parametrize('outage', [False, True])
+async def test_multiclass_commit_response_loss_retains_original_until_shared_settlement(linked, monkeypatch, committed, outage):
+    multiclass_source(linked)
+    recovery, lookup = lose_character_commit_response(linked, monkeypatch, committed, unavailable=outage)
+    request, response = await advance(linked)
+    if outage:
+        assert response.type == MessageType.MULTICLASS_RESPONSE and response.data['outcome'] == 'unknown'
+        assert 'not_accepted' not in response.data and linked.proto._has_pending_writes()
+        assert not await linked.proto.table_manager.save_to_database_async(linked.session_id)
+        assert [token.hp for token in linked.tokens[:2]] == [20, 20]
+        monkeypatch.setattr(recovery, '_lookup', lookup)
+        _, response = await advance(linked, original=request)
+    assert response.type == MessageType.MULTICLASS_RESPONSE and response.data['success'] is committed
+    assert response.data['resync_required'] and not linked.proto._has_pending_writes()
+    if not committed:
+        assert response.data['not_accepted']
+    version, document, _, _ = saved_state(linked)
+    assert version == (2 if committed else 1) and document['data']['level'] == (4 if committed else 3)
+
+
+async def test_multiclass_cache_failure_after_socket_removal_keeps_captured_actor(linked, monkeypatch):
+    multiclass_source(linked)
+    sync = linked.proto._sync_character_stats_to_tokens
+
+    async def broken(*_args, **_kwargs):
+        linked.proto.session_manager.client_info.clear()
+        raise RuntimeError('Cache installation unavailable')
+
+    monkeypatch.setattr(linked.proto, '_sync_character_stats_to_tokens', broken)
+    request, response = await advance(linked)
+    assert response.data['outcome'] == 'unknown' and linked.proto._has_pending_writes()
+    pending = character_manager.get_server_character_manager().update_recovery.resolve(linked.session_id)
+    assert pending is not None and pending.attempt.user_id == linked.owner
+    monkeypatch.setattr(linked.proto, '_sync_character_stats_to_tokens', sync)
+    linked.proto.session_manager.client_info['dm'] = {'user_id': linked.owner, 'role': 'owner'}
+    _, settled = await advance(linked, original=request)
+    assert settled.data['success'] and not linked.proto._has_pending_writes()
+    assert saved_state(linked)[0] == 2
+
+
+async def test_multiclass_revocation_repairs_cache_without_disclosing_receipt(linked, monkeypatch):
+    multiclass_source(linked)
+    with linked.factory() as db:
+        actor = models.User(username='former-multiclass-dm', hashed_password='unused')
+        db.add(actor)
+        db.flush()
+        actor_id = actor.id
+        db.add(models.GamePlayer(session_id=linked.session_id, user_id=actor_id, role='co_dm'))
+        db.commit()
+    linked.proto.session_manager.client_info['dm'] = {'user_id': actor_id, 'role': 'co_dm'}
+    recovery, lookup = lose_character_commit_response(linked, monkeypatch, True, unavailable=True)
+    request, uncertain = await advance(linked)
+    assert uncertain.data['outcome'] == 'unknown'
+    with linked.factory() as db:
+        db.query(models.GamePlayer).filter_by(session_id=linked.session_id, user_id=actor_id).one().role = 'player'
+        db.commit()
+    monkeypatch.setattr(recovery, '_lookup', lookup)
+    _, denied = await advance(linked, original=request)
+    assert denied.type == MessageType.MULTICLASS_RESPONSE and denied.data['code'] == 'forbidden'
+    assert 'accepted_level' not in denied.data and 'version' not in denied.data
+    assert not linked.proto._has_pending_writes() and saved_state(linked)[0] == 2
+
+
+async def test_cancelled_multiclass_acceptance_waits_for_commit_and_retries_without_another_level(linked, monkeypatch):
+    multiclass_source(linked)
+    service = character_manager.get_server_character_manager().multiclass_operations
+    stage = service._stage_intent
+    entered, release = threading.Event(), threading.Event()
+
+    def delayed(*args):
+        result = stage(*args)
+        entered.set()
+        assert release.wait(5)
+        return result
+
+    monkeypatch.setattr(service, '_stage_intent', delayed)
+    original = Message(MessageType.MULTICLASS_REQUEST,
+        {'character_id': linked.character_id, 'new_class': 'rogue', 'version': 1})
+    task = asyncio.create_task(linked.proto.handle_client(original, 'dm'))
+    try:
+        assert await asyncio.to_thread(entered.wait, 2)
+        for _ in range(2):
+            task.cancel()
+            await asyncio.sleep(0)
+        assert not task.done() and linked.proto._mutation_lock.locked()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        _, replay = await advance(linked, original=original)
+        assert replay.data['success'] and replay.data['replayed'] and saved_state(linked)[0] == 2
+    finally:
+        release.set()
+        await asyncio.gather(task, return_exceptions=True)
+
+
 @pytest.mark.parametrize('commit', [False, True])
 def test_borrowed_character_stage_keeps_source_projections_audit_and_outer_receipt_together(linked, commit):
     commits = []

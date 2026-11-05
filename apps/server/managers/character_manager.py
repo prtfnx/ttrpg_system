@@ -38,6 +38,7 @@ from service.character_update_service import (
     CharacterUpdateService,
     StagedCharacterUpdateRejected,
 )
+from service.multiclass_service import MulticlassService
 from sqlalchemy import and_, or_
 from utils.logger import setup_logger
 from utils.time import utc_now
@@ -121,6 +122,8 @@ class ServerCharacterManager:
         logger.info("ServerCharacterManager initialized")
         self.update_recovery = CharacterUpdateRecovery(lambda: SessionLocal())
         self.update_operations = CharacterUpdateService(lambda: SessionLocal(), self.stage_character_update, self.update_recovery)
+        self.multiclass_operations = MulticlassService(lambda: SessionLocal(), self.stage_character_update,
+            self.update_recovery, self.validate_multiclass)
         # No need to manually create table - SQLAlchemy migrations handle this
 
     def _settle_failed_update(self, attempt: PendingCharacterUpdate, error: Exception) -> dict[str, Any]:

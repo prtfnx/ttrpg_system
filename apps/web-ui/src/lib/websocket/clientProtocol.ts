@@ -122,6 +122,7 @@ export class WebClientProtocol {
   }>();
   private characterResyncNeeded = new Set<string>();
   private choiceRecoveryProbes = new Set<string>();
+  private multiclassRecoveryProbes = new Set<string>();
   private pendingCharacterCreates = new Map<string, string>();
   private readonly BATCH_DELAY_MS = 30;
   private readonly MAX_BATCH_SIZE = 15;
@@ -840,6 +841,7 @@ export class WebClientProtocol {
           this.connectionAlive = false;
           this.markCharacterUpdatesUncertain();
           this.choiceRecoveryProbes.clear();
+          this.multiclassRecoveryProbes.clear();
           this.settingsBuffer.connectionLost();
           this.operationRecovery.connectionLost();
           this.awaitingWelcome = true;
@@ -931,6 +933,12 @@ export class WebClientProtocol {
     }
     this.operationRecovery.outcome(message);
     if (message.data?.code === 'choice_outcome_unknown') return;
+    const multiclassId = message.data?.operation_id ?? message.causation_id ?? message.correlation_id;
+    if (message.type === MessageType.MULTICLASS_RESPONSE && (message.data?.outcome === 'unknown'
+      || (message.data?.success === false && message.data?.not_accepted !== true
+        && typeof multiclassId === 'string' && this.multiclassRecoveryProbes.has(multiclassId)))) return;
+    if (message.data?.code === 'character_outcome_unknown'
+      && typeof multiclassId === 'string' && this.multiclassRecoveryProbes.has(multiclassId)) return;
     const request = this.commandTracking.settle(message);
     if (!request) return;
     if (typeof request.data?.table_id === 'string') {
@@ -2050,6 +2058,32 @@ export class WebClientProtocol {
   ): void {
     const data = (message.data ?? {}) as Record<string, unknown>;
     const characterId = typeof data.character_id === 'string' ? data.character_id : '';
+    if (eventName === 'multiclass-response') {
+      const original = data.operation_id ?? message.causation_id ?? message.correlation_id;
+      const current = useGameStore.getState().characters.find(character => character.id === characterId);
+      if (data.outcome === 'unknown') {
+        if (characterId) this.characterResyncNeeded.add(characterId);
+        if (typeof original === 'string' && !this.multiclassRecoveryProbes.has(original) && this.multiclassRecoveryProbes.size < 64) {
+          this.multiclassRecoveryProbes.add(original);
+          this.requestActiveTable();
+          showToast.warning('Checking whether your class change was saved.');
+        }
+        emitProtocolEvent(eventName, message.data);
+        return;
+      }
+      if (data.success || data.not_accepted === true) {
+        if (typeof original === 'string') this.multiclassRecoveryProbes.delete(original);
+        if (current && (data.resync_required || !data.character_data
+          || Array.from(this.pendingCharacterUpdates.values()).some(pending => pending.characterId === characterId))) {
+          if (data.character_archived === true) useGameStore.getState().removeCharacter(characterId);
+          this.characterResyncNeeded.add(characterId);
+          this.resyncCharacterWhenSettled(characterId, data.character_archived === true);
+          if (!data.success && data.error) showToast.error(String(data.error));
+          emitProtocolEvent(eventName, message.data);
+          return;
+        }
+      }
+    }
     if (data.success && characterId) {
       const canonical = data.character_data as Record<string, unknown> | undefined;
       const current = useGameStore.getState().characters.find(character => character.id === characterId);

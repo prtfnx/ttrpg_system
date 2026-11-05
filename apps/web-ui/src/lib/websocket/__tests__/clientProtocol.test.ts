@@ -2093,6 +2093,58 @@ describe('WebClientProtocol', () => {
       }));
     });
 
+    it('retains an unknown multiclass original and probes it once without a replacement mutation', async () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      mocks.storeState.characters = [{ id: 'hero', version: 3, data: { level: 3 } }];
+      const id = p.requestCharacterMulticlass('hero', 'rogue', undefined, 3)!;
+      const tracker = (p as unknown as { commandTracking: { has: (id: string) => boolean } }).commandTracking;
+      ws.send.mockClear();
+      const unknown = { success: false, character_id: 'hero', operation_id: id, outcome: 'unknown',
+        code: 'character_outcome_unknown', resync_required: true, error: 'Checking advancement' };
+      await dispatch(p, 'multiclass_response', unknown, { causation_id: id }); p.sendBatch();
+      expect(tracker.has(id)).toBe(true);
+      expect(JSON.parse(ws.send.mock.calls[0][0]).data.messages.map((message: Message) => message.type))
+        .toEqual([MessageType.TABLE_ACTIVE_REQUEST]);
+      ws.send.mockClear();
+      await dispatch(p, 'multiclass_response', unknown, { causation_id: id }); p.sendBatch();
+      await dispatch(p, 'multiclass_response', { success: false, character_id: 'hero', operation_id: id,
+        code: 'forbidden', error: 'Current edit authority required' }, { causation_id: id });
+      expect(tracker.has(id)).toBe(true); expect(ws.send).not.toHaveBeenCalled();
+      await dispatch(p, 'multiclass_response', { success: true, character_id: 'hero', operation_id: id,
+        version: 4, accepted_version: 4, replayed: true, resync_required: true }, { causation_id: id }); p.sendBatch();
+      expect(tracker.has(id)).toBe(false);
+      expect(JSON.parse(ws.send.mock.calls[0][0]).data.messages.map((message: Message) => message.type))
+        .toContain(MessageType.CHARACTER_LOAD_REQUEST);
+    });
+
+    it('defers multiclass receipt hydration until all local character edits settle', async () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      mocks.storeState.characters = [{ id: 'hero', version: 3, data: { level: 3 } }];
+      p.updateCharacter('hero', { name: 'Local' }, 3); p.updateCharacter('hero', { data: { notes: 'Keep' } }, 3); p.sendBatch();
+      const [first, second] = JSON.parse(ws.send.mock.calls[0][0]).data.messages;
+      const load = vi.spyOn(p, 'loadCharacter');
+      const update = mocks.storeState.updateCharacter as Mock; update.mockClear();
+      await dispatch(p, 'multiclass_response', { success: true, character_id: 'hero', version: 4,
+        resync_required: true, accepted_version: 4, accepted_level: 4, replayed: true });
+      expect(load).not.toHaveBeenCalled(); expect(update).not.toHaveBeenCalled();
+      await dispatch(p, 'character_update_response', { success: true, character_id: 'hero', version: 5 },
+        { causation_id: first.message_id });
+      expect(load).not.toHaveBeenCalled();
+      await dispatch(p, 'character_update_response', { success: true, character_id: 'hero', version: 6 },
+        { causation_id: second.message_id });
+      expect(load).toHaveBeenCalledOnce();
+    });
+
+    it('removes an archived character on multiclass receipt without loading its obsolete source', async () => {
+      const p = makeProtocol('ROOM', 7);
+      mocks.storeState.characters = [{ id: 'hero', version: 3, data: { level: 3 } }];
+      const load = vi.spyOn(p, 'loadCharacter');
+      await dispatch(p, 'multiclass_response', { success: true, character_id: 'hero', version: 5,
+        character_archived: true, replayed: true, resync_required: true });
+      expect(mocks.storeState.removeCharacter).toHaveBeenCalledWith('hero');
+      expect(load).not.toHaveBeenCalled();
+    });
+
     it('XP replay reloads current state without installing an old receipt version', async () => {
       const updateCharacter = vi.fn();
       mocks.storeState.updateCharacter = updateCharacter;

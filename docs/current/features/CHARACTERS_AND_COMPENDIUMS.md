@@ -574,3 +574,21 @@ Regression owners: `test_multiclass_service.py` and the real protocol/SQLite
 multiclass cases in `test_character_stat_transaction.py`; obsolete mocked load/save
 multiclass expectations were replaced by these acceptance-boundary cases. Full
 PostgreSQL/served qualification and persisted cross-page originals remain open.
+
+
+## Multiclass browser reconciliation
+
+Unknown multiclass responses retain diagnostic command tracking and schedule one
+bounded serialized read probe per original identity per connection (up to 64).
+They do not declare rejection or invent a replacement mutation. A denied lookup
+cannot prove an uncertain original failed. Small accepted/recovered receipts
+schedule canonical source/table hydration after all local edits to that character
+settle, so neither a historical class list nor an advancement response can erase
+newer optimistic edits. Archived-source receipts remove the character without
+loading obsolete source data. Source and accepted receipt versions stay distinct.
+
+The request API returns the operation identity and supports a deliberate same-ID
+retry with the same class/optional version. This does not persist originals across
+reloads or make command-tracker timers a durable queue. Persisted v1 domains are
+unchanged. Browser protocol tests cover actual tracked uncertainty, denied lookup,
+later receipt settlement, pending-edit hydration and archival.

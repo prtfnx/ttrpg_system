@@ -320,6 +320,134 @@ def character_updates_postgresql(session_operations_postgresql, monkeypatch):
     return scope
 
 
+@pytest.fixture
+def multiclass_postgresql(character_updates_postgresql):
+    from service.multiclass_service import MulticlassIntent, MulticlassService
+
+    scope = character_updates_postgresql
+    with scope.factory() as db:
+        source = db.query(models.SessionCharacter).filter_by(character_id=scope.character_id).one()
+        document = json.loads(source.character_data)
+        document['data'].update({'class': 'fighter', 'classes': [{'name': 'fighter', 'level': 3}], 'level': 3,
+                                'abilityScores': {'strength': 15, 'dexterity': 15}})
+        source.character_data = json.dumps(document)
+        db.commit()
+    scope.multiclass_intent = MulticlassIntent.from_request(scope.session_id, scope.actor_id, 'multiclass-original',
+        {'character_id': scope.character_id, 'new_class': 'rogue', 'version': 1})
+
+    def construct(factory=scope.factory):
+        manager, _ = scope.construct_character_service(factory)
+        return manager, MulticlassService(factory, manager.stage_character_update,
+                                          manager.update_recovery, manager.validate_multiclass)
+
+    scope.construct_multiclass_service = construct
+    return scope
+
+
+@pytest.mark.parametrize('fail_after_flush', [False, True])
+def test_multiclass_source_audit_and_receipt_share_acceptance(multiclass_postgresql, monkeypatch, fail_after_flush):
+    from service import character_update_service
+
+    scope = multiclass_postgresql
+    _, service = scope.construct_multiclass_service()
+    if fail_after_flush:
+        stage = character_update_service.stage_receipt
+
+        def fail(*args):
+            stage(*args)
+            raise RuntimeError('After advancement/audit/receipt flush')
+
+        monkeypatch.setattr(character_update_service, 'stage_receipt', fail)
+    result = service.execute(scope.multiclass_intent)
+    assert result['success'] is not fail_after_flush
+    if not fail_after_flush:
+        _, restarted = scope.construct_multiclass_service()
+        assert restarted.execute(scope.multiclass_intent)['replayed']
+    with scope.factory() as db:
+        source = db.query(models.SessionCharacter).filter_by(character_id=scope.character_id).one()
+        assert source.version == (1 if fail_after_flush else 2)
+        assert json.loads(source.character_data)['data']['level'] == (3 if fail_after_flush else 4)
+        assert db.query(models.CharacterLog).filter_by(session_id=scope.session_id,
+            action_type='multiclass').count() == int(not fail_after_flush)
+        assert db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id).count() == int(not fail_after_flush)
+
+
+def test_concurrent_multiclass_duplicates_across_independent_services_accept_once(multiclass_postgresql):
+    from concurrent.futures import ThreadPoolExecutor
+
+    scope, barrier = multiclass_postgresql, threading.Barrier(2)
+
+    def execute():
+        _, service = scope.construct_multiclass_service()
+        barrier.wait(timeout=5)
+        return service.execute(scope.multiclass_intent)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(execute) for _ in range(2)]
+        results = [future.result(timeout=10) for future in futures]
+    assert sorted(result['replayed'] for result in results) == [False, True]
+    with scope.factory() as db:
+        source = db.query(models.SessionCharacter).filter_by(character_id=scope.character_id).one()
+        assert source.version == 2 and len(json.loads(source.character_data)['data']['classes']) == 2
+        assert db.query(models.CharacterLog).filter_by(session_id=scope.session_id, action_type='multiclass').count() == 1
+
+
+@pytest.mark.parametrize('commit', [False, True])
+def test_multiclass_recovery_observes_original_session_lock(multiclass_postgresql, postgresql_engine, commit):
+    from service.session_operation_receipts import lock_operation_session, stage_receipt
+
+    scope = multiclass_postgresql
+    intent, writer = scope.multiclass_intent, scope.factory()
+    ready, results, errors, pids = threading.Event(), [], [], []
+
+    def reader_factory():
+        db = scope.factory()
+        pids.append(db.execute(text('SELECT pg_backend_pid()')).scalar_one())
+        ready.set()
+        return db
+
+    reader_manager, reader_service = scope.construct_multiclass_service(reader_factory)
+    reader_service._remember(intent)
+
+    def lookup():
+        try:
+            results.append(reader_manager.update_recovery.resolve(scope.session_id))
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=lookup, daemon=True)
+    try:
+        lock_operation_session(writer, intent.identity, require_dm=False)
+        source = writer.query(models.SessionCharacter).filter_by(character_id=scope.character_id).with_for_update().one()
+        _, service = scope.construct_multiclass_service()
+        result = service._stage_intent(writer, source, intent, True)
+        stage_receipt(writer, intent.identity, service._receipt(intent, result))
+        writer_pid = writer.execute(text('SELECT pg_backend_pid()')).scalar_one()
+        reader.start()
+        assert ready.wait(3)
+        deadline, blocked = time.monotonic() + 3, False
+        with postgresql_engine.connect().execution_options(isolation_level='AUTOCOMMIT') as observer:
+            while time.monotonic() < deadline:
+                blockers = observer.execute(text('SELECT pg_blocking_pids(:pid)'), {'pid': pids[0]}).scalar_one()
+                if writer_pid in blockers:
+                    blocked = True
+                    break
+                time.sleep(.01)
+        assert blocked and not results and not errors
+        writer.commit() if commit else writer.rollback()
+        reader.join(timeout=5)
+        assert not reader.is_alive() and not errors and len(results) == 1
+        settled = results[0]
+        assert settled is not None and settled.committed is commit and settled.current_result is not None
+        assert settled.current_result['version'] == (2 if commit else 1)
+        assert settled.current_result['character_data']['data']['level'] == (4 if commit else 3)
+    finally:
+        writer.rollback()
+        writer.close()
+        if reader.ident is not None:
+            reader.join(timeout=6)
+
+
 @pytest.mark.parametrize('fail_after_flush', [False, True])
 def test_character_source_projection_audit_receipt_atomicity(character_updates_postgresql, monkeypatch, fail_after_flush):
     from service import character_update_service

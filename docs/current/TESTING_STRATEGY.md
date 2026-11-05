@@ -580,3 +580,22 @@ Browser protocol/store tests verify bounded read probing, current empty snapshot
 older versions and a replayed old end with a newer active prompt. Shared schemas
 exercise closed bounded intents and original identities in both consumers.
 Retain complete served/provider and final-candidate qualification gates.
+
+
+## Durable multiclass qualification
+
+`test_multiclass_service.py` verifies locked-source preparation, preserved primary
+levels, flat normalization, pinned prerequisites/cap, inconsistent class-total
+rejection, current edit authority, explicit/omitted versions, archival, rollback
+and reconstructed duplicate receipts. Real protocol/SQLite cases in
+`test_character_stat_transaction.py` cover lost commit responses, unavailable
+lookup, current projection replay, socket removal, revocation and repeated
+cancellation. Shared character and choice regressions retain their existing
+acceptance boundaries.
+
+The PostgreSQL contracts add advancement/audit/receipt atomic rollback, competing
+independent duplicate services and observed session-row waits through commit or
+rollback. They require a disposable configured PostgreSQL target; skipped cases
+do not qualify locks. Browser/schema suites cover original closed intents,
+uncertain tracking/read probes, delayed canonical hydration and archived receipts.
+Retain the real provider/served and final-candidate gates.

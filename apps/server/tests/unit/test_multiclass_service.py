@@ -99,6 +99,25 @@ def test_old_receipt_reads_later_source_and_current_per_token_projections_withou
     assert state(advances) == before
 
 
+def test_legacy_request_without_client_version_uses_locked_source_version(advances):
+    result = advances.service.execute(advances.intent(version=None))
+    assert result['success'] and result['version'] == 2 and result['accepted_level'] == 4
+    assert advances.service.execute(advances.intent(version=None))['replayed']
+
+
+def test_archived_source_keeps_multiclass_receipt_without_reapplying_advancement(advances):
+    from utils.time import utc_now
+
+    advances.service.execute(advances.intent())
+    with advances.factory() as db:
+        db.query(models.SessionCharacter).one().archived_at = utc_now()
+        db.commit()
+    before = state(advances)
+    replay = advances.service.execute(advances.intent())
+    assert replay['success'] and replay['character_archived'] and replay['accepted_level'] == 4
+    assert state(advances) == before
+
+
 @pytest.mark.parametrize('change', ['class', 'version', 'character'])
 def test_changed_input_cannot_reuse_original_identity(advances, change):
     advances.service.execute(advances.intent())

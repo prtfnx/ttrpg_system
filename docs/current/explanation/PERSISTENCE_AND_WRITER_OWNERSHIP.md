@@ -298,3 +298,28 @@ outcomes. The protocol must hold its pending ownership until current installatio
 No new migration is required. Regression owner:
 `test_choice_operation_service.py` covers all four transitions, rollback, restart,
 later prompts, preserved dice, authority loss and payload conflicts.
+
+
+## Multiclass acceptance service
+
+`MulticlassService` reuses character acceptance, current edit authority, borrowed
+source/projection staging and fresh settlement. Its narrow preparation/receipt
+hooks bind `character_multiclass` identity to character, normalized target class
+and optional expected version. Validation reads the locked source before
+building a detached minimal patch. Classes/total level, normal audit plus a
+multiclass audit row, projections and the small receipt commit together.
+
+Existing pinned prerequisites and the total-level cap remain in force. Legacy
+single-primary levels are preserved; flat advancement fields normalize into
+canonical `data`. Ambiguous class splits, duplicates or disagreeing total levels
+reject rather than dropping levels. Preparation does not resolve pending XP
+advancement or apply additional class-feature/resource effects. Unrelated data
+and existing token stats are preserved.
+
+Receipt replay precedes class/prerequisite/version revalidation, with current
+authority still checked first. Original accepted class/level/version metadata is
+separate from current source/projections; replay cannot add another class or
+restore historical stats. Unknown outcomes retain the shared character recovery
+owner until current installation. No new table or migration is required.
+Regression owner: `test_multiclass_service.py`, including real SQL, restart,
+late rollback, current grants, legacy normalization and commit-response loss.

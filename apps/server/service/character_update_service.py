@@ -25,6 +25,14 @@ class StagedCharacterUpdateRejected(ValueError):
         super().__init__(str(result.get('error', 'Character update rejected')))
 
 
+def validate_character_target(character_id, expected_version):
+    if not isinstance(character_id, str) or not character_id.strip() or len(character_id) > 64:
+        raise OperationRejected('Character identity is required (up to 64 characters)')
+    if expected_version is not None and (isinstance(expected_version, bool) or not isinstance(expected_version, int)
+                                       or not 1 <= expected_version <= 9007199254740991):
+        raise OperationRejected('Expected character version must be a positive integer')
+
+
 @dataclass(frozen=True)
 class CharacterUpdateIntent:
     identity: OperationIdentity
@@ -36,11 +44,7 @@ class CharacterUpdateIntent:
     @classmethod
     def create(cls, session_id, actor_id, request_id, character_id, updates, expected_version=None,
                reconciliation_digest=None):
-        if not isinstance(character_id, str) or not 1 <= len(character_id) <= 64:
-            raise OperationRejected('Character identity is required (up to 64 characters)')
-        if expected_version is not None and (isinstance(expected_version, bool) or not isinstance(expected_version, int)
-                                           or not 1 <= expected_version <= 9007199254740991):
-            raise OperationRejected('Expected character version must be a positive integer')
+        validate_character_target(character_id, expected_version)
         if not isinstance(updates, dict) or not updates and reconciliation_digest is None:
             raise OperationRejected('A nonempty character patch is required')
         if reconciliation_digest is not None:
@@ -90,6 +94,15 @@ class CharacterUpdateService:
     def __init__(self, session_factory: Callable, stage: Callable, recovery):
         self._factory, self._stage, self._recovery = session_factory, stage, recovery
 
+    def _stage_intent(self, db, source, intent, dm):
+        return self._stage(db, intent.identity.session_id, intent.character_id, intent.updates,
+            intent.identity.actor_id, expected_version=intent.expected_version, bypass_owner_check=dm,
+            stat_reconciliation_digest=intent.reconciliation_digest)
+
+    def _receipt(self, intent, result):
+        return dict(success=True, operation_id=intent.identity.operation_id, character_id=intent.character_id,
+                    accepted_version=result['version'], reconciliation=intent.reconciliation_digest is not None)
+
     def _remember(self, intent, before_version=0, before_document='', result=None):
         if self._recovery.has_pending(intent.identity.session_id):
             return
@@ -124,11 +137,8 @@ class CharacterUpdateService:
                 if receipt is not None:
                     return read_character_update_outcome(db, game, intent.identity, receipt)[0]
                 before_version, before_document = source.version, source.character_data
-                result = self._stage(db, intent.identity.session_id, intent.character_id, intent.updates,
-                    intent.identity.actor_id, expected_version=intent.expected_version, bypass_owner_check=dm,
-                    stat_reconciliation_digest=intent.reconciliation_digest)
-                receipt = dict(success=True, operation_id=intent.identity.operation_id, character_id=intent.character_id,
-                               accepted_version=result['version'], reconciliation=intent.reconciliation_digest is not None)
+                result = self._stage_intent(db, source, intent, dm)
+                receipt = self._receipt(intent, result)
                 stage_receipt(db, intent.identity, receipt)
                 result = {**result, **receipt, 'replayed': False}
                 commit_started = True

@@ -133,6 +133,9 @@ def session_operations_postgresql(postgresql_engine):
     finally:
         with factory() as db:
             db.query(models.SessionOperationReceipt).filter_by(session_id=session_id).delete()
+            for prompt in db.query(models.ChoiceEncounter).filter_by(session_id=session_id).all():
+                db.query(models.ChoiceEncounterEvent).filter_by(encounter_id=prompt.encounter_id).delete()
+                db.delete(prompt)
             for table in db.query(models.VirtualTable).filter_by(session_id=session_id).all():
                 db.delete(table)
             db.flush()
@@ -142,6 +145,148 @@ def session_operations_postgresql(postgresql_engine):
             db.query(models.GameSession).filter_by(id=session_id).delete()
             db.query(models.User).filter_by(id=actor_id).delete()
             db.commit()
+
+
+@pytest.fixture
+def choice_operations_postgresql(session_operations_postgresql):
+    from service.choice_encounter_persistence_service import ChoiceEncounterPersistenceService
+    from service.choice_operation_service import ChoiceIntent, ChoiceOperationService
+
+    scope = session_operations_postgresql
+    scope.choice_store = ChoiceEncounterPersistenceService(scope.factory)
+    scope.choice_service = ChoiceOperationService(scope.choice_store)
+    with scope.factory() as db:
+        game = db.get(models.GameSession, scope.session_id)
+        assert game is not None
+        scope.session_code = game.session_code
+
+    def intent(kind='encounter_start', request='choice-original', **payload):
+        if kind == 'encounter_start':
+            payload = {'choices': [{'choice_id': 'go', 'text': 'Go', 'requires_roll': True, 'roll_dc': 10}], **payload}
+        return ChoiceIntent.create(scope.session_id, scope.actor_id, request, kind, payload)
+
+    def prepare(kind):
+        if kind == 'encounter_start':
+            return intent()
+        started = scope.choice_service.execute(intent(request='prepare-start'))
+        assert started.receipt is not None
+        target = started.receipt['encounter_id']
+        scope.choice_service.execute(intent('encounter_choice', 'prepare-choice', encounter_id=target, choice_id='go'))
+        return intent('encounter_roll', encounter_id=target, choice_id='go')
+
+    scope.choice_intent, scope.prepare_choice = intent, prepare
+    return scope
+
+
+@pytest.mark.parametrize('kind', ['encounter_start', 'encounter_roll'])
+@pytest.mark.parametrize('fail_after_flush', [False, True])
+def test_choice_snapshot_event_receipt_atomicity(choice_operations_postgresql, monkeypatch, kind, fail_after_flush):
+    from service import choice_operation_service
+    from service.choice_operation_service import ChoiceOperationRejected, ChoiceOperationService
+
+    scope = choice_operations_postgresql
+    intent = scope.prepare_choice(kind)
+    with scope.factory() as db:
+        before = db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id).count()
+    if fail_after_flush:
+        stage = choice_operation_service.stage_receipt
+
+        def fail(*args):
+            stage(*args)
+            raise RuntimeError('After source/event/receipt flush')
+
+        monkeypatch.setattr(choice_operation_service, 'stage_receipt', fail)
+        with pytest.raises(ChoiceOperationRejected) as error:
+            scope.choice_service.execute(intent)
+        assert error.value.not_accepted
+    else:
+        accepted = scope.choice_service.execute(intent)
+        replay = ChoiceOperationService(scope.choice_store).execute(intent)
+        assert replay.replayed and replay.receipt == accepted.receipt
+    with scope.factory() as db:
+        assert db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id).count() == before + int(not fail_after_flush)
+        targets = db.query(models.ChoiceEncounter.encounter_id).filter_by(session_id=scope.session_id)
+        assert db.query(models.ChoiceEncounterEvent).filter(models.ChoiceEncounterEvent.encounter_id.in_(targets)).count() == before + int(not fail_after_flush)
+
+
+@pytest.mark.parametrize('kind', ['encounter_start', 'encounter_roll'])
+def test_concurrent_choice_duplicates_across_services_accept_once(choice_operations_postgresql, kind):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from service.choice_operation_service import ChoiceOperationService
+
+    scope, barrier = choice_operations_postgresql, threading.Barrier(2)
+    intent = scope.prepare_choice(kind)
+
+    def execute():
+        barrier.wait(timeout=5)
+        return ChoiceOperationService(scope.choice_store).execute(intent)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(execute) for _ in range(2)]
+        outcomes = [future.result(timeout=10) for future in futures]
+    assert sorted(outcome.replayed for outcome in outcomes) == [False, True]
+    assert outcomes[0].receipt == outcomes[1].receipt
+    with scope.factory() as db:
+        assert db.query(models.SessionOperationReceipt).filter_by(session_id=scope.session_id,
+            operation_id=intent.identity.operation_id).count() == 1
+
+
+@pytest.mark.parametrize('commit', [False, True])
+def test_choice_lookup_observes_original_session_lock(choice_operations_postgresql, postgresql_engine, commit):
+    from service.choice_encounter_persistence_service import ChoiceEncounterPersistenceService
+    from service.choice_operation_service import ChoiceOperationService
+    from service.encounter_engine import EncounterEngine
+    from service.session_operation_receipts import lock_operation_session, stage_receipt
+
+    scope = choice_operations_postgresql
+    intent, writer = scope.choice_intent(), scope.factory()
+    ready, results, errors, pids = threading.Event(), [], [], []
+
+    def reader_factory():
+        db = scope.factory()
+        pids.append(db.execute(text('SELECT pg_backend_pid()')).scalar_one())
+        ready.set()
+        return db
+
+    def lookup():
+        try:
+            service = ChoiceOperationService(ChoiceEncounterPersistenceService(reader_factory))
+            results.append(service.lookup(intent, internal=True))
+        except BaseException as exc:
+            errors.append(exc)
+
+    reader = threading.Thread(target=lookup, daemon=True)
+    try:
+        lock_operation_session(writer, intent.identity, require_dm=False)
+        prompt = EncounterEngine.detached().create(scope.session_code, 'Locked', '', [{'text': 'Go'}], [])
+        receipt = {'operation_id': intent.identity.operation_id, 'encounter_id': prompt.encounter_id,
+                   'kind': intent.kind, 'accepted': True, 'accepted_version': 0}
+        scope.choice_store.stage_snapshot(writer, session_code=scope.session_code, encounter=prompt.to_dict(dm=True),
+            event_type='EncounterStarted', actor_id=str(scope.actor_id), payload=receipt, created_by=scope.actor_id)
+        stage_receipt(writer, intent.identity, receipt)
+        writer_pid = writer.execute(text('SELECT pg_backend_pid()')).scalar_one()
+        reader.start()
+        assert ready.wait(3)
+        deadline, blocked = time.monotonic() + 3, False
+        with postgresql_engine.connect().execution_options(isolation_level='AUTOCOMMIT') as observer:
+            while time.monotonic() < deadline:
+                blockers = observer.execute(text('SELECT pg_blocking_pids(:pid)'), {'pid': pids[0]}).scalar_one()
+                if writer_pid in blockers:
+                    blocked = True
+                    break
+                time.sleep(.01)
+        assert blocked and not results and not errors
+        writer.commit() if commit else writer.rollback()
+        reader.join(timeout=5)
+        assert not reader.is_alive() and not errors and len(results) == 1
+        assert (results[0].receipt is not None) is commit
+        assert (results[0].current is not None) is commit
+    finally:
+        writer.rollback()
+        writer.close()
+        if reader.ident is not None:
+            reader.join(timeout=6)
 
 
 @pytest.fixture

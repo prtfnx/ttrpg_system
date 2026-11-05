@@ -558,3 +558,25 @@ observes `pg_blocking_pids` while a recovery lookup waits for the original commi
 or rollback. A configured disposable `TEST_POSTGRESQL_DATABASE_URL` is required.
 Skipped PostgreSQL cases do not qualify these locks, and unit/browser mocks do
 not close complete served-candidate acceptance. No new migration is introduced.
+
+
+## Durable choice outcome qualification
+
+`test_choice_operation_service.py` verifies all four original-intent transitions,
+source/event/receipt rollback, reconstructed services, preserved accepted dice,
+later prompts and current database authority. The production protocol regressions
+in `test_encounter_protocol.py` replace mocked engine calls with real SQLite and
+validated outgoing envelopes. They cover commit-response loss, lookup outages,
+pending snapshot fences, socket removal, join recovery, revoked receipt access,
+payload conflicts, repeated recovery cancellation and post-acceptance notification
+failure. Existing choice/join worker barriers remain in
+`test_choice_worker_ownership.py`.
+
+The PostgreSQL contract suite adds start/roll atomic acceptance and rollback,
+independent competing duplicate services, and observed `pg_blocking_pids` waits
+through commit or rollback. These require a disposable configured
+`TEST_POSTGRESQL_DATABASE_URL`; collected/skipped cases are not lock qualification.
+Browser protocol/store tests verify bounded read probing, current empty snapshots,
+older versions and a replayed old end with a newer active prompt. Shared schemas
+exercise closed bounded intents and original identities in both consumers.
+Retain complete served/provider and final-candidate qualification gates.

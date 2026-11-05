@@ -2021,9 +2021,13 @@ describe('WebClientProtocol', () => {
 
     it('probes an unknown original choice once with a read and never guesses another mutation', async () => {
       const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      const original = createMessage(MessageType.ENCOUNTER_START, { table_id: 'table-1', choices: [{ text: 'Go' }] });
+      p.sendMessage(original); p.sendBatch(); ws.send.mockClear();
+      const tracker = (p as unknown as { commandTracking: { has: (id: string) => boolean } }).commandTracking;
       const error = { error: 'Choice outcome uncertain', code: 'choice_outcome_unknown', outcome: 'unknown',
-        operation_id: 'original-choice', resync_required: true };
-      await dispatch(p, 'error', error, { causation_id: 'original-choice' }); p.sendBatch();
+        operation_id: original.message_id, resync_required: true };
+      await dispatch(p, 'error', error, { causation_id: original.message_id }); p.sendBatch();
+      expect(tracker.has(original.message_id!)).toBe(true);
       expect(JSON.parse(ws.send.mock.calls[0][0]).data.messages.map((message: Message) => message.type))
         .toEqual([MessageType.TABLE_ACTIVE_REQUEST]);
       ws.send.mockClear();
@@ -2031,9 +2035,10 @@ describe('WebClientProtocol', () => {
       expect(ws.send).not.toHaveBeenCalled();
       useEncounterStore.getState().setEncounter({ encounter_id: 'stale', title: 'Old', description: '',
         phase: 'presenting', choices: [] });
-      await dispatch(p, 'encounter_state', { encounter: null, operation_id: 'original-choice',
-        state_authoritative: true, replayed: true });
+      await dispatch(p, 'encounter_state', { encounter: null, operation_id: original.message_id,
+        state_authoritative: true, replayed: true }, { causation_id: original.message_id });
       expect(useEncounterStore.getState().encounter).toBeNull();
+      expect(tracker.has(original.message_id!)).toBe(false);
     });
 
     it('CHARACTER_LOG_RESPONSE dispatches character-log-response', async () => {

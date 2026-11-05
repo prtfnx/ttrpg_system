@@ -6,7 +6,7 @@ Status: usable.
 
 Last source audit: 2026-10-21
 
-## Durable outcome inventory (October 30)
+## Durable outcome inventory (November 2)
 
 | Operation | Current acceptance and recovery boundary |
 | --- | --- |
@@ -18,7 +18,7 @@ Last source audit: 2026-10-21
 | Table create/copy/import | Original request receipts share table/paint-state acceptance; unknown commits fence serialized work and snapshots through verified installation. |
 | Table delete | Table resources, active-member pointers, retirement tombstone and original actor/session receipt share acceptance. Unknown commits fence state work and snapshots until settlement and cache cleanup. |
 | Table settings | Patch/revision/original-request receipt share acceptance under current database authority. Unknown outcomes fence session state work through current-state recovery; browser revisions reject older state. |
-| Choice encounter transitions | Ordered snapshot/events with cancellation-safe publication; no durable retry receipt or general commit-uncertainty verifier yet. |
+| Choice encounter transitions | Original actor/session/kind/payload receipts share snapshot/event acceptance. Fresh settlement fences state work until current prompt installation, including join recovery. Recorded dice replay without rerolling; current role gates private outcomes. Browser cross-page original ownership remains open. |
 
 The new `session_operation_receipts` adapter borrows the caller's transaction:
 it flushes without committing. Domain callers must authorize before lookup and
@@ -287,3 +287,11 @@ available. Server receipts, not snapshots, complete journal records. Rejected or
 revoked lookups remain available for review rather than silently discarding an
 uncertain earlier acceptance. Generic character, asset and offline mutation queues
 are outside this journal. Regression owner: `clientProtocol.test.ts`.
+
+
+Choice `choice_outcome_unknown` responses do not settle the generic command
+tracker or report the original as rejected. A bounded serialized read probe asks
+the server to settle it; correlated state/receipt responses complete tracking.
+Tracker timeouts remain bounded diagnostics, not durable intent ownership. Choice
+commands are outside the four-domain persisted journal; canonical reads alone do
+not prove an unrecorded original's acceptance after process/page replacement.

@@ -930,6 +930,7 @@ export class WebClientProtocol {
       this.recoveredTableResponses.add(message);
     }
     this.operationRecovery.outcome(message);
+    if (message.data?.code === 'choice_outcome_unknown') return;
     const request = this.commandTracking.settle(message);
     if (!request) return;
     if (typeof request.data?.table_id === 'string') {

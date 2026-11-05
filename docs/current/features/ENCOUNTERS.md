@@ -130,3 +130,23 @@ wrappers used without the operation service do not gain protocol retry ownership
 Regression owners: `test_choice_operation_service.py`, `test_encounter_protocol.py`
 and `test_choice_worker_ownership.py`, covering actual SQL/protocol, unknown commit
 outages, current roles, private notes, later prompts, join, fencing and cancellation.
+
+
+## Browser choice recovery
+
+An unknown choice outcome schedules one serialized read probe per original intent
+per connection (bounded to 64 retained probes), without sending another mutation
+or inventing a new identity. A repeated unknown/blocked-request response names the
+same original operation and does not create a probe loop. Settled state/results
+apply the current server snapshot. An explicit authoritative empty snapshot clears
+a stale prompt; an incidental missing/null payload does not. Older versions of
+the same prompt are ignored, and an old legacy end without a current snapshot
+cannot close a different newer prompt. Server replays carry the current prompt,
+not an obsolete historical snapshot. Regression owners: `clientProtocol.test.ts`,
+`utilityStores.test.ts` and the shared browser message validator tests.
+
+Choice originals are not persisted by the existing v1 journal. A read can ask an
+in-process server to settle its retained original; it is not an operation receipt
+for an unrecorded request after page/server replacement. Deliberate duplicate
+checks must retain the original envelope. Full cross-page choice ownership and
+served acceptance remain open.

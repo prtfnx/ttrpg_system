@@ -105,17 +105,30 @@ export function normalizeEncounterPayload(data: unknown): EncounterState | null 
   };
 }
 
-export const useEncounterStore = create<EncounterStore>((set) => ({
+export const useEncounterStore = create<EncounterStore>((set, get) => ({
   encounter: null,
   setEncounter: (encounter) => set({ encounter }),
   applyEncounterMessage: (data) => {
     const raw = asRecord(data);
+    if (raw.state_authoritative === true && Object.hasOwn(raw, 'encounter') && raw.encounter === null) {
+      set({ encounter: null });
+      return;
+    }
+    if (raw.ended === true && !Object.hasOwn(raw, 'encounter')) {
+      if (raw.encounter_id && get().encounter?.encounter_id !== raw.encounter_id) return;
+      set({ encounter: null });
+      return;
+    }
     const encounter = normalizeEncounterPayload(data);
     if (encounter) {
+      const current = get().encounter;
+      if (current?.encounter_id === encounter.encounter_id
+        && (current.version ?? 0) > (encounter.version ?? 0)) return;
       set({ encounter });
       return;
     }
     if (raw.ended === true) {
+      if (raw.encounter_id && get().encounter?.encounter_id !== raw.encounter_id) return;
       set({ encounter: null });
     }
   },

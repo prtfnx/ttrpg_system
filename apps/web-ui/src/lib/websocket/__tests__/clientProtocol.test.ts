@@ -2019,6 +2019,23 @@ describe('WebClientProtocol', () => {
       expect(fn).toHaveBeenCalledOnce();
     });
 
+    it('probes an unknown original choice once with a read and never guesses another mutation', async () => {
+      const p = makeProtocol('ROOM', 7); const ws = makeOpenWs(p);
+      const error = { error: 'Choice outcome uncertain', code: 'choice_outcome_unknown', outcome: 'unknown',
+        operation_id: 'original-choice', resync_required: true };
+      await dispatch(p, 'error', error, { causation_id: 'original-choice' }); p.sendBatch();
+      expect(JSON.parse(ws.send.mock.calls[0][0]).data.messages.map((message: Message) => message.type))
+        .toEqual([MessageType.TABLE_ACTIVE_REQUEST]);
+      ws.send.mockClear();
+      await dispatch(p, 'error', error, { causation_id: 'another-blocked-request' }); p.sendBatch();
+      expect(ws.send).not.toHaveBeenCalled();
+      useEncounterStore.getState().setEncounter({ encounter_id: 'stale', title: 'Old', description: '',
+        phase: 'presenting', choices: [] });
+      await dispatch(p, 'encounter_state', { encounter: null, operation_id: 'original-choice',
+        state_authoritative: true, replayed: true });
+      expect(useEncounterStore.getState().encounter).toBeNull();
+    });
+
     it('CHARACTER_LOG_RESPONSE dispatches character-log-response', async () => {
       const p = makeProtocol();
       const fn = vi.fn();

@@ -95,6 +95,29 @@ describe('useEncounterStore', () => {
     expect(encounter?.choices[0].choice_id).toBe('left');
   });
 
+  it('clears a stale prompt only from an explicit authoritative empty snapshot', () => {
+    const store = useEncounterStore.getState();
+    store.setEncounter(makeEncounter());
+    store.applyEncounterMessage({ encounter: null });
+    expect(useEncounterStore.getState().encounter).not.toBeNull();
+    store.applyEncounterMessage({ encounter: null, state_authoritative: true, replayed: true });
+    expect(useEncounterStore.getState().encounter).toBeNull();
+  });
+
+  it('uses current prompt state from an old end receipt instead of closing the newer prompt', () => {
+    useEncounterStore.getState().applyEncounterMessage({ ended: true, encounter_id: 'old', replayed: true,
+      state_authoritative: true, encounter: { ...makeEncounter('new'), version: 3 } });
+    expect(useEncounterStore.getState().encounter?.encounter_id).toBe('new');
+    useEncounterStore.getState().applyEncounterMessage({ ended: true, encounter_id: 'old' });
+    expect(useEncounterStore.getState().encounter?.encounter_id).toBe('new');
+  });
+
+  it('ignores an older snapshot of the same prompt', () => {
+    useEncounterStore.getState().setEncounter({ ...makeEncounter(), version: 3 });
+    useEncounterStore.getState().applyEncounterMessage({ encounter: { ...makeEncounter(), version: 1 } });
+    expect(useEncounterStore.getState().encounter?.version).toBe(3);
+  });
+
   it('applyEncounterMessage preserves the canonical choice contract', () => {
     useEncounterStore.getState().applyEncounterMessage({
       encounter: {

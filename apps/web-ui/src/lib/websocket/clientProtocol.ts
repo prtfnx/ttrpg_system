@@ -121,6 +121,7 @@ export class WebClientProtocol {
     recoveryProbeSent?: boolean;
   }>();
   private characterResyncNeeded = new Set<string>();
+  private choiceRecoveryProbes = new Set<string>();
   private pendingCharacterCreates = new Map<string, string>();
   private readonly BATCH_DELAY_MS = 30;
   private readonly MAX_BATCH_SIZE = 15;
@@ -598,10 +599,12 @@ export class WebClientProtocol {
     });
     // Encounters.
     this.registerHandler(MessageType.ENCOUNTER_STATE, async (m) => {
+      if (typeof m.data?.operation_id === 'string') this.choiceRecoveryProbes.delete(m.data.operation_id);
       const { useEncounterStore } = await import('@features/combat/stores/encounterStore');
       useEncounterStore.getState().applyEncounterMessage(m.data);
     });
     this.registerHandler(MessageType.ENCOUNTER_RESULT, async (m) => {
+      if (typeof m.data?.operation_id === 'string') this.choiceRecoveryProbes.delete(m.data.operation_id);
       const { useEncounterStore } = await import('@features/combat/stores/encounterStore');
       useEncounterStore.getState().applyEncounterMessage(m.data);
     });
@@ -836,6 +839,7 @@ export class WebClientProtocol {
           this.websocket = null;
           this.connectionAlive = false;
           this.markCharacterUpdatesUncertain();
+          this.choiceRecoveryProbes.clear();
           this.settingsBuffer.connectionLost();
           this.operationRecovery.connectionLost();
           this.awaitingWelcome = true;
@@ -1272,6 +1276,16 @@ export class WebClientProtocol {
 
   private async handleError(message: Message): Promise<void> {
     logger.error('Server error', message.data);
+    if (message.data?.code === 'choice_outcome_unknown') {
+      const original = message.data.operation_id ?? message.causation_id ?? message.correlation_id;
+      if (typeof original === 'string' && !this.choiceRecoveryProbes.has(original) && this.choiceRecoveryProbes.size < 64) {
+        this.choiceRecoveryProbes.add(original);
+        this.requestActiveTable();
+        showToast.warning('Checking whether the encounter action was saved.');
+      }
+      emitProtocolEvent('protocol-error', message.data);
+      return;
+    }
     if (message.data?.code === 'character_outcome_unknown') {
       const requestId = message.causation_id ?? message.correlation_id;
       const pending = requestId ? this.pendingCharacterUpdates.get(requestId) : undefined;

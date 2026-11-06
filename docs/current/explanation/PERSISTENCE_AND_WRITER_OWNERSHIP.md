@@ -32,7 +32,7 @@ Its nested CRUD calls flush without committing. An error rolls back the whole
 snapshot. This is not a transaction across every session resource: chat,
 characters, combat journals, paint, and assets have their own service boundaries.
 
-For existing-table mutations, `ActionsCore` marks the table dirty and awaits
+For remaining generic table mutations, `ActionsCore` marks the table dirty and awaits
 confirmed persistence before returning success. A failed save remains dirty;
 retries use capped backoff. Production table creation instead commits its
 detached draft, initial paint state and actor/session/domain request receipt
@@ -119,7 +119,7 @@ now add atomic choice receipts and fresh settlement, as described below.
 
 ## Deferred consistency work
 
-TODO: finish outcome reconciliation for remaining generic mutation paths. Multiclass, choice transitions, general
+TODO: finish outcome reconciliation for generic table mutations and direct canvas/wall acceptance. Raw sprite/compendium dispatch and bounded sprite runs now retain settlement ownership as described below. Multiclass, choice transitions, general
 character protocol/repair, table creation/deletion/settings and XP now commit
 effects and receipts together.
 Supported table/XP browser originals use the unchanged v1 recovery contract.
@@ -334,3 +334,46 @@ persist originals only with the negotiated v2 journal. The v1 journal remains
 limited to supported table and XP domains. Character/choice/multiclass same-tab
 reload ownership is implemented; database-restore timeline invalidation remains
 separate work.
+
+
+## Raw sprite journal settlement (November 4)
+
+Production sprite and compendium commands retain an admitted `PendingSpriteWrite`
+through the existing sprite journal transaction and live installation. Bounded
+sprite transport runs hold every affected table lock in sorted order through
+staging, acceptance and installation. SQL acceptance additionally locks the
+stable game-session row before table rows. Fresh settlement uses that same
+READ COMMITTED barrier and five-second PostgreSQL lock timeout.
+
+Commit-response loss is not rollback. `resolve_sprite_write` checks every original
+actor/table/operation/hash in the existing canvas journal without rerunning the
+command. A complete matching run proves acceptance. Missing entries prove
+nonacceptance only while the original actor/table/session and admission timeline
+remain available; partial, mismatched, corrupt, or missing known-accepted history
+keeps the outcome unknown. Expiring an undo delta does not erase its receipt.
+This adds no schema migration or separate sprite receipt table.
+
+Recovery loads current affected sprites, including explicit absence, instead of
+installing the staged command's old after-state. It preserves unrelated live
+sprites and table settings, repairs all entity indexes, and rejects colliding or
+lossy legacy identities. Every replacement is prepared before installation.
+Lookup or installation failure keeps session state work and table snapshots
+quarantined. Empty dirty queues and socket removal cannot discard that owner;
+join settles it before publishing welcome. Repeated cancellation retains ownership
+through SQL settlement, installation and publication.
+
+Current database membership/interactive authority gates receipt disclosure even
+when internal cache repair must finish after revocation. Peers receive only
+table resync hints, through their normal filtered reads. The original actor gets
+small correlated acceptance or explicit nonacceptance, never a historical sprite
+delta. Provisional batch events are discarded during recovery. Publication failure
+after verified installation does not change the committed outcome.
+
+This covers production raw sprite/compendium dispatch and bounded sprite runs.
+Identity-free standalone core callers, generic table snapshots, direct canvas
+commands/history and wall acceptance still require their separate uncertainty
+review. Sprite originals are not added to closed v1/v2 tab journals. Process
+restart uses existing retained journal replay/current database load, not this
+memory-resident pending owner; restore-timeline invalidation remains an R6 gate.
+Regression owners: `test_sprite_write_settlement.py`, `test_sprite_write_recovery.py`
+and the existing sprite protocol/command suites.

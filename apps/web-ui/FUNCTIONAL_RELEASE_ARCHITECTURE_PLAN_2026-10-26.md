@@ -4,6 +4,53 @@ Date: 2026-10-26, Europe/Kiev.
 
 Status: proposed implementation backlog; this document does not declare the remaining work complete.
 
+November 4 continuation: recovered the unfinished raw-sprite settlement work
+after shutdown and completed it. Production sprite/compendium requests and bounded
+sprite runs now retain admitted ownership through existing-journal acceptance,
+fresh READ COMMITTED session-row settlement and current affected-sprite
+installation. A lost commit response or failed installation quarantines serialized
+state work, snapshots and join. Repeated cancellation and socket removal do not
+release that owner. Partial/mismatched/missing known-accepted history stays unknown.
+Undo-body expiry does not erase the original receipt.
+
+Recovery uses current target rows or explicit absence without overwriting
+unrelated retained table/sprite edits or resurrecting an old sprite. Colliding or
+lossy legacy entity identities cannot be installed silently. Current database
+authority gates receipt disclosure; peers receive only filtered-read resync hints.
+Batched originals keep separate correlated outcomes without replaying provisional
+events. Missing and whitespace table identities remain validation barriers so
+batch optimization cannot expose a live table before SQL acceptance.
+
+The browser retains unknown optimistic sprite actions and makes bounded read
+probes. Shared confirmed sprite/text/shape sends wait through unknown responses
+for a causal outcome or the existing deadline/cancellation; they do not resend the
+mutation. The closed persisted v1/v2 domains are unchanged. Standalone identity-free
+core calls and browser-restart/offline recovery gain no new guarantee.
+
+Validation after recovery: 1,166 server and 1,710 browser cases pass (2,876 distinct
+cases). There are 69 PostgreSQL-dependent skips: 68 contract cases, including four
+new sprite atomicity/observed-lock contracts, and one Alembic case. TypeScript,
+targeted Ruff/ESLint, pinned Pyright (zero errors/warnings), production build,
+generated-binding drift and current-doc checks pass. The old settings roundtrip
+fixture now supplies authenticated scope and targets the service that actually
+owns settings acceptance. No new migration is introduced. See
+[November 4 sprite evidence](audit/release-2026-11-04/sprite-settlement-validation.md).
+
+Before continuing, all 27 unpublished commits were redated to November 4 with
+content/order and existing unfinished changes preserved. Exactly the oldest 12
+were fast-forward pushed through `6a05b247`; 15 rewritten commits remained local.
+[The verified mapping](audit/release-2026-11-04/commit-map.json) retains the backup
+branch and publication boundary. Four subsequent implementation/docs commits stay
+local, each with at most seven files. Existing modified WASM and historical audit
+files are preserved.
+
+Next priority: direct canvas command/history commit uncertainty, then remaining
+generic table and wall acceptance. These routes retain their existing mechanisms
+but still need equivalent outcome/current-cache settlement. R2 active-combat
+field authority/explicit legacy conflict handling, R5 auth/resume/private-producer
+acceptance, R6 paired DB/R2 restore and timeline invalidation, and R0/R7 disposable
+PostgreSQL, reproducible WASM, served-provider, CI and load gates remain open.
+
 November 3 continuation: negotiated `session-operations-v2` now persists complete
 character/repair, choice and multiclass original requests before transmission and
 restores them across same-tab reloads. The existing four-domain v1 contract stays
@@ -617,7 +664,7 @@ For a public production service, also require automated independent backups, res
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
-| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals survive same-tab reloads. General character protocol/repair, choice and multiclass have atomic receipts/current-state replay and negotiated v2 same-tab originals. Generic table/sprite uncertainty remains open. Canvas/sprite/paint/chat/combat retain domain mechanisms. | Finish remaining generic R4 settlement and real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
+| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals survive same-tab reloads. Character/repair, choice and multiclass have atomic receipts/current-state replay and negotiated v2 originals. Raw sprite/compendium commands and bounded runs now settle existing journal outcomes and install current targets. Direct canvas/history, generic table and wall uncertainty remain open. | Finish remaining R4 settlement and real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
 | A9: core-table imports server infrastructure | Still present. | Defer extraction; introduce only the transaction/worker adapters needed by R1-R3. |
 | A10: browser dependency cycles | Research recorded 39 cycles; the count was not rerun for this plan. | Defer wholesale cleanup. Fix a cycle only when a reproducible release workflow requires it. |
 | A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `efe187ac`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |
@@ -707,7 +754,14 @@ Done when: the named gameplay paths perform no blocking SQL on the server loop, 
 
 Priority: release blocker for supported retry flows. Dependencies: R1/R2 transaction boundaries; contract design can start alongside R1. Estimate: 4-7 days.
 
-Latest November 3 status: negotiated v2 persists and restores character/repair,
+Latest November 4 status: raw sprite/compendium dispatch and bounded runs now
+retain quarantine through existing-journal lookup and current affected-row
+installation. Unknown optimistic actions remain pending and shared sprite-save
+helpers wait for causal outcomes. No persisted-domain contract is extended.
+Next: direct canvas command/history, generic table and wall uncertainty. Real
+PostgreSQL/served qualification and restore-timeline invalidation remain open.
+
+November 3 status: negotiated v2 persists and restores character/repair,
 choice and multiclass originals across same-tab reloads while retaining the closed
 v1 fallback. Welcome fences, role-specific replay, restored edit ownership,
 deferred hydration, explicit forgetting, denied/unknown outcomes and scope changes

@@ -410,3 +410,21 @@ moves rather than deleting existing sprites.
 
 Regression owners: `test_movement_validator.py`, `test_canvas_command_service.py`,
 `test_session_rules.py`, and `SessionRulesTab.test.tsx`.
+
+## Raw sprite acceptance versus history availability
+
+`SpriteEditorCommandService` commits raw sprite/compendium effects and existing
+canvas-journal rows together under a stable session-row barrier. The protocol
+retains admitted ownership through installation; lost commit responses and
+failed installation settle on a fresh READ COMMITTED connection before later
+state work or snapshots resume. Bounded runs resolve every original together;
+partial journal visibility remains unknown. Recovery installs current affected
+sprites or explicit absence and cannot resurrect an old accepted after-state.
+
+Undo body trimming/expiry does not remove the operation/hash receipt used to
+settle an already admitted write. Ordinary original-intent replay still obeys
+the existing 24-hour admission/retry window. Missing tables/actors/history or a
+different restore timeline cannot silently prove nonacceptance. The pending owner
+is memory-resident, and sprite originals remain outside the closed persisted
+v1/v2 browser domains. Direct canvas command/history and wall uncertainty remain
+separate implementation work; these guarantees describe the raw sprite bridge.

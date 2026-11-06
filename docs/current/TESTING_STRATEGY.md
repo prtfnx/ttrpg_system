@@ -619,3 +619,33 @@ ownership. `message.browser-test.ts` exercises native session storage for each n
 domain under the existing CSP validator test. Tab storage is not browser-restart
 durability; these local checks do not replace served-provider, PostgreSQL locking
 or restore-rehearsal acceptance.
+
+
+## Raw sprite uncertainty qualification
+
+`test_sprite_write_settlement.py` verifies fresh complete/missing/partial journal
+lookup, preserved receipts after undo expiry, changed hashes, missing tables and
+current detached projections. `test_sprite_write_recovery.py` injects real SQL
+before/after-commit failures for create/delete/rotate and buffered runs, plus lookup
+outages, repeated cancellation, socket removal/join fencing, cache failure,
+revocation and changed originals. It verifies later current stats/layers/deletion,
+unrelated retained edits, colliding legacy IDs and original correlated receipts.
+Existing sprite protocol and latency tests retain the normal bounded-run contract.
+
+Four PostgreSQL contracts add sprite/journal atomic commit/rollback and observed
+`pg_blocking_pids` waits through commit/rollback of the original session barrier.
+They require a disposable configured target. Collected/skipped tests are not
+PostgreSQL locking qualification. No migration is introduced.
+
+Browser protocol tests distinguish unknown, accepted and proved-rejected sprite
+outcomes without a new mutation or false optimistic rejection. Shared confirmed
+sprite/text tests keep subscriptions through unknown outcomes and match causal
+acceptance. The existing settings roundtrip test now supplies authenticated scope
+and injects failures into `TableSettingsService`, which owns current acceptance;
+patching the obsolete canvas persistence path did not exercise settings writes.
+Retain served/provider, restore and final-candidate gates.
+
+Malformed/missing and whitespace table identities remain validation barriers in
+sprite batching. Protocol regressions verify that valid surrounding commands
+remain independent and whitespace aliases cannot select a live table instead of
+its private fork before acceptance.

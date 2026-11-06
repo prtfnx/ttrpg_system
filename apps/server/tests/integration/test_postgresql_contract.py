@@ -178,6 +178,134 @@ def choice_operations_postgresql(session_operations_postgresql):
     return scope
 
 
+@pytest.fixture
+def sprite_settlement_postgresql(session_operations_postgresql):
+    import copy
+
+    from core_table.protocol import Message, MessageType
+    from core_table.table import VirtualTable
+    from database import crud
+    from service.sprite_editor_commands import SpriteCommandScope
+    from service.sprite_write_recovery import PendingSpriteWrite
+
+    scope = session_operations_postgresql
+    table = VirtualTable('Sprite settlement', 1000, 1000)
+    token_id = str(uuid.uuid4())
+    table.add_entity({'sprite_id': token_id, 'x': 10, 'y': 20})
+    with scope.factory() as db:
+        assert crud.save_table_to_db(db, table, scope.session_id)
+    identity = SpriteCommandScope.from_message(Message(MessageType.SPRITE_ROTATE, {
+        'table_id': str(table.table_id), 'sprite_id': token_id, 'rotation': 30}), scope.session_id, scope.actor_id)
+    staged = copy.deepcopy(table)
+    entity, original = staged.find_entity_by_sprite_id(token_id), table.find_entity_by_sprite_id(token_id)
+    assert entity is not None and original is not None
+    entity.rotation = 30
+    scope.sprite_command = dict(scope=identity, before_snapshot={'table_id': str(table.table_id),
+        '_sprite_targets': [token_id], 'sprites': {token_id: original.to_dict()}}, staged=staged)
+    scope.sprite_attempt = PendingSpriteWrite.create([scope.sprite_command], scope.factory)
+    scope.sprite_id = token_id
+    return scope
+
+
+@pytest.mark.parametrize('fail_after_flush', [False, True])
+def test_sprite_rows_and_existing_journal_share_acceptance(sprite_settlement_postgresql, monkeypatch, fail_after_flush):
+    from service import sprite_editor_commands
+    from service.sprite_editor_commands import SpriteEditorCommandService
+    from service.sprite_write_recovery import resolve_sprite_write
+
+    scope = sprite_settlement_postgresql
+    stage = sprite_editor_commands.stage_sprite_delta
+    if fail_after_flush:
+        def failed(*args, **kwargs):
+            stage(*args, **kwargs)
+            raise RuntimeError('After sprite flush')
+        monkeypatch.setattr(sprite_editor_commands, 'stage_sprite_delta', failed)
+    if fail_after_flush:
+        with pytest.raises(RuntimeError, match='After sprite flush'):
+            SpriteEditorCommandService(scope.factory).persist(**scope.sprite_command)
+    else:
+        SpriteEditorCommandService(scope.factory).persist(**scope.sprite_command)
+    outcome = resolve_sprite_write(scope.sprite_attempt)
+    assert outcome.committed is not fail_after_flush
+    entity = outcome.sprites[scope.sprite_command['scope'].table_id][scope.sprite_id]
+    assert entity is not None and entity.rotation == (0 if fail_after_flush else 30)
+
+
+@pytest.mark.parametrize('commit', [False, True])
+def test_sprite_settlement_waits_for_original_session_barrier(sprite_settlement_postgresql, postgresql_engine, commit):
+    from service.sprite_editor_commands import SpriteEditorCommandService
+    from service.sprite_write_recovery import resolve_sprite_write
+    from sqlalchemy import event
+
+    scope = sprite_settlement_postgresql
+    prepared, release, reader_started = threading.Event(), threading.Event(), threading.Event()
+    results, errors, pids = [], [], {}
+
+    def writer_factory():
+        db = scope.factory()
+        def pause(session):
+            pids['writer'] = session.execute(text('SELECT pg_backend_pid()')).scalar_one()
+            prepared.set()
+            if not release.wait(5):
+                raise RuntimeError('Writer release timed out')
+            if not commit:
+                raise RuntimeError('Deliberate sprite rollback')
+        event.listen(db, 'before_commit', pause)
+        return db
+
+    def reader_factory():
+        db = scope.factory()
+        def started(_session, _transaction, connection):
+            pids['reader'] = connection.execute(text('SELECT pg_backend_pid()')).scalar_one()
+            reader_started.set()
+        event.listen(db, 'after_begin', started)
+        return db
+
+    def write():
+        try:
+            SpriteEditorCommandService(writer_factory).persist(**scope.sprite_command)
+        except Exception as exc:
+            if commit or 'Deliberate sprite rollback' not in str(exc):
+                errors.append(exc)
+
+    def read():
+        try:
+            results.append(resolve_sprite_write(scope.sprite_attempt))
+        except Exception as exc:
+            errors.append(exc)
+
+    scope.sprite_attempt.factory = reader_factory
+    writer, reader = threading.Thread(target=write), threading.Thread(target=read)
+    try:
+        writer.start()
+        assert prepared.wait(3)
+        reader.start()
+        assert reader_started.wait(3)
+        observed = False
+        deadline = time.monotonic() + 3
+        with postgresql_engine.connect().execution_options(isolation_level='AUTOCOMMIT') as observer:
+            while time.monotonic() < deadline:
+                blockers = observer.execute(text('SELECT pg_blocking_pids(:pid)'), {'pid': pids['reader']}).scalar_one()
+                if pids['writer'] in blockers:
+                    observed = True
+                    break
+                time.sleep(0.01)
+        assert observed, 'Settlement must wait behind the real original transaction'
+        assert not results
+        release.set()
+        writer.join(5)
+        reader.join(5)
+        assert not errors and len(results) == 1
+        assert results[0].committed is commit
+        assert results[0].sprites[scope.sprite_command['scope'].table_id][scope.sprite_id].rotation == (30 if commit else 0)
+    finally:
+        release.set()
+        if writer.ident is not None:
+            writer.join(6)
+        if reader.ident is not None:
+            reader.join(6)
+
+
 @pytest.mark.parametrize('kind', ['encounter_start', 'encounter_roll'])
 @pytest.mark.parametrize('fail_after_flush', [False, True])
 def test_choice_snapshot_event_receipt_atomicity(choice_operations_postgresql, monkeypatch, kind, fail_after_flush):

@@ -22,6 +22,7 @@ from service.canvas_command_service import (
 )
 from service.compendium_npc_persistence import stage_compendium_npc
 from service.paint_object_service import _Rejected
+from service.session_operation_receipts import OperationIdentity, lock_operation_session
 from service.sprite_delta_persistence import stage_sprite_delta
 from sqlalchemy import insert
 from utils.action_diagnostics import timed_transaction
@@ -45,6 +46,7 @@ class SpriteCommandScope:
     issued_at_seconds: float
     receipt: dict = field(default_factory=dict, compare=False)
     new_character: dict = field(default_factory=dict, compare=False)
+    message_id: str = ''
 
     @classmethod
     def from_message(cls, msg, session_id, actor_id):
@@ -60,7 +62,7 @@ class SpriteCommandScope:
         return cls(session_id, actor_id, table_id, str(uuid.uuid5(uuid.NAMESPACE_URL, identity)),
             hashlib.sha256(encoded({"type": msg.type.value, "data": msg.data, "timestamp": msg.timestamp})).hexdigest(),
             msg.type not in {MessageType.SPRITE_UPDATE, MessageType.COMPENDIUM_SPRITE_UPDATE}
-            or set(msg.data) <= EDITOR_UPDATE_FIELDS, msg.timestamp)
+            or set(msg.data) <= EDITOR_UPDATE_FIELDS, msg.timestamp, message_id=msg.message_id)
 
 
 sprite_command_scope: ContextVar[SpriteCommandScope | None] = ContextVar("sprite_command_scope", default=None)
@@ -152,6 +154,14 @@ class SpriteEditorCommandService(CanvasCommandService):
             self._require_intent_age(command["scope"])
         try:
             with self.factory() as db, timed_transaction(db):
+                # The same stable row is locked by uncertainty lookup, even if
+                # a later table deletion would remove this command's journal.
+                for scope in sorted({command['scope'].session_id: command['scope'] for command in commands}.values(),
+                                    key=lambda item: item.session_id):
+                    game = lock_operation_session(db, OperationIdentity(scope.session_id, scope.actor_id,
+                        'sprite_editor', scope.operation_id, scope.request_hash), require_dm=False)
+                    if not game.is_active:
+                        raise CanvasRejected('forbidden', 'Active session is required')
                 abandoned_scopes = set()
                 pending_deltas = {}
                 run_state = {"operations": {}, "combat": {}, "rules": {}, "journal": [],

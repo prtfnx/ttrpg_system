@@ -6,7 +6,7 @@ from core_table.protocol import Message, MessageType
 from core_table.server import TableManager
 from core_table.table import VirtualTable
 from database import crud, schemas
-from service import canvas_persistence_service
+from service import table_settings_service
 from service.server_protocol import ServerProtocol
 from sqlalchemy.orm import sessionmaker
 
@@ -66,12 +66,13 @@ async def test_protocol_settings_save_then_reload(test_db, test_db_engine, test_
             db = factory()
             db.commit = lambda: (_ for _ in ()).throw(RuntimeError("commit failed"))
             return db
-        monkeypatch.setattr(canvas_persistence_service, "SessionLocal", failed_session)
+        monkeypatch.setattr(table_settings_service, "SessionLocal", failed_session)
     else:
-        monkeypatch.setattr(canvas_persistence_service, "SessionLocal", factory)
+        monkeypatch.setattr(table_settings_service, "SessionLocal", factory)
     manager = TableManager(test_db)
     manager.add_table(table)
-    session = SimpleNamespace(game_session_db_id=test_game_session.id, client_info={"dm": {"role": "owner"}})
+    session = SimpleNamespace(game_session_db_id=test_game_session.id, session_code=test_game_session.session_code,
+        client_info={"dm": {"role": "owner", "user_id": test_game_session.owner_id}})
     protocol = ServerProtocol(manager, session_manager=session)
     protocol.broadcast_to_session = AsyncMock()
     response = await protocol.handle_table_settings_update(Message(MessageType.TABLE_SETTINGS_UPDATE, {

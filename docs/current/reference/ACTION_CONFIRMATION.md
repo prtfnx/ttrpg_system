@@ -10,7 +10,7 @@ Last source audit: 2026-10-21
 
 | Operation | Current acceptance and recovery boundary |
 | --- | --- |
-| Canvas/sprite/compendium placement | Existing actor/table receipts; NPC source, token and receipt share acceptance. Generic sprite commit-response uncertainty still needs reconciliation. |
+| Canvas/sprite/compendium placement | Existing actor/table receipts; NPC source, token and receipt share acceptance. Production raw sprite/compendium commands and bounded runs now resolve uncertainty through the existing journal and current affected-row installation. Direct canvas acceptance still needs equivalent review. |
 | Paint and chat | Existing domain operation identities and durable results; retain those contracts. |
 | Combat commands/start/end | Encounter journal and stable session barrier resolve uncertain commits; full lifecycle/browser acceptance remains a release gate. |
 | Character update/repair | Original actor/session/message/patch/version/digest receipts share source/version/sharing/audit/token acceptance. Restart replay installs current persisted projections, with quarantine through installation. Negotiated v2 retains original envelopes across same-tab reloads. Standalone identity-free calls retain legacy CAS recovery. |
@@ -316,3 +316,21 @@ One bounded read probe asks for settlement, and canonical hydration waits behind
 local character edits. Accepted class/level/version metadata is historical outcome
 information, never a replacement for current character source data. The request
 API returns/accepts original identity with the same target and optional version.
+
+
+## Unknown raw sprite outcomes
+
+The production sprite bridge retains admitted identity and session ownership
+until fresh journal settlement and current affected-sprite installation. Unknown
+and failed-installation outcomes fence state reads/writes and snapshots. Batched
+members retain separate original receipts while sharing one SQL acceptance.
+Proven rollback carries `not_accepted`; an unknown response never proves rejection.
+
+The browser command tracker keeps an unknown original without rejecting its
+optimistic sprite/action. One read probe per original per connection asks for
+settlement (bounded to 64), without replaying the mutation. The shared confirmed
+sprite sender used by text/shape flows continues waiting for a causally matched
+result after an unknown response, with its existing cancellation/15-second
+deadline. Timeout still asks the user to inspect saved state before retrying.
+Current-state snapshots and small receipts replace historical delta publication.
+Sprite originals remain outside negotiated v1/v2 tab persistence.

@@ -124,6 +124,7 @@ export class WebClientProtocol {
   private characterRecoveryInstance: string | null = null;
   private characterResyncNeeded = new Set<string>();
   private choiceRecoveryProbes = new Set<string>();
+  private unknownTableProbes = new Set<string>();
   private multiclassRecoveryProbes = new Set<string>();
   private pendingCharacterCreates = new Map<string, string>();
   private readonly BATCH_DELAY_MS = 30;
@@ -369,6 +370,7 @@ export class WebClientProtocol {
       this.characterResyncNeeded.clear();
       this.multiclassRecoveryProbes.clear();
       this.choiceRecoveryProbes.clear();
+      this.unknownTableProbes.clear();
       this.characterRecoveryInstance = null;
     }
     this.userId = userId;
@@ -861,6 +863,7 @@ export class WebClientProtocol {
           this.connectionAlive = false;
           this.markCharacterUpdatesUncertain();
           this.choiceRecoveryProbes.clear();
+          this.unknownTableProbes.clear();
           this.multiclassRecoveryProbes.clear();
           this.settingsBuffer.connectionLost();
           this.operationRecovery.connectionLost();
@@ -952,8 +955,7 @@ export class WebClientProtocol {
       this.recoveredTableResponses.add(message);
     }
     this.operationRecovery.outcome(message);
-    if (message.data?.outcome === 'unknown'
-      && this.operationRecovery.owns(message.causation_id ?? message.correlation_id)) return;
+    if (message.data?.outcome === 'unknown') return;
     if (message.data?.code === 'choice_outcome_unknown') return;
     const multiclassId = message.data?.operation_id ?? message.causation_id ?? message.correlation_id;
     if (message.type === MessageType.MULTICLASS_RESPONSE && (message.data?.outcome === 'unknown'
@@ -963,6 +965,7 @@ export class WebClientProtocol {
       && typeof multiclassId === 'string' && this.multiclassRecoveryProbes.has(multiclassId)) return;
     const request = this.commandTracking.settle(message);
     if (!request) return;
+    if (request.message_id) this.unknownTableProbes.delete(request.message_id);
     if (typeof request.data?.table_id === 'string') {
       emitProtocolEvent('table-command-progress', { tableId: request.data.table_id });
     }
@@ -1193,6 +1196,7 @@ export class WebClientProtocol {
   }
 
   private closeForReconnect(reason: string): void {
+    this.unknownTableProbes.clear();
     this.markCharacterUpdatesUncertain();
     this.operationRecovery.connectionLost();
     this.awaitingWelcome = true;
@@ -1370,6 +1374,17 @@ export class WebClientProtocol {
       return;
     }
     this.settingsBuffer.reject(message);
+    if (message.data?.outcome === 'unknown') {
+      const original = message.data.operation_id ?? message.causation_id ?? message.correlation_id;
+      const tableId = message.data.table_id;
+      if (typeof original === 'string' && typeof tableId === 'string'
+        && !this.unknownTableProbes.has(original) && this.unknownTableProbes.size < 64) {
+        this.unknownTableProbes.add(original);
+        this.resynchronizeTable(tableId);
+      }
+      emitProtocolEvent('protocol-error', message.data);
+      return;
+    }
     if (message.data?.resync_required === true && typeof message.data.table_id === 'string') {
       this.resynchronizeTable(message.data.table_id);
     }
@@ -2992,6 +3007,7 @@ export class WebClientProtocol {
   }
 
   disconnect(): void {
+    this.unknownTableProbes.clear();
     this.markCharacterUpdatesUncertain();
     this.operationRecovery.connectionLost();
     this.canvasPipelining = false;

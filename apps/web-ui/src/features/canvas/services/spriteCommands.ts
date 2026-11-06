@@ -16,7 +16,8 @@ export function sendConfirmedSpriteCommand(
     };
     const abort = () => { cleanup(); reject(new Error(cancelled)); };
     const receive = (reply: Message) => {
-      if (reply.correlation_id !== message.message_id) return;
+      if ((reply.causation_id ?? reply.correlation_id) !== message.message_id) return;
+      if (reply.data?.outcome === 'unknown') return;
       cleanup();
       if (reply.type === MessageType.ERROR || reply.data?.success === false) {
         reject(new Error(String(reply.data?.error ?? 'Sprite save rejected.')));

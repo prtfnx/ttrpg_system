@@ -450,3 +450,26 @@ another mutation. The four-domain persisted v1 journal still excludes choice;
 explicitly negotiated v2 retains complete original choice envelopes across
 same-tab reloads. Unsupported records stay dormant under v1 fallback.
 See [Encounters](../features/ENCOUNTERS.md) for recovery and qualification limits.
+
+
+## Raw sprite uncertain outcomes
+
+Production raw sprite/compendium commands and bounded sprite runs use their
+existing actor/table editor journal. An unavailable outcome/current installation
+returns `error` with `code: outcome_unknown`, `outcome: unknown` and
+`resync_required: true`. The original actor may receive its original message ID
+as `operation_id` and the affected `table_id`. Normal envelope causation identifies
+the triggering request; a blocked read can identify an earlier unresolved original.
+
+Fresh verified acceptance uses a small correlated `sprite_response` with
+`success: true`, `resync_required: true` and current history flags, without old
+sprite data/updates. Verified rollback uses a correlated error with
+`not_accepted: true` and original operation identity. Current database authority
+precedes receipt disclosure; private history is withheld after revocation.
+Peers receive only a table resync hint, never the original actor's history.
+
+Unknown never releases an optimistic action as rejected. Read probes are bounded
+per original/connection; the mutation is not automatically resent. The shared
+confirmed sprite helper waits through unknown replies until a causally matched
+outcome, cancellation or its existing deadline. These are existing error/response
+schema fields; no sprite domain is added to closed v1/v2 recovery negotiation.

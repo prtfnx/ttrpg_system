@@ -140,6 +140,62 @@ function makeOpenWs(protocol: WebClientProtocol) {
 // ---------------------------------------------------------------------------
 
 describe('WebClientProtocol', () => {
+  it('retains an unknown sprite action and probes current state once without rejecting or replaying it', async () => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    const rejected = vi.fn(), settled = vi.fn();
+    window.addEventListener('sprite-action-rejected', rejected);
+    window.addEventListener('optimistic-sprite-settled', settled);
+    const original = createMessage(MessageType.SPRITE_ROTATE, {
+      table_id: 'table-abc', sprite_id: 'token', rotation: 30, action_id: 'rotate-original' });
+    const receive = async (message: Message) => {
+      await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> })
+        .handleIncomingMessage(JSON.stringify(message));
+    };
+    try {
+      protocol.sendMessage(original); protocol.sendBatch(); ws.send.mockClear();
+      for (let i = 0; i < 2; i++) await receive({ ...createMessage(MessageType.ERROR, {
+        code: 'outcome_unknown', outcome: 'unknown', error: 'Checking sprite save', resync_required: true,
+        operation_id: original.message_id, table_id: 'table-abc', action_id: 'rotate-original',
+      }), causation_id: original.message_id });
+      protocol.sendBatch();
+      expect(rejected).not.toHaveBeenCalled(); expect(settled).not.toHaveBeenCalled();
+      const frames = ws.send.mock.calls.map(call => JSON.parse(call[0]));
+      expect(frames).toHaveLength(1); expect(frames[0].type).toBe(MessageType.TABLE_REQUEST);
+      const tracker = (protocol as unknown as { commandTracking: { watermark(id: string): string[] } }).commandTracking;
+      expect(tracker.watermark('table-abc')).toContain(original.message_id);
+      await receive({ ...createMessage(MessageType.SPRITE_RESPONSE, {
+        table_id: 'table-abc', success: true, resync_required: true, action_id: 'rotate-original',
+      }), causation_id: original.message_id });
+      expect(tracker.watermark('table-abc')).not.toContain(original.message_id);
+      expect(rejected).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('sprite-action-rejected', rejected);
+      window.removeEventListener('optimistic-sprite-settled', settled);
+      protocol.disconnect();
+    }
+  });
+
+  it('releases a sprite action on a proven rollback after uncertainty', async () => {
+    const protocol = makeProtocol(); makeOpenWs(protocol);
+    const rejected = vi.fn(); window.addEventListener('sprite-action-rejected', rejected);
+    const original = createMessage(MessageType.SPRITE_ROTATE, {
+      table_id: 'table-abc', sprite_id: 'token', rotation: 30, action_id: 'rotate-original' });
+    const receive = async (data: Record<string, unknown>) => {
+      await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> })
+        .handleIncomingMessage(JSON.stringify({ ...createMessage(MessageType.ERROR, data), causation_id: original.message_id }));
+    };
+    try {
+      protocol.sendMessage(original); protocol.sendBatch();
+      await receive({ code: 'outcome_unknown', outcome: 'unknown', error: 'Checking',
+        operation_id: original.message_id, table_id: 'table-abc', action_id: 'rotate-original' });
+      expect(rejected).not.toHaveBeenCalled();
+      await receive({ code: 'persistence_failed', error: 'Not saved', not_accepted: true,
+        operation_id: original.message_id, table_id: 'table-abc', action_id: 'rotate-original', resync_required: true });
+      expect(rejected).toHaveBeenCalledOnce();
+      const tracker = (protocol as unknown as { commandTracking: { watermark(id: string): string[] } }).commandTracking;
+      expect(tracker.watermark('table-abc')).not.toContain(original.message_id);
+    } finally { window.removeEventListener('sprite-action-rejected', rejected); protocol.disconnect(); }
+  });
   it('fences the committed preview gesture without delaying the next gesture', () => {
     const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
     const preview = (sequence: number) => createMessage(MessageType.SPRITE_DRAG_PREVIEW,

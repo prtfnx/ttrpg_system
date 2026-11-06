@@ -17,8 +17,8 @@ export function textProtocolHarness() {
     unregisterHandler: vi.fn((type: MessageType, handler: (reply: Message) => void) => handlers.get(type)?.delete(handler)),
   };
   return { protocol: protocol as unknown as WebClientProtocol, send: protocol.sendMessage,
-    reply(type: MessageType, correlation_id: string, data: Record<string, unknown> = {}) {
-      handlers.get(type)?.forEach(handler => handler({ type, correlation_id, data } as Message));
+    reply(type: MessageType, correlation_id: string, data: Record<string, unknown> = {}, envelope: Partial<Message> = {}) {
+      handlers.get(type)?.forEach(handler => handler({ type, correlation_id, data, ...envelope } as Message));
     }, count: () => [...handlers.values()].reduce((count, set) => count + set.size, 0) };
 }
 
@@ -26,6 +26,27 @@ const command: TextSpriteCommand = { id: 'text-1', tableId: 'captured-table', x:
   descriptor: { ...DEFAULT_TEXT, text: 'Hello' }, metadata: {}, revision: null };
 afterEach(() => vi.useRealTimers());
 describe('authoritative text sprite commands', () => {
+  it('keeps the exact original pending after an unknown reply until a causally matched acceptance', async () => {
+    const h = textProtocolHarness(); const done = vi.fn();
+    const pending = sendConfirmedSpriteCommand(h.protocol, { message_id: 'original' } as Message,
+      new AbortController().signal).then(done);
+    h.reply(MessageType.ERROR, 'original', { outcome: 'unknown', error: 'Checking save' });
+    await Promise.resolve();
+    expect(done).not.toHaveBeenCalled(); expect(h.count()).toBe(3); expect(h.send).toHaveBeenCalledOnce();
+    h.reply(MessageType.SPRITE_RESPONSE, 'other-correlation', { success: true }, { causation_id: 'original' });
+    await pending;
+    expect(done).toHaveBeenCalledOnce(); expect(h.count()).toBe(0); expect(h.send).toHaveBeenCalledOnce();
+  });
+  it('can report a proven rollback after an earlier unknown reply without another send', async () => {
+    const h = textProtocolHarness();
+    const pending = sendConfirmedSpriteCommand(h.protocol, { message_id: 'original' } as Message, new AbortController().signal);
+    const rejected = expect(pending).rejects.toThrow('Not saved');
+    h.reply(MessageType.ERROR, 'original', { outcome: 'unknown', error: 'Checking save' });
+    expect(h.count()).toBe(3);
+    h.reply(MessageType.ERROR, 'original', { not_accepted: true, error: 'Not saved' });
+    await rejected;
+    expect(h.count()).toBe(0); expect(h.send).toHaveBeenCalledOnce();
+  });
   it('does not send an already cancelled shared sprite command', async () => {
     const h = textProtocolHarness(); const abort = new AbortController(); abort.abort();
     await expect(sendConfirmedSpriteCommand(h.protocol, { message_id: 'cancelled' } as Message, abort.signal)).rejects.toThrow('cancelled');

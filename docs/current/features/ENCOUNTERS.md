@@ -124,11 +124,12 @@ reports accepted state requiring resync. Receipts follow the existing retained
 session/actor lifetime; no new table or migration is introduced.
 
 These server receipts do not add choice commands to the four-domain persisted
-v1 browser journal. Cross-page choice intent ownership and complete served
-PostgreSQL/provider qualification remain separate work. Source/event staging
-wrappers used without the operation service do not gain protocol retry ownership.
-Regression owners: `test_choice_operation_service.py`, `test_encounter_protocol.py`
-and `test_choice_worker_ownership.py`, covering actual SQL/protocol, unknown commit
+v1 browser journal. Negotiated v2 now retains complete explicit-target originals
+across same-tab reloads; complete served PostgreSQL/provider qualification
+remains a release gate. Source/event staging wrappers used without the operation
+service do not gain protocol retry ownership. Regression owners:
+`test_choice_operation_service.py`, `test_encounter_protocol.py` and
+`test_choice_worker_ownership.py`, covering actual SQL/protocol, unknown commit
 outages, current roles, private notes, later prompts, join, fencing and cancellation.
 
 
@@ -145,8 +146,12 @@ cannot close a different newer prompt. Server replays carry the current prompt,
 not an obsolete historical snapshot. Regression owners: `clientProtocol.test.ts`,
 `utilityStores.test.ts` and the shared browser message validator tests.
 
-Choice originals are not persisted by the existing v1 journal. A read can ask an
-in-process server to settle its retained original; it is not an operation receipt
-for an unrecorded request after page/server replacement. Deliberate duplicate
-checks must retain the original envelope. Full cross-page choice ownership and
-served acceptance remain open.
+Choice originals use the explicitly negotiated v2 tab journal; the existing v1
+contract remains closed. Start/end require a DM welcome role for retry, while
+player/trusted roles may retry explicit-target choice/roll originals. The server
+still checks current database authority and participation. Matching authenticated
+welcome precedes replay; unsupported v2 records remain dormant under v1 fallback.
+A read may ask the server to settle an original, but does not itself prove
+acceptance or clear saved evidence. Tab closure/storage clearing can lose browser
+records. Deliberate duplicate checks must retain the original envelope. Same-tab reload ownership is
+implemented; complete served/provider acceptance remains open.

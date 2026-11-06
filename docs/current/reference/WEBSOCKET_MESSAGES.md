@@ -43,8 +43,11 @@ current `version`; replay asks for resync and may report `character_archived`.
 Current database edit authority gates receipt disclosure. Unknown commit/cache
 outcomes remain fenced until current projections install. A denied lookup cannot
 prove rollback; the browser retains its uncertain original unless `not_accepted`
-is explicitly proved. Character originals are in page memory only and are outside
-the four-domain persisted v1 journal. See
+is explicitly proved with the original operation identity. Negotiated
+`session-operations-v2` retains complete character/repair, choice and multiclass
+original envelopes across same-tab reloads. The four-domain v1 fallback remains
+closed; unsupported v2 records stay dormant. Reconnect retries wait for matching
+authenticated welcome. See
 [Characters](../features/CHARACTERS_AND_COMPENDIUMS.md).
 
 ## Uncertain persistence outcomes
@@ -401,8 +404,10 @@ Older settings revisions cannot replace newer confirmed browser state. The negot
 
 ## Browser recovery negotiation and settlement
 
-New clients request `operation_recovery=session-operations-v1` on the WebSocket
-URL. Only opted-in clients receive the optional welcome capability; older closed
+New clients offer `operation_recovery=session-operations-v1` as fallback and
+`operation_recovery_extended=session-operations-v2` for extended domains on the
+WebSocket URL. The server chooses v2 only for that explicit offer. Only opted-in
+clients receive the optional welcome capability; older closed
 validators keep their existing welcome shape. The capability names supported
 domains and the retained session instance. Its welcome actor/session are the
 recovery scope; a saved payload supplies no authority. Unknown or absent capability
@@ -414,8 +419,10 @@ waits for welcome before probing saved originals once per connection; manual
 review may retry again. Domain-specific correlated acceptance completes local
 records. Unknown outcomes remain pending, denied lookups remain held for review,
 and snapshots alone cannot settle these requests. A restored create response
-uses reconciliation rather than initial scene hydration. General offline and
-generic character/choice replay remain outside this contract.
+uses reconciliation rather than initial scene hydration. V2 extends this
+contract to character/repair, choice and multiclass originals. Explicit
+identity-bound v2 nonacceptance also completes matching records; denied lookups
+retain evidence. General offline mutation queues remain outside this contract.
 
 
 ## Durable choice outcomes (November 2)
@@ -439,5 +446,7 @@ session-row barrier and current installation precede release of serialized state
 work/snapshots. Proven rejection carries `not_accepted: true`. Revoked actors
 receive no private receipt details; recovery peers get public current state.
 Unknown browser outcomes request a bounded serialized read without inventing
-another mutation. The four-domain persisted v1 journal still excludes choice.
+another mutation. The four-domain persisted v1 journal still excludes choice;
+explicitly negotiated v2 retains complete original choice envelopes across
+same-tab reloads. Unsupported records stay dormant under v1 fallback.
 See [Encounters](../features/ENCOUNTERS.md) for recovery and qualification limits.

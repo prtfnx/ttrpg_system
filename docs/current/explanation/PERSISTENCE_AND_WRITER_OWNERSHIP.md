@@ -119,15 +119,14 @@ now add atomic choice receipts and fresh settlement, as described below.
 
 ## Deferred consistency work
 
-TODO: finish outcome reconciliation for remaining generic mutation paths and
-compatible persisted original ownership. Multiclass, choice transitions, general
+TODO: finish outcome reconciliation for remaining generic mutation paths. Multiclass, choice transitions, general
 character protocol/repair, table creation/deletion/settings and XP now commit
 effects and receipts together.
-Supported table/XP browser originals are
-retained in the tab-scoped recovery journal; character originals remain page
-memory across live-page reconnect, with reload ownership still open. Choice
-originals are not persisted by the v1 journal; in-process recovery retains their
-admitted identities until settlement. These
+Supported table/XP browser originals use the unchanged v1 recovery contract.
+Negotiated v2 additionally retains character/repair, choice and multiclass
+original envelopes in the same tab-scoped journal. Unsupported domains remain
+dormant under v1 fallback; in-process server recovery retains admitted identities
+until settlement. These
 boundaries do not add universal retry safety. Complete remaining legacy character/token
 repairs and qualify worker ownership on the release candidate. Combat lifecycle transitions
 are calculated without implicit engine commits; accepted snapshot and journal
@@ -230,8 +229,9 @@ no recovery capability. This is not a backup/restore generation: restoring a
 matching historical database may remove newer receipts and requires explicit
 recovery invalidation under the restore procedure before clients resume.
 
-Persisted browser recovery now covers advertised table create/copy/import/delete,
-settings and XP requests. The synchronous journal writes/validates the original
+Persisted browser recovery covers advertised table create/copy/import/delete,
+settings and XP requests under v1, plus character/repair, choice transitions and
+multiclass originals under explicitly negotiated v2. The synchronous journal writes/validates the original
 before transmission, with 64-record/512-KiB scope limits and no silent eviction.
 Actor, session code and retained database instance isolate ownership. Correlated
 domain acceptance clears a record; a snapshot, timeout, or revoked lookup cannot
@@ -330,6 +330,7 @@ Production multiclass dispatch uses the service above through the bounded worker
 and shared character recovery owner. All loaded-table locks and session ownership
 span settlement, current projection installation and publication. Its typed small
 response triggers deferred canonical browser reads; diagnostic tracking/read probes
-do not persist originals. The v1 journal still covers only supported table and XP
-domains. Character/choice/multiclass reload ownership and restore invalidation
-remain separate work.
+persist originals only with the negotiated v2 journal. The v1 journal remains
+limited to supported table and XP domains. Character/choice/multiclass same-tab
+reload ownership is implemented; database-restore timeline invalidation remains
+separate work.

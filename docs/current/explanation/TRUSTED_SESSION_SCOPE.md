@@ -43,12 +43,12 @@ See [Tables](../features/TABLES_AND_CANVAS.md),
 
 These are remaining limitations, not completed architecture guarantees:
 
-- Finish remaining generic mutation settlement and compatible persisted
-  character/choice/multiclass original ownership. Supported table creation/copy/
-  import/deletion/settings, XP, general character/repair, multiclass and choice transitions
-  now have atomic receipt boundaries and current-state settlement. The scoped
-  persisted journal covers only table create/delete/settings and XP. Complete
-  PostgreSQL/served browser acceptance remains to verify.
+- Finish remaining generic table/sprite mutation settlement. Supported table
+  creation/copy/import/deletion/settings, XP, general character/repair, multiclass
+  and choice transitions have atomic receipt boundaries and current-state
+  settlement. Negotiated v2 adds same-tab persisted character/choice/multiclass
+  original ownership while keeping v1 closed. Complete PostgreSQL/served browser
+  acceptance and database-restore timeline invalidation remain to verify.
 - Qualify character/token/encounter field authority during active combat and
   resolve conflicting legacy data explicitly. Shared source/projection writes,
   canonical NPC creation and guarded unambiguous repairs are implemented;

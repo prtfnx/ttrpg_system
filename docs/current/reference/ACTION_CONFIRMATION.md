@@ -6,20 +6,20 @@ Status: usable.
 
 Last source audit: 2026-10-21
 
-## Durable outcome inventory (November 2)
+## Durable outcome inventory (November 3)
 
 | Operation | Current acceptance and recovery boundary |
 | --- | --- |
 | Canvas/sprite/compendium placement | Existing actor/table receipts; NPC source, token and receipt share acceptance. Generic sprite commit-response uncertainty still needs reconciliation. |
 | Paint and chat | Existing domain operation identities and durable results; retain those contracts. |
 | Combat commands/start/end | Encounter journal and stable session barrier resolve uncertain commits; full lifecycle/browser acceptance remains a release gate. |
-| Character update/repair | Original actor/session/message/patch/version/digest receipts share source/version/sharing/audit/token acceptance. Restart replay installs current persisted projections, with quarantine through installation. Browser originals remain page memory; reload ownership is open. Standalone identity-free calls retain legacy CAS recovery. |
-| Multiclass | Source/classes/level/audit and original actor/session/class/version receipt share acceptance. Shared character quarantine retains ownership through fresh settlement and current installation. Browser originals are not persisted across reloads. |
+| Character update/repair | Original actor/session/message/patch/version/digest receipts share source/version/sharing/audit/token acceptance. Restart replay installs current persisted projections, with quarantine through installation. Negotiated v2 retains original envelopes across same-tab reloads. Standalone identity-free calls retain legacy CAS recovery. |
+| Multiclass | Source/classes/level/audit and original actor/session/class/version receipt share acceptance. Shared character quarantine retains ownership through fresh settlement and current installation. Negotiated v2 retains original class/version envelopes across same-tab reloads. |
 | XP award | Actor/session/domain-scoped original message identity; XP/version/audit/outcome share acceptance. See [Characters](../features/CHARACTERS_AND_COMPENDIUMS.md). |
 | Table create/copy/import | Original request receipts share table/paint-state acceptance; unknown commits fence serialized work and snapshots through verified installation. |
 | Table delete | Table resources, active-member pointers, retirement tombstone and original actor/session receipt share acceptance. Unknown commits fence state work and snapshots until settlement and cache cleanup. |
 | Table settings | Patch/revision/original-request receipt share acceptance under current database authority. Unknown outcomes fence session state work through current-state recovery; browser revisions reject older state. |
-| Choice encounter transitions | Original actor/session/kind/payload receipts share snapshot/event acceptance. Fresh settlement fences state work until current prompt installation, including join recovery. Recorded dice replay without rerolling; current role gates private outcomes. Browser cross-page original ownership remains open. |
+| Choice encounter transitions | Original actor/session/kind/payload receipts share snapshot/event acceptance. Fresh settlement fences state work until current prompt installation, including join recovery. Recorded dice replay without rerolling; current role gates private outcomes. Negotiated v2 retains original explicit-target envelopes across same-tab reloads. |
 
 The new `session_operation_receipts` adapter borrows the caller's transaction:
 it flushes without committing. Domain callers must authorize before lookup and
@@ -270,8 +270,13 @@ storage survives reloads in the same tab; closing the tab or clearing browser
 storage can remove it. This does not provide a browser-restart or offline queue.
 
 `operationRecoveryController.ts` gates automatic probes on an authenticated
-matching welcome and current DM role. It keeps unknown responses, holds denied
-lookups for review and clears only correlated domain-specific acceptance. A table
+matching welcome. DM roles may retry every advertised domain; player/trusted
+roles may retry character edits, multiclass and choice/roll originals. DM-only
+intents and spectator requests remain blocked for deliberate review without
+preventing permitted originals from being probed. Current database edit rights
+and encounter participation still gate server replay. It keeps unknown responses,
+holds denied lookups for review and clears only correlated domain-specific
+acceptance or explicit v2 nonacceptance carrying the original operation ID. A table
 or character read is not receipt settlement. Corrupt/unavailable storage pauses
 new supported high-risk sends; explicit scoped discard does not undo a change.
 Unit owners: `operationRecovery.test.ts` and `operationRecoveryController.test.ts`.
@@ -280,22 +285,28 @@ Production `WebClientProtocol` saves supported high-risk requests before sending
 bytes, including settings batches and flat explicit batches. It waits for welcome
 scope before restoring saved requests, then probes each original at most once per
 connection (manual review can retry). Restored settings retain their buffer
-ownership. Even a first accepted response to a restored create uses receipt
+ownership. Restored generic character edits regain their pending owners and
+defer source hydration until all edits for that character settle. A restored
+conflict cannot silently rebase the original into a new mutation. Even a first accepted response to a restored create uses receipt
 reconciliation and cannot reset a newer scene/form. Actor/instance changes and
 unsupported server capabilities never carry saved intents into another scope.
 Storage failure prevents that high-risk transmission; ordinary reads remain
 available. Server receipts, not snapshots, complete journal records. Rejected or
 revoked lookups remain available for review rather than silently discarding an
-uncertain earlier acceptance. Generic character, asset and offline mutation queues
-are outside this journal. Regression owner: `clientProtocol.test.ts`.
+uncertain earlier acceptance. The negotiated v2 journal adds generic character,
+choice and multiclass originals; asset and offline mutation queues remain outside
+this contract. Connection-open retries wait for matching welcome, and same-page
+actor/instance replacement cannot resend another scope's character owners.
+Explicit forgetting releases matching local edit ownership and requests current
+state; it does not cancel the server effect. Regression owner: `clientProtocol.test.ts`.
 
 
 Choice `choice_outcome_unknown` responses do not settle the generic command
 tracker or report the original as rejected. A bounded serialized read probe asks
 the server to settle it; correlated state/receipt responses complete tracking.
 Tracker timeouts remain bounded diagnostics, not durable intent ownership. Choice
-commands are outside the four-domain persisted journal; canonical reads alone do
-not prove an unrecorded original's acceptance after process/page replacement.
+commands use negotiated v2 persistence; the four-domain v1 contract is unchanged.
+Canonical reads alone never prove an original's acceptance after replacement.
 
 
 Multiclass uses its own `character_multiclass` receipt domain and the shared

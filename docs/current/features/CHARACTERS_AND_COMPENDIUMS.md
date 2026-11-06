@@ -406,8 +406,8 @@ session ownership through SQL settlement and role-filtered publication despite
 repeated cancellation. Publication failure reports accepted state requiring
 resync. Players see XP as read-only state. Generic character and selected table
 commands have their own receipt boundaries, as do choice transitions. Multiclass
-now has its own receipt domain too; persisted character/choice/advancement
-originals remain separate work. PostgreSQL/served qualification remains an open release gate.
+now has its own receipt domain too. Negotiated v2 persists character, choice and
+multiclass original requests across same-tab reloads. PostgreSQL/served qualification remains an open release gate.
 
 Multiclass changes use `multiclass_request`. The server validates the pinned
 prerequisites, preserves a legacy primary class when normalizing the class
@@ -525,17 +525,21 @@ An archived-source acceptance removes the character without loading obsolete
 source data. Exact request correlation still owns settlement, so an old receipt
 cannot clear a later edit. `clientProtocol.test.ts` covers these boundaries.
 
-Generic character originals remain in page memory and can be retried unchanged
-on live-page reconnect; their server receipts survive process restart. Reloading
-or closing the page loses those local originals. The persisted journal still
-covers only advertised table creation/deletion/settings and XP. Canonical reads
-are not proof that a particular unrecorded request was accepted.
+Negotiated v2 saves generic character originals before transmission and restores
+their pending owners after a matching authenticated welcome. Reloading the same
+tab retains exact identities, patches, reconciliation options and expected
+versions. A restored conflict cannot create a rebased replacement mutation.
+Unsupported v2 records remain dormant under v1 fallback. The four-domain v1
+contract stays unchanged. Tab closure/storage clearing can lose browser evidence;
+canonical reads never prove that a particular original request was accepted.
 
 Denied lookups do not prove rollback. A correlated forbidden/conflicting lookup,
 or another failure for an already uncertain original, retains that original in
-page memory unless the server explicitly proves `not_accepted`. Later correlated
-acceptance can settle it. Reconnect keeps its exact envelope; a reload still loses
-this page-memory evidence. Proven rollback permits canonical hydration and review.
+the scoped v2 journal unless the server explicitly proves `not_accepted` with
+the original operation identity. Later correlated acceptance can settle it.
+Reconnect/reload keeps its exact envelope under matching v2 scope. Proven rollback
+permits canonical hydration and review. Explicit forgetting also releases local
+ownership and requests current state without canceling an earlier effect.
 
 
 ## Durable multiclass advancement
@@ -575,7 +579,8 @@ state instead of broadcasting a historical class patch.
 Regression owners: `test_multiclass_service.py` and the real protocol/SQLite
 multiclass cases in `test_character_stat_transaction.py`; obsolete mocked load/save
 multiclass expectations were replaced by these acceptance-boundary cases. Full
-PostgreSQL/served qualification and persisted cross-page originals remain open.
+PostgreSQL/served qualification remains open. Negotiated v2 cross-page originals
+are implemented for same-tab reloads.
 
 
 ## Multiclass browser reconciliation
@@ -590,7 +595,9 @@ newer optimistic edits. Archived-source receipts remove the character without
 loading obsolete source data. Source and accepted receipt versions stay distinct.
 
 The request API returns the operation identity and supports a deliberate same-ID
-retry with the same class/optional version. This does not persist originals across
-reloads or make command-tracker timers a durable queue. Persisted v1 domains are
-unchanged. Browser protocol tests cover actual tracked uncertainty, denied lookup,
-later receipt settlement, pending-edit hydration and archival.
+retry with the same class/optional version. Negotiated v2 persists this complete
+original before send and retries it at most once per authenticated welcome.
+Command-tracker timers remain bounded diagnostics. Persisted v1 domains are
+unchanged. Browser protocol tests cover scope replacement, native tab storage,
+tracked uncertainty, denied lookup, later receipts, pending-edit hydration,
+initially unloaded characters and archival.

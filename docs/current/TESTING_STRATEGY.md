@@ -599,3 +599,23 @@ rollback. They require a disposable configured PostgreSQL target; skipped cases
 do not qualify locks. Browser/schema suites cover original closed intents,
 uncertain tracking/read probes, delayed canonical hydration and archived receipts.
 Retain the real provider/served and final-candidate gates.
+
+
+## Extended same-tab recovery qualification
+
+The welcome negotiation tests retain the closed four-domain v1 fallback and
+require an explicit v2 offer before advertising character, choice and multiclass
+domains. Shared schemas reject silently extended v1 capabilities, unknown domains
+and duplicate domains. Browser controller tests cover player/trusted versus DM
+and spectator replay, dormant unsupported records, unknown/denied outcomes and
+correlated receipt or proven-nonacceptance settlement.
+
+`clientProtocol.test.ts` reconstructs all six extended message types after owner
+replacement. It verifies exact envelopes, authenticated-welcome fences on real
+socket reconnect, deferred character hydration, denied/conflicting originals,
+generic multiclass uncertainty probes, initially unloaded characters, scoped
+forgetting, actor/instance replacement and storage failure without phantom edit
+ownership. `message.browser-test.ts` exercises native session storage for each new
+domain under the existing CSP validator test. Tab storage is not browser-restart
+durability; these local checks do not replace served-provider, PostgreSQL locking
+or restore-rehearsal acceptance.

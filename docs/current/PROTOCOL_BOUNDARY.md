@@ -291,16 +291,21 @@ schema. Regression owner: `packages/core-table/tests/test_protocol_schema.py`.
 
 ## Advertised operation recovery scope
 
-The optional welcome `operation_recovery` object identifies the
-`session-operations-v1` contract, a bounded `session_instance` and supported
-domains (`table_create`, `table_delete`, `table_settings`, `xp_award`). Null or
+The optional welcome `operation_recovery` object identifies an explicitly
+negotiated closed contract, a bounded `session_instance` and supported domains.
+`session-operations-v1` remains limited to `table_create`, `table_delete`,
+`table_settings` and `xp_award`. `session-operations-v2` additionally admits
+`character_update`, `choice_encounter` and `character_multiclass`. Null or
 absent context does not authorize automatic durable replay. The existing welcome
 user/session fields supply authenticated scope; a stored request cannot supply
 it. Both generated validators reject unknown contracts, domains and fields.
 
-Clients opt in with the WebSocket query parameter
-`operation_recovery=session-operations-v1`. The server omits the welcome field
-for older clients, whose closed validators would reject an unknown property.
+Clients offer `operation_recovery=session-operations-v1` as a fallback and
+`operation_recovery_extended=session-operations-v2` for extended recovery. New
+servers return v2 only for that explicit offer; older servers can still return
+the unchanged v1 contract. The server omits the welcome field for clients without
+an offer, whose closed validators would reject an unknown property. Unsupported
+saved domains remain dormant when the welcome falls back to v1.
 The query requests wire capability only; it grants no authority or receipt scope.
 Unsupported servers leave stored intents untouched. Current clients still wait
 for the authenticated welcome before sending/restoring supported high-risk work.
@@ -321,10 +326,10 @@ Correlated acceptance reports `operation_id`, `accepted_version` and current
 `version`. Replayed receipts request resync and may report `character_archived`;
 they never carry an obsolete private source document. Receipt replay rechecks
 current database edit authority. `character_update` is not added to the negotiated
-four-domain `session-operations-v1` browser journal; live-page reconnect preserves
-its original in-memory envelope. Choice receipts now have the explicit-target
-contract below, as does multiclass. Persisted character/choice/multiclass
-original ownership remains separate release work. Regression owner:
+four-domain `session-operations-v1` browser journal. Negotiated v2 persists its
+complete original envelope, including patch aliases and reconciliation digest,
+before sending. Choice and multiclass use the same v2 journal with their own
+explicit-target contracts below. Regression owner:
 `packages/core-table/tests/test_protocol_schema.py`.
 
 
@@ -342,7 +347,8 @@ the schema; old implicit-target clients must upgrade before submitting mutations
 Errors distinguish `choice_outcome_unknown` with `outcome: unknown` from a proved
 rejection carrying `not_accepted: true`. Unknown never means rollback. Keep the
 original identity/body when checking an earlier intent. Choice operations are not
-added to the closed four-domain persisted v1 browser journal. Regression owner:
+added to the closed four-domain persisted v1 browser journal; v2 persists their
+original explicit targets and payloads before sending. Regression owner:
 `packages/core-table/tests/test_choice_protocol_schema.py`.
 
 
@@ -359,8 +365,9 @@ changing either under the same request identity rejects.
 The browser API returns the request identity and accepts it for a deliberate
 same-intent retry. Retain the same optional expected version as well as target;
 leaving identity unset denotes a new deliberate request. It omits client session
-routing fields. Automatic cross-page multiclass replay is not part of the
-four-domain persisted v1 journal. Regression owners:
+routing fields. The v2 journal restores and retries the original across same-tab
+reloads after a matching authenticated welcome; the four-domain v1 contract stays
+unchanged. Regression owners:
 `test_multiclass_protocol_schema.py` and browser protocol tests.
 
 
@@ -371,4 +378,8 @@ It carries no historical class list/source document. Unknown initial outcomes us
 original operation identity. Proven rollback carries `not_accepted: true`.
 Current database authority gates public replay; internal repair can finish without
 disclosing private outcomes to a revoked actor. Canonical reads are deferred behind
-pending local edits. No new persisted-journal domain/capability is advertised.
+pending local edits, including restored generic character owners. Known
+nonacceptance completes the matching v2 record; unknown and denied outcomes
+retain its original evidence. Snapshots and command-tracker timeouts cannot
+complete a saved request. Tab closure/storage loss and database-restore timeline
+invalidation remain separate limitations and release work.

@@ -25,6 +25,7 @@ from service.canvas_journal import MAX_HISTORY_BYTES, MAX_HISTORY_ENTRIES, RETEN
 from service.character_token_binding import CharacterBindingError, prepare_character_bindings
 from service.movement_validator import MovementValidator
 from service.paint_object_service import PaintObjectService, _object_dict, _Rejected
+from service.session_operation_receipts import OperationIdentity, lock_operation_session
 from service.text_sprite import encode_text_metadata, text_metadata
 from sqlalchemy.orm import Session
 from utils.roles import can_interact, get_sprite_limit, get_visible_layers, is_dm
@@ -188,7 +189,21 @@ class CanvasCommandService:
         table_snapshot: dict | None = None,
         table_source: VirtualTable | None = None,
         combat_sprite_ids: tuple[str, ...] = (),
+        attempt=None,
     ) -> CanvasResult:
+        operation_id, table_id, mode, edit, request_hash = self.prepare(command)
+        with self.factory() as db, db.begin():
+            game = lock_operation_session(db, OperationIdentity(session_id, actor_id,
+                'canvas_editor', operation_id, request_hash), require_dm=False)
+            if not game.is_active:
+                raise CanvasRejected('forbidden', 'Active session is required')
+            return self._execute_in_transaction(db, session_id=session_id, actor_id=actor_id,
+                command=command, operation_id=operation_id, table_id=table_id, mode=mode,
+                edit=edit, request_hash=request_hash, table_snapshot=table_snapshot,
+                table_source=table_source, combat_sprite_ids=combat_sprite_ids, attempt=attempt)
+
+    def prepare(self, command):
+        """Validate the original envelope before admitting an owned SQL write."""
         if not isinstance(command, dict) or len(encoded(command)) > MAX_COMMAND_BYTES:
             raise CanvasRejected("limit_exceeded", "Canvas command exceeds 60 KiB")
         if set(command) - {
@@ -227,201 +242,211 @@ class CanvasCommandService:
             raise CanvasRejected("invalid_payload", "Incomplete or inconsistent canvas command")
         edit = _sprite_edit(command["edit"]) if mode == "sprite_edit" else {}
         request_hash = hashlib.sha256(encoded(command)).hexdigest()
-        with self.factory() as db, db.begin():
-            db_table, role = self.paint._lock_table_and_role(
-                db, table_id=table_id, session_id=session_id, actor_id=actor_id
-            )
-            if not can_interact(role):
-                raise CanvasRejected("forbidden", "Spectators cannot issue editor commands")
-            previous = self._entries(db, table_id, actor_id).filter_by(operation_id=operation_id).one_or_none()
-            if previous is not None:
-                if previous.request_hash != request_hash:
-                    raise CanvasRejected(
-                        "invalid_payload", "operation_id was already used for a different canvas command"
-                    )
-                result = copy.deepcopy(previous.result_json)
-                result["receipt"].update(self._history(db, table_id, actor_id))
-                # Sprite events are not versioned. Replaying an old event could
-                # overwrite a newer accepted sprite. Reconcile from fresh
-                # snapshots instead; a retry never rebroadcasts old mutations.
-                result["receipt"]["resync_required"] = True
-                return CanvasResult(result["receipt"], [], replayed=True)
-            if (str(table_source.table_id) if table_source is not None else (table_snapshot or {}).get("table_id")) != table_id:
+        return operation_id, table_id, mode, edit, request_hash
+
+    def _execute_in_transaction(self, db, *, session_id, actor_id, command, operation_id,
+                                table_id, mode, edit, request_hash, table_snapshot,
+                                table_source, combat_sprite_ids, attempt):
+        # Preserve the existing borrowed transaction body and commit boundary.
+        db_table, role = self.paint._lock_table_and_role(
+            db, table_id=table_id, session_id=session_id, actor_id=actor_id
+        )
+        if not can_interact(role):
+            raise CanvasRejected("forbidden", "Spectators cannot issue editor commands")
+        previous = self._entries(db, table_id, actor_id).filter_by(operation_id=operation_id).one_or_none()
+        if previous is not None:
+            if previous.request_hash != request_hash:
+                raise CanvasRejected(
+                    "invalid_payload", "operation_id was already used for a different canvas command"
+                )
+            result = copy.deepcopy(previous.result_json)
+            result["receipt"].update(self._history(db, table_id, actor_id))
+            # Sprite events are not versioned. Replaying an old event could
+            # overwrite a newer accepted sprite. Reconcile from fresh
+            # snapshots instead; a retry never rebroadcasts old mutations.
+            result["receipt"]["resync_required"] = True
+            if attempt is not None:
+                attempt.replayed = True
+            return CanvasResult(result["receipt"], [], replayed=True)
+        if (str(table_source.table_id) if table_source is not None else (table_snapshot or {}).get("table_id")) != table_id:
+            raise CanvasRejected("not_found", "Table is not loaded")
+        if table_source is not None:
+            table = table_source.fork_for_sprite_edit()
+        else:
+            if table_snapshot is None:
                 raise CanvasRejected("not_found", "Table is not loaded")
-            if table_source is not None:
-                table = table_source.fork_for_sprite_edit()
-            else:
-                if table_snapshot is None:
-                    raise CanvasRejected("not_found", "Table is not loaded")
-                table = VirtualTable(db_table.name, db_table.width, db_table.height, table_id=table_id)
-                table.from_dict(copy.deepcopy(table_snapshot))
-            # Paint locks follow the same virtual-table -> paint-state order as
-            # standalone writes. No scene changes are published by this worker.
-            changes, events = [], []
-            root = None
-            if mode in {"undo", "redo"}:
-                root, changes = self._inverse(db, table, table_id, actor_id, mode)
-            elif mode == "paste":
-                changes = self._paste(db, table, table_id, actor_id, command)
-            else:
-                members = command.get("members")
-                if not isinstance(members, list) or not 1 <= len(members) <= MAX_MEMBERS:
-                    raise CanvasRejected("limit_exceeded", "Select between 1 and 100 canvas objects")
-                predecessor_ids = {_uuid(member["after_operation_id"]) for member in members
-                    if isinstance(member, dict) and "after_operation_id" in member}
-                if predecessor_ids and mode not in {"transform", "sprite_edit", "restyle"}:
-                    raise CanvasRejected("invalid_payload", "This command cannot be pipelined")
-                if operation_id in predecessor_ids:
-                    raise CanvasRejected("invalid_payload", "A command cannot depend on itself")
-                predecessor_fields = (models.CanvasCommandJournal.operation_id, models.CanvasCommandJournal.kind,
-                    models.CanvasCommandJournal.state, models.CanvasCommandJournal.changes)
-                predecessors = {entry.operation_id: entry for entry in self._entries(db, table_id, actor_id).with_entities(
-                    *predecessor_fields).filter(
-                    models.CanvasCommandJournal.operation_id.in_(predecessor_ids)).all()} if predecessor_ids else {}
-                seen = set()
-                for member in members:
-                    if not isinstance(member, dict) or member.get("kind") not in {"paint", "sprite"}:
-                        raise CanvasRejected("invalid_payload", "Invalid canvas selection reference")
-                    kind, target = member["kind"], member.get("id")
-                    if mode == "restyle" and kind != "paint":
-                        raise CanvasRejected("invalid_payload", "Restyle supports paint objects only")
-                    if mode == "sprite_edit" and kind != "sprite":
-                        raise CanvasRejected("invalid_payload", "Sprite edits support sprites only")
-                    if not isinstance(target, str) or not target or len(target) > 128 or (kind, target) in seen:
-                        raise CanvasRejected("invalid_payload", "Invalid or duplicate canvas selection reference")
-                    seen.add((kind, target))
-                    before = self._current(db, table, kind, target)
-                    if before is None:
-                        raise CanvasRejected("conflict", "A selected object was removed")
-                    predecessor = member.get("after_operation_id")
-                    member_fields = set(member) - {"after_operation_id"}
-                    if "after_operation_id" in member:
-                        root_entry = predecessors.get(predecessor)
-                        if (root_entry is None or root_entry.state != "applied"
-                                or root_entry.kind not in {"transform", "sprite_edit", "restyle"}
-                                or not root_entry.changes):
-                            raise CanvasRejected("dependency_failed", "The preceding edit was not applied")
-                        saved = next((change for change in root_entry.changes
-                            if change["kind"] == kind and change["id"] == target), None)
-                        if saved is None or saved["after"] is None:
-                            raise CanvasRejected("invalid_payload", "The preceding edit did not change this object")
-                        # A predecessor is a version fence, not permission to
-                        # overwrite another actor's intervening mutation.
-                        if _pipeline_fence(kind, before) != _pipeline_fence(kind, saved["after"]):
-                            raise CanvasRejected("conflict", "A pipelined object changed after its preceding edit")
-                    if kind == "paint":
-                        if (
-                            member_fields != {"kind", "id", "version"}
-                            or isinstance(member["version"], bool)
-                            or not isinstance(member["version"], int) or member["version"] < 1
-                            or (predecessor is None and member["version"] != before["version"])
-                        ):
-                            raise CanvasRejected("conflict", "A selected paint object changed")
-                    else:
-                        expected = member.get("expected")
-                        actual = sprite_transform(Entity.from_dict(before))
-                        if (
-                            member_fields != {"kind", "id", "expected"}
-                            or not isinstance(expected, dict)
-                            or set(expected) != set(actual)
-                        ):
-                            raise CanvasRejected("invalid_payload", "A complete expected sprite transform is required")
-                        for value in expected.values():
-                            _number(value)
-                        if predecessor is None and expected != actual:
-                            raise CanvasRejected("conflict", "A selected sprite changed")
-                    after = copy.deepcopy(before) if mode in {"copy", "transform", "restyle"} else None
-                    if mode == "transform":
-                        after = self._transformed(before, kind, command["transform"])
-                    elif mode == "sprite_edit":
-                        if before.get("texture_path") == "__LIGHT__" and set(edit) - {"layer"}:
-                            raise CanvasRejected("unsupported", "Use light settings to resize or rotate lights")
-                        candidate = Entity.from_dict(before)
-                        for key, value in edit.items():
-                            setattr(candidate, key, value)
-                        try:
-                            transform_sprite_geometry(candidate, before)
-                        except (ValueError, TypeError) as exc:
-                            raise CanvasRejected("invalid_payload", "Invalid sprite shape geometry") from exc
-                        after = candidate.to_dict()
-                    elif mode == "restyle":
-                        assert after is not None  # Restyle captured a complete before-state above.
-                        after["style"] = copy.deepcopy(command["style"])
-                        validate_paint_object_input(editable_paint(after))
-                    changes.append({"kind": kind, "id": target, "before": before, "after": after})
-            if len(encoded(changes)) > MAX_ENTRY_BYTES:
-                raise CanvasRejected("limit_exceeded", "Selection exceeds the 1 MiB editor history budget")
-            session = db.get(models.GameSession, session_id)
-            if session is None:
-                raise CanvasRejected("not_found", "Session no longer exists")
-            rules_data = json.loads(session.session_rules_json or "{}")
-            rules_data.setdefault("session_id", session.session_code)
-            rules = SessionRules.from_dict(rules_data) if rules_data else SessionRules.defaults(session.session_code)
-            # Durable combat state also fences editor commands after restart,
-            # before the combat engine has hydrated its in-memory cache. Read
-            # it inside this transaction and fail closed on malformed storage.
-            combat_ids = set(combat_sprite_ids)
-            if mode != "copy":
-                encounters = db.query(models.CombatEncounter).filter(
-                    models.CombatEncounter.session_id == session_id,
-                    models.CombatEncounter.table_id == table_id,
-                    models.CombatEncounter.phase != "inactive",
-                    models.CombatEncounter.ended_at.is_(None),
-                ).all()
-                for encounter in encounters:
-                    combat_ids.update(str(member["entity_id"]) for member in json.loads(encounter.combatants_json or "[]"))
-            self._authorize(changes, role, actor_id, mode, combat_ids)
-            if mode != "copy":
-                self._prepare_character_bindings(db, changes, session_id, actor_id, role)
-                events = self._apply(db, table, changes, role, actor_id, session_id, operation_id, rules)
-                if any(change["kind"] == "sprite" for change in changes):
-                    from service.sprite_delta_persistence import stage_sprite_delta
-                    stage_sprite_delta(db, table, changes, session_id, stored=db_table)
-                if not is_dm(role):
-                    self._require_sprite_quota(db, table, session_id, actor_id, role)
-                for change in changes:
-                    change["after"] = self._current(db, table, change["kind"], change["id"])
-                if root is not None:
-                    # Compare against fresh versions on the next replay, not
-                    # old paint versions that existed before this inverse.
-                    updated = copy.deepcopy(root.changes)
-                    for saved, change in zip(updated, changes, strict=True):
-                        saved["before" if mode == "undo" else "after"] = change["after"]
-                    root.changes = updated
-                    root.state = "undone" if mode == "undo" else "applied"
-                    root.changes_bytes = len(encoded(updated))
+            table = VirtualTable(db_table.name, db_table.width, db_table.height, table_id=table_id)
+            table.from_dict(copy.deepcopy(table_snapshot))
+        # Paint locks follow the same virtual-table -> paint-state order as
+        # standalone writes. No scene changes are published by this worker.
+        changes, events = [], []
+        root = None
+        if mode in {"undo", "redo"}:
+            root, changes = self._inverse(db, table, table_id, actor_id, mode)
+        elif mode == "paste":
+            changes = self._paste(db, table, table_id, actor_id, command)
+        else:
+            members = command.get("members")
+            if not isinstance(members, list) or not 1 <= len(members) <= MAX_MEMBERS:
+                raise CanvasRejected("limit_exceeded", "Select between 1 and 100 canvas objects")
+            predecessor_ids = {_uuid(member["after_operation_id"]) for member in members
+                if isinstance(member, dict) and "after_operation_id" in member}
+            if predecessor_ids and mode not in {"transform", "sprite_edit", "restyle"}:
+                raise CanvasRejected("invalid_payload", "This command cannot be pipelined")
+            if operation_id in predecessor_ids:
+                raise CanvasRejected("invalid_payload", "A command cannot depend on itself")
+            predecessor_fields = (models.CanvasCommandJournal.operation_id, models.CanvasCommandJournal.kind,
+                models.CanvasCommandJournal.state, models.CanvasCommandJournal.changes)
+            predecessors = {entry.operation_id: entry for entry in self._entries(db, table_id, actor_id).with_entities(
+                *predecessor_fields).filter(
+                models.CanvasCommandJournal.operation_id.in_(predecessor_ids)).all()} if predecessor_ids else {}
+            seen = set()
+            for member in members:
+                if not isinstance(member, dict) or member.get("kind") not in {"paint", "sprite"}:
+                    raise CanvasRejected("invalid_payload", "Invalid canvas selection reference")
+                kind, target = member["kind"], member.get("id")
+                if mode == "restyle" and kind != "paint":
+                    raise CanvasRejected("invalid_payload", "Restyle supports paint objects only")
+                if mode == "sprite_edit" and kind != "sprite":
+                    raise CanvasRejected("invalid_payload", "Sprite edits support sprites only")
+                if not isinstance(target, str) or not target or len(target) > 128 or (kind, target) in seen:
+                    raise CanvasRejected("invalid_payload", "Invalid or duplicate canvas selection reference")
+                seen.add((kind, target))
+                before = self._current(db, table, kind, target)
+                if before is None:
+                    raise CanvasRejected("conflict", "A selected object was removed")
+                predecessor = member.get("after_operation_id")
+                member_fields = set(member) - {"after_operation_id"}
+                if "after_operation_id" in member:
+                    root_entry = predecessors.get(predecessor)
+                    if (root_entry is None or root_entry.state != "applied"
+                            or root_entry.kind not in {"transform", "sprite_edit", "restyle"}
+                            or not root_entry.changes):
+                        raise CanvasRejected("dependency_failed", "The preceding edit was not applied")
+                    saved = next((change for change in root_entry.changes
+                        if change["kind"] == kind and change["id"] == target), None)
+                    if saved is None or saved["after"] is None:
+                        raise CanvasRejected("invalid_payload", "The preceding edit did not change this object")
+                    # A predecessor is a version fence, not permission to
+                    # overwrite another actor's intervening mutation.
+                    if _pipeline_fence(kind, before) != _pipeline_fence(kind, saved["after"]):
+                        raise CanvasRejected("conflict", "A pipelined object changed after its preceding edit")
+                if kind == "paint":
+                    if (
+                        member_fields != {"kind", "id", "version"}
+                        or isinstance(member["version"], bool)
+                        or not isinstance(member["version"], int) or member["version"] < 1
+                        or (predecessor is None and member["version"] != before["version"])
+                    ):
+                        raise CanvasRejected("conflict", "A selected paint object changed")
                 else:
-                    self._entries(db, table_id, actor_id).filter_by(state="undone").update(
-                        {"state": "abandoned"}, synchronize_session=False
-                    )
-            receipt = {
-                "operation_id": operation_id,
-                "table_id": table_id,
-                "success": True,
-                "selection": [
-                    {"kind": change["kind"], "id": change["id"]} for change in changes if change["after"] is not None
-                ],
-            }
-            if mode in {"copy", "cut"}:
-                receipt["clipboard_id"] = operation_id
-            reversible = mode in {"transform", "sprite_edit", "restyle", "delete", "cut", "paste"}
-            row = models.CanvasCommandJournal(
-                table_id=table_id,
-                actor_id=actor_id,
-                operation_id=operation_id,
-                kind=mode,
-                state="applied" if reversible else "receipt",
-                request_hash=request_hash,
-                changes=changes if reversible or mode == "copy" else None,
-                changes_bytes=len(encoded(changes)) if reversible or mode == "copy" else 0,
-                result_json={"receipt": copy.deepcopy(receipt)},
-                created_at=self.now(),
-            )
-            db.add(row)
-            db.flush()
-            receipt.update(self._trim(db, table_id, actor_id))
-            # Large object payloads belong in the bounded delta, not a second
-            # unbounded copy on every retained retry receipt.
+                    expected = member.get("expected")
+                    actual = sprite_transform(Entity.from_dict(before))
+                    if (
+                        member_fields != {"kind", "id", "expected"}
+                        or not isinstance(expected, dict)
+                        or set(expected) != set(actual)
+                    ):
+                        raise CanvasRejected("invalid_payload", "A complete expected sprite transform is required")
+                    for value in expected.values():
+                        _number(value)
+                    if predecessor is None and expected != actual:
+                        raise CanvasRejected("conflict", "A selected sprite changed")
+                after = copy.deepcopy(before) if mode in {"copy", "transform", "restyle"} else None
+                if mode == "transform":
+                    after = self._transformed(before, kind, command["transform"])
+                elif mode == "sprite_edit":
+                    if before.get("texture_path") == "__LIGHT__" and set(edit) - {"layer"}:
+                        raise CanvasRejected("unsupported", "Use light settings to resize or rotate lights")
+                    candidate = Entity.from_dict(before)
+                    for key, value in edit.items():
+                        setattr(candidate, key, value)
+                    try:
+                        transform_sprite_geometry(candidate, before)
+                    except (ValueError, TypeError) as exc:
+                        raise CanvasRejected("invalid_payload", "Invalid sprite shape geometry") from exc
+                    after = candidate.to_dict()
+                elif mode == "restyle":
+                    assert after is not None  # Restyle captured a complete before-state above.
+                    after["style"] = copy.deepcopy(command["style"])
+                    validate_paint_object_input(editable_paint(after))
+                changes.append({"kind": kind, "id": target, "before": before, "after": after})
+        if len(encoded(changes)) > MAX_ENTRY_BYTES:
+            raise CanvasRejected("limit_exceeded", "Selection exceeds the 1 MiB editor history budget")
+        session = db.get(models.GameSession, session_id)
+        if session is None:
+            raise CanvasRejected("not_found", "Session no longer exists")
+        rules_data = json.loads(session.session_rules_json or "{}")
+        rules_data.setdefault("session_id", session.session_code)
+        rules = SessionRules.from_dict(rules_data) if rules_data else SessionRules.defaults(session.session_code)
+        # Durable combat state also fences editor commands after restart,
+        # before the combat engine has hydrated its in-memory cache. Read
+        # it inside this transaction and fail closed on malformed storage.
+        combat_ids = set(combat_sprite_ids)
+        if mode != "copy":
+            encounters = db.query(models.CombatEncounter).filter(
+                models.CombatEncounter.session_id == session_id,
+                models.CombatEncounter.table_id == table_id,
+                models.CombatEncounter.phase != "inactive",
+                models.CombatEncounter.ended_at.is_(None),
+            ).all()
+            for encounter in encounters:
+                combat_ids.update(str(member["entity_id"]) for member in json.loads(encounter.combatants_json or "[]"))
+        self._authorize(changes, role, actor_id, mode, combat_ids)
+        targets = tuple(change['id'] for change in changes if change['kind'] == 'sprite')
+        if attempt is not None:
+            attempt.targets = targets
+        if mode != "copy":
+            self._prepare_character_bindings(db, changes, session_id, actor_id, role)
+            events = self._apply(db, table, changes, role, actor_id, session_id, operation_id, rules)
+            if any(change["kind"] == "sprite" for change in changes):
+                from service.sprite_delta_persistence import stage_sprite_delta
+                stage_sprite_delta(db, table, changes, session_id, stored=db_table)
+            if not is_dm(role):
+                self._require_sprite_quota(db, table, session_id, actor_id, role)
+            for change in changes:
+                change["after"] = self._current(db, table, change["kind"], change["id"])
+            if root is not None:
+                # Compare against fresh versions on the next replay, not
+                # old paint versions that existed before this inverse.
+                updated = copy.deepcopy(root.changes)
+                for saved, change in zip(updated, changes, strict=True):
+                    saved["before" if mode == "undo" else "after"] = change["after"]
+                root.changes = updated
+                root.state = "undone" if mode == "undo" else "applied"
+                root.changes_bytes = len(encoded(updated))
+            else:
+                self._entries(db, table_id, actor_id).filter_by(state="undone").update(
+                    {"state": "abandoned"}, synchronize_session=False
+                )
+        receipt = {
+            "operation_id": operation_id,
+            "table_id": table_id,
+            "success": True,
+            "selection": [
+                {"kind": change["kind"], "id": change["id"]} for change in changes if change["after"] is not None
+            ],
+        }
+        if mode in {"copy", "cut"}:
+            receipt["clipboard_id"] = operation_id
+        reversible = mode in {"transform", "sprite_edit", "restyle", "delete", "cut", "paste"}
+        row = models.CanvasCommandJournal(
+            table_id=table_id,
+            actor_id=actor_id,
+            operation_id=operation_id,
+            kind=mode,
+            state="applied" if reversible else "receipt",
+            request_hash=request_hash,
+            changes=changes if reversible or mode == "copy" else None,
+            changes_bytes=len(encoded(changes)) if reversible or mode == "copy" else 0,
+            result_json={"receipt": copy.deepcopy(receipt), "sprite_targets": list(targets)},
+            created_at=self.now(),
+        )
+        db.add(row)
+        db.flush()
+        receipt.update(self._trim(db, table_id, actor_id))
+        # Large object payloads belong in the bounded delta, not a second
+        # unbounded copy on every retained retry receipt.
         return CanvasResult(receipt, events, table if mode != "copy" else None)
 
     @staticmethod

@@ -584,7 +584,9 @@ def test_sprite_expected_transform_rejects_boolean_numbers(scene):
 def test_journal_receipts_do_not_duplicate_large_scene_events(scene):
     scene["execute"]()
     with scene["factory"]() as db:
-        assert set(db.query(models.CanvasCommandJournal).one().result_json) == {"receipt"}
+        result = db.query(models.CanvasCommandJournal).one().result_json
+        assert set(result) == {"receipt", "sprite_targets"}
+        assert result['sprite_targets'] == ['sprite']
 
 
 def test_history_availability_and_retention_do_not_materialize_scene_deltas(scene):

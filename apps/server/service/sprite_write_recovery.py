@@ -89,17 +89,23 @@ def resolve_sprite_write(attempt: PendingSpriteWrite) -> SpriteWriteResolution:
         role = 'owner' if game.owner_id == first.actor_id else db.query(models.GamePlayer.role).filter_by(
             session_id=first.session_id, user_id=first.actor_id).scalar()
         authorized = bool(game.is_active and role and can_interact(role))
-        sprites = {}
-        for table_id, targets in attempt.targets.items():
-            expected = {row.sprite_id: row.entity_id for row in db.query(models.Entity.sprite_id, models.Entity.entity_id).filter(
-                models.Entity.table_id == stored_tables[table_id].id, models.Entity.sprite_id.in_(targets)).all()}
-            current, loaded = crud.load_table_from_db(db, table_id)
-            if not loaded or current is None:
-                raise SpriteWriteUnknown('Current sprite state could not be loaded')
-            sprites[table_id] = {}
-            for target in targets:
-                entity = current.find_entity_by_sprite_id(target)
-                if target in expected and (entity is None or entity.entity_id != expected[target]):
-                    raise SpriteWriteUnknown('Current sprite identities cannot be loaded losslessly')
-                sprites[table_id][target] = copy.deepcopy(entity)
+        sprites = load_current_sprites(db, attempt.targets, stored_tables)
         return SpriteWriteResolution(committed, authorized, receipts, sprites)
+
+
+def load_current_sprites(db, table_targets, stored_tables) -> dict[str, dict[str, Entity | None]]:
+    """Load detached affected projections without losing colliding legacy IDs."""
+    sprites: dict[str, dict[str, Entity | None]] = {}
+    for table_id, targets in table_targets.items():
+        expected = {row.sprite_id: row.entity_id for row in db.query(models.Entity.sprite_id, models.Entity.entity_id).filter(
+            models.Entity.table_id == stored_tables[table_id].id, models.Entity.sprite_id.in_(targets)).all()}
+        current, loaded = crud.load_table_from_db(db, table_id)
+        if not loaded or current is None:
+            raise SpriteWriteUnknown('Current sprite state could not be loaded')
+        sprites[table_id] = {}
+        for target in targets:
+            entity = current.find_entity_by_sprite_id(target)
+            if target in expected and (entity is None or entity.entity_id != expected[target]):
+                raise SpriteWriteUnknown('Current sprite identities cannot be loaded losslessly')
+            sprites[table_id][target] = copy.deepcopy(entity)
+    return sprites

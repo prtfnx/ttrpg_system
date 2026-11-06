@@ -231,6 +231,148 @@ def test_sprite_rows_and_existing_journal_share_acceptance(sprite_settlement_pos
     assert entity is not None and entity.rotation == (0 if fail_after_flush else 30)
 
 
+@pytest.fixture
+def canvas_settlement_postgresql(sprite_settlement_postgresql):
+    import copy
+    from datetime import UTC, datetime
+
+    from service.canvas_command_service import CanvasCommandService, sprite_transform
+    from service.canvas_write_recovery import CanvasWriteIntent, PendingCanvasWrite
+
+    scope = sprite_settlement_postgresql
+    table = copy.deepcopy(scope.sprite_command['staged'])
+    token = table.find_entity_by_sprite_id(scope.sprite_id)
+    assert token is not None
+    token.rotation = 0
+    paint_id = str(uuid.uuid4())
+    with scope.factory.begin() as db:
+        result = PaintObjectService(scope.factory, writes_enabled=True).apply_in_transaction(db, 'create',
+            session_id=scope.session_id, actor_id=scope.actor_id, table_id=str(table.table_id),
+            operation_id=str(uuid.uuid4()), editable={'id': paint_id, 'kind': 'rectangle',
+                'geometry': {'kind': 'rectangle', 'width': 20, 'height': 10},
+                'transform': {'x': 50, 'y': 60, 'scale_x': 1, 'scale_y': 1},
+                'style': {'stroke_rgba': [1, 0, 0, 1], 'width': 2, 'fill_rgba': None}})
+        assert result.error is None
+    service = CanvasCommandService(scope.factory, writes_enabled=True)
+    command = {'operation_id': str(uuid.uuid4()), 'table_id': str(table.table_id), 'mode': 'transform',
+        'issued_at': datetime.now(UTC).timestamp() * 1000, 'members': [
+            {'kind': 'sprite', 'id': scope.sprite_id, 'expected': sprite_transform(token)},
+            {'kind': 'paint', 'id': paint_id, 'version': 1}],
+        'transform': {'dx': 10, 'dy': 20, 'scale': 1, 'rotation': 0, 'pivot_x': 0, 'pivot_y': 0}}
+    def prepare(mode='transform'):
+        nonlocal table
+        current = dict(command)
+        if mode == 'undo':
+            accepted = service.execute(session_id=scope.session_id, actor_id=scope.actor_id,
+                command=command, table_source=table)
+            table = accepted.table
+            current = {**current, 'mode': 'undo', 'operation_id': str(uuid.uuid4())}
+            del current['members']
+            del current['transform']
+        attempt = PendingCanvasWrite(CanvasWriteIntent.create(scope.session_id, scope.actor_id, current, service),
+            str(uuid.uuid4()), scope.factory)
+        return attempt, dict(session_id=scope.session_id, actor_id=scope.actor_id, command=current,
+                             table_source=table, attempt=attempt)
+    scope.canvas_prepare, scope.canvas_service, scope.canvas_paint_id = prepare, service, paint_id
+    return scope
+
+
+@pytest.mark.parametrize('fail_after_flush', [False, True])
+def test_mixed_canvas_rows_and_receipt_accept_atomically(canvas_settlement_postgresql, monkeypatch, fail_after_flush):
+    from service.canvas_write_recovery import resolve_canvas_write
+
+    scope = canvas_settlement_postgresql
+    attempt, context = scope.canvas_prepare()
+    execute = scope.canvas_service._execute_in_transaction
+    if fail_after_flush:
+        def failed(*args, **kwargs):
+            execute(*args, **kwargs)
+            raise RuntimeError('After mixed canvas flush')
+        monkeypatch.setattr(scope.canvas_service, '_execute_in_transaction', failed)
+        with pytest.raises(RuntimeError, match='After mixed canvas flush'):
+            scope.canvas_service.execute(**context)
+    else:
+        scope.canvas_service.execute(**context)
+    outcome = resolve_canvas_write(attempt)
+    assert outcome.committed is not fail_after_flush
+    with scope.factory() as db:
+        assert db.query(models.CanvasCommandJournal).filter_by(table_id=attempt.intent.table_id).count() == int(not fail_after_flush)
+        assert db.query(models.Entity).filter_by(sprite_id=scope.sprite_id).one().position_x == (10 if fail_after_flush else 20)
+        paint = db.get(models.PaintObject, scope.canvas_paint_id)
+        assert paint is not None and paint.version == (1 if fail_after_flush else 2)
+
+
+@pytest.mark.parametrize('mode', ['transform', 'undo'])
+@pytest.mark.parametrize('commit', [False, True])
+def test_canvas_settlement_waits_on_real_original_barrier(canvas_settlement_postgresql, postgresql_engine, mode, commit):
+    from service.canvas_command_service import CanvasCommandService
+    from service.canvas_write_recovery import resolve_canvas_write
+    from sqlalchemy import event
+
+    scope = canvas_settlement_postgresql
+    attempt, context = scope.canvas_prepare(mode)
+    prepared, release, reader_started = threading.Event(), threading.Event(), threading.Event()
+    pids, outcomes, errors = {}, [], []
+    def writer_factory():
+        db = scope.factory()
+        def pause(session):
+            pids['writer'] = session.execute(text('SELECT pg_backend_pid()')).scalar_one()
+            prepared.set()
+            if not release.wait(5):
+                raise RuntimeError('Writer release timed out')
+            if not commit:
+                raise RuntimeError('Deliberate canvas rollback')
+        event.listen(db, 'before_commit', pause)
+        return db
+    def reader_factory():
+        db = scope.factory()
+        def started(_session, _transaction, connection):
+            pids['reader'] = connection.execute(text('SELECT pg_backend_pid()')).scalar_one()
+            reader_started.set()
+        event.listen(db, 'after_begin', started)
+        return db
+    def write():
+        try:
+            CanvasCommandService(writer_factory, writes_enabled=True).execute(**context)
+        except Exception as exc:
+            if commit or 'Deliberate canvas rollback' not in str(exc):
+                errors.append(exc)
+    def read():
+        try:
+            outcomes.append(resolve_canvas_write(attempt))
+        except Exception as exc:
+            errors.append(exc)
+    attempt.factory = reader_factory
+    writer, reader = threading.Thread(target=write), threading.Thread(target=read)
+    try:
+        writer.start()
+        assert prepared.wait(3)
+        reader.start()
+        assert reader_started.wait(3)
+        observed = False
+        deadline = time.monotonic() + 3
+        with postgresql_engine.connect().execution_options(isolation_level='AUTOCOMMIT') as observer:
+            while time.monotonic() < deadline:
+                if pids['writer'] in observer.execute(text('SELECT pg_blocking_pids(:pid)'), {'pid': pids['reader']}).scalar_one():
+                    observed = True
+                    break
+                time.sleep(0.01)
+        assert observed and not outcomes
+        release.set()
+        writer.join(5)
+        reader.join(5)
+        assert not errors and len(outcomes) == 1 and outcomes[0].committed is commit
+        token = outcomes[0].sprites[attempt.intent.table_id][scope.sprite_id]
+        assert token is not None
+        assert token.position[0] == (10 if mode == 'undo' and commit or mode == 'transform' and not commit else 20)
+    finally:
+        release.set()
+        if writer.ident is not None:
+            writer.join(6)
+        if reader.ident is not None:
+            reader.join(6)
+
+
 @pytest.mark.parametrize('commit', [False, True])
 def test_sprite_settlement_waits_for_original_session_barrier(sprite_settlement_postgresql, postgresql_engine, commit):
     from service.sprite_editor_commands import SpriteEditorCommandService

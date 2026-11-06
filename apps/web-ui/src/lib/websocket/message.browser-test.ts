@@ -52,3 +52,18 @@ test('reconstructs exact request identity from native tab storage', () => {
     expect(first.entries()).toEqual([]);
   } finally { first.discardAll(); }
 });
+
+test.each([
+  [MessageType.CHARACTER_UPDATE, { character_id: 'hero', updates: { name: 'Saved' }, version: 3 }, 'character_update'],
+  [MessageType.MULTICLASS_REQUEST, { character_id: 'hero', new_class: 'rogue', version: 3 }, 'character_multiclass'],
+  [MessageType.ENCOUNTER_ROLL, { encounter_id: 'original', choice_id: 'door', bonus: 2 }, 'choice_encounter'],
+])('retains extended %s original bodies in native tab storage', (type, data, domain) => {
+  const scope = { actorId: 1, sessionCode: `BROWSER-${crypto.randomUUID()}`,
+    sessionInstance: '1:created', domains: [domain as string] };
+  const first = new OperationRecoveryJournal(scope);
+  const original = createMessage(type as MessageType, data as Record<string, unknown>);
+  try {
+    first.capture(original);
+    expect(new OperationRecoveryJournal(scope).entries()[0]?.message).toEqual(original);
+  } finally { first.discardAll(); }
+});

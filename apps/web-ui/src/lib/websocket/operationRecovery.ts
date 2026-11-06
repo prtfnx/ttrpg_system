@@ -5,7 +5,15 @@ export const RECOVERY_DOMAINS = {
   [MessageType.TABLE_DELETE]: 'table_delete',
   [MessageType.TABLE_SETTINGS_UPDATE]: 'table_settings',
   [MessageType.XP_AWARD]: 'xp_award',
+  [MessageType.CHARACTER_UPDATE]: 'character_update',
+  [MessageType.MULTICLASS_REQUEST]: 'character_multiclass',
+  [MessageType.ENCOUNTER_START]: 'choice_encounter',
+  [MessageType.ENCOUNTER_END]: 'choice_encounter',
+  [MessageType.ENCOUNTER_CHOICE]: 'choice_encounter',
+  [MessageType.ENCOUNTER_ROLL]: 'choice_encounter',
 } as const;
+export const V1_RECOVERY_DOMAINS = ['table_create', 'table_delete', 'table_settings', 'xp_award'] as const;
+export const V2_RECOVERY_DOMAINS = [...V1_RECOVERY_DOMAINS, 'character_update', 'choice_encounter', 'character_multiclass'] as const;
 export type RecoveryType = keyof typeof RECOVERY_DOMAINS;
 export function isRecoveryType(type: MessageType): type is RecoveryType { return type in RECOVERY_DOMAINS; }
 

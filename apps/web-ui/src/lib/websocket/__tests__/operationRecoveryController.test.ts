@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMessage, MessageType } from '../message';
-import { OperationRecoveryJournal } from '../operationRecovery';
+import { OperationRecoveryJournal, V2_RECOVERY_DOMAINS } from '../operationRecovery';
 import { OperationRecoveryController } from '../operationRecoveryController';
 
 const capability = { contract: 'session-operations-v1', session_instance: '1:2026-10-30',
@@ -14,6 +14,79 @@ function setup() {
 beforeEach(() => sessionStorage.clear());
 
 describe('authenticated operation recovery', () => {
+  const extended = { ...welcome, role: 'player', operation_recovery: {
+    ...capability, contract: 'session-operations-v2', domains: [...V2_RECOVERY_DOMAINS] } };
+  const intents = [
+    [MessageType.CHARACTER_UPDATE, { character_id: 'hero', updates: { name: 'New' }, version: 3 }],
+    [MessageType.MULTICLASS_REQUEST, { character_id: 'hero', new_class: 'rogue', version: 3 }],
+    [MessageType.ENCOUNTER_CHOICE, { encounter_id: 'prompt', choice_id: 'door' }],
+    [MessageType.ENCOUNTER_ROLL, { encounter_id: 'prompt', choice_id: 'door', bonus: 2 }],
+  ] as const;
+
+  it.each(intents.flatMap(([type, data]) => ['player', 'trusted_player'].map(role => [type, data, role] as const)))(
+    'restores and retries original %s with %j once per welcome for %s', (type, data, role) => {
+      const first = setup(); first.owner.welcome({ ...extended, role });
+      const original = createMessage(type, data); first.owner.admit(original);
+      const restarted = setup(); restarted.owner.welcome({ ...extended, role });
+      restarted.owner.replay(); restarted.owner.replay();
+      expect(restarted.restore).toHaveBeenCalledExactlyOnceWith(original);
+      expect(restarted.send).toHaveBeenCalledExactlyOnceWith(original);
+    });
+
+  it('keeps v2 evidence dormant during a v1 fallback and restores it when v2 returns', () => {
+    const first = setup(); first.owner.welcome(extended);
+    const original = createMessage(...intents[0]); first.owner.admit(original);
+    const fallback = setup(); fallback.owner.welcome(welcome); fallback.owner.replay(true);
+    expect(fallback.restore).not.toHaveBeenCalled(); expect(fallback.send).not.toHaveBeenCalled();
+    expect(fallback.owner.admit(createMessage(...intents[0]))).toBeDefined();
+    expect(fallback.owner.status().pending).toBe(1);
+    fallback.owner.welcome(extended); fallback.owner.replay();
+    expect(fallback.send).toHaveBeenCalledExactlyOnceWith(original);
+  });
+
+  it('allows player originals while retaining DM-only intents for deliberate review', () => {
+    const first = setup(); first.owner.welcome({ ...extended, role: 'owner' });
+    first.owner.admit(createMessage(MessageType.ENCOUNTER_END, { encounter_id: 'prompt' }));
+    const original = first.owner.admit(createMessage(...intents[0]));
+    const restarted = setup(); restarted.owner.welcome(extended); restarted.owner.replay();
+    expect(restarted.send).toHaveBeenCalledExactlyOnceWith(original);
+    expect(restarted.owner.status()).toMatchObject({ pending: 1, blocked: 1, error: null });
+    const spectator = setup(); spectator.owner.welcome({ ...extended, role: 'spectator' }); spectator.owner.replay(true);
+    expect(spectator.send).not.toHaveBeenCalled(); expect(spectator.owner.status().blocked).toBe(2);
+  });
+
+  it.each(['character_update', 'choice_encounter', 'character_multiclass'])(
+    'rejects silently extended v1 domain %s before restoring anything', domain => {
+      const { owner, restore, send } = setup();
+      owner.welcome({ ...welcome, operation_recovery: { ...capability, domains: [...capability.domains, domain] } });
+      owner.replay(); expect(owner.ready()).toBe(false); expect(restore).not.toHaveBeenCalled();
+      expect(send).not.toHaveBeenCalled();
+    });
+
+  it.each(intents)('retains unknown and denied %s until a correlated receipt or proven nonacceptance', (type, data) => {
+    const { owner } = setup(); owner.welcome(extended); const original = owner.admit(createMessage(type, data));
+    const error = (patch: Record<string, unknown>) => ({ ...createMessage(MessageType.ERROR, {
+      operation_id: original.message_id, error: 'Unavailable', ...patch }), causation_id: original.message_id });
+    owner.outcome(error({ outcome: 'unknown' })); expect(owner.status().pending).toBe(1);
+    owner.outcome(error({ code: 'forbidden' })); expect(owner.status().blocked).toBe(1);
+    owner.outcome(error({ not_accepted: true, operation_id: 'wrong' })); expect(owner.status().blocked).toBe(1);
+    owner.outcome(error({ not_accepted: true })); expect(owner.status().blocked).toBe(0);
+  });
+
+  it.each([
+    [MessageType.CHARACTER_UPDATE, MessageType.CHARACTER_UPDATE_RESPONSE, { character_id: 'hero', success: true }],
+    [MessageType.MULTICLASS_REQUEST, MessageType.MULTICLASS_RESPONSE, { character_id: 'hero', success: true }],
+    [MessageType.ENCOUNTER_CHOICE, MessageType.ENCOUNTER_STATE, { encounter_id: 'prompt', accepted: true, kind: 'encounter_choice' }],
+    [MessageType.ENCOUNTER_ROLL, MessageType.ENCOUNTER_RESULT, { encounter_id: 'prompt', accepted: true, kind: 'encounter_roll' }],
+  ])('clears only the matching %s receipt', (type, response, data) => {
+    const { owner } = setup(); owner.welcome(extended);
+    const input = intents.find(([kind]) => kind === type)!;
+    const original = owner.admit(createMessage(input[0], input[1]));
+    owner.outcome({ ...createMessage(response, { ...data, operation_id: 'different' }), causation_id: original.message_id });
+    expect(owner.status().pending).toBe(1);
+    owner.outcome({ ...createMessage(response, { ...data, operation_id: original.message_id }), causation_id: original.message_id });
+    expect(owner.status().pending).toBe(0);
+  });
   it('cannot discard the previous actor records after the active context is cleared', () => {
     const { owner } = setup(); owner.welcome(welcome);
     const original = createMessage(MessageType.XP_AWARD, { character_id: 'hero', amount: 100 }); owner.admit(original);
@@ -79,7 +152,7 @@ describe('authenticated operation recovery', () => {
     new OperationRecoveryJournal(scope).capture(createMessage(MessageType.XP_AWARD, { character_id: 'hero', amount: 100 }));
     const { owner, send } = setup(); owner.welcome({ ...welcome, role: 'player' }); owner.replay(true);
     expect(send).not.toHaveBeenCalled();
-    expect(owner.status().error).toContain('DM authority');
+    expect(owner.status().blocked).toBe(1);
     expect(new OperationRecoveryJournal(scope).entries()).toHaveLength(1);
   });
 

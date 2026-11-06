@@ -35,6 +35,7 @@ import { createMessage, MessageType, type Message } from '../message';
 import { useCombatStore } from '@features/combat/stores/combatStore';
 import { useCoverStore } from '@features/combat/stores/coverStore';
 import { useEncounterStore } from '@features/combat/stores/encounterStore';
+import { V2_RECOVERY_DOMAINS } from '../operationRecovery';
 
 // ---------------------------------------------------------------------------
 // Store mock helpers
@@ -221,7 +222,7 @@ describe('WebClientProtocol', () => {
       expect(tracker.watermark('table-abc')).toEqual([]);
     } finally { protocol.disconnect(); }
   });
-  it('retains a failed batch for reconnect and prevents a direct command overtaking it', () => {
+  it('retains a failed batch through authenticated reconnect and prevents a direct command overtaking it', async () => {
     const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
     const setting = createMessage(MessageType.TABLE_SETTINGS_UPDATE, { table_id: 'table-abc', grid_cell_px: 80 });
     try {
@@ -232,6 +233,13 @@ describe('WebClientProtocol', () => {
       expect(ws.close).toHaveBeenCalledWith(4000, 'Batch transmission failed');
       const replacement = makeOpenWs(protocol);
       protocol.flushPendingBatches();
+      expect(replacement.send).not.toHaveBeenCalled();
+      await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> })
+        .handleIncomingMessage(JSON.stringify(createMessage(MessageType.WELCOME, {
+          message: 'Welcome', client_id: 'client', user_id: 1, username: 'Owner', session_code: 'TEST123',
+          connection_id: null, tables: [], role: 'owner', permissions: [], visible_layers: [],
+          game_mode: 'free_roam', session_rules: {}, choice_encounter: null,
+        })));
       const members = JSON.parse(replacement.send.mock.calls[0][0]).data.messages;
       expect(members.map((item: Message) => item.message_id)).toEqual([setting.message_id]);
     } finally { protocol.disconnect(); }
@@ -1665,6 +1673,153 @@ describe('WebClientProtocol', () => {
       }) as Message[];
       beforeEach(() => sessionStorage.clear());
       afterEach(() => sessionStorage.clear());
+
+      const extended = (patch: Record<string, unknown> = {}) => welcome({ role: 'player',
+        operation_recovery: { ...capability, contract: 'session-operations-v2', domains: [...V2_RECOVERY_DOMAINS] }, ...patch });
+
+      it.each([
+        [MessageType.CHARACTER_UPDATE, { character_id: 'hero', updates: { name: 'Saved' }, version: 3 }],
+        [MessageType.MULTICLASS_REQUEST, { character_id: 'hero', new_class: 'rogue', version: 3 }],
+        [MessageType.ENCOUNTER_START, { choices: [{ text: 'Go' }] }],
+        [MessageType.ENCOUNTER_END, { encounter_id: 'original-prompt' }],
+        [MessageType.ENCOUNTER_CHOICE, { encounter_id: 'original-prompt', choice_id: 'go' }],
+        [MessageType.ENCOUNTER_ROLL, { encounter_id: 'original-prompt', choice_id: 'go', bonus: 2 }],
+      ])('reconstructs the exact extended %s intent after page reload', async (type, data) => {
+        const first = makeProtocol(); const ws = makeOpenWs(first);
+        const restarted = makeProtocol(); const next = makeOpenWs(restarted);
+        const role = type === MessageType.ENCOUNTER_START || type === MessageType.ENCOUNTER_END ? 'owner' : 'player';
+        try {
+          await dispatch(first, 'welcome', extended({ role })); first.sendBatch(); ws.send.mockClear();
+          const original = createMessage(type as MessageType, data);
+          expect(first.sendMessage(original)).toBe(true); first.sendBatch();
+          expect(sent(ws).filter(item => item.type === type)).toEqual([original]);
+          first.disconnect();
+          await dispatch(restarted, 'welcome', extended({ role })); restarted.sendBatch();
+          expect(sent(next).filter(item => item.type === type)).toEqual([original]);
+          expect(restarted.getOperationRecoveryStatus().pending).toBe(1);
+        } finally { first.disconnect(); restarted.disconnect(); }
+      });
+
+      it('reinstates character ownership, waits for all edits, and hydrates current state after receipts', async () => {
+        const first = makeProtocol(); makeOpenWs(first);
+        const restarted = makeProtocol(); const next = makeOpenWs(restarted);
+        try {
+          await dispatch(first, 'welcome', extended());
+          expect(first.updateCharacter('hero', { name: 'Earlier' }, 3)).toBe(true);
+          expect(first.updateCharacter('hero', { data: { hp: 12 } }, 3)).toBe(true);
+          first.sendBatch(); first.disconnect();
+          await dispatch(restarted, 'welcome', extended()); restarted.sendBatch();
+          const originals = sent(next).filter(item => item.type === MessageType.CHARACTER_UPDATE);
+          expect(originals).toHaveLength(2); next.send.mockClear();
+          await dispatch(restarted, 'character_update_response', { success: true, character_id: 'hero',
+            operation_id: originals[0].message_id, version: 4, resync_required: false }, { causation_id: originals[0].message_id });
+          restarted.sendBatch();
+          expect(sent(next).some(item => item.type === MessageType.CHARACTER_LOAD_REQUEST)).toBe(false);
+          await dispatch(restarted, 'character_update_response', { success: true, character_id: 'hero',
+            operation_id: originals[1].message_id, version: 5, resync_required: false }, { causation_id: originals[1].message_id });
+          restarted.sendBatch();
+          expect(sent(next).filter(item => item.type === MessageType.CHARACTER_LOAD_REQUEST)).toHaveLength(1);
+          expect(sent(next).some(item => item.type === MessageType.CHARACTER_UPDATE)).toBe(false);
+          expect(restarted.getOperationRecoveryStatus().pending).toBe(0);
+        } finally { first.disconnect(); restarted.disconnect(); }
+      });
+
+      it.each(['forbidden', 'conflict'])('retains a restored character after %s without rebasing an uncertain original', async code => {
+        const first = makeProtocol(); makeOpenWs(first);
+        const restarted = makeProtocol(); const next = makeOpenWs(restarted);
+        try {
+          await dispatch(first, 'welcome', extended()); first.updateCharacter('hero', { name: 'Original' }, 3);
+          first.sendBatch(); first.disconnect();
+          await dispatch(restarted, 'welcome', extended()); restarted.sendBatch();
+          const original = sent(next).find(item => item.type === MessageType.CHARACTER_UPDATE)!; next.send.mockClear();
+          await dispatch(restarted, 'character_update_response', { success: false, character_id: 'hero',
+            error: 'Version conflict', code, current_version: 7, operation_id: original.message_id },
+            { causation_id: original.message_id }); restarted.sendBatch();
+          expect(sent(next).some(item => item.type === MessageType.CHARACTER_UPDATE)).toBe(false);
+          expect(restarted.getOperationRecoveryStatus().blocked).toBe(1);
+          await dispatch(restarted, 'error', { error: 'Proven rollback', not_accepted: true,
+            code: 'persistence_failed', operation_id: original.message_id }, { causation_id: original.message_id });
+          restarted.sendBatch();
+          expect(restarted.getOperationRecoveryStatus()).toMatchObject({ pending: 0, blocked: 0 });
+          expect(sent(next).some(item => item.type === MessageType.CHARACTER_UPDATE)).toBe(false);
+          expect(sent(next).some(item => item.type === MessageType.CHARACTER_LOAD_REQUEST)).toBe(true);
+        } finally { first.disconnect(); restarted.disconnect(); }
+      });
+
+      it('hydrates multiclass receipts even before the character list has loaded', async () => {
+        const first = makeProtocol(); makeOpenWs(first);
+        const restarted = makeProtocol(); const next = makeOpenWs(restarted);
+        try {
+          await dispatch(first, 'welcome', extended());
+          const id = first.requestCharacterMulticlass('hero', 'rogue', undefined, 3)!; first.disconnect();
+          await dispatch(restarted, 'welcome', extended()); restarted.sendBatch(); next.send.mockClear();
+          await dispatch(restarted, 'multiclass_response', { success: true, operation_id: id, character_id: 'hero',
+            new_class: 'rogue', accepted_level: 4, version: 5, resync_required: true }, { causation_id: id });
+          restarted.sendBatch();
+          expect(sent(next).filter(item => item.type === MessageType.CHARACTER_LOAD_REQUEST)).toHaveLength(1);
+          expect(restarted.getOperationRecoveryStatus().pending).toBe(0);
+        } finally { first.disconnect(); restarted.disconnect(); }
+      });
+
+      it('keeps a restored class change through generic unknown recovery and bounded read probes', async () => {
+        const first = makeProtocol(); makeOpenWs(first);
+        const restarted = makeProtocol(); const next = makeOpenWs(restarted);
+        try {
+          await dispatch(first, 'welcome', extended());
+          const id = first.requestCharacterMulticlass('hero', 'rogue', undefined, 3)!; first.disconnect();
+          await dispatch(restarted, 'welcome', extended()); restarted.sendBatch(); next.send.mockClear();
+          for (let i = 0; i < 2; i++) await dispatch(restarted, 'error', {
+            error: 'Unknown', code: 'character_outcome_unknown', outcome: 'unknown' }, { causation_id: id });
+          restarted.sendBatch();
+          expect(sent(next).filter(item => item.type === MessageType.TABLE_ACTIVE_REQUEST)).toHaveLength(1);
+          expect(sent(next).some(item => item.type === MessageType.MULTICLASS_REQUEST)).toBe(false);
+          expect(restarted.getOperationRecoveryStatus().pending).toBe(1);
+        } finally { first.disconnect(); restarted.disconnect(); }
+      });
+
+      it('does not resend same-page character ownership after an actor or database instance change', async () => {
+        const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+        try {
+          await dispatch(protocol, 'welcome', extended()); protocol.updateCharacter('hero', { name: 'Private' }, 3);
+          protocol.sendBatch(); ws.send.mockClear();
+          await dispatch(protocol, 'welcome', extended({ operation_recovery: {
+            ...capability, contract: 'session-operations-v2', domains: [...V2_RECOVERY_DOMAINS], session_instance: 'replacement' } }));
+          protocol.sendBatch();
+          expect(sent(ws).some(item => item.type === MessageType.CHARACTER_UPDATE)).toBe(false);
+          expect(sessionStorage.length).toBe(1);
+          await dispatch(protocol, 'welcome', extended({ user_id: 2 })); protocol.sendBatch();
+          expect(sent(ws).some(item => item.type === MessageType.CHARACTER_UPDATE)).toBe(false);
+          expect(sessionStorage.length).toBe(1);
+        } finally { protocol.disconnect(); }
+      });
+
+      it('releases restored local edit ownership only after explicit scoped forgetting', async () => {
+        const first = makeProtocol(); makeOpenWs(first);
+        const restarted = makeProtocol(); const next = makeOpenWs(restarted);
+        try {
+          await dispatch(first, 'welcome', extended()); first.updateCharacter('hero', { name: 'Original' }, 3);
+          first.sendBatch(); first.disconnect();
+          await dispatch(restarted, 'welcome', extended()); restarted.sendBatch(); next.send.mockClear();
+          restarted.discardSavedOperations(); restarted.sendBatch();
+          expect(sessionStorage.length).toBe(0);
+          expect(sent(next).some(item => item.type === MessageType.CHARACTER_LOAD_REQUEST)).toBe(true);
+          expect(sent(next).some(item => item.type === MessageType.CHARACTER_UPDATE)).toBe(false);
+        } finally { first.disconnect(); restarted.disconnect(); }
+      });
+
+      it('reports a character enqueue failure without retaining a phantom local edit owner', async () => {
+        const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+        try {
+          await dispatch(protocol, 'welcome', extended()); protocol.sendBatch(); ws.send.mockClear();
+          vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Quota exceeded'); });
+          expect(protocol.updateCharacter('hero', { name: 'Unsaved' }, 3)).toBe(false);
+          expect(ws.send).not.toHaveBeenCalled();
+          await dispatch(protocol, 'character_update', { character_id: 'hero', resync_required: true });
+          protocol.sendBatch();
+          expect(sent(ws).some(item => item.type === MessageType.CHARACTER_LOAD_REQUEST)).toBe(true);
+          expect(sent(ws).some(item => item.type === MessageType.CHARACTER_UPDATE)).toBe(false);
+        } finally { protocol.disconnect(); }
+      });
 
       it.each([
         ['table create', MessageType.NEW_TABLE_REQUEST, { table_name: 'Scene', local_table_id: 'local-original' }],
@@ -3247,13 +3402,23 @@ describe('WebClientProtocol', () => {
       expect(listener).toHaveBeenLastCalledWith('connected');
     });
 
-    it('replays an unacknowledged character edit once with the same operation identity', async () => {
+    it('waits for the authenticated welcome and replays an unacknowledged character edit once', async () => {
       vi.useFakeTimers();
       vi.spyOn(Math, 'random').mockReturnValue(0);
       const { sockets } = installWebSocketFactory();
       const protocol = makeReconnectProtocol();
       await openInitialConnection(protocol, sockets);
-
+      const welcome = createMessage(MessageType.WELCOME, { message: 'Welcome', client_id: 'client',
+        user_id: 1, username: 'Owner', session_code: 'TEST123', connection_id: 'connection', tables: [],
+        role: 'owner', permissions: [], visible_layers: [], game_mode: 'free_roam', session_rules: {},
+        choice_encounter: null, operation_recovery: { contract: 'session-operations-v2',
+          session_instance: '1:created', domains: [...V2_RECOVERY_DOMAINS] } });
+      const receive = async () => {
+        await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> })
+          .handleIncomingMessage(JSON.stringify(welcome));
+      };
+      sessionStorage.clear();
+      await receive(); protocol.sendBatch(); sockets[0].send.mockClear();
       protocol.updateCharacter('character-1', { name: 'Edited' }, 3);
       protocol.sendBatch();
       const firstBatch = JSON.parse(sockets[0].send.mock.calls[0][0] as string);
@@ -3263,9 +3428,13 @@ describe('WebClientProtocol', () => {
       sockets[1].readyState = WebSocket.OPEN;
       sockets[1].onopen!();
       await Promise.resolve();
-
-      expect(sockets[1].send).toHaveBeenCalledOnce();
-      expect(JSON.parse(sockets[1].send.mock.calls[0][0] as string)).toEqual(firstPayload);
+      expect(sockets[1].send).not.toHaveBeenCalled();
+      await receive(); protocol.sendBatch();
+      const updates = sockets[1].send.mock.calls.flatMap(call => {
+        const frame = JSON.parse(call[0]); return frame.type === MessageType.BATCH_REQUEST ? frame.data.messages : [frame];
+      }).filter(message => message.type === MessageType.CHARACTER_UPDATE);
+      expect(updates).toEqual([firstPayload]);
+      sessionStorage.clear();
     });
 
     it('does not retry terminal policy closures', async () => {

@@ -119,7 +119,9 @@ export class WebClientProtocol {
     sent: boolean;
     outcomeUnknown?: boolean;
     recoveryProbeSent?: boolean;
+    journaled?: boolean;
   }>();
+  private characterRecoveryInstance: string | null = null;
   private characterResyncNeeded = new Set<string>();
   private choiceRecoveryProbes = new Set<string>();
   private multiclassRecoveryProbes = new Set<string>();
@@ -192,6 +194,7 @@ export class WebClientProtocol {
     if (this.batchQueue.length === 0) {
       return true;
     }
+    if (this.awaitingWelcome) return false;
     
     // Check connection state before attempting to send
     if (this.websocket?.readyState !== WebSocket.OPEN) {
@@ -298,6 +301,8 @@ export class WebClientProtocol {
       showToast.error('The change could not be queued safely. Review saved changes before retrying.');
       return false;
     }
+    const characterUpdate = message.message_id ? this.pendingCharacterUpdates.get(message.message_id) : undefined;
+    if (characterUpdate && this.operationRecovery.owns(message.message_id)) characterUpdate.journaled = true;
     this.previewSpriteCommand(message);
     if (new Set<MessageType>([MessageType.WALL_CREATE, MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE]).has(message.type)) {
       queueMicrotask(() => { if (message.message_id && this.commandTracking.has(message.message_id)) this.wallSync.stage(message); });
@@ -335,6 +340,14 @@ export class WebClientProtocol {
       send: message => this.sendMessage(message),
       restore: message => {
         if (message.type === MessageType.TABLE_SETTINGS_UPDATE) this.settingsBuffer.restore(message);
+        if (message.type === MessageType.CHARACTER_UPDATE && message.message_id) {
+          const characterId = String(message.data?.character_id ?? '');
+          this.pendingCharacterUpdates.set(message.message_id, {
+            characterId, updates: (message.data?.updates ?? message.data?.character_data ?? {}) as Record<string, unknown>,
+            userId: this.userId!, retryCount: 1, message, sent: true, outcomeUnknown: true, journaled: true,
+          });
+          this.characterResyncNeeded.add(characterId);
+        }
       },
       changed: status => emitProtocolEvent('operation-recovery-changed', status),
     });
@@ -352,6 +365,11 @@ export class WebClientProtocol {
       this.batchQueue = [];
       this.messageQueue = [];
       this.settingsBuffer.dispose();
+      this.pendingCharacterUpdates.clear();
+      this.characterResyncNeeded.clear();
+      this.multiclassRecoveryProbes.clear();
+      this.choiceRecoveryProbes.clear();
+      this.characterRecoveryInstance = null;
     }
     this.userId = userId;
   }
@@ -359,7 +377,14 @@ export class WebClientProtocol {
   getOperationRecoveryStatus(): OperationRecoveryStatus { return this.operationRecovery.status(); }
   retrySavedOperations(): void { this.operationRecovery.replay(true); }
   discardSavedOperations(): void {
+    const characters = [...this.pendingCharacterUpdates].filter(([id]) => this.operationRecovery.owns(id));
     if (this.operationRecovery.discard()) {
+      for (const [id, pending] of characters) {
+        this.pendingCharacterUpdates.delete(id);
+        this.commandTracking.resolveSnapshot([id]);
+        this.characterResyncNeeded.add(pending.characterId);
+        this.resyncCharacterWhenSettled(pending.characterId);
+      }
       this.batchQueue = this.batchQueue.filter(message => {
         if (!isRecoveryType(message.type)) return true;
         this.commandTracking.forgetUnsent(message.message_id);
@@ -760,7 +785,7 @@ export class WebClientProtocol {
     const host = window.location.host;
     protocolLogger.connection('WebSocket URL', `${protocol}//${host}/ws/game/${this.sessionCode}`);
     const demo = demoQuery(this.sessionCode);
-    const wsUrl = `${protocol}//${host}/ws/game/${this.sessionCode}${demo}${demo ? '&' : '?'}operation_recovery=session-operations-v1`;
+    const wsUrl = `${protocol}//${host}/ws/game/${this.sessionCode}${demo}${demo ? '&' : '?'}operation_recovery=session-operations-v1&operation_recovery_extended=session-operations-v2`;
     // Debug: report the exact session code the browser will use for the WS connect
     protocolLogger.connection('Connecting to session code', this.sessionCode);
 
@@ -809,12 +834,7 @@ export class WebClientProtocol {
           this.lastCloseCode = null;
           this.lastCloseReason = null;
           this.notifyConnectionState('connected');
-          this.resendUnacknowledgedCharacterUpdates();
-          if (this.websocket !== socket) { rejectConnection(new Error('Reconnect transmission failed')); return; }
-          this.flushPendingBatches(); // Flush any batched messages that were queued during disconnection
-          if (this.websocket !== socket) { rejectConnection(new Error('Reconnect transmission failed')); return; }
-          this.flushMessageQueue();
-          if (this.websocket !== socket) { rejectConnection(new Error('Reconnect transmission failed')); return; }
+          // Welcome supplies the actor/session scope for every retained retry.
           const activeTableId = useGameStore.getState().activeTableId;
           if (activeTableId && (this.commandTracking.watermark(activeTableId).length
             || this.settingsBuffer.hasUncertain(activeTableId))) this.resynchronizeTable(activeTableId);
@@ -846,8 +866,8 @@ export class WebClientProtocol {
           this.operationRecovery.connectionLost();
           this.awaitingWelcome = true;
           if (this.operationRecovery.usesJournal()) {
-            this.batchQueue = this.batchQueue.filter(message => !isRecoveryType(message.type));
-            this.messageQueue = this.messageQueue.filter(message => !isRecoveryType(message.type));
+            this.batchQueue = this.batchQueue.filter(message => !this.operationRecovery.owns(message.message_id));
+            this.messageQueue = this.messageQueue.filter(message => !this.operationRecovery.owns(message.message_id));
           }
           this.lastCloseCode = event.code;
           this.lastCloseReason = this.sanitizeCloseReason(event.reason);
@@ -932,6 +952,8 @@ export class WebClientProtocol {
       this.recoveredTableResponses.add(message);
     }
     this.operationRecovery.outcome(message);
+    if (message.data?.outcome === 'unknown'
+      && this.operationRecovery.owns(message.causation_id ?? message.correlation_id)) return;
     if (message.data?.code === 'choice_outcome_unknown') return;
     const multiclassId = message.data?.operation_id ?? message.causation_id ?? message.correlation_id;
     if (message.type === MessageType.MULTICLASS_RESPONSE && (message.data?.outcome === 'unknown'
@@ -1043,14 +1065,22 @@ export class WebClientProtocol {
   // ...existing code...
 
   private flushMessageQueue(): void {
+    if (this.awaitingWelcome) return;
     while (this.messageQueue.length > 0 && this.websocket?.readyState === WebSocket.OPEN) {
       const message = this.messageQueue[0]!;
-      try { this.websocket.send(JSON.stringify(message)); }
+      if (this.operationRecovery.owns(message.message_id)) { this.messageQueue.shift(); continue; }
+      let admitted: Message;
+      try { admitted = this.operationRecovery.admit(message); }
+      catch { return; }
+      try { this.websocket.send(JSON.stringify(admitted)); }
       catch { this.closeForReconnect('Queued transmission failed'); return; }
       this.messageQueue.shift();
       if (message.message_id) {
         const pendingUpdate = this.pendingCharacterUpdates.get(message.message_id);
-        if (pendingUpdate) pendingUpdate.sent = true;
+        if (pendingUpdate) {
+          pendingUpdate.sent = true;
+          pendingUpdate.journaled = this.operationRecovery.owns(message.message_id);
+        }
       }
     }
   }
@@ -1058,8 +1088,13 @@ export class WebClientProtocol {
   private resendUnacknowledgedCharacterUpdates(): void {
     if (this.websocket?.readyState !== WebSocket.OPEN) return;
     for (const pending of this.pendingCharacterUpdates.values()) {
+      if (pending.journaled) continue;
       if (pending.sent) {
-        try { this.websocket.send(JSON.stringify(pending.message)); }
+        try {
+          const original = this.operationRecovery.admit(pending.message);
+          pending.journaled = this.operationRecovery.owns(original.message_id);
+          this.websocket.send(JSON.stringify(original));
+        }
         catch { this.closeForReconnect('Retry transmission failed'); return; }
       }
     }
@@ -1163,8 +1198,8 @@ export class WebClientProtocol {
     this.awaitingWelcome = true;
     this.settingsBuffer.connectionLost();
     if (this.operationRecovery.usesJournal()) {
-      this.batchQueue = this.batchQueue.filter(message => !isRecoveryType(message.type));
-      this.messageQueue = this.messageQueue.filter(message => !isRecoveryType(message.type));
+      this.batchQueue = this.batchQueue.filter(message => !this.operationRecovery.owns(message.message_id));
+      this.messageQueue = this.messageQueue.filter(message => !this.operationRecovery.owns(message.message_id));
     }
     for (const request of this.resyncs.values()) clearTimeout(request.timer);
     this.resyncs.clear();
@@ -1223,14 +1258,9 @@ export class WebClientProtocol {
 
     const data = message.data as Record<string, unknown>;
     this.canvasPipelining = message.version === '0.2';
-    if (typeof data.user_id === 'number' && this.userId !== null && this.userId !== data.user_id) {
-      this.batchQueue = [];
-      this.messageQueue = [];
-      this.settingsBuffer.dispose();
-    }
     if (data.user_id) {
-      this.userId = data.user_id as number;
-      useGameStore.getState().setUserId(this.userId);
+      this.setUserId(data.user_id as number);
+      useGameStore.getState().setUserId(data.user_id as number);
     }
     if (data.role) {
       useGameStore.getState().setSessionRole(
@@ -1261,11 +1291,24 @@ export class WebClientProtocol {
     }
 
     this.awaitingWelcome = false;
+    const capability = data.operation_recovery as { session_instance?: string } | null | undefined;
+    const instance = capability?.session_instance;
+    if (instance && this.characterRecoveryInstance && instance !== this.characterRecoveryInstance) {
+      this.pendingCharacterUpdates.clear();
+      this.characterResyncNeeded.clear();
+      this.settingsBuffer.dispose();
+      this.batchQueue = this.batchQueue.filter(message => !isRecoveryType(message.type));
+      this.messageQueue = this.messageQueue.filter(message => !isRecoveryType(message.type));
+    }
+    if (instance) this.characterRecoveryInstance = instance;
     this.operationRecovery.welcome(data);
     this.requestTableList();
     this.requestPlayerList();
     if (this.userId) this.requestActiveTable();
     this.operationRecovery.replay();
+    this.resendUnacknowledgedCharacterUpdates();
+    this.flushMessageQueue();
+    this.flushPendingBatches();
     // Signal to all listeners that protocol is connected and ready
     emitProtocolEvent('protocol-connected');
   }
@@ -1285,6 +1328,14 @@ export class WebClientProtocol {
 
   private async handleError(message: Message): Promise<void> {
     logger.error('Server error', message.data);
+    const characterRequestId = message.causation_id ?? message.correlation_id;
+    const characterPending = characterRequestId ? this.pendingCharacterUpdates.get(characterRequestId) : undefined;
+    if (characterPending && message.data?.code !== 'character_outcome_unknown') {
+      await this.handleCharacterUpdateResponse({ ...message, type: MessageType.CHARACTER_UPDATE_RESPONSE,
+        data: { ...message.data, success: false, character_id: characterPending.characterId } });
+      emitProtocolEvent('protocol-error', message.data);
+      return;
+    }
     if (message.data?.code === 'choice_outcome_unknown') {
       const original = message.data.operation_id ?? message.causation_id ?? message.correlation_id;
       if (typeof original === 'string' && !this.choiceRecoveryProbes.has(original) && this.choiceRecoveryProbes.size < 64) {
@@ -1309,6 +1360,11 @@ export class WebClientProtocol {
           this.requestActiveTable();
           showToast.warning('Checking whether the character update was saved.');
         }
+      } else if (requestId && this.operationRecovery.owns(requestId)
+        && !this.multiclassRecoveryProbes.has(requestId) && this.multiclassRecoveryProbes.size < 64) {
+        this.multiclassRecoveryProbes.add(requestId);
+        this.requestActiveTable();
+        showToast.warning('Checking whether your class change was saved.');
       }
       emitProtocolEvent('protocol-error', message.data);
       return;
@@ -2060,7 +2116,6 @@ export class WebClientProtocol {
     const characterId = typeof data.character_id === 'string' ? data.character_id : '';
     if (eventName === 'multiclass-response') {
       const original = data.operation_id ?? message.causation_id ?? message.correlation_id;
-      const current = useGameStore.getState().characters.find(character => character.id === characterId);
       if (data.outcome === 'unknown') {
         if (characterId) this.characterResyncNeeded.add(characterId);
         if (typeof original === 'string' && !this.multiclassRecoveryProbes.has(original) && this.multiclassRecoveryProbes.size < 64) {
@@ -2073,7 +2128,7 @@ export class WebClientProtocol {
       }
       if (data.success || data.not_accepted === true) {
         if (typeof original === 'string') this.multiclassRecoveryProbes.delete(original);
-        if (current && (data.resync_required || !data.character_data
+        if (characterId && (data.resync_required || !data.character_data
           || Array.from(this.pendingCharacterUpdates.values()).some(pending => pending.characterId === characterId))) {
           if (data.character_archived === true) useGameStore.getState().removeCharacter(characterId);
           this.characterResyncNeeded.add(characterId);
@@ -2809,8 +2864,12 @@ export class WebClientProtocol {
         sent: false,
       });
     }
-    this.sendMessage(message);
-    return true;
+    const sent = this.sendMessage(message);
+    if (!sent && message.message_id && !this.operationRecovery.owns(message.message_id)
+      && !this.messageQueue.some(queued => queued.message_id === message.message_id)) {
+      this.pendingCharacterUpdates.delete(message.message_id);
+    }
+    return sent;
   }
 
   /**

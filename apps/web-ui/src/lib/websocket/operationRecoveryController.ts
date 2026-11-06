@@ -1,5 +1,6 @@
 import { MessageType, parseMessage, type Message } from './message';
-import { isRecoveryType, OperationRecoveryJournal, type RecoveryEntry, type RecoveryScope } from './operationRecovery';
+import { isRecoveryType, OperationRecoveryJournal, RECOVERY_DOMAINS, V1_RECOVERY_DOMAINS, V2_RECOVERY_DOMAINS,
+  type RecoveryEntry, type RecoveryScope } from './operationRecovery';
 
 export interface OperationRecoveryStatus {
   pending: number;
@@ -13,13 +14,20 @@ type Options = {
   changed: (status: OperationRecoveryStatus) => void;
   storage?: () => Storage;
 };
+const PLAYER_RECOVERY_TYPES = new Set<MessageType>([MessageType.CHARACTER_UPDATE, MessageType.MULTICLASS_REQUEST,
+  MessageType.ENCOUNTER_CHOICE, MessageType.ENCOUNTER_ROLL]);
+const CHOICE_TYPES = new Set<MessageType>([MessageType.ENCOUNTER_START, MessageType.ENCOUNTER_END,
+  MessageType.ENCOUNTER_CHOICE, MessageType.ENCOUNTER_ROLL]);
+const CHOICE_RESPONSES = new Set<MessageType>([MessageType.ENCOUNTER_STATE, MessageType.ENCOUNTER_RESULT]);
+const REJECTION_RESPONSES = new Set<MessageType>([MessageType.XP_AWARD_RESPONSE,
+  MessageType.CHARACTER_UPDATE_RESPONSE, MessageType.MULTICLASS_RESPONSE]);
 
 /** Recovery is admitted only after a matching authenticated welcome. */
 export class OperationRecoveryController {
   private journal: OperationRecoveryJournal | null = null;
   private enabled = false;
   private verified = false;
-  private mayReplay = false;
+  private role: unknown;
   private error: string | null = null;
   private readonly attempted = new Set<string>();
   private readonly restored = new Set<string>();
@@ -49,6 +57,7 @@ export class OperationRecoveryController {
     this.attempted.clear();
     this.restored.clear();
     this.journal = null;
+    this.role = undefined;
     this.error = null;
     const capability = data.operation_recovery as Record<string, unknown> | null | undefined;
     if (!capability) {
@@ -57,9 +66,13 @@ export class OperationRecoveryController {
     }
     this.enabled = true;
     const actorId = data.user_id;
+    const domains: readonly string[] = capability.contract === 'session-operations-v1' ? V1_RECOVERY_DOMAINS
+      : capability.contract === 'session-operations-v2' ? V2_RECOVERY_DOMAINS : [];
     if (!Number.isSafeInteger(actorId) || Number(actorId) <= 0 || data.session_code !== this.sessionCode
-      || capability.contract !== 'session-operations-v1' || typeof capability.session_instance !== 'string'
-      || !Array.isArray(capability.domains) || capability.domains.some(domain => typeof domain !== 'string')) {
+      || !domains.length || typeof capability.session_instance !== 'string'
+      || !capability.session_instance.length || capability.session_instance.length > 128
+      || !Array.isArray(capability.domains) || new Set(capability.domains).size !== capability.domains.length
+      || capability.domains.some(domain => typeof domain !== 'string' || !domains.includes(domain))) {
       this.error = 'Authenticated operation recovery context is unavailable.';
       this.notify(); return;
     }
@@ -68,8 +81,9 @@ export class OperationRecoveryController {
     try {
       this.journal = new OperationRecoveryJournal(scope, this.options.storage?.() ?? window.sessionStorage);
       this.verified = true;
-      this.mayReplay = data.role === 'owner' || data.role === 'co_dm';
+      this.role = data.role;
       for (const entry of this.journal.entries()) {
+        if (!this.journal.supports(entry.message.type)) continue;
         this.restored.add(entry.message.message_id!);
         this.options.restore(entry.message);
       }
@@ -102,6 +116,7 @@ export class OperationRecoveryController {
     }
     if (!isRecoveryType(message.type) || !this.enabled) return message;
     if (!this.verified || !this.journal || this.error) throw new Error('Saved request recovery is unavailable');
+    if (!this.journal.supports(message.type)) return message;
     try {
       const original = this.journal.capture(message);
       this.notify();
@@ -120,15 +135,17 @@ export class OperationRecoveryController {
     }
     if (manual && !this.journal && this.lastWelcome?.operation_recovery) this.welcome(this.lastWelcome);
     if (!this.verified || !this.journal || !this.options.isOpen()) return;
-    if (!this.mayReplay) {
-      if (this.readEntries().length) this.error = 'Current session DM authority is required to retry saved changes.';
-      this.notify(); return;
-    }
     if (manual) { this.attempted.clear(); this.error = null; }
     const entries = this.readEntries();
     if (this.error) { this.notify(); return; }
     for (const entry of entries) {
       if (!this.verified || !this.options.isOpen()) break;
+      if (!this.journal.supports(entry.message.type)) continue;
+      if (!this.canReplay(entry.message.type)) {
+        try { this.journal.block(entry.message.message_id!, 'Current session authority is required to retry this saved change.'); }
+        catch { this.error = 'Saved requests could not be updated. Recovery is paused.'; break; }
+        continue;
+      }
       if (entry.state === 'blocked' && !manual) continue;
       const id = entry.message.message_id!;
       if (this.attempted.has(id)) continue;
@@ -138,6 +155,12 @@ export class OperationRecoveryController {
     this.notify();
   }
 
+  private canReplay(type: MessageType): boolean {
+    if (this.role === 'owner' || this.role === 'co_dm') return true;
+    return (this.role === 'player' || this.role === 'trusted_player')
+      && PLAYER_RECOVERY_TYPES.has(type);
+  }
+
   outcome(message: Message): boolean {
     if (!this.verified || !this.journal) return false;
     const id = message.causation_id ?? message.correlation_id;
@@ -145,6 +168,11 @@ export class OperationRecoveryController {
     if (!entry) return false;
     const data = message.data ?? {};
     const original = entry.message;
+    const domain = isRecoveryType(original.type) ? RECOVERY_DOMAINS[original.type] : undefined;
+    const rejected = message.type === MessageType.ERROR
+      || data.success === false && data.character_id === original.data?.character_id && (
+        original.type === MessageType.CHARACTER_UPDATE && message.type === MessageType.CHARACTER_UPDATE_RESPONSE
+        || original.type === MessageType.MULTICLASS_REQUEST && message.type === MessageType.MULTICLASS_RESPONSE);
     const accepted = data.operation_id === id && (
       original.type === MessageType.NEW_TABLE_REQUEST && message.type === MessageType.NEW_TABLE_RESPONSE && data.success === true
       || original.type === MessageType.TABLE_DELETE && message.type === MessageType.SUCCESS && data.operation === 'delete'
@@ -153,10 +181,21 @@ export class OperationRecoveryController {
         && data.table_id === original.data?.table_id && data.success === true
       || original.type === MessageType.XP_AWARD && message.type === MessageType.XP_AWARD_RESPONSE
         && data.character_id === original.data?.character_id && data.success === true
+      || original.type === MessageType.CHARACTER_UPDATE && message.type === MessageType.CHARACTER_UPDATE_RESPONSE
+        && data.character_id === original.data?.character_id && data.success === true
+      || original.type === MessageType.MULTICLASS_REQUEST && message.type === MessageType.MULTICLASS_RESPONSE
+        && data.character_id === original.data?.character_id && data.success === true
+      || CHOICE_TYPES.has(original.type) && CHOICE_RESPONSES.has(message.type)
+        && data.accepted === true && data.kind === original.type
+        && (original.type === MessageType.ENCOUNTER_START || data.encounter_id === original.data?.encounter_id)
     );
     try {
       if (accepted) this.journal.complete(id!);
-      else if (message.type === MessageType.ERROR || message.type === MessageType.XP_AWARD_RESPONSE && data.success === false) {
+      else if (data.operation_id === id && data.not_accepted === true
+        && rejected
+        && domain !== undefined && !V1_RECOVERY_DOMAINS.some(item => item === domain)) {
+        this.journal.complete(id!);
+      } else if (message.type === MessageType.ERROR || REJECTION_RESPONSES.has(message.type) && data.success === false) {
         if (data.outcome !== 'unknown') this.journal.block(id!, String(data.error ?? 'Saved change needs review'));
       }
     } catch { this.error = 'A saved outcome could not be cleared. Its original request is retained for review.'; }

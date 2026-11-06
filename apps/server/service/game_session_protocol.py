@@ -165,6 +165,9 @@ class GameSessionProtocolService:
         await self._outboxes[websocket].drain()
 
     async def _register_client(self, websocket, client_id, user_info, game_mode, rules_dict, recovery=None):
+        if self.server_protocol._has_pending_sprite_write():
+            if await self.server_protocol._recover_pending_sprite_write() is not None:
+                raise RuntimeError('Sprite acceptance must settle before joining')
         role = user_info.get('role', 'player')
         active_encounter = await self.server_protocol._load_active_choice_encounter(self.session_code)
         choice_encounter = active_encounter.to_dict(dm=_is_dm(role)) if active_encounter else None

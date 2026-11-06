@@ -1,9 +1,11 @@
 """Stage compatible transport members privately and commit their writes together."""
 import copy
+from contextlib import AsyncExitStack
 from types import MethodType
 
 from core_table.actions_core import ActionsCore
 from core_table.protocol import Message, MessageType
+from service.canvas_command_service import CanvasRejected
 from service.combat_engine import CombatEngine
 from service.sprite_editor_commands import (
     EDITOR_UPDATE_FIELDS,
@@ -20,6 +22,11 @@ _TYPES = {MessageType.SPRITE_CREATE, MessageType.SPRITE_REMOVE, MessageType.SPRI
 
 
 def can_buffer(message):
+    table_id = message.data.get('table_id')
+    if not isinstance(table_id, str) or not table_id or table_id != table_id.strip():
+        # Keep malformed/legacy aliases on the ordinary validation path. A
+        # whitespace alias must not bypass the canonical table's private fork.
+        return False
     if message.type == MessageType.SPRITE_CREATE and (
             message.data.get('character_id') or (message.data.get('sprite_data') or {}).get('character_id')):
         # Binding stats are resolved during SQL acceptance. Its canonical
@@ -30,6 +37,13 @@ def can_buffer(message):
 
 
 async def apply_sprite_batch(protocol, messages, client_id, factory):
+    async with AsyncExitStack() as ownership:
+        for table_id in sorted({message.data['table_id'] for message in messages}):
+            await ownership.enter_async_context(protocol.table_manager.table_write_lock(table_id))
+        return await _apply_sprite_batch(protocol, messages, client_id, factory)
+
+
+async def _apply_sprite_batch(protocol, messages, client_id, factory):
     """Called under the session lock. No live state or events escape before commit.
 
     Validation denials are independent. A storage failure rolls back the entire
@@ -73,6 +87,7 @@ async def apply_sprite_batch(protocol, messages, client_id, factory):
 
     staged.actions.persist_sprite_command = collect
     staged.send_to_client, staged.broadcast_to_session, staged.broadcast_filtered = send, broadcast, filtered
+    attempt = None
     try:
         scopes = [SpriteCommandScope.from_message(message, protocol._get_session_id(message),
             protocol._get_user_id(message, client_id)) for message in messages]
@@ -92,7 +107,9 @@ async def apply_sprite_batch(protocol, messages, client_id, factory):
                     seen[scope.operation_id] = scope.request_hash
             responses.append(response)
         if writes:
+            attempt = protocol._remember_sprite_write(writes, factory)
             receipts = await run_blocking(SpriteEditorCommandService(factory).persist_many, writes)
+            attempt.accepted = True
             by_id = {write["scope"].operation_id: receipt for write, receipt in zip(writes, receipts, strict=True)}
             for message, response in zip(messages, responses, strict=True):
                 scope = SpriteCommandScope.from_message(message, protocol._get_session_id(message),
@@ -105,8 +122,28 @@ async def apply_sprite_batch(protocol, messages, client_id, factory):
                     continue
                 table.__dict__.clear()
                 table.__dict__.update(replacement.__dict__)
-    except Exception:
-        logger.exception("Buffered sprite transaction rolled back")
+            protocol._complete_sprite_write(attempt)
+    except Exception as exc:
+        logger.exception("Buffered sprite acceptance or installation needs settlement")
+        if attempt is not None:
+            if isinstance(exc, CanvasRejected):
+                attempt.failure = (exc.code, str(exc))
+            try:
+                attempt, outcome = await protocol._settle_sprite_write(tables_owned=True)
+            except Exception:
+                logger.exception('Buffered sprite outcome remains unknown')
+                outcome = None
+            settled = []
+            for index, message in enumerate(messages):
+                response = responses[index] if index < len(responses) else None
+                scope = next((item for item in attempt.scopes if item.message_id == message.message_id), None)
+                if scope is not None and (response is None or response.type not in {MessageType.ERROR, MessageType.ACTION_REJECTED}):
+                    response = (protocol._sprite_settled_response(attempt, outcome, scope) if outcome is not None
+                        else protocol._sprite_unknown(scope))
+                settled.append(response)
+            # Provisional events/history are discarded. Recovered peers receive
+            # current-state read hints, and the caller streams each receipt.
+            return settled
         return [Message(MessageType.ERROR, {"error": "Sprite batch could not be saved; reload before retrying",
             "code": "persistence_failed", "resync_required": True}) for _ in messages]
     try:

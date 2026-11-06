@@ -139,7 +139,7 @@ class ServerProtocol(
     def _has_pending_writes(self) -> bool:
         return (self._has_pending_combat() or self._has_pending_character_update()
                 or self._has_pending_table_creation() or self._has_pending_table_deletion()
-                or self._has_pending_table_settings() or self._has_pending_choice())
+                or self._has_pending_table_settings() or self._has_pending_choice() or self._has_pending_sprite_write())
 
     def register_handler(self, msg_type: MessageType, handler: Callable):
         """Extension point for custom message handlers."""
@@ -331,6 +331,9 @@ class ServerProtocol(
 
     async def _invoke_after_combat_recovery(self, msg: Message, client_id: str):
         if msg.type in SERIALIZED_MESSAGE_TYPES:
+            sprite_outcome = await self._recover_pending_sprite_write(msg, client_id)
+            if sprite_outcome is not None:
+                return sprite_outcome
             deletion_outcome = await self._recover_pending_table_deletion(msg, client_id)
             if deletion_outcome is not None:
                 return deletion_outcome
@@ -374,9 +377,18 @@ class ServerProtocol(
                 sprite_command_scope.reset(token)
             if scope is not None and scope.receipt and response is not None:
                 response.data = {**(response.data or {}), **scope.receipt}
+            if scope is not None and self._has_pending_sprite_write():
+                if scope.receipt and response is not None and not _response_failed(response):
+                    self._complete_sprite_write(self._pending_sprite_write)
+                else:
+                    return await self._recover_pending_sprite_write(msg, client_id, admitted_scope=scope)
         except CanvasRejected as exc:
+            if self._has_pending_sprite_write():
+                return await self._recover_pending_sprite_write(msg, client_id, admitted_scope=scope)
             return Message(MessageType.ERROR, {'error': str(exc), 'code': exc.code})
         except Exception:
+            if self._has_pending_sprite_write():
+                return await self._recover_pending_sprite_write(msg, client_id, admitted_scope=scope)
             if scope is None or not scope.receipt:
                 raise
             logger.exception("Sprite event publication failed after commit")

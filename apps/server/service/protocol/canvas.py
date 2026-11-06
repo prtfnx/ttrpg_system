@@ -11,12 +11,12 @@ from service.sprite_editor_commands import SpriteEditorCommandService, sprite_co
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 
-from ._protocol_base import _ProtocolBase
+from .sprite_outcomes import _SpriteOutcomesMixin
 
 logger = setup_logger(__name__)
 
 
-class _CanvasMixin(_ProtocolBase):
+class _CanvasMixin(_SpriteOutcomesMixin):
     async def _persist_sprite_editor_command(self, staged, before_snapshot, result, session_id):
         scope = sprite_command_scope.get()
         if scope is None:
@@ -28,8 +28,14 @@ class _CanvasMixin(_ProtocolBase):
             combat is not None and combat.table_id == scope.table_id and combat.phase != CombatPhase.INACTIVE
         ) else ()
         async with self.table_manager.table_write_lock(scope.table_id):
-            receipt = await run_blocking(SpriteEditorCommandService(SessionLocal).persist,
-                scope=scope, before_snapshot=before_snapshot, staged=staged, combat_sprite_ids=combat_ids)
+            attempt = self._remember_sprite_write([dict(scope=scope, before_snapshot=before_snapshot)], SessionLocal)
+            try:
+                receipt = await run_blocking(SpriteEditorCommandService(SessionLocal).persist,
+                    scope=scope, before_snapshot=before_snapshot, staged=staged, combat_sprite_ids=combat_ids)
+            except CanvasRejected as exc:
+                attempt.failure = (exc.code, str(exc))
+                raise
+            attempt.accepted = True
         scope.receipt.update(receipt)
         # Binding preparation may replace client hints with canonical source
         # stats. Publish the installed result, never the pre-commit hints.

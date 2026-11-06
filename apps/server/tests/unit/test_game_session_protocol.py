@@ -101,7 +101,7 @@ async def test_full_table_larger_than_ordinary_event_budget_can_resynchronize(re
 
 @pytest.mark.asyncio
 class TestClientLifecycle:
-    @pytest.mark.parametrize('contract', [None, 'session-operations-v1'])
+    @pytest.mark.parametrize('contract', [None, 'session-operations-v1', 'unknown'])
     async def test_recovery_capability_requires_client_opt_in(self, contract):
         svc, ws = _make_service(), _ws()
         ws.scope = {'type': 'websocket', 'query_string': f'operation_recovery={contract}'.encode() if contract else b''}
@@ -109,10 +109,28 @@ class TestClientLifecycle:
         await svc._register_client(ws, 'client', {'user_id': 1, 'role': 'owner'}, 'free_roam', {}, capability)
         await svc.drain_outbound()
         data = json.loads(ws.send_text.call_args.args[0])['data']
-        if contract:
+        if contract == 'session-operations-v1':
             assert data['operation_recovery'] == capability
         else:
             assert 'operation_recovery' not in data
+
+    @pytest.mark.parametrize('capability', [None, {
+        'contract': 'session-operations-v1', 'session_instance': '1:created',
+        'domains': ['table_create', 'table_delete', 'table_settings', 'xp_award']}])
+    async def test_extended_recovery_is_explicit_and_retains_the_original_session_scope(self, capability):
+        svc, ws = _make_service(), _ws()
+        ws.scope = {'type': 'websocket', 'query_string': (
+            b'operation_recovery=session-operations-v1&operation_recovery_extended=session-operations-v2')}
+        await svc._register_client(ws, 'client', {'user_id': 1, 'role': 'player'}, 'free_roam', {}, capability)
+        await svc.drain_outbound()
+        data = json.loads(ws.send_text.call_args.args[0])['data']['operation_recovery']
+        if capability is None:
+            assert data is None
+        else:
+            assert data == {**capability, 'contract': 'session-operations-v2', 'domains': [
+                *capability['domains'], 'character_update', 'choice_encounter', 'character_multiclass']}
+            assert capability['contract'] == 'session-operations-v1'
+            assert len(capability['domains']) == 4
 
     async def test_add_client_sends_welcome(self):
         svc = _make_service()

@@ -180,7 +180,15 @@ class GameSessionProtocolService:
         logger.info(f"Client {client_id} ({user_info.get('username', 'unknown')}) added to session {self.session_code}")
         scope = getattr(websocket, 'scope', {})
         query = QueryParams(scope.get('query_string', b'') if isinstance(scope, dict) else b'')
-        welcome_data = {'operation_recovery': recovery} if query.get('operation_recovery') == 'session-operations-v1' else {}
+        # Keep v1 closed for older validators. New clients offer v2 alongside
+        # their v1 fallback so rolling upgrades keep the existing journal usable.
+        if recovery is not None and query.get('operation_recovery_extended') == 'session-operations-v2':
+            recovery = {**recovery, 'contract': 'session-operations-v2',
+                'domains': [*recovery['domains'], 'character_update', 'choice_encounter', 'character_multiclass']}
+            welcome_data = {'operation_recovery': recovery}
+        else:
+            welcome_data = ({'operation_recovery': recovery}
+                if query.get('operation_recovery') == 'session-operations-v1' else {})
         self._enqueue_message(websocket, Message(
             MessageType.WELCOME,
             {

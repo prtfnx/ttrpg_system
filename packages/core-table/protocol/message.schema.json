@@ -683,6 +683,14 @@
                 "domains": {"type": "array", "maxItems": 4, "uniqueItems": true,
                   "items": {"enum": ["table_create", "table_delete", "table_settings", "xp_award"]}}
               }
+            },
+            {"type": "object", "required": ["contract", "session_instance", "domains"], "additionalProperties": false,
+              "properties": {
+                "contract": {"const": "session-operations-v2"},
+                "session_instance": {"type": "string", "minLength": 1, "maxLength": 128},
+                "domains": {"type": "array", "maxItems": 7, "uniqueItems": true,
+                  "items": {"enum": ["table_create", "table_delete", "table_settings", "xp_award", "character_update", "choice_encounter", "character_multiclass"]}}
+              }
             }
           ]
         },

@@ -232,6 +232,115 @@ def test_sprite_rows_and_existing_journal_share_acceptance(sprite_settlement_pos
 
 
 @pytest.fixture
+def wall_settlement_postgresql(sprite_settlement_postgresql):
+    from service.wall_command_service import WallCommandIntent, WallCommandService
+
+    scope = sprite_settlement_postgresql
+    scope.wall_service = WallCommandService(scope.factory)
+    table_id = scope.sprite_command['scope'].table_id
+    scope.wall_intent = lambda request='wall-original', kind='wall_create', **data: WallCommandIntent.create(
+        scope.session_id, scope.actor_id, request, kind, {'table_id': table_id, **(
+            {'wall_data': {'x1': 0, 'y1': 0, 'x2': 50, 'y2': 60, 'is_door': True}}
+            if kind == 'wall_create' else {}), **data})
+    return scope
+
+
+@pytest.mark.parametrize('fail_after_flush', [False, True])
+def test_wall_and_original_receipt_accept_atomically(wall_settlement_postgresql, monkeypatch, fail_after_flush):
+    from service import wall_command_service
+    from service.wall_command_service import PendingWallCommand
+
+    scope = wall_settlement_postgresql
+    intent = scope.wall_intent()
+    stage = wall_command_service.stage_receipt
+    if fail_after_flush:
+        def failed(*args):
+            stage(*args)
+            raise RuntimeError('After wall and receipt flush')
+        monkeypatch.setattr(wall_command_service, 'stage_receipt', failed)
+        with pytest.raises(RuntimeError, match='After wall'):
+            scope.wall_service.execute(intent)
+    else:
+        scope.wall_service.execute(intent)
+    outcome = scope.wall_service.resolve(PendingWallCommand(intent))
+    assert outcome.committed is not fail_after_flush
+    assert (outcome.wall is not None) is not fail_after_flush
+
+
+@pytest.mark.parametrize('kind', ['wall_create', 'door_toggle'])
+@pytest.mark.parametrize('commit', [False, True])
+def test_wall_settlement_observes_original_session_row_wait(wall_settlement_postgresql, postgresql_engine, kind, commit):
+    from service.wall_command_service import PendingWallCommand, WallCommandService
+    from sqlalchemy import event
+
+    scope = wall_settlement_postgresql
+    intent = scope.wall_intent()
+    if kind == 'door_toggle':
+        wall_id = scope.wall_service.execute(scope.wall_intent('seed-door')).receipt['wall_id']
+        intent = scope.wall_intent(kind=kind, wall_id=wall_id)
+    prepared, release, reader_started = threading.Event(), threading.Event(), threading.Event()
+    pids, outcomes, errors = {}, [], []
+    def writer_factory():
+        db = scope.factory()
+        def pause(session):
+            pids['writer'] = session.execute(text('SELECT pg_backend_pid()')).scalar_one()
+            prepared.set()
+            if not release.wait(5):
+                raise RuntimeError('Wall writer release timed out')
+            if not commit:
+                raise RuntimeError('Deliberate wall rollback')
+        event.listen(db, 'before_commit', pause)
+        return db
+    def reader_factory():
+        db = scope.factory()
+        def started(_session, _transaction, connection):
+            pids['reader'] = connection.execute(text('SELECT pg_backend_pid()')).scalar_one()
+            reader_started.set()
+        event.listen(db, 'after_begin', started)
+        return db
+    def write():
+        try:
+            WallCommandService(writer_factory).execute(intent)
+        except Exception as exc:
+            if commit or 'Deliberate wall rollback' not in str(exc):
+                errors.append(exc)
+    def read():
+        try:
+            outcomes.append(WallCommandService(reader_factory).resolve(PendingWallCommand(intent)))
+        except Exception as exc:
+            errors.append(exc)
+    writer, reader = threading.Thread(target=write), threading.Thread(target=read)
+    try:
+        writer.start()
+        assert prepared.wait(3)
+        reader.start()
+        assert reader_started.wait(3)
+        observed = False
+        deadline = time.monotonic() + 3
+        with postgresql_engine.connect().execution_options(isolation_level='AUTOCOMMIT') as observer:
+            while time.monotonic() < deadline:
+                if pids['writer'] in observer.execute(text('SELECT pg_blocking_pids(:pid)'), {'pid': pids['reader']}).scalar_one():
+                    observed = True
+                    break
+                time.sleep(0.01)
+        assert observed and not outcomes
+        release.set()
+        writer.join(5)
+        reader.join(5)
+        assert not errors and len(outcomes) == 1 and outcomes[0].committed is commit
+        if kind == 'door_toggle':
+            assert outcomes[0].wall['door_state'] == ('open' if commit else 'closed')
+        else:
+            assert (outcomes[0].wall is not None) is commit
+    finally:
+        release.set()
+        if writer.ident is not None:
+            writer.join(6)
+        if reader.ident is not None:
+            reader.join(6)
+
+
+@pytest.fixture
 def canvas_settlement_postgresql(sprite_settlement_postgresql):
     import copy
     from datetime import UTC, datetime

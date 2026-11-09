@@ -341,6 +341,114 @@ def test_wall_settlement_observes_original_session_row_wait(wall_settlement_post
 
 
 @pytest.fixture
+def table_edits_postgresql(sprite_settlement_postgresql):
+    from service.table_edit_service import TableEditIntent, TableEditService
+
+    scope = sprite_settlement_postgresql
+    scope.table_edit_service = TableEditService(scope.factory)
+    table_id = scope.sprite_command['scope'].table_id
+    def intent(kind='table_move'):
+        data = ({'table_id': table_id, 'x_moved': 15, 'y_moved': 30} if kind == 'table_move' else
+            {'category': 'table', 'type': 'table_update', 'data': {
+                'table_id': table_id, 'table_name': 'Revised', 'width': 1500, 'grid_size': 70}})
+        return TableEditIntent.create(scope.session_id, scope.actor_id, 'table-original', kind, data)
+    scope.table_edit_intent = intent
+    return scope
+
+
+@pytest.mark.parametrize('fail_after_flush', [False, True])
+def test_table_fields_and_receipt_accept_atomically(table_edits_postgresql, monkeypatch, fail_after_flush):
+    from service import table_edit_service
+    from service.table_edit_service import PendingTableEdit
+
+    scope = table_edits_postgresql
+    intent = scope.table_edit_intent('table_update_request')
+    stage = table_edit_service.stage_receipt
+    if fail_after_flush:
+        def failed(*args):
+            stage(*args)
+            raise RuntimeError('After table fields and receipt flush')
+        monkeypatch.setattr(table_edit_service, 'stage_receipt', failed)
+        with pytest.raises(RuntimeError, match='After table fields'):
+            scope.table_edit_service.execute(intent)
+    else:
+        scope.table_edit_service.execute(intent)
+    outcome = scope.table_edit_service.resolve(PendingTableEdit(intent))
+    assert outcome.committed is not fail_after_flush
+    assert outcome.current['width'] == (1000 if fail_after_flush else 1500)
+    assert outcome.current['grid_cell_px'] == (50 if fail_after_flush else 70)
+    assert outcome.current['settings_revision'] == (0 if fail_after_flush else 1)
+
+
+@pytest.mark.parametrize('kind', ['table_move', 'table_update_request'])
+@pytest.mark.parametrize('commit', [False, True])
+def test_table_edit_settlement_observes_original_session_wait(table_edits_postgresql, postgresql_engine, kind, commit):
+    from service.table_edit_service import PendingTableEdit, TableEditService
+    from sqlalchemy import event
+
+    scope = table_edits_postgresql
+    intent = scope.table_edit_intent(kind)
+    prepared, release, reader_started = threading.Event(), threading.Event(), threading.Event()
+    pids, outcomes, errors = {}, [], []
+    def writer_factory():
+        db = scope.factory()
+        def pause(session):
+            pids['writer'] = session.execute(text('SELECT pg_backend_pid()')).scalar_one()
+            prepared.set()
+            if not release.wait(5):
+                raise RuntimeError('Table writer release timed out')
+            if not commit:
+                raise RuntimeError('Deliberate table edit rollback')
+        event.listen(db, 'before_commit', pause)
+        return db
+    def reader_factory():
+        db = scope.factory()
+        def started(_session, _transaction, connection):
+            pids['reader'] = connection.execute(text('SELECT pg_backend_pid()')).scalar_one()
+            reader_started.set()
+        event.listen(db, 'after_begin', started)
+        return db
+    def write():
+        try:
+            TableEditService(writer_factory).execute(intent)
+        except Exception as exc:
+            if commit or 'Deliberate table edit rollback' not in str(exc):
+                errors.append(exc)
+    def read():
+        try:
+            outcomes.append(TableEditService(reader_factory).resolve(PendingTableEdit(intent)))
+        except Exception as exc:
+            errors.append(exc)
+    writer, reader = threading.Thread(target=write), threading.Thread(target=read)
+    try:
+        writer.start()
+        assert prepared.wait(3)
+        reader.start()
+        assert reader_started.wait(3)
+        observed = False
+        deadline = time.monotonic() + 3
+        with postgresql_engine.connect().execution_options(isolation_level='AUTOCOMMIT') as observer:
+            while time.monotonic() < deadline:
+                if pids['writer'] in observer.execute(text('SELECT pg_blocking_pids(:pid)'), {'pid': pids['reader']}).scalar_one():
+                    observed = True
+                    break
+                time.sleep(0.01)
+        assert observed and not outcomes
+        release.set()
+        writer.join(5)
+        reader.join(5)
+        assert not errors and len(outcomes) == 1 and outcomes[0].committed is commit
+        field, before, after = ('position_x', 0, 15) if kind == 'table_move' else ('width', 1000, 1500)
+        assert outcomes[0].current[field] == (after if commit else before)
+    finally:
+        release.set()
+        if writer.ident is not None:
+            writer.join(6)
+        if reader.ident is not None:
+            reader.join(6)
+
+
+@pytest.fixture
 def canvas_settlement_postgresql(sprite_settlement_postgresql):
     import copy
     from datetime import UTC, datetime

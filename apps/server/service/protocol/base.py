@@ -140,7 +140,7 @@ class ServerProtocol(
         return (self._has_pending_combat() or self._has_pending_character_update()
                 or self._has_pending_table_creation() or self._has_pending_table_deletion()
                 or self._has_pending_table_settings() or self._has_pending_choice() or self._has_pending_sprite_write()
-                or self._has_pending_canvas_write() or self._has_pending_wall_command())
+                or self._has_pending_canvas_write() or self._has_pending_wall_command() or self._has_pending_table_edit())
 
     def register_handler(self, msg_type: MessageType, handler: Callable):
         """Extension point for custom message handlers."""
@@ -322,7 +322,8 @@ class ServerProtocol(
     async def _invoke_handler_in_scope(self, msg: Message, client_id: str):
         if self._has_pending_writes() or msg.type in CHOICE_ENCOUNTER_MUTATIONS | {MessageType.COMBAT_COMMAND, MessageType.XP_AWARD, MessageType.MULTICLASS_REQUEST, MessageType.NEW_TABLE_REQUEST, MessageType.TABLE_DELETE, MessageType.TABLE_SETTINGS_UPDATE, MessageType.CHARACTER_UPDATE} or (msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
                 MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE,
-                MessageType.TABLE_SETTINGS_UPDATE, MessageType.CHARACTER_UPDATE} and getattr(
+                MessageType.TABLE_SETTINGS_UPDATE, MessageType.TABLE_UPDATE_REQUEST, MessageType.TABLE_MOVE,
+                MessageType.TABLE_SCALE, MessageType.CHARACTER_UPDATE} and getattr(
                     getattr(self, "table_manager", None), "db_session", None)):
             # Include post-commit broadcasts in cancellation shielding. The
             # session lock must not release between storage and publication.
@@ -332,6 +333,9 @@ class ServerProtocol(
 
     async def _invoke_after_combat_recovery(self, msg: Message, client_id: str):
         if msg.type in SERIALIZED_MESSAGE_TYPES:
+            table_edit_outcome = await self._recover_pending_table_edit(msg, client_id)
+            if table_edit_outcome is not None:
+                return table_edit_outcome
             wall_outcome = await self._recover_pending_wall_command(msg, client_id)
             if wall_outcome is not None:
                 return wall_outcome
@@ -405,6 +409,7 @@ class ServerProtocol(
             return Message(MessageType.SPRITE_RESPONSE, data)
         if (scope is None and msg.type in {MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE_REQUEST}
                 and response is not None
+                and response.data.get('domain') != 'table_edit'
                 and response.type not in {MessageType.ERROR, MessageType.ACTION_REJECTED}):
             auto_save = getattr(getattr(self, "session_manager", None), "auto_save", None)
             if callable(auto_save):

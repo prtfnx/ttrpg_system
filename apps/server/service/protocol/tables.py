@@ -11,7 +11,7 @@ from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import get_visible_layers, is_dm
 
-from .table_settings import _TableSettingsMixin
+from .table_edits import _TableEditsMixin
 
 logger = setup_logger(__name__)
 
@@ -29,7 +29,7 @@ def _validated_table_dimension(value: object) -> int | None:
     return dimension if _MIN_TABLE_DIMENSION <= dimension <= _MAX_TABLE_DIMENSION else None
 
 
-class _TablesMixin(_TableSettingsMixin):
+class _TablesMixin(_TableEditsMixin):
     """Handler methods for tables domain."""
 
     async def handle_table_list_request(self, msg: Message, client_id: str) -> Message:
@@ -133,6 +133,8 @@ class _TablesMixin(_TableSettingsMixin):
 
     async def handle_table_update(self, msg: Message, client_id: str) -> Message:
         """Handle and broadcast table update with sprite movement support"""
+        if self._durable_table_edits() and msg.data.get('type') != 'fog_update':
+            return await self._execute_table_edit(msg, client_id)
         logger.debug("Table update requested", extra={"event_name": "table.update.requested"})
         try:
             if not msg.data:
@@ -256,6 +258,8 @@ class _TablesMixin(_TableSettingsMixin):
 
     async def handle_table_scale(self, msg: Message, client_id: str) -> Message:
         """Handle table scale change"""
+        if self._durable_table_edits():
+            return await self._execute_table_edit(msg, client_id)
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'Only DMs can scale tables'})
         try:
@@ -292,6 +296,8 @@ class _TablesMixin(_TableSettingsMixin):
 
     async def handle_table_move(self, msg: Message, client_id: str) -> Message:
         """Handle table position change"""
+        if self._durable_table_edits():
+            return await self._execute_table_edit(msg, client_id)
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'Only DMs can move tables'})
         try:

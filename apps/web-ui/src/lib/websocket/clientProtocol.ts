@@ -307,7 +307,7 @@ export class WebClientProtocol {
     this.previewSpriteCommand(message);
     if (new Set<MessageType>([MessageType.WALL_CREATE, MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE]).has(message.type)) {
       queueMicrotask(() => { if (message.message_id && this.commandTracking.has(message.message_id)) this.wallSync.stage(message); });
-      if (message.type === MessageType.WALL_CREATE && message.message_id) {
+      if (message.type === MessageType.WALL_CREATE && message.message_id && !this.pendingWallCreates.has(message.message_id)) {
         this.pendingWallCreates.set(message.message_id, { tableId: String(message.data?.table_id), commands: [] });
       } else if (typeof message.data?.wall_id === 'string') {
         const creation = this.pendingWallCreates.get(message.data.wall_id);
@@ -1417,6 +1417,17 @@ export class WebClientProtocol {
     protocolLogger.message('received', { type: 'success', data: message.data });
     
     const data = message.data;
+    if (data?.domain === 'wall_command' && data.success === true) {
+      const key = message.causation_id ?? message.correlation_id ?? data.operation_id;
+      if (typeof key === 'string') {
+        this.wallSync.acceptReceipt(key);
+        const creation = this.pendingWallCreates.get(key);
+        if (creation?.commands.length) showToast.warning('The wall was saved. Review it before applying edits queued during recovery.');
+        this.discardWallDependents(key);
+      }
+      if (data.table_deleted === true) this.acceptTableDeletion(data);
+      else if (typeof data.table_id === 'string') this.resynchronizeTable(data.table_id);
+    }
     if (data?.table_id && !data.sprite_id && (data.operation === 'delete'
       || (typeof data.message === 'string' && data.message.toLowerCase().includes('table deleted')))) {
       this.acceptTableDeletion(data);
@@ -2524,32 +2535,38 @@ export class WebClientProtocol {
   }
 
   // Wall management methods
-  createWall(wall: WallCreateInput): void {
+  createWall(wall: WallCreateInput, requestId?: string): string | undefined {
     const tableId = useGameStore.getState().activeTableId;
     if (!tableId) return;
     validateTableId(tableId);
-    this.sendMessage(createMessage(MessageType.WALL_CREATE, { table_id: tableId, wall_data: wall }, 2));
+    return this.sendWallCommand(MessageType.WALL_CREATE, { table_id: tableId, wall_data: wall }, requestId);
   }
 
-  updateWall(wallId: string, updates: WallUpdateInput): void {
+  updateWall(wallId: string, updates: WallUpdateInput, requestId?: string): string | undefined {
     const tableId = useGameStore.getState().activeTableId;
     if (!tableId || Object.keys(updates).length === 0) return;
     validateTableId(tableId);
-    this.sendMessage(createMessage(MessageType.WALL_UPDATE, { table_id: tableId, wall_id: wallId, updates }, 2));
+    return this.sendWallCommand(MessageType.WALL_UPDATE, { table_id: tableId, wall_id: wallId, updates }, requestId);
   }
 
-  removeWall(wallId: string): void {
+  removeWall(wallId: string, requestId?: string): string | undefined {
     const tableId = useGameStore.getState().activeTableId;
     if (!tableId) return;
     validateTableId(tableId);
-    this.sendMessage(createMessage(MessageType.WALL_REMOVE, { table_id: tableId, wall_id: wallId }, 2));
+    return this.sendWallCommand(MessageType.WALL_REMOVE, { table_id: tableId, wall_id: wallId }, requestId);
   }
 
-  toggleDoor(wallId: string): void {
+  toggleDoor(wallId: string, requestId?: string): string | undefined {
     const tableId = useGameStore.getState().activeTableId;
     if (!tableId) return;
     validateTableId(tableId);
-    this.sendMessage(createMessage(MessageType.DOOR_TOGGLE, { table_id: tableId, wall_id: wallId }, 2));
+    return this.sendWallCommand(MessageType.DOOR_TOGGLE, { table_id: tableId, wall_id: wallId }, requestId);
+  }
+
+  private sendWallCommand(type: MessageType, data: Record<string, unknown>, requestId?: string): string | undefined {
+    const message = createMessage(type, data, 2);
+    if (requestId !== undefined) message.message_id = requestId;
+    return this.sendMessage(message) ? message.message_id : undefined;
   }
 
   private sendPaintMessage(type: MessageType, data: Record<string, unknown>, messageId?: string): boolean {

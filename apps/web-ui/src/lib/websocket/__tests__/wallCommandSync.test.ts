@@ -28,6 +28,20 @@ it('previews wall creation under a temporary identity and installs only the acce
   expect(render).toHaveBeenLastCalledWith('server-wall', expect.objectContaining({ x2: 10 }));
 });
 
+it('ends a recovered toggle preview without applying the relative toggle again', () => {
+  const wall = { wall_id: 'wall', table_id: 'table', door_state: 'closed' } as WallData;
+  const render = vi.fn();
+  const sync = new WallCommandSync({ read: () => [wall], active: () => 'table', render });
+  sync.seed();
+  const request = createMessage(MessageType.DOOR_TOGGLE, { table_id: 'table', wall_id: 'wall' });
+  sync.stage(request);
+  expect(render).toHaveBeenLastCalledWith('wall', expect.objectContaining({ door_state: 'open' }));
+  expect(sync.acceptReceipt(request.message_id!)).toBe(true);
+  expect(render).toHaveBeenLastCalledWith('wall', expect.objectContaining({ door_state: 'closed' }));
+  sync.seed();
+  expect(sync.acceptReceipt(request.message_id!)).toBe(false);
+});
+
 it('replays dependent edits over the canonical identity when a provisional wall is accepted', () => {
   const render = vi.fn();
   const sync = new WallCommandSync({ read: () => [], active: () => 'table', render });

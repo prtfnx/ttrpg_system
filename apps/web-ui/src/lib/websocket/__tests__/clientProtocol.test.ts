@@ -294,6 +294,79 @@ describe('WebClientProtocol', () => {
     } finally { protocol.disconnect(); }
   });
 
+  it('settles a recovered create by receipt and reloads current walls without sending queued provisional edits', async () => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      const requestId = protocol.createWall({ x1: 0, y1: 0, x2: 10, y2: 10 }, 'original-wall');
+      expect(requestId).toBe('original-wall');
+      protocol.sendBatch(); await Promise.resolve();
+      protocol.removeWall(requestId!); await Promise.resolve();
+      await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> }).handleIncomingMessage(JSON.stringify({
+        ...createMessage(MessageType.SUCCESS, { success: true, domain: 'wall_command', command: 'wall_create',
+          operation_id: requestId, wall_id: 'server-wall', table_id: 'table-abc', replayed: true, resync_required: true }),
+        causation_id: requestId,
+      }));
+      protocol.sendBatch();
+      expect(ws.send.mock.calls.map(([raw]) => JSON.parse(raw).type)).toEqual(['batch_request', 'table_request']);
+      expect(mockRemoveWall).toHaveBeenCalledWith(requestId);
+      expect(mockAddWall.mock.calls.some(([row]) => row.wall_id === 'server-wall')).toBe(false);
+      const tracker = (protocol as unknown as { commandTracking: { watermark(id: string): string[] } }).commandTracking;
+      expect(tracker.watermark('table-abc')).toEqual([]);
+    } finally { protocol.disconnect(); }
+  });
+
+  it('retires a table deleted after an accepted wall command without requesting its old scene', async () => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      const id = protocol.toggleDoor('door'); protocol.sendBatch(); await Promise.resolve();
+      await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> }).handleIncomingMessage(JSON.stringify({
+        ...createMessage(MessageType.SUCCESS, { success: true, domain: 'wall_command', table_id: 'table-abc',
+          table_deleted: true, resync_required: true }), causation_id: id,
+      }));
+      expect(mocks.storeState.activeTableId).toBeNull();
+      expect(ws.send).toHaveBeenCalledOnce();
+    } finally { protocol.disconnect(); }
+  });
+
+  it('keeps an unknown wall command pending until its original receipt arrives', async () => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      const id = protocol.toggleDoor('door', 'original-toggle');
+      protocol.sendBatch(); await Promise.resolve();
+      const receive = (message: Message) => (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> })
+        .handleIncomingMessage(JSON.stringify({ ...message, causation_id: id }));
+      await receive(createMessage(MessageType.ERROR, { code: 'outcome_unknown', outcome: 'unknown',
+        table_id: 'table-abc', error: 'Checking wall save', resync_required: true }));
+      const tracker = (protocol as unknown as { commandTracking: { watermark(id: string): string[] } }).commandTracking;
+      expect(tracker.watermark('table-abc')).toContain(id);
+      await receive(createMessage(MessageType.SUCCESS, { success: true, domain: 'wall_command',
+        command: 'door_toggle', operation_id: id, table_id: 'table-abc', wall_id: 'door', resync_required: true }));
+      expect(tracker.watermark('table-abc')).not.toContain(id);
+      expect(ws.send.mock.calls.flatMap(([raw]) => {
+        const message = JSON.parse(raw); return message.data?.messages ?? [message];
+      }).filter(message => message.type === 'door_toggle')).toHaveLength(1);
+    } finally { protocol.disconnect(); }
+  });
+
+  it('preserves provisional dependents when explicitly retrying the original create identity', async () => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      const wall = { x1: 0, y1: 0, x2: 10, y2: 10 };
+      protocol.createWall(wall, 'original-create'); protocol.sendBatch(); await Promise.resolve();
+      protocol.removeWall('original-create'); await Promise.resolve();
+      protocol.createWall(wall, 'original-create'); protocol.sendBatch(); await Promise.resolve();
+      await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> }).handleIncomingMessage(JSON.stringify({
+        ...createMessage(MessageType.SUCCESS, { success: true, domain: 'wall_command', table_id: 'table-abc',
+          operation_id: 'original-create', wall_id: 'server-wall', resync_required: true }), causation_id: 'original-create',
+      }));
+      protocol.sendBatch();
+      const tracker = (protocol as unknown as { commandTracking: { watermark(id: string): string[] } }).commandTracking;
+      expect(tracker.watermark('table-abc')).toEqual([]);
+      expect(ws.send.mock.calls.flatMap(([raw]) => JSON.parse(raw).data?.messages ?? [])
+        .map(message => message.type)).toEqual(['wall_create', 'wall_create']);
+    } finally { protocol.disconnect(); }
+  });
+
   it('drops dependent provisional-wall edits when creation is denied', async () => {
     const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
     try {

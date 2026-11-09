@@ -67,6 +67,7 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
                    session_join_hydration, sprite_control, table_creation_service, table_settings_service):
         monkeypatch.setattr(module, "SessionLocal", factory)
     asset_provider = SimpleNamespace(request_session_assets=AsyncMock(return_value=[]))
+    monkeypatch.setattr('service.wall_command_service.SessionLocal', factory)
     monkeypatch.setattr(game_session_protocol, "get_server_asset_manager", lambda: asset_provider)
     monkeypatch.setattr(assets, "get_server_asset_manager", lambda: asset_provider)
     monkeypatch.setattr(DiceEngine, "roll", staticmethod(lambda formula: DiceRollResult(

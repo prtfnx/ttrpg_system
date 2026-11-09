@@ -37,6 +37,11 @@ export class WallCommandSync {
   }
 
   reject(requestId: string): boolean {
+    return this.acceptReceipt(requestId);
+  }
+
+  /** A receipt ends the preview; current rows arrive through table hydration. */
+  acceptReceipt(requestId: string): boolean {
     const command = this.pending.get(requestId);
     if (!command) return false;
     this.pending.delete(requestId);

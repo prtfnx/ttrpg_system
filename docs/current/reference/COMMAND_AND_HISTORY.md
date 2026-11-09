@@ -426,5 +426,32 @@ settle an already admitted write. Ordinary original-intent replay still obeys
 the existing 24-hour admission/retry window. Missing tables/actors/history or a
 different restore timeline cannot silently prove nonacceptance. The pending owner
 is memory-resident, and sprite originals remain outside the closed persisted
-v1/v2 browser domains. Direct canvas command/history and wall uncertainty remain
-separate implementation work; these guarantees describe the raw sprite bridge.
+v1/v2 browser domains. Direct canvas command/history settlement is implemented
+below; wall uncertainty remains separate work.
+
+
+## Direct canvas receipt recovery and undo/redo
+
+The direct canvas acceptance transaction now owns a stable session-row barrier.
+Its admitted operation/complete command hash is retained until verified outcome
+and current cache installation, including on lost commit acknowledgements and
+failed installation. Undo/redo records the affected sprite IDs selected under
+the same transaction, instead of resolving another root during recovery.
+The existing journal stores only the small receipt and bounded sprite-target IDs
+beside its ordinary optional undo body. Atomic paint/sprite effects and history
+state changes remain one transaction; no migration is introduced.
+
+Fresh recovery reads current sprite projections and paint remains in SQL. Old
+events, transforms or deleted objects are not replayed. Current history
+availability and visible selection are returned separately from the original
+accepted operation/clipboard identity. Trimming undo bodies cannot erase a
+pending acceptance receipt; missing known-accepted history or a different restore
+timeline cannot silently prove rejection. Legacy receipt-only replays remain
+compatible. Existing 24-hour ordinary retry and clipboard bounds remain.
+
+Unknown browser originals survive reconciliation in page memory until a causal
+receipt; snapshot installation alone does not acknowledge them. Retrying retains
+the same operation, full command and original timestamp. Expiry stops retries
+and asks for review without calling the outcome rejected. This does not add tab
+reload/browser-restart persistence for canvas commands. Generic table/wall
+settlement and real provider/candidate qualification remain open.

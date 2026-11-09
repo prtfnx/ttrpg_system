@@ -649,3 +649,35 @@ Malformed/missing and whitespace table identities remain validation barriers in
 sprite batching. Protocol regressions verify that valid surrounding commands
 remain independent and whitespace aliases cannot select a live table instead of
 its private fork before acceptance.
+
+
+## Direct canvas uncertainty qualification
+
+`test_canvas_write_recovery.py` injects real SQL before/after-commit failures
+for all nine modes with/without lookup outages, including paste and undo/redo.
+It verifies one acceptance, current sprite/paint state, no old event publication,
+current deletion/selection filtering, unrelated retained edits, partial cache
+installation/aliases, revocation, changed input, cancellation and socket-removal
+join fencing. `test_canvas_write_settlement.py` separately covers trimmed undo
+bodies, bounded target metadata, legacy receipt-only replay, hash conflict and
+current private-layer filtering. Existing protocol, pipeline and sprite recovery
+regressions remain in the selected domain suite.
+
+Six PostgreSQL contracts add mixed paint/sprite/journal atomic acceptance and
+observed `pg_blocking_pids` waits behind original transform/undo transactions
+through commit or rollback. They require a disposable configured target. Skipped
+cases do not qualify real locks. No migration or new persisted wire capability
+is introduced.
+
+Controller/protocol tests retain typed unknown/denied commands without false
+optimistic rejection, deduplicate read probes, preserve original receipt ownership
+through hydration, and retry exact identities. Explicitly unknown expired
+outcomes remain unconfirmed and stop new dispatch; late copy receipts preserve
+the original clipboard horizon. Retain complete served/provider, restore and
+final-candidate gates.
+
+Pipeline outage tests preserve every unadmitted follower's own operation identity
+while an earlier canvas command is unresolved. Hydration cannot discard those
+followers; their exact retry applies only after acceptance/current installation
+or receives a proved dependency failure after rollback. A replacement created
+after that proof starts with fresh uncertainty state.

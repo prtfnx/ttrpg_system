@@ -43,9 +43,10 @@ See [Tables](../features/TABLES_AND_CANVAS.md),
 
 These are remaining limitations, not completed architecture guarantees:
 
-- Finish generic table and direct canvas/wall mutation settlement. Raw sprite/
-  compendium commands and bounded runs now retain quarantine through existing
-  journal lookup and current affected-row installation. Supported table
+- Finish generic table and wall mutation settlement. Direct canvas commands,
+  including undo/redo, now join raw sprite/compendium commands and bounded runs
+  in retaining quarantine through existing-journal lookup and current affected-row
+  installation. Supported table
   creation/copy/import/deletion/settings, XP, general character/repair, multiclass
   and choice transitions have atomic receipt boundaries and current-state
   settlement. Negotiated v2 adds same-tab persisted character/choice/multiclass

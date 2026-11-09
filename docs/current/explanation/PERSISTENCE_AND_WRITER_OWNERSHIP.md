@@ -119,7 +119,7 @@ now add atomic choice receipts and fresh settlement, as described below.
 
 ## Deferred consistency work
 
-TODO: finish outcome reconciliation for generic table mutations and direct canvas/wall acceptance. Raw sprite/compendium dispatch and bounded sprite runs now retain settlement ownership as described below. Multiclass, choice transitions, general
+TODO: finish outcome reconciliation for generic table mutations and wall acceptance. Direct canvas commands/history now retain acceptance and installation ownership as described below. Raw sprite/compendium dispatch and bounded sprite runs now retain settlement ownership as described below. Multiclass, choice transitions, general
 character protocol/repair, table creation/deletion/settings and XP now commit
 effects and receipts together.
 Supported table/XP browser originals use the unchanged v1 recovery contract.
@@ -370,10 +370,45 @@ delta. Provisional batch events are discarded during recovery. Publication failu
 after verified installation does not change the committed outcome.
 
 This covers production raw sprite/compendium dispatch and bounded sprite runs.
-Identity-free standalone core callers, generic table snapshots, direct canvas
-commands/history and wall acceptance still require their separate uncertainty
-review. Sprite originals are not added to closed v1/v2 tab journals. Process
+Identity-free standalone core callers, generic table snapshots and wall
+acceptance still require their separate uncertainty review. Direct canvas/history
+settlement is now implemented below. Sprite originals are not added to closed v1/v2 tab journals. Process
 restart uses existing retained journal replay/current database load, not this
 memory-resident pending owner; restore-timeline invalidation remains an R6 gate.
 Regression owners: `test_sprite_write_settlement.py`, `test_sprite_write_recovery.py`
 and the existing sprite protocol/command suites.
+
+
+## Direct canvas command/history settlement
+
+Transform, absolute sprite edit, restyle, delete, copy, cut, paste, undo and redo
+now share the existing journal acceptance transaction with a stable game-session
+row lock before table/paint locks. `CanvasWriteIntent` binds authenticated actor,
+session, canonical table/operation UUIDs and the complete original command hash,
+including its original timestamp. Intent validation precedes admission. Ordinary
+domain rejection rolls back the isolated stage; an unavailable commit response
+retains `PendingCanvasWrite` until fresh READ COMMITTED settlement/current
+installation. State reads/writes, snapshots, cleanup and join cannot bypass it.
+
+The service captures the sprite identities actually affected by this transaction,
+including the root chosen for undo/redo, and retains a bounded list of IDs beside
+the existing small receipt. It stores no extra scene events or historical bodies.
+Undo-body expiry does not erase those identities. Legacy receipt-only replays
+remain compatible without executing another edit or requiring backfill.
+
+Recovery verifies the original journal hash/kind and loads current affected
+sprites or explicit absence. It preserves unrelated retained sprites/settings,
+repairs table aliases, and does not reinstall old after-state. Paint state stays
+in SQL and normal table/paint snapshot reconciliation reloads it. Recovered
+selection references are filtered for current existence/visible layers. Current
+membership/interactive authority gates receipt disclosure; revocation can still
+allow internal cache repair without exposing private history or clipboard results.
+
+Unknown lookup or installation retains quarantine. Known-accepted missing history,
+changed identity, lost tables or an expired unrecorded outcome cannot prove
+rollback. Repeated cancellation retains session ownership through settlement,
+installation and publication. Peers get only current-state resync hints, and
+accepted historical paint/sprite events are never replayed. No new database table,
+migration or persisted v1/v2 browser domain is introduced. Generic table/wall
+uncertainty, restore-timeline invalidation and served/PostgreSQL qualification
+remain separate work.

@@ -681,3 +681,33 @@ while an earlier canvas command is unresolved. Hydration cannot discard those
 followers; their exact retry applies only after acceptance/current installation
 or receives a proved dependency failure after rollback. A replacement created
 after that proof starts with fresh uncertainty state.
+
+## Wall acceptance and recovery regression boundary
+
+`test_wall_command_service.py` exercises real SQL acceptance/rollback, full-input
+identity conflicts, duplicate create/toggle effects, current deletion, current
+membership/locked-door authority and bounded validation. `test_wall_write_recovery.py`
+drives real protocol dispatch with failures before/after commit and unavailable
+lookup, proving current installation before quarantine clears. It covers blocked
+followers, preserved unrelated walls, missing known-accepted receipts, revoked
+actors, join/empty cleanup after socket removal, repeated cancellation and SQL
+off the event loop. Later table deletion retires current resident aliases.
+
+Browser regressions cover receipt-only preview settlement/current reload,
+provisional-create dependent review, unknown outcome retention, deliberate same-ID
+retry and later table retirement. The trusted-session workflow uses the owned wall
+worker against its explicit test database. A proven commit with failed peer
+publication remains accepted and asks for resync.
+
+Shared wire tests reject missing, empty, blank and oversized original wall
+IDs before decode can mint a replacement. Packaged Python and browser schemas
+are regenerated together; the native browser CSP test exercises the new rule
+without unsafe evaluation. Existing invalid-payload tests carry a valid ID so
+they continue exercising field validation rather than failing earlier on identity.
+
+Six new PostgreSQL cases exercise atomic wall/receipt acceptance and observed
+`pg_blocking_pids` waits behind the original session barrier for create/toggle
+through commit and rollback. They require a disposable configured PostgreSQL
+target. Skips are not lock qualification. Closed v1/v2 browser recovery domains,
+restore-generation invalidation and final served-provider/load gates remain
+separate acceptance work.

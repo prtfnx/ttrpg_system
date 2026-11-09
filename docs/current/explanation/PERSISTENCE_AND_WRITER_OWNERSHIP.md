@@ -119,7 +119,7 @@ now add atomic choice receipts and fresh settlement, as described below.
 
 ## Deferred consistency work
 
-TODO: finish outcome reconciliation for generic table mutations and wall acceptance. Direct canvas commands/history now retain acceptance and installation ownership as described below. Raw sprite/compendium dispatch and bounded sprite runs now retain settlement ownership as described below. Multiclass, choice transitions, general
+TODO: finish outcome reconciliation for generic table mutations. Production wall acceptance now has the receipt/settlement boundary described below. Direct canvas commands/history now retain acceptance and installation ownership as described below. Raw sprite/compendium dispatch and bounded sprite runs now retain settlement ownership as described below. Multiclass, choice transitions, general
 character protocol/repair, table creation/deletion/settings and XP now commit
 effects and receipts together.
 Supported table/XP browser originals use the unchanged v1 recovery contract.
@@ -370,8 +370,8 @@ delta. Provisional batch events are discarded during recovery. Publication failu
 after verified installation does not change the committed outcome.
 
 This covers production raw sprite/compendium dispatch and bounded sprite runs.
-Identity-free standalone core callers, generic table snapshots and wall
-acceptance still require their separate uncertainty review. Direct canvas/history
+Identity-free standalone core callers and generic table snapshots still
+require their separate uncertainty review. Production wall settlement is described below. Direct canvas/history
 settlement is now implemented below. Sprite originals are not added to closed v1/v2 tab journals. Process
 restart uses existing retained journal replay/current database load, not this
 memory-resident pending owner; restore-timeline invalidation remains an R6 gate.
@@ -409,6 +409,44 @@ changed identity, lost tables or an expired unrecorded outcome cannot prove
 rollback. Repeated cancellation retains session ownership through settlement,
 installation and publication. Peers get only current-state resync hints, and
 accepted historical paint/sprite events are never replayed. No new database table,
-migration or persisted v1/v2 browser domain is introduced. Generic table/wall
+migration or persisted v1/v2 browser domain is introduced. Generic table
 uncertainty, restore-timeline invalidation and served/PostgreSQL qualification
 remain separate work.
+
+## Wall command acceptance and current-state settlement
+
+Production `wall_create`, `wall_update`, `wall_remove` and `door_toggle` use
+`WallCommandService`. The owned worker locks the stable session row, checks
+current database authority, then locks the scoped table and wall. Door state and
+locked-door permission are decided from SQL, rather than the live cache. The
+effect and bounded `wall_command` receipt share one transaction. The shared wire schema rejects missing/blank original wall IDs before
+decoding can create a replacement. The receipt
+binds the authenticated actor/session, original message ID, message kind and
+complete original payload. Create derives one server-owned wall UUID from that
+scope; a matching retry never creates another wall or toggles again.
+
+The protocol retains its admitted owner before submitting the worker. A lost
+commit response or failed cache installation quarantines serialized reads and
+writes, full snapshots, empty cleanup saves and join. Fresh READ COMMITTED
+settlement takes the original session/table barriers before checking the receipt
+and loading the current wall or explicit absence. Only the affected wall is
+replaced, preserving unrelated retained walls and table fields. Verified later
+table deletion clears both resident indexes. Missing known-accepted receipts,
+missing actors or unexplained table disappearance cannot prove rollback.
+Repeated cancellation cannot release session ownership before publication.
+
+Fresh acceptance keeps the existing `wall_data` shape. Replayed/recovered
+acceptance returns a small correlated `success` receipt and requests a current
+table reload; peers receive resync hints without historical wall payloads.
+Current database authority gates private receipt disclosure. Internal repair
+may finish after revocation without disclosing the original result. A broadcast
+failure after proven acceptance does not turn it into a failed save.
+
+The browser ends recovered previews and reloads current walls. Provisional
+create dependents are discarded with a review notice when no current wall row
+accompanies the receipt. Helpers return the original message ID and accept it
+for deliberate complete-input retries. No wall domain is added to persisted
+v1/v2 journals, no general offline replay is introduced, and standalone core
+callers retain their explicit worker/snapshot contract. Generic table mutation
+settlement, restore-generation invalidation and real PostgreSQL/provider
+qualification remain open.

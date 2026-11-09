@@ -427,7 +427,7 @@ the existing 24-hour admission/retry window. Missing tables/actors/history or a
 different restore timeline cannot silently prove nonacceptance. The pending owner
 is memory-resident, and sprite originals remain outside the closed persisted
 v1/v2 browser domains. Direct canvas command/history settlement is implemented
-below; wall uncertainty remains separate work.
+below; production wall uncertainty is covered by its separate original-intent receipt service.
 
 
 ## Direct canvas receipt recovery and undo/redo
@@ -453,5 +453,22 @@ Unknown browser originals survive reconciliation in page memory until a causal
 receipt; snapshot installation alone does not acknowledge them. Retrying retains
 the same operation, full command and original timestamp. Expiry stops retries
 and asks for review without calling the outcome rejected. This does not add tab
-reload/browser-restart persistence for canvas commands. Generic table/wall
+reload/browser-restart persistence for canvas commands. Generic table
 settlement and real provider/candidate qualification remain open.
+
+## Wall receipts stay separate from canvas history
+
+`WallCommandService` now commits wall edits and bounded actor/session/original
+message receipts together. The message kind and full original data are bound to
+that receipt. Retrying an accepted create, update, remove or door toggle returns
+acceptance without executing another effect. These operations do not become
+sprite/paint undo history members.
+
+Fresh recovery locks the original session/table barriers and installs only the
+current affected wall or absence. It preserves unrelated retained edits and
+does not replay historical wall events. A small correlated success receipt asks
+the browser to reload current walls; later table retirement is explicit.
+Unknown commit/cache outcomes retain session quarantine through installation,
+including snapshots, cleanup and join. Current database authority controls
+private result disclosure. Wall originals remain outside persisted v1/v2 browser
+journals and general offline replay; generic table settlement remains open.

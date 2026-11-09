@@ -43,7 +43,10 @@ See [Tables](../features/TABLES_AND_CANVAS.md),
 
 These are remaining limitations, not completed architecture guarantees:
 
-- Finish generic table and wall mutation settlement. Direct canvas commands,
+- Finish generic table mutation settlement. Production wall commands now have
+  atomic original-intent receipts and current-wall settlement with quarantine
+  through installation, including snapshots, cleanup and join. Wall originals
+  remain outside persisted v1/v2 browser recovery domains. Direct canvas commands,
   including undo/redo, now join raw sprite/compendium commands and bounded runs
   in retaining quarantine through existing-journal lookup and current affected-row
   installation. Supported table

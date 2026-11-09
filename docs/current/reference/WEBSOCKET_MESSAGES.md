@@ -494,3 +494,30 @@ existing semantics. The envelope correlates receipt delivery to the original
 sender while the domain operation ID supports retries with unchanged command
 input/timestamp. No new negotiated browser recovery domain or wire property is
 added. See [Command/history](COMMAND_AND_HISTORY.md) for retention limits.
+
+## Wall original-intent receipts
+
+Production `wall_create`, `wall_update`, `wall_remove` and `door_toggle` require
+a nonblank original envelope `message_id` (up to 128 characters) before decode
+can mint a replacement identity. Older clients that omit it must upgrade. They bind
+the original envelope `message_id`, authenticated actor/session, message kind
+and complete data to a durable `wall_command` receipt. Deliberate retries retain
+that exact input and identity; changed input conflicts. Current SQL authority
+and table/door state govern acceptance. Matching create/toggle retries do not
+repeat effects, even after later wall edits or deletion.
+
+Fresh acceptance keeps the existing closed `wall_data` payload. Recovered or
+replayed acceptance instead sends generic `success` with `success: true`,
+`domain: wall_command`, `operation_id`, `table_id`, `wall_id`, `command`,
+`replayed: true` and `resync_required: true`. `table_deleted: true` reports a
+verified later table retirement. These receipt fields are not added to the
+closed `wall_data` schema and contain no old wall geometry. Peer notifications
+request normal current-state resync. Publication failure after acceptance uses
+the same small success receipt rather than reporting nonacceptance.
+
+An unavailable outcome/installation returns `error` with `code: outcome_unknown`,
+`outcome: unknown` and `resync_required: true`, causally scoped to the incoming
+request. Blocked followers do not receive another actor's original identity.
+State reads/writes, snapshots, cleanup and join wait for recovery. Revocation
+may permit internal repair while a forbidden private lookup remains unconfirmed.
+Wall commands remain outside negotiated persisted v1/v2 recovery domains.

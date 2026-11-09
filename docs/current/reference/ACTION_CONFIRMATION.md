@@ -6,11 +6,12 @@ Status: usable.
 
 Last source audit: 2026-10-21
 
-## Durable outcome inventory (November 3)
+## Durable outcome inventory (November 4)
 
 | Operation | Current acceptance and recovery boundary |
 | --- | --- |
 | Canvas/sprite/compendium placement | Existing actor/table receipts; NPC source, token and receipt share acceptance. Production raw sprite/compendium commands and bounded runs now resolve uncertainty through the existing journal and current affected-row installation. Direct canvas commands, including undo/redo, now retain quarantine through fresh journal settlement and current affected-target installation. |
+| Wall/door commands | Wall effect and complete original actor/session/message/kind/payload receipt accept atomically. Unknown responses and failed cache installation retain quarantine through fresh settlement/current affected-wall installation. Replayed acceptance is a small receipt plus current-table resync; wall originals are not persisted in v1/v2 browser journals. |
 | Paint and chat | Existing domain operation identities and durable results; retain those contracts. |
 | Combat commands/start/end | Encounter journal and stable session barrier resolve uncertain commits; full lifecycle/browser acceptance remains a release gate. |
 | Character update/repair | Original actor/session/message/patch/version/digest receipts share source/version/sharing/audit/token acceptance. Restart replay installs current persisted projections, with quarantine through installation. Negotiated v2 retains original envelopes across same-tab reloads. Standalone identity-free calls retain legacy CAS recovery. |
@@ -352,3 +353,21 @@ stops retrying/dispatching queued changes, and asks for saved-state review. It i
 not turned into rejection by a timer. Late copy acknowledgements do not extend
 the clipboard's original timestamp. Current authority errors remain visible.
 Canvas originals remain outside closed v1/v2 tab persistence.
+
+## Wall receipts and optimistic previews
+
+Wall requests require a bounded nonblank original message ID in both server
+and browser validation; decoding cannot create a new ID for an unidentified
+retry. Fresh wall commands retain the existing `wall_data` response. Recovered/replayed
+commands use correlated `success` with `domain: wall_command` and
+`resync_required: true`. The receipt proves original acceptance without carrying
+historical geometry or reapplying a relative door toggle. It may also retire a
+table deleted after acceptance. The tracker retains `outcome: unknown` until
+settlement or current reconciliation, without treating that response as rejection.
+
+The wall preview owner ends on a recovered receipt and current table hydration
+supplies walls. Unsent provisional-create dependents are discarded with a review
+notice; they are not remapped through an absent historical wall. Public helpers
+return their request ID and accept an optional original ID for deliberate retries
+with identical kind, table and complete payload. Wall recovery remains page-memory
+scoped and outside closed persisted v1/v2 domains.

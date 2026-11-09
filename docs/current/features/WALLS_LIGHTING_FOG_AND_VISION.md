@@ -5,7 +5,7 @@ vision, or layer visibility.
 
 Status: current.
 
-Last source audit: 2026-09-25
+Last source audit: 2026-11-04 (wall acceptance and recovery)
 
 ## Source owners
 
@@ -83,14 +83,15 @@ Table, fog, and layer messages:
 
 ## Authority rules
 
-Wall create, update, and remove are DM-only. The server writes the wall through
-table actions, then broadcasts `wall_data`. Wall identifiers, table ownership,
+Wall create, update, and remove are DM-only. Production writes use an owned
+`WallCommandService` transaction before cache installation and `wall_data` publication. Wall identifiers, table ownership,
 and creator identity are server-owned: creation accepts only endpoints and
 allowlisted wall properties, while updates accept a non-empty allowlist of
 mutable properties. The canonical JSON Schema rejects unknown properties,
 invalid enum values, non-boolean flags, and coordinates outside the protocol's
-maximum canvas before dispatch. Table actions also validate endpoints against
-the selected table's actual dimensions before persistence. The unused
+maximum canvas before dispatch. The production worker also validates endpoints
+against the scoped SQL table's actual dimensions before persistence; standalone
+table actions retain their coordinate validation. The unused
 partial-success `wall_batch_create` command was removed;
 a future import API must define atomicity and bounded batch behavior explicitly.
 
@@ -318,3 +319,35 @@ vision, or wall changes.
 - Remote light metadata updates reconcile color, intensity, radius, and enabled
   state onto the existing WASM light. Enabled state uses an idempotent setter,
   so replayed updates cannot invert the light.
+
+## Original wall commands and uncertain saves
+
+The shared wire schema requires a nonblank original message ID, bounded to
+128 characters; older clients that omit it must upgrade. Server and browser
+validation reject missing IDs before decoding can generate a replacement.
+Keep the original message ID, kind and complete payload when deliberately
+retrying a wall command. One actor/session-scoped receipt shares acceptance
+with its wall effect. Duplicate create and relative door-toggle requests cannot
+repeat their effect. Current SQL membership, table ownership, door state and
+locked-door authority govern acceptance, including when cached roles are stale.
+
+Unknown commit responses and failed live installation retain session quarantine
+until fresh stable-session-row settlement and current affected-wall installation.
+Snapshots, cleanup, later state work and reconnect join cannot publish stale
+walls. Recovery preserves unrelated walls, never reinstalls old geometry, and
+does not recreate a later-deleted wall/table. Current authority gates private
+receipt disclosure, while internal cache repair can complete after revocation.
+
+Fresh commands return the unchanged `wall_data` shape. A recovered/replayed
+command returns `success` with `domain: wall_command`, original operation/table/
+wall identity and `resync_required: true`; a later-deleted table additionally
+sets `table_deleted`. That receipt is not scene data. Peers get only resync hints.
+The browser removes the settled preview and reloads current walls. Queued edits
+to a provisional create require review if recovery supplies only a receipt.
+Unknown responses do not reject the original. Wall originals remain outside
+persisted v1/v2 browser recovery domains; this is not universal offline replay.
+
+Regression owners: `test_wall_command_service.py`, `test_wall_write_recovery.py`,
+the existing standalone wall tests, `wallCommandSync.test.ts` and
+`clientProtocol.test.ts`. PostgreSQL atomicity and observed lock-wait contracts
+require a configured disposable target; skipped cases do not qualify real locks.

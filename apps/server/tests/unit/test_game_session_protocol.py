@@ -25,6 +25,7 @@ def _make_service(session_code="TST"):
         mock_sp.return_value._mutation_lock = asyncio.Lock()
         mock_sp.return_value._load_active_choice_encounter = AsyncMock(return_value=None)
         mock_sp.return_value._has_pending_sprite_write.return_value = False
+        mock_sp.return_value._has_pending_canvas_write.return_value = False
         svc = GameSessionProtocolService.__new__(GameSessionProtocolService)
         svc.session_code = session_code
         svc.db_session = None

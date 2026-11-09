@@ -139,7 +139,8 @@ class ServerProtocol(
     def _has_pending_writes(self) -> bool:
         return (self._has_pending_combat() or self._has_pending_character_update()
                 or self._has_pending_table_creation() or self._has_pending_table_deletion()
-                or self._has_pending_table_settings() or self._has_pending_choice() or self._has_pending_sprite_write())
+                or self._has_pending_table_settings() or self._has_pending_choice() or self._has_pending_sprite_write()
+                or self._has_pending_canvas_write())
 
     def register_handler(self, msg_type: MessageType, handler: Callable):
         """Extension point for custom message handlers."""
@@ -331,6 +332,9 @@ class ServerProtocol(
 
     async def _invoke_after_combat_recovery(self, msg: Message, client_id: str):
         if msg.type in SERIALIZED_MESSAGE_TYPES:
+            canvas_outcome = await self._recover_pending_canvas_write(msg, client_id)
+            if canvas_outcome is not None:
+                return canvas_outcome
             sprite_outcome = await self._recover_pending_sprite_write(msg, client_id)
             if sprite_outcome is not None:
                 return sprite_outcome

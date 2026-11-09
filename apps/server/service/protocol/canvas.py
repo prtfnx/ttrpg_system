@@ -6,17 +6,18 @@ from core_table.combat import CombatPhase
 from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
 from service.canvas_command_service import CanvasCommandService, CanvasRejected
+from service.canvas_write_recovery import CanvasWriteIntent, PendingCanvasWrite
 from service.combat_engine import CombatEngine
 from service.sprite_editor_commands import SpriteEditorCommandService, sprite_command_scope
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 
-from .sprite_outcomes import _SpriteOutcomesMixin
+from .canvas_outcomes import _CanvasOutcomesMixin
 
 logger = setup_logger(__name__)
 
 
-class _CanvasMixin(_SpriteOutcomesMixin):
+class _CanvasMixin(_CanvasOutcomesMixin):
     async def _persist_sprite_editor_command(self, staged, before_snapshot, result, session_id):
         scope = sprite_command_scope.get()
         if scope is None:
@@ -58,6 +59,10 @@ class _CanvasMixin(_SpriteOutcomesMixin):
         for key, limit in (("operation_id", 36), ("table_id", 128)):
             if isinstance(data.get(key), str) and len(data[key]) <= limit:
                 response[key] = data[key]
+        if code == 'forbidden':
+            # Revocation may prevent lookup of a previously accepted original.
+            # Denial alone cannot prove that original was never saved.
+            response['resync_required'] = True
         return Message(MessageType.CANVAS_COMMAND_RESULT, response)
 
     async def handle_canvas_command(self, msg: Message, client_id: str) -> Message:
@@ -71,7 +76,7 @@ class _CanvasMixin(_SpriteOutcomesMixin):
             return self._canvas_failure(data, "invalid_payload", "table_id is required")
         try:
             worker = asyncio.create_task(self._commit_canvas_command(
-                copy.deepcopy(data), session_id, actor_id, table_id, client_id,
+                copy.deepcopy(data), session_id, actor_id, table_id, client_id, msg,
             ))
             try:
                 return await asyncio.shield(worker)
@@ -94,7 +99,7 @@ class _CanvasMixin(_SpriteOutcomesMixin):
             logger.exception("Canvas command failed")
             return self._canvas_failure(data, "persistence_failed", "Canvas command failed; reload before retrying")
 
-    async def _commit_canvas_command(self, data, session_id, actor_id, table_id, client_id):
+    async def _commit_canvas_command(self, data, session_id, actor_id, table_id, client_id, request):
         async with self.table_manager.table_write_lock(table_id):
             table = self.table_manager.get_table(table_id)
             if table is None:
@@ -103,13 +108,27 @@ class _CanvasMixin(_SpriteOutcomesMixin):
             combat_ids = tuple(str(member.entity_id) for member in combat.combatants) if (
                 combat is not None and combat.table_id == table_id and combat.phase != CombatPhase.INACTIVE
             ) else ()
-            result = await run_blocking(
-                CanvasCommandService(SessionLocal).execute,
-                session_id=session_id, actor_id=actor_id, command=data,
-                table_source=table, combat_sprite_ids=combat_ids,
-            )
-            if result.table is not None:
-                self.table_manager.add_table(result.table)
+            service = CanvasCommandService(SessionLocal)
+            intent = CanvasWriteIntent.create(session_id, actor_id, data, service)
+            attempt = PendingCanvasWrite(intent, request.message_id, service.factory)
+            self._pending_canvas_write = attempt
+            try:
+                result = await run_blocking(service.execute,
+                    session_id=session_id, actor_id=actor_id, command=intent.command,
+                    table_source=table, combat_sprite_ids=combat_ids, attempt=attempt)
+            except CanvasRejected:
+                # Domain rejection occurs before commit; the transaction rolls
+                # back and the staged table is private.
+                self._complete_canvas_write(attempt)
+                raise
+            except Exception:
+                return await self._recover_pending_canvas_write(request, client_id, table_owned=True)
+            attempt.accepted = True
+            try:
+                if result.table is not None:
+                    self.table_manager.add_table(result.table)
+            except Exception:
+                return await self._recover_pending_canvas_write(request, client_id, table_owned=True)
             receipt = copy.deepcopy(result.receipt)
             for event in result.events:
                 message = Message(MessageType(event["type"]), event["data"], correlation_id=data["operation_id"])
@@ -129,6 +148,7 @@ class _CanvasMixin(_SpriteOutcomesMixin):
                 except Exception:
                     receipt["resync_required"] = True
                     logger.exception("Canvas event delivery failed after commit")
+            self._complete_canvas_write(attempt)
             return Message(MessageType.CANVAS_COMMAND_RESULT, receipt)
 
     async def handle_canvas_history_request(self, msg: Message, client_id: str) -> Message:

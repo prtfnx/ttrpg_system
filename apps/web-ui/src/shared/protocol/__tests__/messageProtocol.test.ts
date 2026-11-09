@@ -4,6 +4,19 @@ import { describe, expect, it } from 'vitest';
 describe('Protocol Message Utilities', () => {
 
   it.each([
+    [MessageType.WALL_CREATE, { table_id: 'table', wall_data: { x1: 0, y1: 0, x2: 10, y2: 10 } }],
+    [MessageType.WALL_UPDATE, { table_id: 'table', wall_id: 'wall', updates: { door_state: 'open' } }],
+    [MessageType.WALL_REMOVE, { table_id: 'table', wall_id: 'wall' }],
+    [MessageType.DOOR_TOGGLE, { table_id: 'table', wall_id: 'wall' }],
+  ] as const)('requires an original wire identity for %s', (kind, data) => {
+    const original = createMessage(kind, data);
+    expect(parseMessage(JSON.stringify(original)).message_id).toBe(original.message_id);
+    for (const message_id of [undefined, null, '', '   ', 'x'.repeat(129)]) {
+      expect(() => parseMessage(JSON.stringify({ ...original, message_id }))).toThrow(/Invalid message/);
+    }
+  });
+
+  it.each([
     [MessageType.ENCOUNTER_START, { choices: [{ text: 'Go' }] }],
     [MessageType.ENCOUNTER_END, { encounter_id: 'target' }],
     [MessageType.ENCOUNTER_CHOICE, { encounter_id: 'target', choice_id: 'go' }],
@@ -444,7 +457,7 @@ describe('Protocol Message Utilities', () => {
     ];
 
     for (const message of validMessages) {
-      expect(parseMessage(JSON.stringify(message)).type).toBe(message.type);
+      expect(parseMessage(JSON.stringify({ ...message, message_id: 'original-wall' })).type).toBe(message.type);
     }
 
     const invalidMessages = [
@@ -475,7 +488,7 @@ describe('Protocol Message Utilities', () => {
     ];
 
     for (const message of invalidMessages) {
-      expect(() => parseMessage(JSON.stringify(message))).toThrow(/Invalid message/);
+      expect(() => parseMessage(JSON.stringify({ ...message, message_id: 'original-wall' }))).toThrow(/Invalid message/);
     }
   });
 

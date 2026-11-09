@@ -18,20 +18,22 @@ test('imports and validates messages under the server script CSP', async () => {
     <meta http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'">
     <script type="module">
-      const result = { kind: 'protocol-csp-result', evalBlocked: false, valid: false, invalidRejected: false };
+      const result = { kind: 'protocol-csp-result', evalBlocked: false, valid: false, invalidRejected: false, wallIdentityRejected: false };
       try {
         try { new Function('return 1')(); } catch (error) { result.evalBlocked = error.name === 'EvalError'; }
         const { parseMessage } = await import('/src/lib/websocket/message.ts');
         result.valid = parseMessage('{"type":"ping"}').type === 'ping';
         try { parseMessage('{"type":"not_registered"}'); }
         catch (error) { result.invalidRejected = error.message.startsWith('Invalid message:'); }
+        try { parseMessage(JSON.stringify({ type: 'door_toggle', data: { table_id: 'table', wall_id: 'wall' } })); }
+        catch (error) { result.wallIdentityRejected = error.message.startsWith('Invalid message:'); }
       } catch (error) { result.error = String(error); }
       parent.postMessage(result, ${JSON.stringify(window.location.origin)});
     </script>`;
   document.body.append(frame);
   try {
     expect(await result).toEqual({
-      kind: 'protocol-csp-result', evalBlocked: true, valid: true, invalidRejected: true,
+      kind: 'protocol-csp-result', evalBlocked: true, valid: true, invalidRejected: true, wallIdentityRejected: true,
     });
   } finally {
     window.removeEventListener('message', receive);

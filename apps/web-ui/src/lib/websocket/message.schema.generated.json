@@ -2374,6 +2374,10 @@
   },
   "allOf": [
     {
+      "if": {"properties": {"type": {"enum": ["wall_create", "wall_update", "wall_remove", "door_toggle"]}}, "required": ["type"]},
+      "then": {"required": ["message_id"], "properties": {"message_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"}}}
+    },
+    {
       "if": {"properties": {"type": {"const": "canvas_command"}}, "required": ["type"]},
       "then": {"required": ["data"], "properties": {"data": {"$ref": "#/$defs/canvasCommand"}}}
     },

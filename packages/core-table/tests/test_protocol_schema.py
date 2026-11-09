@@ -334,9 +334,28 @@ def test_message_from_json_rejects_invalid_table_command_payloads(message):
     ],
 )
 def test_message_from_json_accepts_wall_command_payloads(message):
+    message['message_id'] = 'original-wall'
     parsed = Message.from_json(json.dumps(message))
 
     assert parsed.type.value == message["type"]
+
+
+@pytest.mark.parametrize('kind', ['wall_create', 'wall_update', 'wall_remove', 'door_toggle'])
+@pytest.mark.parametrize('invalid', [None, '', '   ', 'x' * 129])
+def test_wall_wire_requires_original_identity_instead_of_minting_one(kind, invalid):
+    data = {'table_id': 'table', 'wall_id': 'wall'}
+    if kind == 'wall_create':
+        data = {'table_id': 'table', 'wall_data': {'x1': 0, 'y1': 0, 'x2': 10, 'y2': 10}}
+    elif kind == 'wall_update':
+        data['updates'] = {'door_state': 'open'}
+    wire = {'type': kind, 'message_id': 'original', 'data': data}
+    assert Message.from_dict(wire).message_id == 'original'
+    if invalid is None:
+        wire.pop('message_id')
+    else:
+        wire['message_id'] = invalid
+    with pytest.raises(ValueError, match='Invalid protocol message'):
+        Message.from_dict(wire)
 
 
 @pytest.mark.parametrize(
@@ -388,6 +407,7 @@ def test_message_from_json_accepts_wall_command_payloads(message):
     ],
 )
 def test_message_from_json_rejects_invalid_wall_command_payloads(message):
+    message['message_id'] = 'original-wall'
     with pytest.raises(ValueError, match="Invalid protocol message"):
         Message.from_json(json.dumps(message))
 

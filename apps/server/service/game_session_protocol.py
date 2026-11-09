@@ -165,6 +165,9 @@ class GameSessionProtocolService:
         await self._outboxes[websocket].drain()
 
     async def _register_client(self, websocket, client_id, user_info, game_mode, rules_dict, recovery=None):
+        if self.server_protocol._has_pending_wall_command():
+            if await self.server_protocol._recover_pending_wall_command() is not None:
+                raise RuntimeError('Wall acceptance must settle before joining')
         if self.server_protocol._has_pending_canvas_write():
             if await self.server_protocol._recover_pending_canvas_write() is not None:
                 raise RuntimeError('Canvas acceptance must settle before joining')

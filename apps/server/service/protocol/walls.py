@@ -2,16 +2,18 @@ from core_table.protocol import Message, MessageType
 from utils.logger import setup_logger
 from utils.roles import can_interact, is_dm
 
-from ._protocol_base import _ProtocolBase
+from .wall_outcomes import _WallOutcomesMixin
 
 logger = setup_logger(__name__)
 
 
-class _WallsMixin(_ProtocolBase):
+class _WallsMixin(_WallOutcomesMixin):
     """Handler methods for walls domain."""
 
     async def handle_wall_create(self, msg: Message, client_id: str) -> Message:
         """DM creates a single wall segment and persists it to the database."""
+        if self._durable_wall_commands():
+            return await self._execute_wall_command(msg, client_id)
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'Only DMs can create walls'})
         if not msg.data:
@@ -46,6 +48,8 @@ class _WallsMixin(_ProtocolBase):
 
     async def handle_wall_update(self, msg: Message, client_id: str) -> Message:
         """DM modifies wall properties (type, blocking flags, door state, etc.)."""
+        if self._durable_wall_commands():
+            return await self._execute_wall_command(msg, client_id)
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'Only DMs can update walls'})
         if not msg.data:
@@ -74,6 +78,8 @@ class _WallsMixin(_ProtocolBase):
 
     async def handle_wall_remove(self, msg: Message, client_id: str) -> Message:
         """DM removes a wall segment permanently."""
+        if self._durable_wall_commands():
+            return await self._execute_wall_command(msg, client_id)
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'Only DMs can remove walls'})
         if not msg.data:
@@ -99,6 +105,8 @@ class _WallsMixin(_ProtocolBase):
 
     async def handle_door_toggle(self, msg: Message, client_id: str) -> Message:
         """Toggle a door between open/closed.  Players can interact; locked doors require DM."""
+        if self._durable_wall_commands():
+            return await self._execute_wall_command(msg, client_id)
         role = self._get_client_role(client_id)
         if not can_interact(role):
             return Message(MessageType.ERROR, {'error': 'Spectators cannot interact with doors'})

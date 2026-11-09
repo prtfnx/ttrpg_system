@@ -24,6 +24,7 @@ def protocol(monkeypatch, test_db, test_db_engine, test_game_session, test_user)
     monkeypatch.setattr("service.protocol.base.SessionLocal", factory)
     monkeypatch.setattr("service.protocol.canvas.SessionLocal", factory)
     monkeypatch.setattr("service.canvas_persistence_service.SessionLocal", factory)
+    monkeypatch.setattr("service.wall_command_service.SessionLocal", factory)
     manager = TableManager(test_db)
     table = manager.create_table("Text history", 1000, 1000)
     assert crud.save_table_to_db(test_db, table, test_game_session.id)
@@ -447,16 +448,20 @@ async def test_inbox_accumulates_frames_into_one_durable_run_and_preserves_every
         event.remove(test_db_engine, "commit", committed)
 
 
-async def test_batched_wall_postcommit_failure_is_uncertain_and_correlated(protocol, monkeypatch):
+async def test_batched_wall_publication_failure_keeps_accepted_receipt_correlated(protocol, monkeypatch):
     proto, table, factory = protocol
     monkeypatch.setattr(proto, "broadcast_to_session", AsyncMock(side_effect=RuntimeError("publication")))
     request = Message(MessageType.WALL_CREATE, {"table_id": str(table.table_id), "wall_data": {
         "x1": 0, "y1": 0, "x2": 10, "y2": 10}})
     response = await send(proto, Message(MessageType.BATCH_REQUEST, {"messages": [request.to_dict()]}))
-    error = response.data["messages"][0]
-    assert error["causation_id"] == request.message_id
-    assert error["data"]["code"] == "outcome_unknown" and error["data"]["resync_required"]
-    assert error["data"]["table_id"] == str(table.table_id)
+    receipts = [call.args[0] for call in proto.send_to_client.call_args_list
+                if call.args[0].causation_id == request.message_id]
+    assert len(receipts) == 1
+    receipt = receipts[0]
+    assert receipt.type == MessageType.SUCCESS
+    assert receipt.data["success"] and receipt.data["resync_required"]
+    assert receipt.data["domain"] == "wall_command" and receipt.data["table_id"] == str(table.table_id)
+    assert not response.data["messages"] and not proto._has_pending_writes()
     with factory() as db:
         assert db.query(models.Wall).count() == 1
 

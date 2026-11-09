@@ -473,3 +473,24 @@ per original/connection; the mutation is not automatically resent. The shared
 confirmed sprite helper waits through unknown replies until a causally matched
 outcome, cancellation or its existing deadline. These are existing error/response
 schema fields; no sprite domain is added to closed v1/v2 recovery negotiation.
+
+
+## Direct canvas outcome semantics
+
+`canvas_command_result` uses existing schema fields. `success: false` with
+`code: outcome_unknown` and `resync_required: true` means the original is still
+being checked, not rejected. `forbidden` plus `resync_required: true` withholds
+an outcome that current authority cannot disclose; denial cannot prove an earlier
+original never committed. Both keep browser command ownership. A blocked state
+read instead receives the existing generic `error` with `outcome: unknown`.
+
+Fresh verified acceptance returns the original operation/table identity and
+clipboard identity when applicable, current history flags and current visible
+selection references, with `resync_required: true`. It contains no historical
+scene delta. Verified nonacceptance after commit uncertainty reports
+`persistence_failed`; unavailable/expired/missing known-accepted history stays
+unknown. Normal pre-commit validation/conflict/dependency errors retain their
+existing semantics. The envelope correlates receipt delivery to the original
+sender while the domain operation ID supports retries with unchanged command
+input/timestamp. No new negotiated browser recovery domain or wire property is
+added. See [Command/history](COMMAND_AND_HISTORY.md) for retention limits.

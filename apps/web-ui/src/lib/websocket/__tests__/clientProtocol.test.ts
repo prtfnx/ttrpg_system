@@ -140,6 +140,38 @@ function makeOpenWs(protocol: WebClientProtocol) {
 // ---------------------------------------------------------------------------
 
 describe('WebClientProtocol', () => {
+  it('retains typed unknown canvas receipts in tracking until causal acceptance', async () => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    const tableId = '550e8400-e29b-41d4-a716-446655440000';
+    const operationId = crypto.randomUUID();
+    const outcomes = vi.fn(); window.addEventListener('canvas-command-result', outcomes);
+    const receive = async (message: Message) => {
+      await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> })
+        .handleIncomingMessage(JSON.stringify(message));
+    };
+    try {
+      expect(protocol.sendCanvasCommand({ table_id: tableId, operation_id: operationId,
+        issued_at: Date.now(), mode: 'undo' })).toBe(true);
+      protocol.sendBatch();
+      const sent = ws.send.mock.calls.flatMap(call => {
+        const frame = JSON.parse(call[0]); return frame.type === MessageType.BATCH_REQUEST ? frame.data.messages : [frame];
+      }).find(message => message.type === MessageType.CANVAS_COMMAND);
+      const tracker = (protocol as unknown as { commandTracking: { watermark(id: string): string[] } }).commandTracking;
+      await receive({ ...createMessage(MessageType.CANVAS_COMMAND_RESULT, { success: false,
+        operation_id: operationId, table_id: tableId, code: 'outcome_unknown', error: 'Checking', resync_required: true }),
+        causation_id: sent.message_id });
+      expect(tracker.watermark(tableId)).toContain(sent.message_id);
+      await receive({ ...createMessage(MessageType.CANVAS_COMMAND_RESULT, { success: false,
+        operation_id: operationId, table_id: tableId, code: 'forbidden', error: 'Current authority required', resync_required: true }),
+        causation_id: sent.message_id });
+      expect(tracker.watermark(tableId)).toContain(sent.message_id);
+      await receive({ ...createMessage(MessageType.CANVAS_COMMAND_RESULT, { success: true,
+        operation_id: operationId, table_id: tableId, selection: [], can_undo: false, can_redo: true, resync_required: true }),
+        causation_id: sent.message_id });
+      expect(tracker.watermark(tableId)).not.toContain(sent.message_id);
+      expect(outcomes).toHaveBeenCalledTimes(3);
+    } finally { window.removeEventListener('canvas-command-result', outcomes); protocol.disconnect(); }
+  });
   it('retains an unknown sprite action and probes current state once without rejecting or replaying it', async () => {
     const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
     const rejected = vi.fn(), settled = vi.fn();

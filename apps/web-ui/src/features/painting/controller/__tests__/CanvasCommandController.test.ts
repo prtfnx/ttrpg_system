@@ -13,7 +13,7 @@ function harness() {
   let now = 1000;
   const transport = { sendCanvasCommand: vi.fn((_command: Record<string, unknown>) => true),
     requestCanvasHistory: vi.fn((_tableId: string) => true) };
-  const options = { now: () => now, onError: vi.fn(), onResync: vi.fn(), onSelection: vi.fn() };
+  const options = { now: () => now, onError: vi.fn(), onResync: vi.fn(), onSelection: vi.fn(), onSettled: vi.fn() };
   const owner = new CanvasCommandController(transport, options);
   owners.push(owner);
   owner.connectEvents();
@@ -27,6 +27,61 @@ function harness() {
 }
 
 describe('CanvasCommandController', () => {
+  it('retains an unknown original through hydration and retries its exact receipt without rebasing', () => {
+    const h = harness();
+    h.options.onResync.mockImplementation(() => emitProtocolEvent('table-resync-started', { tableId: TABLE }));
+    h.owner.submit({ mode: 'transform', members, transform: IDENTITY_TRANSFORM });
+    const original = structuredClone(h.command());
+    h.accept({ success: false, code: 'outcome_unknown', error: 'Checking', resync_required: true });
+    h.accept({ success: false, code: 'outcome_unknown', error: 'Checking', resync_required: true });
+    expect(h.options.onError).not.toHaveBeenCalled();
+    expect(h.options.onSettled).not.toHaveBeenCalled();
+    expect(h.options.onResync).toHaveBeenCalledOnce();
+    expect(h.owner.getState().pending).toBe(true);
+    h.advance(20_000); h.owner.tick();
+    expect(h.transport.sendCanvasCommand).toHaveBeenCalledOnce();
+    emitProtocolEvent('table-resync-completed', { tableId: TABLE });
+    expect(h.owner.getState().pending).toBe(true);
+    expect(h.transport.sendCanvasCommand).toHaveBeenCalledTimes(2);
+    expect(h.command()).toEqual(original);
+    h.accept();
+    expect(h.owner.getState().pending).toBe(false);
+  });
+  it('keeps a denied uncertain receipt until authority can confirm it', () => {
+    const h = harness();
+    h.owner.submit({ mode: 'copy', members });
+    h.accept({ success: false, code: 'forbidden', error: 'Current authority required', resync_required: true });
+    expect(h.owner.getState().pending).toBe(true);
+    expect(h.options.onError).not.toHaveBeenCalled();
+    h.accept({ clipboard_id: h.command().operation_id });
+    expect(h.owner.getState()).toMatchObject({ pending: false, canPaste: true });
+  });
+  it('reconciles a replacement normally after a proved dependency failure ends original uncertainty', () => {
+    const h = harness();
+    h.options.onResync.mockImplementation(() => emitProtocolEvent('table-resync-started', { tableId: TABLE }));
+    h.owner.submit({ mode: 'transform', members, transform: IDENTITY_TRANSFORM });
+    const original = h.command().operation_id;
+    h.accept({ success: false, code: 'outcome_unknown', error: 'Checking', resync_required: true });
+    emitProtocolEvent('table-resync-completed', { tableId: TABLE });
+    h.accept({ success: false, code: 'dependency_failed', error: 'Original did not execute' });
+    expect(h.command().operation_id).not.toBe(original);
+    emitProtocolEvent('table-resync-started', { tableId: TABLE });
+    emitProtocolEvent('table-resync-completed', { tableId: TABLE });
+    expect(h.owner.getState().pending).toBe(false);
+  });
+  it('does not turn an explicitly unknown expired outcome into rejection or another mutation', () => {
+    const h = harness();
+    h.owner.submit({ mode: 'copy', members });
+    h.accept({ success: false, code: 'outcome_unknown', error: 'Checking', resync_required: true });
+    h.advance(25 * 60 * 60 * 1000); h.owner.tick();
+    expect(h.options.onSettled).not.toHaveBeenCalled();
+    expect(h.owner.getState()).toMatchObject({ pending: true, lastError: expect.stringContaining('unconfirmed') });
+    emitProtocolEvent('table-resync-completed', { tableId: TABLE });
+    expect(h.transport.sendCanvasCommand).toHaveBeenCalledOnce();
+    expect(h.owner.getState().pending).toBe(true);
+    h.accept({ clipboard_id: h.command().operation_id });
+    expect(h.owner.getState()).toMatchObject({ pending: false, canPaste: false });
+  });
   it('keeps later intent queued through conflict recovery and resumes after hydration', () => {
     const h = harness();
     h.options.onResync.mockImplementation(() => emitProtocolEvent('table-resync-started', { tableId: TABLE }));

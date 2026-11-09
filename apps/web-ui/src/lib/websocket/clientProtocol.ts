@@ -955,6 +955,8 @@ export class WebClientProtocol {
       this.recoveredTableResponses.add(message);
     }
     this.operationRecovery.outcome(message);
+    if (message.type === MessageType.CANVAS_COMMAND_RESULT && (message.data?.code === 'outcome_unknown'
+      || message.data?.code === 'forbidden' && message.data?.resync_required === true)) return;
     if (message.data?.outcome === 'unknown') return;
     if (message.data?.code === 'choice_outcome_unknown') return;
     const multiclassId = message.data?.operation_id ?? message.causation_id ?? message.correlation_id;

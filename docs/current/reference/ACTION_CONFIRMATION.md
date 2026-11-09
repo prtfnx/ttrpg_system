@@ -10,7 +10,7 @@ Last source audit: 2026-10-21
 
 | Operation | Current acceptance and recovery boundary |
 | --- | --- |
-| Canvas/sprite/compendium placement | Existing actor/table receipts; NPC source, token and receipt share acceptance. Production raw sprite/compendium commands and bounded runs now resolve uncertainty through the existing journal and current affected-row installation. Direct canvas acceptance still needs equivalent review. |
+| Canvas/sprite/compendium placement | Existing actor/table receipts; NPC source, token and receipt share acceptance. Production raw sprite/compendium commands and bounded runs now resolve uncertainty through the existing journal and current affected-row installation. Direct canvas commands, including undo/redo, now retain quarantine through fresh journal settlement and current affected-target installation. |
 | Paint and chat | Existing domain operation identities and durable results; retain those contracts. |
 | Combat commands/start/end | Encounter journal and stable session barrier resolve uncertain commits; full lifecycle/browser acceptance remains a release gate. |
 | Character update/repair | Original actor/session/message/patch/version/digest receipts share source/version/sharing/audit/token acceptance. Restart replay installs current persisted projections, with quarantine through installation. Negotiated v2 retains original envelopes across same-tab reloads. Standalone identity-free calls retain legacy CAS recovery. |
@@ -334,3 +334,21 @@ result after an unknown response, with its existing cancellation/15-second
 deadline. Timeout still asks the user to inspect saved state before retrying.
 Current-state snapshots and small receipts replace historical delta publication.
 Sprite originals remain outside negotiated v1/v2 tab persistence.
+
+
+## Unknown canvas command and history outcomes
+
+`CanvasCommandController` retains an original on `outcome_unknown`, and on
+receipt-denial responses carrying `forbidden` plus `resync_required`. These do
+not reject its optimistic owner or reissue a new mutation identity. A bounded
+read probe requests authoritative reconciliation. Hydration can replace previews
+but does not itself acknowledge an unknown original; the controller retains that
+original and requests its exact receipt after hydration/reconnect. This also
+handles join settlement before the replacement socket was registered.
+
+Existing retry intervals and the 24-hour original-intent horizon still apply.
+An explicitly unknown outcome remains recorded in page memory after expiry,
+stops retrying/dispatching queued changes, and asks for saved-state review. It is
+not turned into rejection by a timer. Late copy acknowledgements do not extend
+the clipboard's original timestamp. Current authority errors remain visible.
+Canvas originals remain outside closed v1/v2 tab persistence.

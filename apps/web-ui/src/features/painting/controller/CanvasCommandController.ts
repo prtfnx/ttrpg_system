@@ -79,7 +79,8 @@ const ACK_TIMEOUT_MS = 10_000;
 export const MAX_CANVAS_IN_FLIGHT = 8;
 
 type PendingCommand = { command: CanvasIntent & { operation_id: string; table_id: string; issued_at: number };
-  intent: CanvasIntent; sentAt: number; duplicate: boolean };
+  intent: CanvasIntent; sentAt: number; duplicate: boolean; outcomeUnknown?: boolean;
+  recoveryProbeSent?: boolean; expired?: boolean };
 
 function pipelineable(intent: CanvasIntent): boolean {
   return ['transform', 'sprite_edit', 'restyle'].includes(intent.mode);
@@ -128,10 +129,15 @@ export class CanvasCommandController {
       }),
       onProtocolEvent('table-resync-completed', ({ tableId }) => {
         if (tableId !== this.tableId) return;
-        for (const id of this.resyncWatermark) this.pending.delete(id);
+        for (const id of this.resyncWatermark) {
+          if (!this.pending.get(id)?.outcomeUnknown) this.pending.delete(id);
+        }
         this.options.onSnapshot?.(this.resyncWatermark);
         this.resyncWatermark = [];
         this.recovering = false;
+        // A join can settle SQL before this replacement socket is registered.
+        // Retrieve only the same original receipt; hydration is not its receipt.
+        this.retry();
         this.flushQueued();
         this.refreshHistory();
         this.emit();
@@ -148,6 +154,7 @@ export class CanvasCommandController {
         }
       })),
       onProtocolEvent('protocol-connected', () => {
+        for (const pending of this.pending.values()) pending.recoveryProbeSent = false;
         if (this.transport.supportsCanvasPipelining?.() !== true && [...this.pending.values()].some(item =>
           'members' in item.command && item.command.members.some(member => member.after_operation_id))) {
           this.recovering = true;
@@ -249,6 +256,14 @@ export class CanvasCommandController {
     }
     for (const [id, pending] of this.pending) {
       if (this.now() - pending.command.issued_at > RETRY_WINDOW_MS) {
+        if (pending.outcomeUnknown) {
+          if (!pending.expired) {
+            pending.expired = true;
+            this.fail('Canvas outcome remains unconfirmed. Review the saved table before making another edit.');
+            this.options.onResync(pending.command.table_id);
+          }
+          continue;
+        }
         this.pending.delete(id);
         this.options.onSettled?.(id, false);
         this.fail('Canvas acknowledgement expired; the table has been reloaded.');
@@ -275,7 +290,7 @@ export class CanvasCommandController {
   }
 
   private flushQueued(): void {
-    if (this.flushing || this.recovering) return;
+    if (this.flushing || this.recovering || [...this.pending.values()].some(item => item.expired)) return;
     this.flushing = true;
     try {
       const previous: PendingCommand[] = [];
@@ -313,12 +328,25 @@ export class CanvasCommandController {
     if (typeof data?.operation_id !== 'string' || data.table_id !== this.tableId) return;
     const pending = this.pending.get(data.operation_id);
     if (!pending) return;
+    if (data.success !== true && (data.code === 'outcome_unknown'
+      || data.code === 'forbidden' && data.resync_required === true)) {
+      pending.outcomeUnknown = true;
+      if (data.code === 'forbidden') this.lastError = String(data.error ?? 'Current session authority is required.');
+      if (!pending.recoveryProbeSent) {
+        pending.recoveryProbeSent = true;
+        this.recovering = true;
+        this.options.onResync(pending.command.table_id);
+      }
+      this.emit();
+      return;
+    }
     if (data.success !== true && data.code === 'dependency_failed') {
       // The server guarantees this attempt did not execute. Retain logical
       // intent, replace its wire identity, and rebase before transmitting again.
       const nextId = this.operationId();
       const replacement = { ...pending, command: { ...pending.intent, operation_id: nextId,
-        table_id: pending.command.table_id, issued_at: pending.command.issued_at }, sentAt: Number.NEGATIVE_INFINITY };
+        table_id: pending.command.table_id, issued_at: pending.command.issued_at }, sentAt: Number.NEGATIVE_INFINITY,
+        outcomeUnknown: false, recoveryProbeSent: false, expired: false };
       this.pending = new Map([...this.pending].map(([id, item]) => id === data.operation_id ? [nextId, replacement] : [id, item]));
       this.options.onReissued?.(data.operation_id, nextId);
       this.flushQueued();
@@ -341,7 +369,7 @@ export class CanvasCommandController {
     this.history = { canUndo: data.can_undo === true, canRedo: data.can_redo === true };
     this.lastError = null;
     if ((pending.command.mode === 'copy' || pending.command.mode === 'cut') && typeof data.clipboard_id === 'string') {
-      this.clipboard = { id: data.clipboard_id, copiedAt: this.now(),
+      this.clipboard = { id: data.clipboard_id, copiedAt: pending.command.issued_at,
         members: pending.command.members.map(ref => ({ kind: ref.kind, id: ref.id })) };
     }
     if (data.resync_required === true) {

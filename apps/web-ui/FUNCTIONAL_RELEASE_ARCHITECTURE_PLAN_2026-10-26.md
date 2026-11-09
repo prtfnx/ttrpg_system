@@ -4,6 +4,49 @@ Date: 2026-10-26, Europe/Kiev.
 
 Status: proposed implementation backlog; this document does not declare the remaining work complete.
 
+November 4 wall continuation: production create/update/remove/door-toggle now
+accept effects and bounded complete-original actor/session/message receipts in
+one worker-owned transaction. Current SQL membership, scoped table dimensions,
+door state and locked-door authority govern acceptance. Matching retries cannot
+repeat toggles or recreate later-deleted walls. The existing receipt table is
+reused; no migration or persisted v1/v2 browser domain is added.
+
+The shared wire schema now requires a bounded nonblank original wall message ID
+before decoding can mint a replacement. Both packaged schemas are regenerated;
+older clients without an ID must upgrade. Native browser CSP validation covers
+the new rule without unsafe evaluation.
+
+Lost commit responses and failed live installation retain quarantine through
+fresh stable-session-row settlement and current affected-wall installation.
+State reads/writes, snapshots, empty cleanup and join cannot bypass that owner;
+repeated cancellation does not release it early. Recovery preserves unrelated
+retained walls/fields, handles later table retirement, and withholds private
+outcomes after revocation. Missing known-accepted receipts remain unknown.
+
+Fresh acceptance retains `wall_data`; recovered/replayed acceptance returns a
+small correlated receipt and current-table resync. Historical wall events are
+not replayed. Browser previews end on recovered receipts, unknown replies do not
+reject originals, and provisional-create dependents require review. Public
+helpers return/accept original IDs for deliberate complete-input retries. Wall
+originals remain page-memory scoped, outside universal offline replay.
+
+Validation: 1,288 broad server cases plus one later-table-retirement regression
+pass. The full core protocol schema suite has 237 passing cases; final browser
+coverage has 1,995 jsdom cases and five native CSP/storage cases. Eighty-one cases
+skip without PostgreSQL: 80 contracts and one Alembic case. Six new wall contracts
+collect for atomic acceptance and observed original-barrier waits through
+create/toggle commit/rollback; skipped contracts are not real-lock qualification.
+Pinned Pyright, TypeScript, targeted Ruff/ESLint, production build, generated
+bindings and docs checks pass. Existing modified WASM and large chunks remain.
+See [wall evidence](audit/release-2026-11-04/wall-settlement-validation.md).
+
+Six focused local commits, each at most seven files, implement/test/document
+this continuation. Next: generic table mutation uncertainty. R2 active-combat
+authority and legacy conflicts, R5 auth/resume/private-producer acceptance, R6
+paired DB/R2 restore with timeline invalidation, and R0/R7 PostgreSQL, reproducible
+WASM, served-provider, CI and load qualification remain open. This continuation
+does not rewrite commit dates or push.
+
 November 4 canvas continuation: direct transform, sprite edit, restyle, delete,
 copy, cut, paste, undo and redo now retain acceptance ownership through the
 existing journal transaction, fresh stable-session-row lookup and current cache
@@ -705,7 +748,7 @@ For a public production service, also require automated independent backups, res
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
-| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals survive same-tab reloads. Character/repair, choice and multiclass have atomic receipts/current-state replay and negotiated v2 originals. Raw sprite/compendium runs and direct canvas/history now settle existing journal outcomes and install current affected targets. Generic table and wall uncertainty remain open. | Finish remaining R4 settlement and real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
+| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals survive same-tab reloads. Character/repair, choice and multiclass have atomic receipts/current-state replay and negotiated v2 originals. Raw sprite/compendium runs and direct canvas/history settle existing journal outcomes and install current affected targets. Wall commands now commit original-intent receipts and retain quarantine through current-wall settlement/installation; their browser originals remain outside persisted v1/v2. Generic table uncertainty remains open. | Finish remaining R4 settlement and real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
 | A9: core-table imports server infrastructure | Still present. | Defer extraction; introduce only the transaction/worker adapters needed by R1-R3. |
 | A10: browser dependency cycles | Research recorded 39 cycles; the count was not rerun for this plan. | Defer wholesale cleanup. Fix a cycle only when a reproducible release workflow requires it. |
 | A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `efe187ac`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |
@@ -795,7 +838,15 @@ Done when: the named gameplay paths perform no blocking SQL on the server loop, 
 
 Priority: release blocker for supported retry flows. Dependencies: R1/R2 transaction boundaries; contract design can start alongside R1. Estimate: 4-7 days.
 
-Latest November 4 canvas status: all direct canvas modes, including undo/redo,
+Latest November 4 wall status: production create/update/remove/toggle share atomic
+original-intent receipts and fresh current-wall settlement. Unknown commit/cache
+outcomes retain quarantine through installation, including reads, snapshots,
+cleanup and join. Current SQL roles/state govern acceptance and private outcomes;
+retries do not repeat toggles or restore deleted walls. Browser receipt settlement
+reloads current state without expanding persisted v1/v2 domains. Generic table
+uncertainty and real PostgreSQL/served/restore acceptance remain open.
+
+November 4 canvas status: all direct canvas modes, including undo/redo,
 retain quarantine through fresh receipt lookup and current affected-row
 installation. Typed unknown/denied and pipelined follower identities remain owned
 through browser reconciliation; expiry does not imply rollback. No persisted wire

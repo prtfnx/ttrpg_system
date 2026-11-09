@@ -68,6 +68,7 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         monkeypatch.setattr(module, "SessionLocal", factory)
     asset_provider = SimpleNamespace(request_session_assets=AsyncMock(return_value=[]))
     monkeypatch.setattr('service.wall_command_service.SessionLocal', factory)
+    monkeypatch.setattr('service.table_edit_service.SessionLocal', factory)
     monkeypatch.setattr(game_session_protocol, "get_server_asset_manager", lambda: asset_provider)
     monkeypatch.setattr(assets, "get_server_asset_manager", lambda: asset_provider)
     monkeypatch.setattr(DiceEngine, "roll", staticmethod(lambda formula: DiceRollResult(
@@ -141,6 +142,11 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         await request(service, player, MessageType.SPRITE_MOVE, {
             "table_id": table_id, "sprite_id": hero_id, "from": {"x": 100, "y": 100}, "to": {"x": 150, "y": 100},
         }, MessageType.SPRITE_RESPONSE)
+        metadata = await request(service, dm, MessageType.TABLE_UPDATE_REQUEST, {
+            'category': 'table', 'type': 'table_update',
+            'data': {'table_id': table_id, 'table_name': 'Revised battlefield', 'width': 1200},
+        }, MessageType.SUCCESS)
+        assert metadata['domain'] == 'table_edit' and metadata['resync_required']
         wall = await request(service, dm, MessageType.WALL_CREATE, {
             "table_id": table_id, "wall_data": {"x1": 800, "y1": 800, "x2": 900, "y2": 800},
         }, MessageType.WALL_DATA)
@@ -212,6 +218,7 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         snapshot = loaded["table_data"]
         assert snapshot["dynamic_lighting_enabled"] is True and snapshot["grid_enabled"] is False
         assert snapshot["ambient_light_level"] == 0.4
+        assert snapshot['table_name'] == 'Revised battlefield' and snapshot['width'] == 1200
         assert loaded["walls"][0]["wall_id"] == wall["wall"]["wall_id"]
         assert "dungeon_master" not in snapshot["layers"]
         restored_table = service.table_manager.get_table(table_id)

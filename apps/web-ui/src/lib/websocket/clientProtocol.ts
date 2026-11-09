@@ -293,8 +293,11 @@ export class WebClientProtocol {
 
     if (critical.includes(message.type) && !this.sendBatch()) return false;
 
+    const nestedTableId = message.type === MessageType.TABLE_UPDATE_REQUEST
+      ? (message.data?.data as Record<string, unknown> | undefined)?.table_id : undefined;
     if (!this.commandTracking.track(message,
-      typeof message.data?.table_id === 'string' ? message.data.table_id : null,
+      typeof message.data?.table_id === 'string' ? message.data.table_id
+        : typeof nestedTableId === 'string' ? nestedTableId : null,
       tableId => this.resynchronizeTable(tableId))) return false;
     try { message = this.operationRecovery.admit(message); }
     catch {
@@ -1382,7 +1385,8 @@ export class WebClientProtocol {
       if (typeof original === 'string' && typeof tableId === 'string'
         && !this.unknownTableProbes.has(original) && this.unknownTableProbes.size < 64) {
         this.unknownTableProbes.add(original);
-        this.resynchronizeTable(tableId);
+        if (tableId === useGameStore.getState().activeTableId) this.resynchronizeTable(tableId);
+        else this.requestTableList();
       }
       emitProtocolEvent('protocol-error', message.data);
       return;
@@ -1417,6 +1421,13 @@ export class WebClientProtocol {
     protocolLogger.message('received', { type: 'success', data: message.data });
     
     const data = message.data;
+    if (data?.domain === 'table_edit' && data.success === true) {
+      if (data.table_deleted === true) this.acceptTableDeletion(data);
+      else {
+        this.requestTableList();
+        if (typeof data.table_id === 'string') this.resynchronizeTable(data.table_id);
+      }
+    }
     if (data?.domain === 'wall_command' && data.success === true) {
       const key = message.causation_id ?? message.correlation_id ?? data.operation_id;
       if (typeof key === 'string') {
@@ -1490,6 +1501,11 @@ export class WebClientProtocol {
     const data = message.data as Record<string, unknown>;
     if (data?.operation === 'delete') {
       this.acceptTableDeletion(data);
+      return;
+    }
+    if (data?.resync_required === true) {
+      this.requestTableList();
+      if (typeof data.table_id === 'string') this.resynchronizeTable(data.table_id);
       return;
     }
     if (typeof data?.table_id === 'string' && this.retiredTableIds.has(data.table_id)) return;
@@ -3298,19 +3314,33 @@ export class WebClientProtocol {
     }));
   }
 
-  scaleTable(tableId: string, scale: number): void {
-    this.sendMessage(createMessage(MessageType.TABLE_SCALE, {
+  scaleTable(tableId: string, scale: number, requestId?: string): string | undefined {
+    return this.sendTableEdit(MessageType.TABLE_SCALE, {
       table_id: tableId,
       scale: scale
-    }));
+    }, requestId);
   }
 
-  moveTable(tableId: string, xMoved: number, yMoved: number): void {
-    this.sendMessage(createMessage(MessageType.TABLE_MOVE, {
+  moveTable(tableId: string, xMoved: number, yMoved: number, requestId?: string): string | undefined {
+    return this.sendTableEdit(MessageType.TABLE_MOVE, {
       table_id: tableId,
       x_moved: xMoved,
       y_moved: yMoved
-    }));
+    }, requestId);
+  }
+
+  updateTable(tableId: string, updates: { table_name?: string; width?: number; height?: number;
+    grid_size?: number; grid_enabled?: boolean }, requestId?: string): string | undefined {
+    if (!Object.keys(updates).length) return;
+    return this.sendTableEdit(MessageType.TABLE_UPDATE_REQUEST, {
+      category: 'table', type: 'table_update', data: { ...updates, table_id: tableId },
+    }, requestId);
+  }
+
+  private sendTableEdit(type: MessageType, data: Record<string, unknown>, requestId?: string): string | undefined {
+    const message = createMessage(type, data);
+    if (requestId !== undefined) message.message_id = requestId;
+    return this.sendMessage(message) ? message.message_id : undefined;
   }
 
   // Cover zones.

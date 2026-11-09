@@ -294,6 +294,76 @@ describe('WebClientProtocol', () => {
     } finally { protocol.disconnect(); }
   });
 
+  it.each(['table-abc', 'inactive-table'])('tracks metadata edits for %s and keeps unknown outcomes pending', async tableId => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      expect(protocol.updateTable(tableId, {}, 'empty')).toBeUndefined();
+      const id = protocol.updateTable(tableId, { table_name: 'Changed' }, 'original-metadata');
+      expect(id).toBe('original-metadata');
+      const tracker = (protocol as unknown as { commandTracking: { watermark(id: string): string[] } }).commandTracking;
+      expect(tracker.watermark(tableId)).toContain(id);
+      await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> }).handleIncomingMessage(JSON.stringify({
+        ...createMessage(MessageType.ERROR, { outcome: 'unknown', code: 'outcome_unknown',
+          table_id: tableId, error: 'Checking table edit' }), causation_id: id,
+      }));
+      expect(tracker.watermark(tableId)).toContain(id);
+      const requests = ws.send.mock.calls.map(([raw]) => JSON.parse(raw));
+      expect(requests.map(message => message.type)).toEqual(['table_update_request',
+        tableId === 'table-abc' ? 'table_request' : 'table_list_request']);
+    } finally { protocol.disconnect(); }
+  });
+
+  it.each(['table-abc', 'inactive-table'])('reloads the table list and current scene after an edit receipt for %s', async tableId => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      const id = protocol.moveTable(tableId, 10, 20, 'original-move'); protocol.sendBatch();
+      await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> }).handleIncomingMessage(JSON.stringify({
+        ...createMessage(MessageType.SUCCESS, { success: true, domain: 'table_edit', operation_id: id,
+          table_id: tableId, resync_required: true, replayed: true }), causation_id: id,
+      }));
+      const requests = ws.send.mock.calls.map(([raw]) => JSON.parse(raw));
+      expect(requests.some(message => message.type === 'table_list_request')).toBe(true);
+      expect(requests.some(message => message.type === 'table_request')).toBe(tableId === 'table-abc');
+    } finally { protocol.disconnect(); }
+  });
+
+  it('reconciles peer table edit hints without publishing historical updates', async () => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol); const event = vi.fn();
+    window.addEventListener('table-updated', event);
+    try {
+      await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> }).handleIncomingMessage(JSON.stringify(
+        createMessage(MessageType.TABLE_UPDATE, { table_id: 'table-abc', operation: 'resync', resync_required: true })));
+      expect(ws.send.mock.calls.map(([raw]) => JSON.parse(raw).type)).toEqual(['table_list_request', 'table_request']);
+      expect(event).not.toHaveBeenCalled();
+    } finally { window.removeEventListener('table-updated', event); protocol.disconnect(); }
+  });
+
+  it('retires a table deleted after its original edit was accepted', async () => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      const id = protocol.scaleTable('table-abc', 2, 'original-scale'); protocol.sendBatch();
+      await (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> }).handleIncomingMessage(JSON.stringify({
+        ...createMessage(MessageType.SUCCESS, { success: true, domain: 'table_edit', table_id: 'table-abc',
+          table_deleted: true, resync_required: true }), causation_id: id,
+      }));
+      expect(mocks.storeState.activeTableId).toBeNull();
+      expect(ws.send).toHaveBeenCalledOnce();
+    } finally { protocol.disconnect(); }
+  });
+
+  it('returns and reuses original table transform identities for deliberate retries', () => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      expect(protocol.scaleTable('table-abc', 2, 'scale-original')).toBe('scale-original');
+      protocol.sendBatch();
+      expect(protocol.scaleTable('table-abc', 2, 'scale-original')).toBe('scale-original');
+      protocol.sendBatch();
+      const messages = ws.send.mock.calls.flatMap(([raw]) => JSON.parse(raw).data.messages);
+      expect(messages.map(message => message.message_id)).toEqual(['scale-original', 'scale-original']);
+      expect(messages[0].data).toEqual(messages[1].data);
+    } finally { protocol.disconnect(); }
+  });
+
   it('settles a recovered create by receipt and reloads current walls without sending queued provisional edits', async () => {
     const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
     try {

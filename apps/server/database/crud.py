@@ -922,6 +922,7 @@ def load_table_from_db(db: Session, table_id: str):
     """
     try:
         from core_table.entities import Wall
+        from core_table.fog import fog_rectangles_from_entities
         from core_table.table import CoverZone, Entity, VirtualTable
 
         db_table = get_virtual_table_by_id(db, table_id)
@@ -1017,6 +1018,9 @@ def load_table_from_db(db: Session, table_id: str):
 
             if entity.entity_id is not None:
                 virtual_table.restore_entity(entity, allow_out_of_bounds=True)
+
+        # Rebuild the compatibility view from the same canonical entity rows.
+        virtual_table.fog_rectangles = fog_rectangles_from_entities(virtual_table.entities.values())
 
         # Load wall segments into the in-memory wall registry used by lighting,
         # movement validation, and door operations.

@@ -348,6 +348,11 @@ def table_edits_postgresql(sprite_settlement_postgresql):
     scope.table_edit_service = TableEditService(scope.factory)
     table_id = scope.sprite_command['scope'].table_id
     def intent(kind='table_move'):
+        if kind == 'fog_update':
+            from service.fog_edit_service import FogEditIntent
+            return FogEditIntent.create(scope.session_id, scope.actor_id, 'fog-original',
+                'table_update_request', {'category': 'table', 'type': 'fog_update', 'data': {
+                    'table_id': table_id, 'hide_rectangles': [[[1, 2], [30, 40]]], 'reveal_rectangles': []}})
         data = ({'table_id': table_id, 'x_moved': 15, 'y_moved': 30} if kind == 'table_move' else
             {'category': 'table', 'type': 'table_update', 'data': {
                 'table_id': table_id, 'table_name': 'Revised', 'width': 1500, 'grid_size': 70}})
@@ -380,14 +385,16 @@ def test_table_fields_and_receipt_accept_atomically(table_edits_postgresql, monk
     assert outcome.current['settings_revision'] == (0 if fail_after_flush else 1)
 
 
-@pytest.mark.parametrize('kind', ['table_move', 'table_update_request'])
+@pytest.mark.parametrize('kind', ['table_move', 'table_update_request', 'fog_update'])
 @pytest.mark.parametrize('commit', [False, True])
 def test_table_edit_settlement_observes_original_session_wait(table_edits_postgresql, postgresql_engine, kind, commit):
+    from service.fog_edit_service import FogEditService
     from service.table_edit_service import PendingTableEdit, TableEditService
     from sqlalchemy import event
 
     scope = table_edits_postgresql
     intent = scope.table_edit_intent(kind)
+    service_type = FogEditService if kind == 'fog_update' else TableEditService
     prepared, release, reader_started = threading.Event(), threading.Event(), threading.Event()
     pids, outcomes, errors = {}, [], []
     def writer_factory():
@@ -410,13 +417,13 @@ def test_table_edit_settlement_observes_original_session_wait(table_edits_postgr
         return db
     def write():
         try:
-            TableEditService(writer_factory).execute(intent)
+            service_type(writer_factory).execute(intent)
         except Exception as exc:
             if commit or 'Deliberate table edit rollback' not in str(exc):
                 errors.append(exc)
     def read():
         try:
-            outcomes.append(TableEditService(reader_factory).resolve(PendingTableEdit(intent)))
+            outcomes.append(service_type(reader_factory).resolve(PendingTableEdit(intent)))
         except Exception as exc:
             errors.append(exc)
     writer, reader = threading.Thread(target=write), threading.Thread(target=read)
@@ -438,14 +445,46 @@ def test_table_edit_settlement_observes_original_session_wait(table_edits_postgr
         writer.join(5)
         reader.join(5)
         assert not errors and len(outcomes) == 1 and outcomes[0].committed is commit
-        field, before, after = ('position_x', 0, 15) if kind == 'table_move' else ('width', 1000, 1500)
-        assert outcomes[0].current[field] == (after if commit else before)
+        if kind == 'fog_update':
+            assert len(outcomes[0].current['fog_entities']) == int(commit)
+        else:
+            field, before, after = ('position_x', 0, 15) if kind == 'table_move' else ('width', 1000, 1500)
+            assert outcomes[0].current[field] == (after if commit else before)
     finally:
         release.set()
         if writer.ident is not None:
             writer.join(6)
         if reader.ident is not None:
             reader.join(6)
+
+
+@pytest.mark.parametrize('fail_after_flush', [False, True])
+def test_fog_rows_and_receipt_accept_atomically(table_edits_postgresql, monkeypatch, fail_after_flush):
+    from service import fog_edit_service
+    from service.fog_edit_service import FogEditIntent, FogEditService
+    from service.table_edit_service import PendingTableEdit
+    scope = table_edits_postgresql
+    service, intent = FogEditService(scope.factory), scope.table_edit_intent('fog_update')
+    service.execute(FogEditIntent.create(scope.session_id, scope.actor_id, 'fog-seed', 'table_update_request',
+        {'category': 'table', 'type': 'fog_update', 'data': {'table_id': intent.table_id,
+            'hide_rectangles': [[[50, 60], [70, 80]]], 'reveal_rectangles': []}}))
+    stage = fog_edit_service.stage_receipt
+    if fail_after_flush:
+        def failed(*args):
+            stage(*args)
+            raise RuntimeError('After fog/receipt flush')
+        monkeypatch.setattr(fog_edit_service, 'stage_receipt', failed)
+        with pytest.raises(RuntimeError, match='After fog'):
+            service.execute(intent)
+    else:
+        service.execute(intent)
+    outcome = service.resolve(PendingTableEdit(intent))
+    assert outcome.committed is not fail_after_flush
+    assert outcome.current is not None
+    assert len(outcome.current['fog_entities']) == 1
+    assert outcome.current['fog_entities'][0].position == ((50, 60) if fail_after_flush else (1, 2))
+    with scope.factory() as db:
+        assert db.query(models.Entity).filter_by(sprite_id=scope.sprite_id).one().position_x == 10
 
 
 @pytest.fixture

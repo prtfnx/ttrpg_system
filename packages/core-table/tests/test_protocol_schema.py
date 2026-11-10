@@ -249,6 +249,7 @@ def test_recovery_error_payloads_keep_the_closed_schema(updates):
     ],
 )
 def test_message_from_json_accepts_table_command_payloads(message):
+    message.setdefault('message_id', 'original-table-edit')
     parsed = Message.from_json(json.dumps(message))
 
     assert parsed.type.value == message["type"]
@@ -299,8 +300,25 @@ def test_message_from_json_accepts_table_command_payloads(message):
     ],
 )
 def test_message_from_json_rejects_invalid_table_command_payloads(message):
+    message.setdefault('message_id', 'original-table-edit')
     with pytest.raises(ValueError, match="Invalid protocol message"):
         Message.from_json(json.dumps(message))
+
+
+@pytest.mark.parametrize('kind', ['table_move', 'table_scale', 'table_update_request'])
+@pytest.mark.parametrize('invalid', [None, '', '   ', 'x' * 129])
+def test_table_field_wire_requires_original_identity(kind, invalid):
+    data = ({'table_id': 'table', 'x_moved': 1, 'y_moved': 2} if kind == 'table_move' else
+        {'table_id': 'table', 'scale': 2} if kind == 'table_scale' else
+        {'category': 'table', 'type': 'table_update', 'data': {'table_id': 'table', 'table_name': 'Name'}})
+    wire = {'type': kind, 'message_id': 'original', 'data': data}
+    assert Message.from_dict(wire).message_id == 'original'
+    if invalid is None:
+        wire.pop('message_id')
+    else:
+        wire['message_id'] = invalid
+    with pytest.raises(ValueError, match='Invalid protocol message'):
+        Message.from_dict(wire)
 
 
 @pytest.mark.parametrize(

@@ -2374,6 +2374,13 @@
   },
   "allOf": [
     {
+      "if": {"anyOf": [
+        {"properties": {"type": {"enum": ["table_move", "table_scale"]}}, "required": ["type"]},
+        {"properties": {"type": {"const": "table_update_request"}, "data": {"type": "object", "properties": {"type": {"const": "table_update"}}, "required": ["type"]}}, "required": ["type", "data"]}
+      ]},
+      "then": {"required": ["message_id"], "properties": {"message_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"}}}
+    },
+    {
       "if": {"properties": {"type": {"enum": ["wall_create", "wall_update", "wall_remove", "door_toggle"]}}, "required": ["type"]},
       "then": {"required": ["message_id"], "properties": {"message_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"}}}
     },

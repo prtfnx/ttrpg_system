@@ -19,6 +19,7 @@ Last source audit: 2026-10-21
 | XP award | Actor/session/domain-scoped original message identity; XP/version/audit/outcome share acceptance. See [Characters](../features/CHARACTERS_AND_COMPENDIUMS.md). |
 | Table create/copy/import | Original request receipts share table/paint-state acceptance; unknown commits fence serialized work and snapshots through verified installation. |
 | Table delete | Table resources, active-member pointers, retirement tombstone and original actor/session receipt share acceptance. Unknown commits fence state work and snapshots until settlement and cache cleanup. |
+| Table metadata/transforms | Move, scale, name/dimension/legacy-grid patches and original actor/session/message/kind/payload receipts share field-level acceptance. Unknown outcomes retain quarantine through current affected-field installation. Success requests list/current-scene reconciliation; no persisted v1/v2 domain is added. |
 | Table settings | Patch/revision/original-request receipt share acceptance under current database authority. Unknown outcomes fence session state work through current-state recovery; browser revisions reject older state. |
 | Choice encounter transitions | Original actor/session/kind/payload receipts share snapshot/event acceptance. Fresh settlement fences state work until current prompt installation, including join recovery. Recorded dice replay without rerolling; current role gates private outcomes. Negotiated v2 retains original explicit-target envelopes across same-tab reloads. |
 
@@ -371,3 +372,14 @@ notice; they are not remapped through an absent historical wall. Public helpers
 return their request ID and accept an optional original ID for deliberate retries
 with identical kind, table and complete payload. Wall recovery remains page-memory
 scoped and outside closed persisted v1/v2 domains.
+
+## Table edit receipts
+
+Table metadata and transform success carries only original acceptance and a
+current-state resync request. The browser refreshes table metadata and, for the
+active table, its scene. Nested metadata payloads are tracked against their own
+table ID. Unknown outcomes retain the original; inactive tables use a bounded
+list probe instead of switching scenes. Later table retirement is explicit.
+Public move/scale/metadata helpers return IDs and accept the original ID/body for
+deliberate retries. No automatic replay or persisted v1/v2 domain is added.
+Fog replacement and remaining layer/session mutations retain separate boundaries.

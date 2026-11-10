@@ -711,3 +711,24 @@ through commit and rollback. They require a disposable configured PostgreSQL
 target. Skips are not lock qualification. Closed v1/v2 browser recovery domains,
 restore-generation invalidation and final served-provider/load gates remain
 separate acceptance work.
+
+## Table metadata and transform settlement tests
+
+`test_table_edit_service.py` owns real SQL acceptance/rollback, exact input
+identity, later-state/deletion replay, legacy grid revision behavior, dirty-target
+rejection and validation. `test_table_edit_recovery.py` injects failures before/
+after commit, unavailable lookup and failed installation. It verifies current
+fields before quarantine release, preserved unrelated state, role revocation,
+repeated cancellation, join/empty cleanup after socket removal, missing known
+receipts, batched unadmitted followers and SQL off the event loop. Receipt saves
+must not trigger the legacy full-scene autosave. Trusted-session reconstruction
+also verifies renamed/resized table metadata.
+
+Browser tests exercise nested table ownership, unknown active/inactive probes,
+receipt/list/current-scene reconciliation, peer hints, explicit identity reuse
+and later retirement. Shared schema tests reject missing/blank/oversized metadata/
+transform original IDs; native browser tests exercise the rule under server CSP.
+Six PostgreSQL cases cover atomic fields/grid-revision/receipt rollback and
+observed session-row waits through move/metadata commit and rollback. A configured
+disposable PostgreSQL target is required; skips do not qualify locks. Fog entity
+replacement, remaining layer/session acceptance and restore/provider gates remain.

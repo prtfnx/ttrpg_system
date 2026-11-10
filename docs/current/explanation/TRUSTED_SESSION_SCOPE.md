@@ -43,7 +43,10 @@ See [Tables](../features/TABLES_AND_CANVAS.md),
 
 These are remaining limitations, not completed architecture guarantees:
 
-- Finish generic table mutation settlement. Production wall commands now have
+- Finish fog replacement settlement and review remaining layer/session mutations.
+  Production table metadata/transforms now accept atomic field receipts and
+  retain quarantine through current-field installation, including reads, snapshots,
+  cleanup and join. No persisted v1/v2 browser domain is added. Wall commands have
   atomic original-intent receipts and current-wall settlement with quarantine
   through installation, including snapshots, cleanup and join. Wall originals
   remain outside persisted v1/v2 browser recovery domains. Direct canvas commands,

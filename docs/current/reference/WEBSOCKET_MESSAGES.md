@@ -521,3 +521,22 @@ request. Blocked followers do not receive another actor's original identity.
 State reads/writes, snapshots, cleanup and join wait for recovery. Revocation
 may permit internal repair while a forbidden private lookup remains unconfirmed.
 Wall commands remain outside negotiated persisted v1/v2 recovery domains.
+
+## Table metadata and transform originals
+
+`table_move`, `table_scale` and metadata `table_update_request` (inner type
+`table_update`) require a nonblank original `message_id`, up to 128 characters,
+before decoding can mint another identity. Matching retries retain exact kind,
+table and full data. Both packaged schemas enforce this rule; older clients
+without IDs must upgrade. This does not impose a new timestamp/expiry contract
+or extend persisted v1/v2 recovery domains. Fog payload behavior is unchanged.
+
+Atomic field acceptance returns generic `success` with `success: true`,
+`domain: table_edit`, `operation_id`, `table_id`, `replayed` and
+`resync_required: true`. Verified later retirement adds `table_deleted: true`.
+These are receipts, not historical table fields. Peer `table_update` uses
+`operation: resync` and `resync_required: true`, or `operation: delete` for a
+retired table. Browsers reload list metadata and the active scene. Unknown
+responses use `error`/`outcome: unknown`, correlate to each incoming original or
+blocked follower, and never expose another actor's original identity. Current
+database DM authority gates private results after internal cache recovery.

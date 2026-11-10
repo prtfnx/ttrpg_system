@@ -5,7 +5,7 @@ canvas bootstrap, or table settings.
 
 Status: current but partial.
 
-Last source audit: 2026-10-16
+Last source audit: 2026-11-04 (metadata/transform acceptance)
 
 ## Source owners
 
@@ -434,3 +434,33 @@ corrupt or unavailable storage prevents supported high-risk transmission instead
 of dropping older evidence. Tab closure, storage clearing and unsupported server
 contracts do not gain automatic replay guarantees. Generic table transforms and
 character/choice commands retain their separate recovery contracts.
+
+## Metadata and transform recovery
+
+`TableEditService` owns production table movement, uniform scaling and metadata
+patches (name, dimensions and legacy grid fields). It accepts affected SQL fields
+and a bounded original-intent receipt atomically under current DM authority.
+These commands no longer change live state before a full snapshot save. Matching
+retries return original acceptance and current affected fields without restoring
+old names, dimensions or transforms. Grid aliases retain settings revisions.
+
+Unknown commits and failed cache installation quarantine reads, mutations,
+snapshots, cleanup and join until fresh session/table-barrier settlement and
+current installation. Recovery preserves unrelated retained table/entity/wall
+state; a later-deleted table is retired in both resident indexes. Current database
+authority gates private receipts. Cancellation cannot release ownership early.
+
+The unchanged generic success envelope carries `domain: table_edit`, original
+`operation_id`, `table_id`, `replayed` and `resync_required`; it contains no old
+scene. Peers get table resync hints, or deletion for a verified retired table.
+The browser reloads the table list and active scene. An uncertain inactive-table
+edit probes the list without replacing the active scene. `moveTable`, `scaleTable`
+and `updateTable` return request IDs and accept original IDs for deliberate retries
+with identical complete input. Wire validation requires a nonblank original ID
+up to 128 characters; clients omitting it must upgrade.
+
+Metadata/transform originals remain outside persisted v1/v2 recovery journals.
+Fog replacement still uses a separate entity/snapshot path and needs its own
+uncertainty implementation; layer/session mutation acceptance also needs review.
+This change does not add general offline replay, a new migration or universal
+session atomicity.

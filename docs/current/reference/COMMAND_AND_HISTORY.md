@@ -453,7 +453,7 @@ Unknown browser originals survive reconciliation in page memory until a causal
 receipt; snapshot installation alone does not acknowledge them. Retrying retains
 the same operation, full command and original timestamp. Expiry stops retries
 and asks for review without calling the outcome rejected. This does not add tab
-reload/browser-restart persistence for canvas commands. Generic table
+reload/browser-restart persistence for canvas commands. Remaining fog/layer/session
 settlement and real provider/candidate qualification remain open.
 
 ## Wall receipts stay separate from canvas history
@@ -471,4 +471,14 @@ the browser to reload current walls; later table retirement is explicit.
 Unknown commit/cache outcomes retain session quarantine through installation,
 including snapshots, cleanup and join. Current database authority controls
 private result disclosure. Wall originals remain outside persisted v1/v2 browser
-journals and general offline replay; generic table settlement remains open.
+journals and general offline replay; remaining fog/layer/session settlement stays open.
+
+## Table field receipts stay separate from canvas history
+
+Production metadata, move and scale commands now accept field patches and small
+original-intent receipts atomically. They do not become sprite/paint undo roots.
+Replay and uncertain-outcome recovery install only current affected fields,
+preserve unrelated retained edits, and request list/current-scene reconciliation.
+They do not enqueue old full snapshots or replay historical metadata events.
+Fog replacement and layer/session mutation review remain separate work. Table
+field originals remain outside persisted v1/v2 browser journals.

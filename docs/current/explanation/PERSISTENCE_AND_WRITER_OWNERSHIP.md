@@ -32,7 +32,8 @@ Its nested CRUD calls flush without committing. An error rolls back the whole
 snapshot. This is not a transaction across every session resource: chat,
 characters, combat journals, paint, and assets have their own service boundaries.
 
-For remaining generic table mutations, `ActionsCore` marks the table dirty and awaits
+Standalone core actions and remaining fog replacement use `ActionsCore` dirty
+state and await
 confirmed persistence before returning success. A failed save remains dirty;
 retries use capped backoff. Production table creation instead commits its
 detached draft, initial paint state and actor/session/domain request receipt
@@ -119,7 +120,8 @@ now add atomic choice receipts and fresh settlement, as described below.
 
 ## Deferred consistency work
 
-TODO: finish outcome reconciliation for generic table mutations. Production wall acceptance now has the receipt/settlement boundary described below. Direct canvas commands/history now retain acceptance and installation ownership as described below. Raw sprite/compendium dispatch and bounded sprite runs now retain settlement ownership as described below. Multiclass, choice transitions, general
+TODO: finish fog replacement settlement and review remaining layer/session mutations.
+Production table metadata/transforms now use atomic field receipts, described below. Production wall acceptance now has the receipt/settlement boundary described below. Direct canvas commands/history now retain acceptance and installation ownership as described below. Raw sprite/compendium dispatch and bounded sprite runs now retain settlement ownership as described below. Multiclass, choice transitions, general
 character protocol/repair, table creation/deletion/settings and XP now commit
 effects and receipts together.
 Supported table/XP browser originals use the unchanged v1 recovery contract.
@@ -409,7 +411,7 @@ changed identity, lost tables or an expired unrecorded outcome cannot prove
 rollback. Repeated cancellation retains session ownership through settlement,
 installation and publication. Peers get only current-state resync hints, and
 accepted historical paint/sprite events are never replayed. No new database table,
-migration or persisted v1/v2 browser domain is introduced. Generic table
+migration or persisted v1/v2 browser domain is introduced. Remaining fog/layer/session
 uncertainty, restore-timeline invalidation and served/PostgreSQL qualification
 remain separate work.
 
@@ -447,6 +449,34 @@ create dependents are discarded with a review notice when no current wall row
 accompanies the receipt. Helpers return the original message ID and accept it
 for deliberate complete-input retries. No wall domain is added to persisted
 v1/v2 journals, no general offline replay is introduced, and standalone core
-callers retain their explicit worker/snapshot contract. Generic table mutation
+callers retain their explicit worker/snapshot contract. Remaining fog/layer/session mutation
 settlement, restore-generation invalidation and real PostgreSQL/provider
 qualification remain open.
+
+## Table metadata and transform acceptance
+
+Production `table_move`, `table_scale` and metadata `table_update_request`
+(type `table_update`) use `TableEditService`. An owned worker locks the stable
+session row and scoped table, checks current database DM authority, updates only
+affected columns and stages the bounded original actor/session/message/kind/full
+payload receipt in one transaction. Legacy grid fields use the existing settings
+revision rules. These edits do not save the whole scene or enter dirty retries;
+receipt acceptance also bypasses the old redundant session autosave. Standalone
+core callers retain their existing explicit persistence contract.
+
+Lost commit responses and failed installation retain pending ownership through
+fresh READ COMMITTED receipt lookup and current affected-field installation.
+Reads/writes, snapshots, cleanup and join cannot bypass that owner. Recovery
+preserves unrelated retained fields/entities/walls, repairs table aliases and
+handles verified later table deletion. Missing known-accepted receipts or
+unexplained actor/table disappearance cannot prove rollback. Repeated cancellation
+retains session ownership through publication. Current database authority gates
+private receipts, while internal cache repair can finish after revocation.
+
+Success is a small correlated `table_edit` receipt plus resync; no historical
+metadata delta is replayed. Browsers refresh the table list and active scene.
+Inactive uncertain edits use a bounded list read to ask for settlement. Wire
+requests require a bounded nonblank original message ID before decoding can
+generate a replacement. No migration or persisted v1/v2 browser domain is added.
+Fog entity replacement, remaining layer/session mutation review, restore timeline
+invalidation and real PostgreSQL/provider qualification remain separate work.

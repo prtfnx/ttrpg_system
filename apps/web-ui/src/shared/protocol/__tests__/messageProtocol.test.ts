@@ -7,6 +7,7 @@ describe('Protocol Message Utilities', () => {
     [MessageType.TABLE_MOVE, { table_id: 'table', x_moved: 1, y_moved: 2 }],
     [MessageType.TABLE_SCALE, { table_id: 'table', scale: 2 }],
     [MessageType.TABLE_UPDATE_REQUEST, { category: 'table', type: 'table_update', data: { table_id: 'table', table_name: 'Name' } }],
+    [MessageType.TABLE_UPDATE_REQUEST, { category: 'table', type: 'fog_update', data: { table_id: 'table', hide_rectangles: [], reveal_rectangles: [] } }],
   ] as const)('requires original table edit identity for %s', (kind, data) => {
     const original = createMessage(kind, data);
     expect(parseMessage(JSON.stringify(original)).message_id).toBe(original.message_id);

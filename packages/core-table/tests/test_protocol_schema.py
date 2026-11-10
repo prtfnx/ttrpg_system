@@ -358,6 +358,20 @@ def test_message_from_json_accepts_wall_command_payloads(message):
     assert parsed.type.value == message["type"]
 
 
+@pytest.mark.parametrize('invalid', [None, '', '   ', 'x' * 129])
+def test_fog_replacement_requires_original_wire_identity(invalid):
+    wire = {'type': 'table_update_request', 'message_id': 'original-fog', 'data': {
+        'category': 'table', 'type': 'fog_update', 'data': {
+            'table_id': 'table', 'hide_rectangles': [], 'reveal_rectangles': []}}}
+    assert Message.from_dict(wire).message_id == 'original-fog'
+    if invalid is None:
+        wire.pop('message_id')
+    else:
+        wire['message_id'] = invalid
+    with pytest.raises(ValueError, match='Invalid protocol message'):
+        Message.from_dict(wire)
+
+
 @pytest.mark.parametrize('kind', ['wall_create', 'wall_update', 'wall_remove', 'door_toggle'])
 @pytest.mark.parametrize('invalid', [None, '', '   ', 'x' * 129])
 def test_wall_wire_requires_original_identity_instead_of_minting_one(kind, invalid):

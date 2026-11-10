@@ -1421,7 +1421,7 @@ export class WebClientProtocol {
     protocolLogger.message('received', { type: 'success', data: message.data });
     
     const data = message.data;
-    if (data?.domain === 'table_edit' && data.success === true) {
+    if ((data?.domain === 'table_edit' || data?.domain === 'fog_edit') && data.success === true) {
       if (data.table_deleted === true) this.acceptTableDeletion(data);
       else {
         this.requestTableList();
@@ -2765,8 +2765,8 @@ export class WebClientProtocol {
   }
 
   // Fog of War methods
-  updateFog(tableId: string, hideRectangles: Array<[[number, number], [number, number]]>, revealRectangles: Array<[[number, number], [number, number]]>): void {
-    this.sendMessage(createMessage(MessageType.TABLE_UPDATE_REQUEST, {
+  updateFog(tableId: string, hideRectangles: Array<[[number, number], [number, number]]>, revealRectangles: Array<[[number, number], [number, number]]>, requestId?: string): string | undefined {
+    return this.sendTableEdit(MessageType.TABLE_UPDATE_REQUEST, {
       category: 'table',
       type: 'fog_update',
       data: {
@@ -2774,7 +2774,7 @@ export class WebClientProtocol {
         hide_rectangles: hideRectangles,
         reveal_rectangles: revealRectangles
       }
-    }, 2));
+    }, requestId);
   }
 
   // Character management methods

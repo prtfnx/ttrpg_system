@@ -294,6 +294,25 @@ describe('WebClientProtocol', () => {
     } finally { protocol.disconnect(); }
   });
 
+  it.each(['table-abc', 'inactive-table'])('retains unknown fog for %s and reloads current state on its receipt', async tableId => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      const id = protocol.updateFog(tableId, [[[10, 20], [30, 40]]], [], 'original-fog');
+      expect(id).toBe('original-fog');
+      const tracker = (protocol as unknown as { commandTracking: { watermark(id: string): string[] } }).commandTracking;
+      const receive = (message: Message) => (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> })
+        .handleIncomingMessage(JSON.stringify({ ...message, causation_id: id }));
+      await receive(createMessage(MessageType.ERROR, { outcome: 'unknown', code: 'outcome_unknown', table_id: tableId }));
+      expect(tracker.watermark(tableId)).toContain(id);
+      await receive(createMessage(MessageType.SUCCESS, { success: true, domain: 'fog_edit', table_id: tableId,
+        operation_id: id, resync_required: true, replayed: true }));
+      expect(tracker.watermark(tableId)).not.toContain(id);
+      const sent = ws.send.mock.calls.map(([raw]) => JSON.parse(raw));
+      expect(sent.filter(message => message.type === 'table_update_request')).toHaveLength(1);
+      expect(sent.some(message => message.type === 'table_list_request')).toBe(true);
+    } finally { protocol.disconnect(); }
+  });
+
   it.each(['table-abc', 'inactive-table'])('tracks metadata edits for %s and keeps unknown outcomes pending', async tableId => {
     const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
     try {

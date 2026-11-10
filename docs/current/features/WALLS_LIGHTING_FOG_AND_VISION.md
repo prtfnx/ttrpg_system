@@ -122,8 +122,9 @@ secret flag, direction, creator, and timestamps.
 - `ambient_light_level`;
 - grid size, distance unit, grid toggles, and colors.
 
-Fog rectangles are updated through table actions from `table_update` with
-`fog_update`. `table_response` includes walls, layer settings, and fog table
+Production fog rectangles are replaced through an owned transaction from
+`table_update_request` with inner type `fog_update`; standalone core actions retain
+their legacy snapshot contract. `table_response` includes walls, layer settings, and fog table
 data needed for join-time sync. Paint objects arrive independently through a
 bounded revisioned snapshot and are rendered under the fog/vision overlay.
 
@@ -351,3 +352,21 @@ Regression owners: `test_wall_command_service.py`, `test_wall_write_recovery.py`
 the existing standalone wall tests, `wallCommandSync.test.ts` and
 `clientProtocol.test.ts`. PostgreSQL atomicity and observed lock-wait contracts
 require a configured disposable target; skipped cases do not qualify real locks.
+
+## Fog acceptance and hydration
+
+`FogEditService` replaces the fog-layer entity set and original actor/session/
+message/body receipt in one transaction. Empty clear is atomic. Current database
+DM authority gates acceptance and private replay; current fog installs through a
+private indexed fork before quarantine clears. Reads, mutations, snapshots,
+cleanup and join wait while commit/lookup/installation is unknown. Current-state
+resync never replays old fog geometry, and unrelated retained entities survive.
+
+Requests require original IDs before decode can generate a replacement. Input
+is finite JSON bounded to 60 KiB; pixel anchors fit SQL integers, reversed corners
+normalize and fractional extents persist. Zero-area rectangles reject. The
+compatibility rectangle view is derived from canonical marker rows on restart.
+The validated snapshot owner installs renderer geometry and publishes
+`fog-hydrated`; the panel follows canonical IDs without clearing or redrawing
+fog during hydration. Late panel mounts use retained store state. These changes
+add no persisted v1/v2 domain, migration or untrusted-client confidentiality model.

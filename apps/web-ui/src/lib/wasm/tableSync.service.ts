@@ -248,6 +248,11 @@ export class TableSyncService {
           .filter(Boolean),
       )];
       this.onHydrated(tableId, textureIds);
+      emitProtocolEvent('fog-hydrated', { tableId, rectangles: snapshot.specialSprites
+        .filter(sprite => sprite.texture_path === '__FOG_HIDE__' || sprite.texture_path === '__FOG_REVEAL__')
+        .map(sprite => ({ id: sprite.sprite_id, startX: sprite.coord_x, startY: sprite.coord_y,
+          endX: sprite.coord_x + sprite.scale_x, endY: sprite.coord_y + sprite.scale_y,
+          mode: sprite.texture_path === '__FOG_HIDE__' ? 'hide' : 'reveal' })) });
       const spriteCount = Object.values(snapshot.renderer.layers).reduce((count, sprites) => count + sprites.length, snapshot.specialSprites.length);
       emitWasmEvent('table-sprites-loaded', { table_id: tableId, count: spriteCount });
 

@@ -1,6 +1,8 @@
 import { useRenderEngine } from '@features/canvas';
+import { useGameStore } from '@/store';
 import { tableThumbnailService } from '@features/table/services/tableThumbnail.service';
 import { useProtocol } from '@lib/api';
+import { onProtocolEvent } from '@lib/websocket/protocolEvents';
 import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useState } from 'react'; // FogPanel.tsx
@@ -46,29 +48,19 @@ export const FogPanel: React.FC = () => {
     tableThumbnailService.markDirty(tableId);
   }, [protocol, renderer]);
 
-  // Load fog rectangles from server when table data arrives
+  // The snapshot owner installs renderer geometry; the panel follows committed IDs.
   useEffect(() => {
-    const handler = (e: Event) => {
-      const data = (e as CustomEvent).detail;
-      if (!data?.fog_rectangles || !renderer) return;
-
-      const rects: FogRectangle[] = [];
-      for (const rect of data.fog_rectangles.hide ?? []) {
-        rects.push({ id: `fog_hide_${rects.length}`, startX: rect[0][0], startY: rect[0][1], endX: rect[1][0], endY: rect[1][1], mode: 'hide' });
-      }
-      for (const rect of data.fog_rectangles.reveal ?? []) {
-        rects.push({ id: `fog_reveal_${rects.length}`, startX: rect[0][0], startY: rect[0][1], endX: rect[1][0], endY: rect[1][1], mode: 'reveal' });
-      }
-
-      setFogRectangles(rects);
-      renderer.clear_fog();
-      for (const r of rects) {
-        renderer.add_fog_rectangle(r.id, r.startX, r.startY, r.endX, r.endY, r.mode);
-      }
-    };
-
-    window.addEventListener('table-data-received', handler);
-    return () => window.removeEventListener('table-data-received', handler);
+    const state = useGameStore.getState();
+    if (renderer?.get_active_table_id() === state.activeTableId) {
+      setFogRectangles((state.sprites ?? []).filter(sprite => sprite.tableId === state.activeTableId
+        && sprite.layer === 'fog_of_war' && (sprite.texture === '__FOG_HIDE__' || sprite.texture === '__FOG_REVEAL__'))
+        .map(sprite => ({ id: sprite.id, startX: sprite.x, startY: sprite.y,
+          endX: sprite.x + (sprite.scale?.x ?? 1), endY: sprite.y + (sprite.scale?.y ?? 1),
+          mode: sprite.texture === '__FOG_HIDE__' ? 'hide' : 'reveal' })));
+    }
+    return onProtocolEvent('fog-hydrated', ({ tableId, rectangles }) => {
+      if (renderer?.get_active_table_id() === tableId) setFogRectangles(rectangles);
+    });
   }, [renderer]);
 
   // Mouse event handlers for fog drawing

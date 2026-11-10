@@ -132,6 +132,20 @@ describe('TableSyncService', () => {
     } finally { service.dispose(); }
   });
 
+  it('publishes fog UI state only after validating and installing a current table snapshot', () => {
+    const service = makeService(); service.init(); const hydrated = vi.fn();
+    window.addEventListener('fog-hydrated', hydrated);
+    try {
+      dispatch('table-response', tableSnapshot({ layers: { fog_of_war: [{ sprite_id: 'canonical-fog',
+        texture_path: '__FOG_HIDE__', position: [1, 2], scale_x: 40, scale_y: 50 }] } }));
+      expect(hydrated).toHaveBeenCalledOnce();
+      expect(hydrated.mock.calls[0][0].detail).toEqual({ tableId: TABLE_A, rectangles: [
+        { id: 'canonical-fog', startX: 1, startY: 2, endX: 41, endY: 52, mode: 'hide' }] });
+      dispatch('table-response', tableSnapshot({ width: Number.NaN }));
+      expect(hydrated).toHaveBeenCalledOnce();
+    } finally { window.removeEventListener('fog-hydrated', hydrated); service.dispose(); }
+  });
+
   it('keeps a different resident table when an inactive table is deleted', () => {
     const service = makeService(); service.init();
     try {

@@ -14,6 +14,7 @@ const mockRenderer = {
 };
 
 const mockUpdateFog = vi.fn();
+const mockFogState = { activeTableId: 'table-1', sprites: [] as Array<Record<string, unknown>> };
 const mockProtocol = { updateFog: mockUpdateFog, isConnected: vi.fn(() => true) };
 
 vi.mock('@features/canvas', () => ({
@@ -27,16 +28,26 @@ vi.mock('@lib/api', () => ({
 vi.mock('@/store', () => ({
   useGameStore: Object.assign(
     vi.fn(() => ({})),
-    { getState: vi.fn(() => ({ activeTableId: 'table-1' })) },
+    { getState: vi.fn(() => mockFogState) },
   ),
 }));
 
 import { useRenderEngine } from '@features/canvas';
 
 beforeEach(() => {
+  mockFogState.sprites = [];
   vi.clearAllMocks();
   vi.mocked(useRenderEngine).mockReturnValue(mockRenderer as unknown as ReturnType<typeof useRenderEngine>);
 });
+
+function hydrated(hide: number[][][], reveal: number[][][] = [], tableId = 'table-1') {
+  return new CustomEvent('fog-hydrated', { detail: { tableId, rectangles: [
+    ...hide.map((rect, i) => ({ id: `hide-${i}`, startX: rect[0][0], startY: rect[0][1],
+      endX: rect[1][0], endY: rect[1][1], mode: 'hide' })),
+    ...reveal.map((rect, i) => ({ id: `reveal-${i}`, startX: rect[0][0], startY: rect[0][1],
+      endX: rect[1][0], endY: rect[1][1], mode: 'reveal' })),
+  ] } });
+}
 
 // ── tests ─────────────────────────────────────────────────────────────────────
 
@@ -92,24 +103,17 @@ describe('FogPanel — mode toggle', () => {
 });
 
 describe('FogPanel — table-data-received event', () => {
-  it('loads fog rectangles from table-data-received event', () => {
+  it('follows committed fog IDs without mutating the snapshot renderer', () => {
     render(<FogPanel />);
 
     act(() => {
-      window.dispatchEvent(new CustomEvent('table-data-received', {
-        detail: {
-          fog_rectangles: {
-            hide: [[[0, 0], [100, 100]]],
-            reveal: [[[50, 50], [150, 150]]],
-          },
-        },
-      }));
+      window.dispatchEvent(hydrated([[[0, 0], [100, 100]]], [[[50, 50], [150, 150]]]));
     });
 
     expect(screen.getByText('[H] HIDE')).toBeInTheDocument();
     expect(screen.getByText('[R] REVEAL')).toBeInTheDocument();
-    expect(mockRenderer.clear_fog).toHaveBeenCalled();
-    expect(mockRenderer.add_fog_rectangle).toHaveBeenCalled();
+    expect(mockRenderer.clear_fog).not.toHaveBeenCalled();
+    expect(mockRenderer.add_fog_rectangle).not.toHaveBeenCalled();
   });
 
   it('ignores event when renderer is null', () => {
@@ -117,12 +121,32 @@ describe('FogPanel — table-data-received event', () => {
     render(<FogPanel />);
 
     act(() => {
-      window.dispatchEvent(new CustomEvent('table-data-received', {
-        detail: { fog_rectangles: { hide: [[[0, 0], [100, 100]]], reveal: [] } },
-      }));
+      window.dispatchEvent(hydrated([[[0, 0], [100, 100]]]));
     });
 
     expect(screen.queryByText('[H] HIDE')).not.toBeInTheDocument();
+  });
+
+  it('opens with retained canonical fog after the table has already hydrated', () => {
+    mockFogState.sprites = [{ id: 'canonical-fog', tableId: 'table-1', layer: 'fog_of_war',
+      texture: '__FOG_HIDE__', x: 10, y: 20, scale: { x: 30, y: 40 } }];
+    render(<FogPanel />);
+    expect(screen.getByText('[H] HIDE')).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Remove this fog rectangle'));
+    expect(mockRenderer.remove_fog_rectangle).toHaveBeenCalledWith('canonical-fog');
+  });
+
+  it('ignores uncommitted and inactive snapshots, then replaces its list on committed clear', () => {
+    render(<FogPanel />);
+    act(() => { window.dispatchEvent(hydrated([[[1, 2], [4, 5]]])); });
+    act(() => {
+      window.dispatchEvent(hydrated([], [], 'other-table'));
+      window.dispatchEvent(new CustomEvent('table-data-received', { detail: { fog_rectangles: { hide: [], reveal: [] } } }));
+    });
+    expect(screen.getByText('[H] HIDE')).toBeInTheDocument();
+    act(() => { window.dispatchEvent(hydrated([])); });
+    expect(screen.queryByText('[H] HIDE')).not.toBeInTheDocument();
+    expect(mockRenderer.clear_fog).not.toHaveBeenCalled();
   });
 });
 
@@ -132,15 +156,13 @@ describe('FogPanel — remove rectangle', () => {
 
     // Load a rectangle first
     act(() => {
-      window.dispatchEvent(new CustomEvent('table-data-received', {
-        detail: { fog_rectangles: { hide: [[[0, 0], [100, 100]]], reveal: [] } },
-      }));
+      window.dispatchEvent(hydrated([[[0, 0], [100, 100]]]));
     });
 
     expect(screen.getByText('[H] HIDE')).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Remove this fog rectangle'));
     expect(screen.queryByText('[H] HIDE')).not.toBeInTheDocument();
-    expect(mockRenderer.remove_fog_rectangle).toHaveBeenCalled();
+    expect(mockRenderer.remove_fog_rectangle).toHaveBeenCalledWith('hide-0');
   });
 });
 
@@ -160,9 +182,7 @@ describe('FogPanel — Hide All / Clear All', () => {
 
     // Load a rectangle first
     act(() => {
-      window.dispatchEvent(new CustomEvent('table-data-received', {
-        detail: { fog_rectangles: { hide: [[[0, 0], [100, 100]]], reveal: [] } },
-      }));
+      window.dispatchEvent(hydrated([[[0, 0], [100, 100]]]));
     });
 
     expect(screen.getByText('[H] HIDE')).toBeInTheDocument();

@@ -79,6 +79,8 @@ export type ProtocolEventMap = {
   'table-recovery-progress': { tableId: string };
   'table-resync-completed': { tableId: string };
   'table-sprites-loaded': { table_id: string; count: number };
+  'fog-hydrated': { tableId: string; rectangles: Array<{ id: string; startX: number; startY: number;
+    endX: number; endY: number; mode: 'hide' | 'reveal' }> };
   'sprite-created': ProtocolRecord;
   'sprite-data-received': ProtocolRecord;
   'sprite-drag-preview-remote': ProtocolRecord;

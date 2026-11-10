@@ -43,7 +43,10 @@ See [Tables](../features/TABLES_AND_CANVAS.md),
 
 These are remaining limitations, not completed architecture guarantees:
 
-- Finish fog replacement settlement and review remaining layer/session mutations.
+- Review and implement remaining layer/session mutation acceptance. Production fog
+  replacement/clear now shares atomic row/receipt acceptance and current indexed
+  projection installation, including cleanup/join quarantine. Its browser panel
+  follows committed canonical IDs; no persisted v1/v2 domain is added.
   Production table metadata/transforms now accept atomic field receipts and
   retain quarantine through current-field installation, including reads, snapshots,
   cleanup and join. No persisted v1/v2 browser domain is added. Wall commands have

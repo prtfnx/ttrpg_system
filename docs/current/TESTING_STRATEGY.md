@@ -732,3 +732,22 @@ Six PostgreSQL cases cover atomic fields/grid-revision/receipt rollback and
 observed session-row waits through move/metadata commit and rollback. A configured
 disposable PostgreSQL target is required; skips do not qualify locks. Fog entity
 replacement, remaining layer/session acceptance and restore/provider gates remain.
+
+## Fog replacement recovery
+
+`test_fog_edit_service.py` verifies atomic replacement/clear and original receipts,
+complete-input conflict detection, bounded payloads above the old 8 KiB identity
+limit, geometry validation, legacy/restart reconstruction and dirty-target gates.
+`test_fog_edit_recovery.py` injects commit/lookup/install failures and checks current
+fog before quarantine release, unrelated retained state, ID collisions, revocation,
+missing receipts, changed originals, cancellation, join/cleanup and SQL off the
+event loop. Proven acceptance remains accepted after notification failure.
+
+The trusted workflow reconstructs saved fog. Four PostgreSQL cases cover
+fog/receipt atomicity and observed session-row waits through commit/rollback;
+skipped cases do not qualify locks. Shared wire/native CSP cases reject missing
+fog identities. Browser tests cover current receipt reconciliation and unknown
+active/inactive originals. Snapshot tests publish panel state only after validation;
+panel tests cover retained state on late mount, canonical removal IDs, inactive/
+uncommitted input rejection and no renderer replay during hydration. Remaining
+layer/session acceptance, restore and served-provider qualification stay open.

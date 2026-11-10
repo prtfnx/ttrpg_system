@@ -12,6 +12,7 @@ Last source audit: 2026-10-21
 | --- | --- |
 | Canvas/sprite/compendium placement | Existing actor/table receipts; NPC source, token and receipt share acceptance. Production raw sprite/compendium commands and bounded runs now resolve uncertainty through the existing journal and current affected-row installation. Direct canvas commands, including undo/redo, now retain quarantine through fresh journal settlement and current affected-target installation. |
 | Wall/door commands | Wall effect and complete original actor/session/message/kind/payload receipt accept atomically. Unknown responses and failed cache installation retain quarantine through fresh settlement/current affected-wall installation. Replayed acceptance is a small receipt plus current-table resync; wall originals are not persisted in v1/v2 browser journals. |
+| Fog replacement | Fog-layer replacement/clear and original complete-input receipt accept atomically. Existing table-edit ownership retains quarantine through current indexed fog installation. Receipt-only resync and committed panel hydration preserve canonical IDs; no persisted v1/v2 domain is added. |
 | Paint and chat | Existing domain operation identities and durable results; retain those contracts. |
 | Combat commands/start/end | Encounter journal and stable session barrier resolve uncertain commits; full lifecycle/browser acceptance remains a release gate. |
 | Character update/repair | Original actor/session/message/patch/version/digest receipts share source/version/sharing/audit/token acceptance. Restart replay installs current persisted projections, with quarantine through installation. Negotiated v2 retains original envelopes across same-tab reloads. Standalone identity-free calls retain legacy CAS recovery. |
@@ -382,4 +383,15 @@ table ID. Unknown outcomes retain the original; inactive tables use a bounded
 list probe instead of switching scenes. Later table retirement is explicit.
 Public move/scale/metadata helpers return IDs and accept the original ID/body for
 deliberate retries. No automatic replay or persisted v1/v2 domain is added.
-Fog replacement and remaining layer/session mutations retain separate boundaries.
+Fog replacement now has its own atomic receipt/current-projection boundary.
+Remaining layer/session mutations still need review.
+
+## Fog originals and UI reconciliation
+
+`updateFog` returns its request ID and accepts the original ID/body for deliberate
+retries. Unknown originals remain unconfirmed; supported probes use the active
+scene or inactive table list. Small `fog_edit` success receipts request current
+state rather than carrying old rectangles. The panel uses only committed
+`fog-hydrated` IDs or retained canonical store state; hydration does not reject
+an original or replay renderer mutations. General offline/reload ownership is
+not added to closed persisted v1/v2 contracts.

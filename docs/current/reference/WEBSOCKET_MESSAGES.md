@@ -529,7 +529,8 @@ Wall commands remain outside negotiated persisted v1/v2 recovery domains.
 before decoding can mint another identity. Matching retries retain exact kind,
 table and full data. Both packaged schemas enforce this rule; older clients
 without IDs must upgrade. This does not impose a new timestamp/expiry contract
-or extend persisted v1/v2 recovery domains. Fog payload behavior is unchanged.
+or extend persisted v1/v2 recovery domains. Fog replacements now also require
+the original message ID and use the separate receipt boundary below.
 
 Atomic field acceptance returns generic `success` with `success: true`,
 `domain: table_edit`, `operation_id`, `table_id`, `replayed` and
@@ -540,3 +541,19 @@ retired table. Browsers reload list metadata and the active scene. Unknown
 responses use `error`/`outcome: unknown`, correlate to each incoming original or
 blocked follower, and never expose another actor's original identity. Current
 database DM authority gates private results after internal cache recovery.
+
+## Fog replacement receipts
+
+The closed `table_update_request`/`fog_update` body is unchanged. Its original
+nonblank `message_id` (at most 128 characters) is now mandatory before decode;
+older clients omitting it must upgrade. The original actor/session/message/kind/
+complete body is bound to a `fog_edit` receipt. Finite original JSON is bounded
+to 60 KiB and geometry validation rejects a whole invalid replacement.
+
+Generic success includes `success`, `domain: fog_edit`, `operation_id`, `table_id`,
+`replayed` and `resync_required`, with `table_deleted` for verified later retirement.
+No historical geometry is returned. Current table resync hints use the existing
+table-edit mechanism; unknown and denied outcomes retain its private lookup and
+quarantine rules. Fog remains outside negotiated persisted v1/v2 domains. The
+browser-only `fog-hydrated` event is emitted after validated snapshot installation;
+it is not an additional server wire message.

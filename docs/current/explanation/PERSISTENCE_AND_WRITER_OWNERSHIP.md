@@ -32,7 +32,7 @@ Its nested CRUD calls flush without committing. An error rolls back the whole
 snapshot. This is not a transaction across every session resource: chat,
 characters, combat journals, paint, and assets have their own service boundaries.
 
-Standalone core actions and remaining fog replacement use `ActionsCore` dirty
+Standalone core actions retain `ActionsCore` dirty
 state and await
 confirmed persistence before returning success. A failed save remains dirty;
 retries use capped backoff. Production table creation instead commits its
@@ -120,7 +120,8 @@ now add atomic choice receipts and fresh settlement, as described below.
 
 ## Deferred consistency work
 
-TODO: finish fog replacement settlement and review remaining layer/session mutations.
+TODO: review and implement remaining layer/session mutation acceptance. Production fog
+replacement now shares atomic receipt/current-projection ownership, described below.
 Production table metadata/transforms now use atomic field receipts, described below. Production wall acceptance now has the receipt/settlement boundary described below. Direct canvas commands/history now retain acceptance and installation ownership as described below. Raw sprite/compendium dispatch and bounded sprite runs now retain settlement ownership as described below. Multiclass, choice transitions, general
 character protocol/repair, table creation/deletion/settings and XP now commit
 effects and receipts together.
@@ -411,7 +412,7 @@ changed identity, lost tables or an expired unrecorded outcome cannot prove
 rollback. Repeated cancellation retains session ownership through settlement,
 installation and publication. Peers get only current-state resync hints, and
 accepted historical paint/sprite events are never replayed. No new database table,
-migration or persisted v1/v2 browser domain is introduced. Remaining fog/layer/session
+migration or persisted v1/v2 browser domain is introduced. Remaining layer/session
 uncertainty, restore-timeline invalidation and served/PostgreSQL qualification
 remain separate work.
 
@@ -449,7 +450,7 @@ create dependents are discarded with a review notice when no current wall row
 accompanies the receipt. Helpers return the original message ID and accept it
 for deliberate complete-input retries. No wall domain is added to persisted
 v1/v2 journals, no general offline replay is introduced, and standalone core
-callers retain their explicit worker/snapshot contract. Remaining fog/layer/session mutation
+callers retain their explicit worker/snapshot contract. Remaining layer/session mutation
 settlement, restore-generation invalidation and real PostgreSQL/provider
 qualification remain open.
 
@@ -478,5 +479,34 @@ metadata delta is replayed. Browsers refresh the table list and active scene.
 Inactive uncertain edits use a bounded list read to ask for settlement. Wire
 requests require a bounded nonblank original message ID before decoding can
 generate a replacement. No migration or persisted v1/v2 browser domain is added.
-Fog entity replacement, remaining layer/session mutation review, restore timeline
+Remaining layer/session mutation review, restore timeline
 invalidation and real PostgreSQL/provider qualification remain separate work.
+
+## Fog replacement acceptance and restart hydration
+
+Production fog replacement uses `FogEditService` and the existing table-edit
+pending owner. The worker locks the stable session/table rows, authorizes the
+current database DM, replaces only fog-layer entities and stages a small
+`fog_edit` receipt in one transaction. Empty replacements clear fog atomically.
+Unrelated table fields, entities, walls and paint are not snapshot-saved. Complete
+original message/kind/data are bound through a bounded 60 KiB payload digest;
+the receipt contains no geometry. No migration or persisted v1/v2 domain is added.
+
+Lost commit responses, failed lookup or failed installation retain quarantine
+through fresh READ COMMITTED settlement and current fog installation. Reads,
+writes, snapshots, cleanup and joins cannot bypass it. Installation prepares a
+private indexed fork, preserves unrelated retained objects and checks identity
+collisions before replacing resident aliases. It never restores historical fog.
+Missing known-accepted receipts remain unknown; current authority gates private
+receipts after internal repair. Repeated cancellation retains ownership through
+publication. Receipt acceptance bypasses the old full-scene autosave.
+
+Fog anchors retain the core integer-pixel contract, reversed corners normalize
+to the minimum anchor, and fractional extents persist. Degenerate/nonfinite or
+out-of-range SQL anchors reject the whole replacement. Canonical entities rebuild
+the compatibility rectangle view during normal SQL load, including legacy marker
+rows without receipt backfill. Browser reconciliation reloads current state.
+The fog panel follows committed snapshot IDs and can reconstruct from the retained
+store when opened afterward; it does not clear/replay renderer geometry during
+hydration. Real PostgreSQL/provider, restore timeline and remaining layer/session
+acceptance gates remain open.

@@ -460,7 +460,24 @@ with identical complete input. Wire validation requires a nonblank original ID
 up to 128 characters; clients omitting it must upgrade.
 
 Metadata/transform originals remain outside persisted v1/v2 recovery journals.
-Fog replacement still uses a separate entity/snapshot path and needs its own
-uncertainty implementation; layer/session mutation acceptance also needs review.
+Fog replacement now accepts fog-layer rows and its original receipt atomically,
+with current-projection recovery. Layer/session mutation acceptance still needs review.
 This change does not add general offline replay, a new migration or universal
 session atomicity.
+
+## Fog replacement and committed panel state
+
+Fog replacement, including empty clear, now uses the same session/table pending
+ownership lifecycle as field edits, with its own `fog_edit` receipt domain. Only
+current fog-layer rows install after acceptance/settlement; unrelated retained
+state is preserved. Colliding retained entity IDs keep quarantine rather than
+overwriting another object. Normal SQL reload reconstructs the rectangle view
+from canonical fog marker entities, so restart does not silently lose it.
+
+The shared wire schema requires an original nonblank fog request ID. The browser
+receives a small success receipt and asks for current reconciliation, rather than
+applying an old rectangle list. `updateFog` returns/accepts original request IDs
+for deliberate complete-input retries. Fog remains outside persisted v1/v2 retry
+journals. After validated renderer/store installation, `fog-hydrated` publishes
+canonical rectangle IDs to the panel. A panel opened later reads retained store
+fog. The panel updates its list without clearing/reinstalling renderer state.

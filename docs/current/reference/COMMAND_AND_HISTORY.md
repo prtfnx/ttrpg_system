@@ -453,7 +453,7 @@ Unknown browser originals survive reconciliation in page memory until a causal
 receipt; snapshot installation alone does not acknowledge them. Retrying retains
 the same operation, full command and original timestamp. Expiry stops retries
 and asks for review without calling the outcome rejected. This does not add tab
-reload/browser-restart persistence for canvas commands. Remaining fog/layer/session
+reload/browser-restart persistence for canvas commands. Remaining layer/session
 settlement and real provider/candidate qualification remain open.
 
 ## Wall receipts stay separate from canvas history
@@ -471,7 +471,7 @@ the browser to reload current walls; later table retirement is explicit.
 Unknown commit/cache outcomes retain session quarantine through installation,
 including snapshots, cleanup and join. Current database authority controls
 private result disclosure. Wall originals remain outside persisted v1/v2 browser
-journals and general offline replay; remaining fog/layer/session settlement stays open.
+journals and general offline replay; remaining layer/session settlement stays open.
 
 ## Table field receipts stay separate from canvas history
 
@@ -480,5 +480,15 @@ original-intent receipts atomically. They do not become sprite/paint undo roots.
 Replay and uncertain-outcome recovery install only current affected fields,
 preserve unrelated retained edits, and request list/current-scene reconciliation.
 They do not enqueue old full snapshots or replay historical metadata events.
-Fog replacement and layer/session mutation review remain separate work. Table
+Fog replacement now has atomic original receipts and current fog installation;
+layer/session mutation review remains separate work. Table
 field originals remain outside persisted v1/v2 browser journals.
+
+## Fog replacement is not canvas undo history
+
+Fog rows and their small original-intent receipt now accept together, including
+clear. Recovery installs current fog or its absence and never replays an old
+replacement. These commands do not create sprite/paint undo roots or persist
+browser originals in v1/v2 journals. Current SQL loading reconstructs the
+compatibility rectangle view from marker entities; the browser panel follows
+committed IDs without a second renderer replay.

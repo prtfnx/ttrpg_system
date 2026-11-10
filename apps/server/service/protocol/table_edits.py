@@ -1,11 +1,13 @@
 """Retain table field edits through durable settlement and live installation."""
 from core_table.protocol import Message, MessageType
+from service.fog_edit_service import FogEditIntent, FogEditService
 from service.session_operation_receipts import OperationRejected
 from service.table_edit_service import PendingTableEdit, TableEditIntent, TableEditService
 from sqlalchemy.orm import Session, scoped_session
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 
+from .fog_edits import install_fog_projection
 from .table_settings import _TableSettingsMixin
 
 logger = setup_logger(__name__)
@@ -22,6 +24,17 @@ class _TableEditsMixin(_TableSettingsMixin):
 
     def _table_edit_service(self):
         return TableEditService()
+
+    def _fog_edit_service(self):
+        return FogEditService()
+
+    @staticmethod
+    def _edit_intent(request, session_id, actor_id):
+        intent_type = FogEditIntent if request.data.get('type') == 'fog_update' else TableEditIntent
+        return intent_type.create(session_id, actor_id, request.message_id, request.type.value, request.data)
+
+    def _edit_service(self, intent):
+        return self._fog_edit_service() if intent.identity.domain == 'fog_edit' else self._table_edit_service()
 
     @staticmethod
     def _table_edit_unknown(request=None):
@@ -54,6 +67,9 @@ class _TableEditsMixin(_TableSettingsMixin):
         table = self.table_manager.get_table(intent.table_id)
         if table is None:
             raise RuntimeError('Original edited table is no longer resident')
+        if 'fog_entities' in outcome.current:
+            install_fog_projection(self.table_manager, table, outcome.current)
+            return
         values = dict(outcome.current)
         if 'name' in values:
             values['display_name'] = values.pop('name')
@@ -74,8 +90,7 @@ class _TableEditsMixin(_TableSettingsMixin):
 
     async def _execute_table_edit(self, request, client_id) -> Message:
         try:
-            intent = TableEditIntent.create(self._get_session_id(request), self._get_user_id(request, client_id),
-                request.message_id, request.type.value, request.data)
+            intent = self._edit_intent(request, self._get_session_id(request), self._get_user_id(request, client_id))
         except OperationRejected as exc:
             return Message(MessageType.ERROR, {'code': exc.code, 'error': str(exc)})
         async with self.table_manager.table_write_lock(intent.table_id):
@@ -83,7 +98,7 @@ class _TableEditsMixin(_TableSettingsMixin):
             attempt = PendingTableEdit(intent)
             self._pending_table_edit = attempt
             try:
-                outcome = await run_blocking(self._table_edit_service().execute, intent,
+                outcome = await run_blocking(self._edit_service(intent).execute, intent,
                     intent.table_id in self.actions._dirty_tables)
             except OperationRejected as exc:
                 self._pending_table_edit = None
@@ -135,8 +150,7 @@ class _TableEditsMixin(_TableSettingsMixin):
             return None
         assert request is not None
         try:
-            retry = TableEditIntent.create(intent.identity.session_id, intent.identity.actor_id,
-                request.message_id, request.type.value, request.data)
+            retry = self._edit_intent(request, intent.identity.session_id, intent.identity.actor_id)
             if retry.identity != intent.identity:
                 raise OperationRejected('Original table edit identity belongs to different input', 'conflict')
         except OperationRejected:
@@ -144,7 +158,7 @@ class _TableEditsMixin(_TableSettingsMixin):
         return response
 
     async def _resolve_table_edit(self, attempt):
-        outcome = await run_blocking(self._table_edit_service().resolve, attempt)
+        outcome = await run_blocking(self._edit_service(attempt.intent).resolve, attempt)
         await self._install_table_edit(attempt.intent, outcome)
         self._pending_table_edit = None
         return outcome

@@ -409,7 +409,7 @@ class ServerProtocol(
             return Message(MessageType.SPRITE_RESPONSE, data)
         if (scope is None and msg.type in {MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE_REQUEST}
                 and response is not None
-                and response.data.get('domain') != 'table_edit'
+                and response.data.get('domain') not in {'table_edit', 'fog_edit'}
                 and response.type not in {MessageType.ERROR, MessageType.ACTION_REJECTED}):
             auto_save = getattr(getattr(self, "session_manager", None), "auto_save", None)
             if callable(auto_save):

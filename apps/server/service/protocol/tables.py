@@ -133,7 +133,7 @@ class _TablesMixin(_TableEditsMixin):
 
     async def handle_table_update(self, msg: Message, client_id: str) -> Message:
         """Handle and broadcast table update with sprite movement support"""
-        if self._durable_table_edits() and msg.data.get('type') != 'fog_update':
+        if self._durable_table_edits():
             return await self._execute_table_edit(msg, client_id)
         logger.debug("Table update requested", extra={"event_name": "table.update.requested"})
         try:

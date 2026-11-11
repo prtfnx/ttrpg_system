@@ -125,6 +125,7 @@ export class WebClientProtocol {
   private characterResyncNeeded = new Set<string>();
   private choiceRecoveryProbes = new Set<string>();
   private unknownTableProbes = new Set<string>();
+  private sessionSettingsProbeId?: string;
   private multiclassRecoveryProbes = new Set<string>();
   private pendingCharacterCreates = new Map<string, string>();
   private readonly BATCH_DELAY_MS = 30;
@@ -298,7 +299,7 @@ export class WebClientProtocol {
     if (!this.commandTracking.track(message,
       typeof message.data?.table_id === 'string' ? message.data.table_id
         : typeof nestedTableId === 'string' ? nestedTableId : null,
-      tableId => this.resynchronizeTable(tableId))) return false;
+      tableId => this.resynchronizeTable(tableId), () => this.reconcileSessionSettings())) return false;
     try { message = this.operationRecovery.admit(message); }
     catch {
       this.commandTracking.forgetUnsent(message.message_id);
@@ -578,8 +579,16 @@ export class WebClientProtocol {
       if (typeof data.round_number === 'number') useGameModeStore.getState().setRoundNumber(data.round_number);
     });
     this.registerHandler(MessageType.SESSION_RULES_CHANGED, async (m) => {
-      const { useSessionRulesStore } = await import('@features/combat/stores/sessionRulesStore');
-      useSessionRulesStore.getState().setRules(m.data as never);
+      if ((m.causation_id ?? m.correlation_id) === this.sessionSettingsProbeId) this.sessionSettingsProbeId = undefined;
+      const { useSessionRulesStore, DEFAULT_RULES } = await import('@features/combat/stores/sessionRulesStore');
+      const rules = m.data?.rules;
+      if (rules && typeof rules === 'object' && !Array.isArray(rules)) {
+        useSessionRulesStore.getState().setRules({ ...DEFAULT_RULES, session_id: this.sessionCode ?? '', ...rules });
+      }
+      if (typeof m.data?.mode === 'string') {
+        const { useGameModeStore } = await import('@features/combat/stores/gameModeStore');
+        useGameModeStore.getState().setMode(m.data.mode as import('@features/combat/stores/gameModeStore').GameMode);
+      }
     });
 
     // Combat.
@@ -867,6 +876,7 @@ export class WebClientProtocol {
           this.markCharacterUpdatesUncertain();
           this.choiceRecoveryProbes.clear();
           this.unknownTableProbes.clear();
+          this.sessionSettingsProbeId = undefined;
           this.multiclassRecoveryProbes.clear();
           this.settingsBuffer.connectionLost();
           this.operationRecovery.connectionLost();
@@ -1201,6 +1211,7 @@ export class WebClientProtocol {
   }
 
   private closeForReconnect(reason: string): void {
+    this.sessionSettingsProbeId = undefined;
     this.unknownTableProbes.clear();
     this.markCharacterUpdatesUncertain();
     this.operationRecovery.connectionLost();
@@ -1336,6 +1347,10 @@ export class WebClientProtocol {
   }
 
   private async handleError(message: Message): Promise<void> {
+    if ((message.causation_id ?? message.correlation_id) === this.sessionSettingsProbeId
+      && message.data?.outcome !== 'unknown') this.sessionSettingsProbeId = undefined;
+    if (message.data?.domain === 'session_settings' && message.data?.resync_required === true
+      && message.data.outcome !== 'unknown') this.reconcileSessionSettings();
     logger.error('Server error', message.data);
     const characterRequestId = message.causation_id ?? message.correlation_id;
     const characterPending = characterRequestId ? this.pendingCharacterUpdates.get(characterRequestId) : undefined;
@@ -1380,6 +1395,11 @@ export class WebClientProtocol {
     }
     this.settingsBuffer.reject(message);
     if (message.data?.outcome === 'unknown') {
+      if (message.data.domain === 'session_settings') {
+        if ((message.causation_id ?? message.correlation_id) !== this.sessionSettingsProbeId) this.reconcileSessionSettings();
+        emitProtocolEvent('protocol-error', message.data);
+        return;
+      }
       const original = message.data.operation_id ?? message.causation_id ?? message.correlation_id;
       const tableId = message.data.table_id;
       if (typeof original === 'string' && typeof tableId === 'string'
@@ -1421,6 +1441,11 @@ export class WebClientProtocol {
     protocolLogger.message('received', { type: 'success', data: message.data });
     
     const data = message.data;
+    if (data?.domain === 'session_settings' && data.success === true) {
+      this.sessionSettingsProbeId = undefined;
+      this.reconcileSessionSettings();
+      return;
+    }
     if ((data?.domain === 'table_edit' || data?.domain === 'fog_edit' || data?.domain === 'layer_edit') && data.success === true) {
       if (data.table_deleted === true) this.acceptTableDeletion(data);
       else {
@@ -3042,6 +3067,7 @@ export class WebClientProtocol {
   }
 
   disconnect(): void {
+    this.sessionSettingsProbeId = undefined;
     this.unknownTableProbes.clear();
     this.markCharacterUpdatesUncertain();
     this.operationRecovery.connectionLost();
@@ -3346,6 +3372,21 @@ export class WebClientProtocol {
   updateLayerSettings(tableId: string, layer: string, settings: { visible?: boolean; opacity?: number;
     tint_color?: number[]; color?: number[]; blend_mode?: string }, requestId?: string): string | undefined {
     return this.sendTableEdit(MessageType.LAYER_SETTINGS_UPDATE, { table_id: tableId, layer, settings }, requestId);
+  }
+
+  private reconcileSessionSettings(): void {
+    if (this.sessionSettingsProbeId) return;
+    const request = createMessage(MessageType.SESSION_RULES_REQUEST, {});
+    this.sessionSettingsProbeId = request.message_id;
+    if (!this.sendMessage(request)) this.sessionSettingsProbeId = undefined;
+  }
+
+  changeGameMode(mode: string, requestId?: string): string | undefined {
+    return this.sendTableEdit(MessageType.GAME_MODE_CHANGE, { game_mode: mode }, requestId);
+  }
+
+  updateSessionRules(rules: Record<string, unknown>, requestId?: string): string | undefined {
+    return this.sendTableEdit(MessageType.SESSION_RULES_UPDATE, { rules }, requestId);
   }
 
   // Cover zones.

@@ -384,7 +384,7 @@ list probe instead of switching scenes. Later table retirement is explicit.
 Public move/scale/metadata helpers return IDs and accept the original ID/body for
 deliberate retries. No automatic replay or persisted v1/v2 domain is added.
 Fog replacement now has its own atomic receipt/current-projection boundary.
-Remaining session mode/rules mutations still need review.
+Session mode/rules now have their own receipt/current-cache boundary below.
 
 ## Fog originals and UI reconciliation
 
@@ -405,3 +405,14 @@ existing bounded scene/list probes. A small `layer_edit` receipt clears ownershi
 and requests current hydration; it carries no historical style. The shared owner
 keeps reads, snapshots, cleanup and join behind unsettled acceptance/installation.
 No automatic replay or persisted v1/v2 recovery domain is introduced.
+
+## Session settings originals
+
+Session mode/rules originals remain page-local through acknowledgement timeouts
+and unknown responses. A bounded session_rules_request asks the server to settle
+and reload policy; a blocked probe cannot create a read loop. An acceptance
+receipt requests a fresh read even if an earlier probe was blocked. Neither
+current peer state nor a snapshot acknowledges the original mutation. Deliberate
+helpers return IDs and accept identical original identities/bodies for retries.
+The rules editor sends complete current rules plus its draft and waits for
+confirmation instead of clearing edits or claiming success when merely sent.

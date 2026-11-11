@@ -69,6 +69,7 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
     asset_provider = SimpleNamespace(request_session_assets=AsyncMock(return_value=[]))
     monkeypatch.setattr('service.wall_command_service.SessionLocal', factory)
     monkeypatch.setattr('service.table_edit_service.SessionLocal', factory)
+    monkeypatch.setattr('service.session_edit_service.SessionLocal', factory)
     monkeypatch.setattr(game_session_protocol, "get_server_asset_manager", lambda: asset_provider)
     monkeypatch.setattr(assets, "get_server_asset_manager", lambda: asset_provider)
     monkeypatch.setattr(DiceEngine, "roll", staticmethod(lambda formula: DiceRollResult(
@@ -114,6 +115,12 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
             assert announcement.type == MessageType.TABLE_UPDATE
             assert set(announcement.data["table_data"]) == {"table_id", "table_name", "width", "height"}
         table_id = table_ids[0]
+        for kind, data in ((MessageType.GAME_MODE_CHANGE, {'game_mode': 'explore'}),
+            (MessageType.SESSION_RULES_UPDATE, {'rules': {'movement_mode': 'free', 'default_movement_speed': 45}})):
+            settings = await request(service, dm, kind, data, MessageType.SUCCESS)
+            assert settings['domain'] == 'session_settings' and settings['resync_required']
+        policy = await request(service, player, MessageType.SESSION_RULES_REQUEST, {}, MessageType.SESSION_RULES_CHANGED)
+        assert policy['mode'] == 'explore' and policy['rules']['default_movement_speed'] == 45
         for target in (table_ids[1], table_id):
             await request(service, player, MessageType.TABLE_ACTIVE_SET, {"table_id": target}, MessageType.SUCCESS)
             loaded = await request(service, player, MessageType.TABLE_REQUEST, {"table_id": target}, MessageType.TABLE_RESPONSE)
@@ -219,6 +226,8 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         dm, player = RecordedSocket(), RecordedSocket()
         await service.add_client(dm, "restored-dm", dm_info)
         await service.add_client(player, "restored-player", player_info)
+        policy = await request(service, player, MessageType.SESSION_RULES_REQUEST, {}, MessageType.SESSION_RULES_CHANGED)
+        assert policy['mode'] == 'explore' and policy['rules']['default_movement_speed'] == 45
         active = await request(service, player, MessageType.TABLE_ACTIVE_REQUEST, {}, MessageType.TABLE_ACTIVE_RESPONSE)
         assert active["table_id"] == table_id
         loaded = await request(service, player, MessageType.TABLE_REQUEST, {"table_id": table_id}, MessageType.TABLE_RESPONSE)

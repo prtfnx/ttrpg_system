@@ -34,15 +34,16 @@ export const MUTATION_MESSAGES = new Set<MessageType>([
 export class CommandTracking {
   private readonly pending = new Map<string, { message: Message; tableId: string | null;
     timer?: ReturnType<typeof setTimeout>; startedAt: number; sentAt?: number;
-    expired?: boolean; uncertain: (tableId: string) => void }>();
+    expired?: boolean; uncertain: (tableId: string) => void; uncertainSession?: () => void }>();
 
-  track(message: Message, tableId: string | null, uncertain: (tableId: string) => void): boolean {
+  track(message: Message, tableId: string | null, uncertain: (tableId: string) => void,
+    uncertainSession?: () => void): boolean {
     if (!MUTATION_MESSAGES.has(message.type) || !message.message_id || this.pending.has(message.message_id)) return true;
     if (this.pending.size >= 256) {
       if (tableId) uncertain(tableId);
       return false;
     }
-    const pending = { message, tableId, startedAt: Date.now(), uncertain };
+    const pending = { message, tableId, startedAt: Date.now(), uncertain, uncertainSession };
     this.pending.set(message.message_id, pending);
     this.arm(message.message_id, 30_000);
     return true;
@@ -55,6 +56,9 @@ export class CommandTracking {
     pending.timer = setTimeout(() => {
       pending.expired = true;
       if (pending.tableId) pending.uncertain(pending.tableId);
+      else if (pending.message.type === MessageType.GAME_MODE_CHANGE || pending.message.type === MessageType.SESSION_RULES_UPDATE) {
+        pending.uncertainSession?.();
+      }
       else this.pending.delete(id);
     }, Math.max(0, delay));
   }

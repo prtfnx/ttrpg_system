@@ -35,6 +35,8 @@ import { createMessage, MessageType, type Message } from '../message';
 import { useCombatStore } from '@features/combat/stores/combatStore';
 import { useCoverStore } from '@features/combat/stores/coverStore';
 import { useEncounterStore } from '@features/combat/stores/encounterStore';
+import { useSessionRulesStore } from '@features/combat/stores/sessionRulesStore';
+import { useGameModeStore } from '@features/combat/stores/gameModeStore';
 import { V2_RECOVERY_DOMAINS } from '../operationRecovery';
 
 // ---------------------------------------------------------------------------
@@ -291,6 +293,40 @@ describe('WebClientProtocol', () => {
       const remove = JSON.parse(ws.send.mock.calls[1][0]).data.messages[0];
       expect(remove.type).toBe('wall_remove');
       expect(remove.data.wall_id).toBe('server-wall');
+    } finally { protocol.disconnect(); }
+  });
+
+  it.each(['mode', 'rules'])('retains unknown session %s originals and reconciles current state', async kind => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      const id = kind === 'mode' ? protocol.changeGameMode('explore', 'original-session')
+        : protocol.updateSessionRules({ default_movement_speed: 45 }, 'original-session');
+      protocol.sendBatch();
+      const tracker = (protocol as unknown as { commandTracking: { has(id: string): boolean } }).commandTracking;
+      const receive = (message: Message) => (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> })
+        .handleIncomingMessage(JSON.stringify(message));
+      const unknown = { ...createMessage(MessageType.ERROR, { domain: 'session_settings', code: 'outcome_unknown',
+        outcome: 'unknown', error: 'Checking', resync_required: true }), causation_id: id };
+      await receive(unknown); protocol.sendBatch();
+      const sent = () => ws.send.mock.calls.map(([raw]) => JSON.parse(raw)).flatMap(message =>
+        message.type === 'batch_request' ? message.data.messages : [message]);
+      const probes = () => sent().filter(message => message.type === 'session_rules_request');
+      expect(probes()).toHaveLength(1);
+      const probe = probes()[0];
+      await receive({ ...unknown, causation_id: probe.message_id });
+      expect(probes()).toHaveLength(1);
+      expect(tracker.has(id!)).toBe(true);
+      await receive(createMessage(MessageType.SESSION_RULES_CHANGED, { rules: { session_id: 'TEST', default_movement_speed: 60 }, mode: 'custom' }));
+      expect(useSessionRulesStore.getState().rules?.default_movement_speed).toBe(60);
+      expect(useGameModeStore.getState().mode).toBe('custom');
+      expect(tracker.has(id!)).toBe(true);
+      await receive({ ...createMessage(MessageType.SUCCESS, { success: true, domain: 'session_settings',
+        operation_id: id, setting: kind === 'mode' ? 'game_mode_change' : 'session_rules_update', resync_required: true }), causation_id: id });
+      protocol.sendBatch();
+      expect(tracker.has(id!)).toBe(false);
+      expect(probes()).toHaveLength(2);
+      expect(sent().filter(message =>
+        message.type === 'game_mode_change' || message.type === 'session_rules_update')).toHaveLength(1);
     } finally { protocol.disconnect(); }
   });
 

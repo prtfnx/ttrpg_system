@@ -4,6 +4,20 @@ import { createMessage, MessageType } from '../message';
 
 afterEach(() => vi.useRealTimers());
 
+it.each([MessageType.GAME_MODE_CHANGE, MessageType.SESSION_RULES_UPDATE])('retains timed-out %s originals and probes once', type => {
+  vi.useFakeTimers();
+  const tracker = new CommandTracking();
+  const probe = vi.fn();
+  const message = createMessage(type, type === MessageType.GAME_MODE_CHANGE ? { game_mode: 'explore' } : { rules: { movement_mode: 'free' } });
+  tracker.track(message, null, vi.fn(), probe); tracker.markSent(message.message_id);
+  vi.advanceTimersByTime(60_000);
+  expect(probe).toHaveBeenCalledOnce();
+  expect(tracker.has(message.message_id!)).toBe(true);
+  tracker.settle({ ...createMessage(MessageType.SUCCESS), causation_id: message.message_id });
+  expect(tracker.has(message.message_id!)).toBe(false);
+  tracker.dispose();
+});
+
 it('waits for idle receipt progress instead of resyncing a healthy backlog', () => {
   vi.useFakeTimers();
   const tracker = new CommandTracking();

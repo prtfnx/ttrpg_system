@@ -348,6 +348,10 @@ def table_edits_postgresql(sprite_settlement_postgresql):
     scope.table_edit_service = TableEditService(scope.factory)
     table_id = scope.sprite_command['scope'].table_id
     def intent(kind='table_move'):
+        if kind in {'game_mode_change', 'session_rules_update'}:
+            from service.session_edit_service import SessionEditIntent
+            return SessionEditIntent.create(scope.session_id, scope.actor_id, 'session-original', kind,
+                {'game_mode': 'explore'} if kind == 'game_mode_change' else {'rules': {'default_movement_speed': 45}})
         if kind == 'layer_settings_update':
             from service.layer_edit_service import LayerEditIntent
             return LayerEditIntent.create(scope.session_id, scope.actor_id, 'layer-original', kind,
@@ -389,17 +393,20 @@ def test_table_fields_and_receipt_accept_atomically(table_edits_postgresql, monk
     assert outcome.current['settings_revision'] == (0 if fail_after_flush else 1)
 
 
-@pytest.mark.parametrize('kind', ['table_move', 'table_update_request', 'fog_update', 'layer_settings_update'])
+@pytest.mark.parametrize('kind', ['table_move', 'table_update_request', 'fog_update', 'layer_settings_update',
+    'game_mode_change', 'session_rules_update'])
 @pytest.mark.parametrize('commit', [False, True])
 def test_table_edit_settlement_observes_original_session_wait(table_edits_postgresql, postgresql_engine, kind, commit):
     from service.fog_edit_service import FogEditService
     from service.layer_edit_service import LayerEditService
+    from service.session_edit_service import PendingSessionEdit, SessionEditService
     from service.table_edit_service import PendingTableEdit, TableEditService
     from sqlalchemy import event
 
     scope = table_edits_postgresql
     intent = scope.table_edit_intent(kind)
-    service_type = (LayerEditService if kind == 'layer_settings_update' else
+    service_type = (SessionEditService if kind in {'game_mode_change', 'session_rules_update'} else
+        LayerEditService if kind == 'layer_settings_update' else
         FogEditService if kind == 'fog_update' else TableEditService)
     prepared, release, reader_started = threading.Event(), threading.Event(), threading.Event()
     pids, outcomes, errors = {}, [], []
@@ -429,7 +436,10 @@ def test_table_edit_settlement_observes_original_session_wait(table_edits_postgr
                 errors.append(exc)
     def read():
         try:
-            outcomes.append(service_type(reader_factory).resolve(PendingTableEdit(intent)))
+            if kind in {'game_mode_change', 'session_rules_update'}:
+                outcomes.append(SessionEditService(reader_factory).resolve(PendingSessionEdit(intent)))
+            else:
+                outcomes.append(service_type(reader_factory).resolve(PendingTableEdit(intent)))
         except Exception as exc:
             errors.append(exc)
     writer, reader = threading.Thread(target=write), threading.Thread(target=read)
@@ -455,6 +465,10 @@ def test_table_edit_settlement_observes_original_session_wait(table_edits_postgr
             assert len(outcomes[0].current['fog_entities']) == int(commit)
         elif kind == 'layer_settings_update':
             assert outcomes[0].current['layer_settings']['tokens'] == ({'opacity': 0.4} if commit else {})
+        elif kind == 'game_mode_change':
+            assert outcomes[0].current['mode'] == ('explore' if commit else 'free_roam')
+        elif kind == 'session_rules_update':
+            assert outcomes[0].current['rules']['default_movement_speed'] == (45 if commit else 30)
         else:
             field, before, after = ('position_x', 0, 15) if kind == 'table_move' else ('width', 1000, 1500)
             assert outcomes[0].current[field] == (after if commit else before)
@@ -464,6 +478,30 @@ def test_table_edit_settlement_observes_original_session_wait(table_edits_postgr
             writer.join(6)
         if reader.ident is not None:
             reader.join(6)
+
+
+@pytest.mark.parametrize('kind', ['game_mode_change', 'session_rules_update'])
+@pytest.mark.parametrize('fail_after_flush', [False, True])
+def test_session_settings_and_receipt_accept_atomically(table_edits_postgresql, monkeypatch, kind, fail_after_flush):
+    from service import session_edit_service
+    from service.session_edit_service import PendingSessionEdit, SessionEditService
+
+    scope = table_edits_postgresql
+    service, intent = SessionEditService(scope.factory), scope.table_edit_intent(kind)
+    stage = session_edit_service.stage_receipt
+    if fail_after_flush:
+        def failed(*args):
+            stage(*args)
+            raise RuntimeError('After settings/receipt flush')
+        monkeypatch.setattr(session_edit_service, 'stage_receipt', failed)
+        with pytest.raises(RuntimeError, match='After settings'):
+            service.execute(intent)
+    else:
+        service.execute(intent)
+    outcome = service.resolve(PendingSessionEdit(intent))
+    assert outcome.committed is not fail_after_flush
+    assert outcome.current['mode'] == ('explore' if not fail_after_flush and kind == 'game_mode_change' else 'free_roam')
+    assert outcome.current['rules']['default_movement_speed'] == (45 if not fail_after_flush and kind == 'session_rules_update' else 30)
 
 
 @pytest.mark.parametrize('fail_after_flush', [False, True])

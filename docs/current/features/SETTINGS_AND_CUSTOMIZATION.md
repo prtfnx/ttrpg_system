@@ -76,29 +76,27 @@ validates and persists:
 - grid enabled and snap-to-grid
 - grid color and background color
 
-`handle_table_settings_update` validates a settings draft and persists it
-through a worker-owned `VirtualTableUpdate` before installing live values or
-broadcasting `table_settings_changed`. A false save result or exception sends
-`table_settings_save_failed` and leaves live settings unchanged. The error
-asks the caller to reload before retrying: a lost connection can leave the
-commit outcome uncertain. Cancellation waits for the submitted write to settle
-and installs confirmed committed values before releasing mutation ownership.
-The browser handler updates `useGameStore` and syncs grid/background values to
-the WASM runtime when available. Failure, cancellation, and real database
-save/reload regressions are in `test_tables_protocol.py` and
-`test_table_settings_roundtrip.py`. This path was reviewed on 2026-10-06.
+`handle_table_settings_update` accepts a revisioned settings draft and original
+receipt together through its worker-owned service. Unknown commit/install outcomes
+retain ownership through fresh settlement and current-state installation. The
+browser reconciles current settings; it does not treat a lost reply as rollback.
+See [persistence ownership](../explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md).
 
-TODO: durable operation receipts and automatic reconciliation for unknown
-commit outcomes; these are not current settings guarantees.
+Layer settings use `LayerEditService` and the shared table-edit pending owner.
+Only supplied properties merge into the named layer in `VirtualTable.layer_settings`;
+visibility, other properties/layers and legacy metadata survive partial updates.
+Current database DM authority gates acceptance and private results. A small
+`layer_edit` receipt requests current hydration, including recovery after uncertain
+commit or failed installation. Layer originals are not persisted in v1/v2 journals.
 
-Layer settings are separate. `layer_settings_update` is handled by the session
-protocol, persists into `VirtualTable.layer_settings`, and is applied by the
-browser protocol to the runtime and store. The server scopes the target table
-to the authenticated session and broadcasts only after persistence succeeds.
+Layer snapshots validate before mutation and restore saved styles or engine
+defaults on table switches. RGB `tint_color` and legacy `color` are supported;
+opacity controls alpha. New unsupported inactive-opacity requests reject.
 
-Layer settings, game mode, session rules, rules reads, and player active-table
-state use worker-owned synchronous ORM sessions. Validation, authorization,
-cache invalidation, and WebSocket delivery remain on the event-loop thread.
+Game mode, session rules, rules reads and player active-table state also use
+worker-owned ORM sessions. Their acceptance guarantees differ: game mode/session
+rules receipt settlement remains open; do not infer it from the layer path.
+WebSocket delivery and live cache installation remain on the event-loop thread.
 
 ## Browser-Only Preferences
 

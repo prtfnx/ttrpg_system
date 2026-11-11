@@ -731,7 +731,7 @@ transform original IDs; native browser tests exercise the rule under server CSP.
 Six PostgreSQL cases cover atomic fields/grid-revision/receipt rollback and
 observed session-row waits through move/metadata commit and rollback. A configured
 disposable PostgreSQL target is required; skips do not qualify locks. Fog entity
-replacement, remaining layer/session acceptance and restore/provider gates remain.
+replacement, remaining session mode/rules acceptance and restore/provider gates remain.
 
 ## Fog replacement recovery
 
@@ -750,4 +750,23 @@ fog identities. Browser tests cover current receipt reconciliation and unknown
 active/inactive originals. Snapshot tests publish panel state only after validation;
 panel tests cover retained state on late mount, canonical removal IDs, inactive/
 uncommitted input rejection and no renderer replay during hydration. Remaining
-layer/session acceptance, restore and served-provider qualification stay open.
+session mode/rules acceptance, restore and served-provider qualification stay open.
+
+## Layer patch settlement and renderer defaults
+
+`test_layer_edit_service.py` covers real SQL commit/rollback, merged properties,
+unrelated layers/legacy metadata, current-state replay, full-scene save isolation,
+alias normalization/conflicts and invalid/unsupported patches.
+`test_layer_edit_recovery.py` injects commit/lookup/install failures and verifies
+current style before quarantine release, revocation, missing known receipts,
+changed originals, repeated cancellation, join/empty cleanup, SQL off-loop and
+accepted outcomes after publication failure. The trusted-session workflow
+reconstructs merged visibility, opacity and tint after service replacement.
+
+Four PostgreSQL cases cover layer/receipt atomicity and observed session-row
+waits through commit/rollback. They require a configured disposable database;
+skips do not qualify real locks. Shared server/browser wire and native CSP tests
+reject missing original IDs and malformed patches. Browser tests retain unknown
+active/inactive originals and reconcile receipts without replay. Snapshot tests
+verify table-switch defaults, both color spellings and validation before renderer/
+store mutation. Session mode/rules, restore and served-provider gates remain.

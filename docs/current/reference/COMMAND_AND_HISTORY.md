@@ -453,7 +453,7 @@ Unknown browser originals survive reconciliation in page memory until a causal
 receipt; snapshot installation alone does not acknowledge them. Retrying retains
 the same operation, full command and original timestamp. Expiry stops retries
 and asks for review without calling the outcome rejected. This does not add tab
-reload/browser-restart persistence for canvas commands. Remaining layer/session
+reload/browser-restart persistence for canvas commands. Remaining session mode/rules
 settlement and real provider/candidate qualification remain open.
 
 ## Wall receipts stay separate from canvas history
@@ -471,7 +471,7 @@ the browser to reload current walls; later table retirement is explicit.
 Unknown commit/cache outcomes retain session quarantine through installation,
 including snapshots, cleanup and join. Current database authority controls
 private result disclosure. Wall originals remain outside persisted v1/v2 browser
-journals and general offline replay; remaining layer/session settlement stays open.
+journals and general offline replay; remaining session mode/rules settlement stays open.
 
 ## Table field receipts stay separate from canvas history
 
@@ -481,7 +481,7 @@ Replay and uncertain-outcome recovery install only current affected fields,
 preserve unrelated retained edits, and request list/current-scene reconciliation.
 They do not enqueue old full snapshots or replay historical metadata events.
 Fog replacement now has atomic original receipts and current fog installation;
-layer/session mutation review remains separate work. Table
+session mode/rules mutation review remains separate work. Table
 field originals remain outside persisted v1/v2 browser journals.
 
 ## Fog replacement is not canvas undo history
@@ -492,3 +492,13 @@ replacement. These commands do not create sprite/paint undo roots or persist
 browser originals in v1/v2 journals. Current SQL loading reconstructs the
 compatibility rectangle view from marker entities; the browser panel follows
 committed IDs without a second renderer replay.
+
+## Layer patches are separate from canvas history
+
+Layer style patches and original `layer_edit` receipts accept atomically in
+their own worker transaction. Only supplied properties merge into the named
+layer; they do not create sprite/paint undo roots. Shared table-edit ownership
+retains quarantine through fresh settlement and current-layer installation.
+Browser receipts reload current state and never replay historical styles.
+Layer originals remain outside persisted v1/v2 journals and universal offline
+replay; session game mode/rules acceptance remains separate work.

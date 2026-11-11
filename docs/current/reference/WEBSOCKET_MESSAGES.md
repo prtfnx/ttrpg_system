@@ -557,3 +557,21 @@ table-edit mechanism; unknown and denied outcomes retain its private lookup and
 quarantine rules. Fog remains outside negotiated persisted v1/v2 domains. The
 browser-only `fog-hydrated` event is emitted after validated snapshot installation;
 it is not an additional server wire message.
+
+## Layer patch receipts
+
+`layer_settings_update` requires a nonblank original `message_id` of at most
+128 characters before decoding. Its closed data is `{table_id, layer, settings}`;
+layer is one of map/tokens/dungeon_master/light/height/obstacles/fog_of_war.
+The nonempty closed patch supports boolean visible, finite opacity in 0..1,
+`tint_color` or legacy `color` (3 or 4 finite components in 0..1), and
+blend_mode alpha/additive/modulate/multiply. Supplying both color aliases rejects.
+Unsupported fields, including inactive_opacity, reject. RGB is canonical; alpha
+uses opacity. Original complete input is digested before normalization.
+
+Atomic SQL acceptance returns `success` with `domain: layer_edit`,
+`operation_id`, `table_id`, `replayed` and `resync_required: true`.
+Verified later retirement adds `table_deleted: true`. No historical settings
+are returned. Existing table resync hints and private unknown-outcome rules
+apply; browsers reload current list/active scene state. Layer edits remain
+outside persisted v1/v2 recovery domains. Game mode/session rules are separate.

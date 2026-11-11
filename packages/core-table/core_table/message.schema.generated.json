@@ -1543,6 +1543,25 @@
       },
       "additionalProperties": false
     },
+    "layerSettingsPatch": {
+      "type": "object", "minProperties": 1, "additionalProperties": false,
+      "properties": {
+        "visible": {"type": "boolean"},
+        "opacity": {"type": "number", "minimum": 0, "maximum": 1},
+        "tint_color": {"type": "array", "minItems": 3, "maxItems": 4, "items": {"type": "number", "minimum": 0, "maximum": 1}},
+        "color": {"type": "array", "minItems": 3, "maxItems": 4, "items": {"type": "number", "minimum": 0, "maximum": 1}},
+        "blend_mode": {"enum": ["alpha", "additive", "modulate", "multiply"]}
+      },
+      "not": {"required": ["tint_color", "color"]}
+    },
+    "layerSettingsData": {
+      "type": "object", "required": ["table_id", "layer", "settings"], "additionalProperties": false,
+      "properties": {
+        "table_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "layer": {"enum": ["map", "tokens", "dungeon_master", "light", "height", "obstacles", "fog_of_war"]},
+        "settings": {"$ref": "#/$defs/layerSettingsPatch"}
+      }
+    },
     "tableSettingsUpdateData": {
       "type": "object",
       "required": [
@@ -2373,6 +2392,13 @@
     }
   },
   "allOf": [
+    {
+      "if": {"properties": {"type": {"const": "layer_settings_update"}}, "required": ["type"]},
+      "then": {"required": ["message_id", "data"], "properties": {
+        "message_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"},
+        "data": {"$ref": "#/$defs/layerSettingsData"}
+      }}
+    },
     {
       "if": {"anyOf": [
         {"properties": {"type": {"enum": ["table_move", "table_scale"]}}, "required": ["type"]},

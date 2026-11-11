@@ -2,6 +2,18 @@ import { createMessage, MessageType, parseMessage } from '@lib/websocket/message
 import { describe, expect, it } from 'vitest';
 
 describe('Protocol Message Utilities', () => {
+  it('requires scoped original layer patches and rejects unsupported settings', () => {
+    const original = createMessage(MessageType.LAYER_SETTINGS_UPDATE, {
+      table_id: 'table', layer: 'tokens', settings: { opacity: 0.5, visible: false, tint_color: [0.1, 0.2, 0.3] },
+    });
+    expect(parseMessage(JSON.stringify(original)).data).toEqual(original.data);
+    for (const message_id of [undefined, null, '', '  ', 'x'.repeat(129)]) {
+      expect(() => parseMessage(JSON.stringify({ ...original, message_id }))).toThrow(/Invalid message/);
+    }
+    for (const settings of [{ opacity: 2 }, { visible: 1 }, {}, { inactive_opacity: 0.4 }, { color: [1, 1] }]) {
+      expect(() => parseMessage(JSON.stringify({ ...original, data: { ...original.data, settings } }))).toThrow(/Invalid message/);
+    }
+  });
 
   it.each([
     [MessageType.TABLE_MOVE, { table_id: 'table', x_moved: 1, y_moved: 2 }],

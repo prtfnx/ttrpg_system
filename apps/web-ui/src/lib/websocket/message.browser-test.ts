@@ -18,7 +18,7 @@ test('imports and validates messages under the server script CSP', async () => {
     <meta http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'">
     <script type="module">
-      const result = { kind: 'protocol-csp-result', evalBlocked: false, valid: false, invalidRejected: false, wallIdentityRejected: false, tableIdentityRejected: false, fogIdentityRejected: false };
+      const result = { kind: 'protocol-csp-result', evalBlocked: false, valid: false, invalidRejected: false, wallIdentityRejected: false, tableIdentityRejected: false, fogIdentityRejected: false, layerIdentityRejected: false };
       try {
         try { new Function('return 1')(); } catch (error) { result.evalBlocked = error.name === 'EvalError'; }
         const { parseMessage } = await import('/src/lib/websocket/message.ts');
@@ -32,13 +32,16 @@ test('imports and validates messages under the server script CSP', async () => {
         try { parseMessage(JSON.stringify({ type: 'table_update_request', data: { category: 'table', type: 'fog_update',
           data: { table_id: 'table', hide_rectangles: [], reveal_rectangles: [] } } })); }
         catch (error) { result.fogIdentityRejected = error.message.startsWith('Invalid message:'); }
+        try { parseMessage(JSON.stringify({ type: 'layer_settings_update', data: {
+          table_id: 'table', layer: 'tokens', settings: { opacity: 0.5 } } })); }
+        catch (error) { result.layerIdentityRejected = error.message.startsWith('Invalid message:'); }
       } catch (error) { result.error = String(error); }
       parent.postMessage(result, ${JSON.stringify(window.location.origin)});
     </script>`;
   document.body.append(frame);
   try {
     expect(await result).toEqual({
-      kind: 'protocol-csp-result', evalBlocked: true, valid: true, invalidRejected: true, wallIdentityRejected: true, tableIdentityRejected: true, fogIdentityRejected: true,
+      kind: 'protocol-csp-result', evalBlocked: true, valid: true, invalidRejected: true, wallIdentityRejected: true, tableIdentityRejected: true, fogIdentityRejected: true, layerIdentityRejected: true,
     });
   } finally {
     window.removeEventListener('message', receive);

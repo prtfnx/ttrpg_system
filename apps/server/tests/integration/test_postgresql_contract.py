@@ -348,6 +348,10 @@ def table_edits_postgresql(sprite_settlement_postgresql):
     scope.table_edit_service = TableEditService(scope.factory)
     table_id = scope.sprite_command['scope'].table_id
     def intent(kind='table_move'):
+        if kind == 'layer_settings_update':
+            from service.layer_edit_service import LayerEditIntent
+            return LayerEditIntent.create(scope.session_id, scope.actor_id, 'layer-original', kind,
+                {'table_id': table_id, 'layer': 'tokens', 'settings': {'opacity': 0.4}})
         if kind == 'fog_update':
             from service.fog_edit_service import FogEditIntent
             return FogEditIntent.create(scope.session_id, scope.actor_id, 'fog-original',
@@ -385,16 +389,18 @@ def test_table_fields_and_receipt_accept_atomically(table_edits_postgresql, monk
     assert outcome.current['settings_revision'] == (0 if fail_after_flush else 1)
 
 
-@pytest.mark.parametrize('kind', ['table_move', 'table_update_request', 'fog_update'])
+@pytest.mark.parametrize('kind', ['table_move', 'table_update_request', 'fog_update', 'layer_settings_update'])
 @pytest.mark.parametrize('commit', [False, True])
 def test_table_edit_settlement_observes_original_session_wait(table_edits_postgresql, postgresql_engine, kind, commit):
     from service.fog_edit_service import FogEditService
+    from service.layer_edit_service import LayerEditService
     from service.table_edit_service import PendingTableEdit, TableEditService
     from sqlalchemy import event
 
     scope = table_edits_postgresql
     intent = scope.table_edit_intent(kind)
-    service_type = FogEditService if kind == 'fog_update' else TableEditService
+    service_type = (LayerEditService if kind == 'layer_settings_update' else
+        FogEditService if kind == 'fog_update' else TableEditService)
     prepared, release, reader_started = threading.Event(), threading.Event(), threading.Event()
     pids, outcomes, errors = {}, [], []
     def writer_factory():
@@ -447,6 +453,8 @@ def test_table_edit_settlement_observes_original_session_wait(table_edits_postgr
         assert not errors and len(outcomes) == 1 and outcomes[0].committed is commit
         if kind == 'fog_update':
             assert len(outcomes[0].current['fog_entities']) == int(commit)
+        elif kind == 'layer_settings_update':
+            assert outcomes[0].current['layer_settings']['tokens'] == ({'opacity': 0.4} if commit else {})
         else:
             field, before, after = ('position_x', 0, 15) if kind == 'table_move' else ('width', 1000, 1500)
             assert outcomes[0].current[field] == (after if commit else before)
@@ -456,6 +464,33 @@ def test_table_edit_settlement_observes_original_session_wait(table_edits_postgr
             writer.join(6)
         if reader.ident is not None:
             reader.join(6)
+
+
+@pytest.mark.parametrize('fail_after_flush', [False, True])
+def test_layer_patch_and_receipt_accept_atomically(table_edits_postgresql, monkeypatch, fail_after_flush):
+    from service import layer_edit_service
+    from service.layer_edit_service import LayerEditIntent, LayerEditService
+    from service.table_edit_service import PendingTableEdit
+
+    scope = table_edits_postgresql
+    service, intent = LayerEditService(scope.factory), scope.table_edit_intent('layer_settings_update')
+    service.execute(LayerEditIntent.create(scope.session_id, scope.actor_id, 'layer-seed',
+        'layer_settings_update', {'table_id': intent.table_id, 'layer': 'tokens', 'settings': {'visible': False}}))
+    stage = layer_edit_service.stage_receipt
+    if fail_after_flush:
+        def failed(*args):
+            stage(*args)
+            raise RuntimeError('After layer/receipt flush')
+        monkeypatch.setattr(layer_edit_service, 'stage_receipt', failed)
+        with pytest.raises(RuntimeError, match='After layer'):
+            service.execute(intent)
+    else:
+        service.execute(intent)
+    outcome = service.resolve(PendingTableEdit(intent))
+    assert outcome.committed is not fail_after_flush
+    assert outcome.current is not None
+    assert outcome.current['layer_settings']['tokens'] == (
+        {'visible': False} if fail_after_flush else {'visible': False, 'opacity': 0.4})
 
 
 @pytest.mark.parametrize('fail_after_flush', [False, True])

@@ -4,6 +4,49 @@ Date: 2026-10-26, Europe/Kiev.
 
 Status: proposed implementation backlog; this document does not declare the remaining work complete.
 
+
+November 9 continuation: both requested history phases completed. Twenty-four
+unpublished commits were dated November 6 and the oldest nine pushed through
+`38381730`. The remaining fifteen were dated November 9 and the oldest twelve
+pushed through `bdbe1163`. Three prior commits stayed local. Verified maps and
+backup branches preserve contents, identities, order, local times and dirty work.
+
+Production fog replacement/clear now accepts fog-layer rows and bounded original
+actor/session/message/kind/body receipts in one worker transaction. Table-edit
+ownership retains quarantine through fresh session/table-barrier settlement and
+current indexed fog installation. Reads, writes, snapshots, cleanup and join
+cannot bypass an unknown outcome. Cancellation retains ownership, collisions
+cannot overwrite unrelated retained entities, and current authority gates private
+results after internal repair. No historical replacement replays.
+
+Normal SQL loading reconstructs the rectangle view from canonical marker rows,
+including legacy fog without receipt backfill. Integer pixel anchors retain the
+core contract, reversed corners normalize, fractional extents persist and invalid/
+degenerate shapes reject atomically. Complete original input is bounded to 60 KiB
+before digesting; receipts contain no geometry. No migration or persisted v1/v2
+recovery domain is introduced.
+
+Original fog wire IDs are required. Receipts ask for current reconciliation.
+The validated snapshot owner publishes canonical IDs via `fog-hydrated`; the
+panel follows committed state without renderer replay and uses retained store
+fog when opened afterward. This fixes an event mismatch that could omit saved
+fog from a later replacement.
+
+Validation: 1,372 broad server cases plus one final degenerate-shape case, 253 core
+schema cases, 2,047 jsdom cases and five native browser checks pass (3,678 distinct
+cases). Ninety-one PostgreSQL-dependent cases skip (90 contracts plus one Alembic
+case). Four new fog contracts collect for atomic replacement and observed lock
+waits; skips are not real-lock qualification. Type/build, targeted lint, generated
+bindings and docs gates pass. Existing modified WASM and large chunks remain.
+See [fog evidence](audit/release-2026-11-09/fog-settlement-validation.md).
+
+Seven new focused local commits, each at most seven files, implement/test/document
+this slice after the two limited pushes. New work is not pushed. Next: remaining
+layer/session mutation acceptance. R2 active-combat authority and legacy conflicts,
+R5 auth/resume/private producers, R6 paired DB/R2 restore and timeline invalidation,
+and R0/R7 PostgreSQL, reproducible WASM, served-provider, exact-candidate CI and load
+gates remain open.
+
 November 4 table-field continuation: production table move, scale and metadata
 patches (rename, resize and legacy grid fields) now accept only affected SQL
 columns and original actor/session/message/kind/full-payload receipts together.
@@ -786,7 +829,7 @@ For a public production service, also require automated independent backups, res
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
-| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals survive same-tab reloads. Character/repair, choice and multiclass have atomic receipts/current-state replay and negotiated v2 originals. Raw sprite/compendium and direct canvas/history settle existing journal outcomes. Wall commands and table metadata/transforms now commit original-intent receipts and retain quarantine through current affected-state installation; their browser originals remain outside persisted v1/v2. Fog replacement and remaining layer/session acceptance review stay open. | Finish remaining R4 settlement and real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
+| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals survive same-tab reloads. Character/repair, choice and multiclass have atomic receipts/current-state replay and negotiated v2 originals. Raw sprite/compendium and direct canvas/history settle existing journal outcomes. Wall commands and table metadata/transforms now commit original-intent receipts and retain quarantine through current affected-state installation; their browser originals remain outside persisted v1/v2. Fog replacement now has atomic row/receipt settlement; remaining layer/session acceptance review stays open. | Finish remaining R4 settlement and real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
 | A9: core-table imports server infrastructure | Still present. | Defer extraction; introduce only the transaction/worker adapters needed by R1-R3. |
 | A10: browser dependency cycles | Research recorded 39 cycles; the count was not rerun for this plan. | Defer wholesale cleanup. Fix a cycle only when a reproducible release workflow requires it. |
 | A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `efe187ac`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |
@@ -876,7 +919,14 @@ Done when: the named gameplay paths perform no blocking SQL on the server loop, 
 
 Priority: release blocker for supported retry flows. Dependencies: R1/R2 transaction boundaries; contract design can start alongside R1. Estimate: 4-7 days.
 
-Latest November 4 table-field status: move, scale, name/dimension/legacy-grid
+Latest November 9 fog status: replacement/clear now shares atomic fog-row/receipt
+acceptance and current indexed installation under table-edit ownership. Unknown
+outcomes quarantine reads, writes, snapshots, cleanup and join. SQL load rebuilds
+fog rectangles; committed renderer/store hydration supplies canonical panel IDs,
+including late mounts. Original wire IDs are required without expanding persisted
+v1/v2 domains. Next: layer/session acceptance and PostgreSQL/served/restore gates.
+
+November 4 table-field status: move, scale, name/dimension/legacy-grid
 patches and complete-original receipts now share field-level SQL acceptance.
 Unknown commit/cache outcomes retain quarantine through current-field installation,
 including reads, snapshots, cleanup and join. Legacy full-scene autosaves are

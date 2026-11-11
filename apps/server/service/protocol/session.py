@@ -10,7 +10,7 @@ from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import is_dm
 
-from ._protocol_base import _ProtocolBase
+from .session_edits import _SessionEditsMixin
 
 logger = setup_logger(__name__)
 
@@ -171,7 +171,7 @@ def _persist_player_active_table(
             db.close()
 
 
-class _SessionMixin(_ProtocolBase):
+class _SessionMixin(_SessionEditsMixin):
     """Handler methods for session domain."""
 
     async def handle_layer_settings_update(self, msg: Message, client_id: str) -> Message:
@@ -214,6 +214,8 @@ class _SessionMixin(_ProtocolBase):
 
     async def handle_game_mode_change(self, msg: Message, client_id: str) -> Message:
         """DM changes game mode.  Validates the value, persists, broadcasts."""
+        if self._durable_session_edits():
+            return await self._execute_session_edit(msg, client_id)
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'Only DMs can change game mode'})
 
@@ -245,6 +247,8 @@ class _SessionMixin(_ProtocolBase):
 
     async def handle_session_rules_update(self, msg: Message, client_id: str) -> Message:
         """DM updates session rules.  Validates, persists, broadcasts."""
+        if self._durable_session_edits():
+            return await self._execute_session_edit(msg, client_id)
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'Only DMs can update session rules'})
 
@@ -282,6 +286,8 @@ class _SessionMixin(_ProtocolBase):
 
     async def handle_session_rules_request(self, msg: Message, client_id: str) -> Message:
         """Client requests current session rules.  Sends directly back."""
+        if self._durable_session_edits():
+            return await self._read_session_settings(msg, client_id)
         session_code = self._get_session_code()
         rules_json, game_mode = ('{}', 'free_roam')
         if session_code:

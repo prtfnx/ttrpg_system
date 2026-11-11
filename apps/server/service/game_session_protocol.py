@@ -156,6 +156,9 @@ class GameSessionProtocolService:
         # metadata read, encounter restore, registration and welcome enqueue.
         # Already serialized handlers must not acquire this lock recursively.
         async with self.server_protocol._mutation_lock:
+            if self.server_protocol._has_pending_session_edit():
+                if await self.server_protocol._recover_pending_session_edit() is not None:
+                    raise RuntimeError('Session settings must settle before joining')
             if self.db_session and self.game_session_db_id:
                 game_mode, rules_dict, recovery = await run_blocking(
                     load_join_metadata, self.game_session_db_id, self.session_code,
@@ -165,6 +168,8 @@ class GameSessionProtocolService:
         await self._outboxes[websocket].drain()
 
     async def _register_client(self, websocket, client_id, user_info, game_mode, rules_dict, recovery=None):
+        if self.server_protocol._has_pending_session_edit():
+            raise RuntimeError('Session settings must settle before loading join metadata')
         if self.server_protocol._has_pending_table_edit():
             if await self.server_protocol._recover_pending_table_edit() is not None:
                 raise RuntimeError('Table edit acceptance must settle before joining')

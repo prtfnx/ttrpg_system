@@ -5,6 +5,46 @@ Date: 2026-10-26, Europe/Kiev.
 Status: proposed implementation backlog; this document does not declare the remaining work complete.
 
 
+November 9 layer continuation: production layer patches now merge only supplied
+properties into the named layer and accept a bounded original actor/session/
+message/kind/body receipt in the same worker transaction. Visibility, other
+properties/layers and legacy metadata survive opacity-only changes. Current
+database DM authority gates acceptance and private results.
+
+Existing table-edit ownership retains quarantine through fresh session/table-row
+settlement and current-layer installation, including reads, writes, snapshots,
+cleanup and join. Repeated cancellation retains ownership; missing known-accepted
+receipts remain unknown. Replay never restores an old style, and full-scene saves
+cannot erase this separately persisted column. No new migration or persisted v1/v2
+recovery domain is introduced.
+
+The closed wire request requires the original nonblank message ID, a canonical
+layer and supported nonempty typed patch. Color aliases normalize to RGB; alpha
+uses opacity. Legacy dual aliases prefer tint_color and unknown old metadata
+survives, while new unsupported inactive-opacity patches reject. Small layer_edit
+receipts and peer resync hints ask browsers for current state.
+
+Validated snapshot hydration restores all seven layers to saved styles or engine
+defaults on table switches, fixing inherited opacity/color/blend state. Canonical
+tint_color and legacy color work on both snapshot and live runtime paths.
+
+Validation: 1,470 server, 627 shared-core, 2,096 jsdom and five native browser
+cases pass (4,198 distinct). Ninety-five PostgreSQL-dependent cases skip (94
+contracts plus one Alembic case). Four new layer contracts cover atomic merge/
+receipt rollback and observed session-row waits; skips do not qualify locks.
+Pinned Pyright reports zero errors/warnings. Type/build, targeted lint, generated
+bindings, docs and diff checks pass. Existing modified WASM was preserved and
+large-chunk warnings remain. See
+[layer evidence](audit/release-2026-11-09/layer-settlement-validation.md).
+
+Seven focused local commits, each at most seven files, separate transaction,
+protocol ownership, browser/workflow, hydration, wire, current docs and plan/
+evidence. No history rewrite or push is included. Next: game mode/session rules
+acceptance and current-cache recovery. R2 active-combat field authority/legacy
+conflicts, R5 auth/resume/private producers, R6 paired DB/R2 restore/timeline
+invalidation, and R0/R7 PostgreSQL, optimized WASM, served-provider,
+exact-candidate CI and load qualification remain open.
+
 November 9 continuation: both requested history phases completed. Twenty-four
 unpublished commits were dated November 6 and the oldest nine pushed through
 `38381730`. The remaining fifteen were dated November 9 and the oldest twelve
@@ -829,7 +869,7 @@ For a public production service, also require automated independent backups, res
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
-| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals survive same-tab reloads. Character/repair, choice and multiclass have atomic receipts/current-state replay and negotiated v2 originals. Raw sprite/compendium and direct canvas/history settle existing journal outcomes. Wall commands and table metadata/transforms now commit original-intent receipts and retain quarantine through current affected-state installation; their browser originals remain outside persisted v1/v2. Fog replacement now has atomic row/receipt settlement; remaining layer/session acceptance review stays open. | Finish remaining R4 settlement and real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
+| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals survive same-tab reloads. Character/repair, choice and multiclass have atomic receipts/current-state replay and negotiated v2 originals. Raw sprite/compendium and direct canvas/history settle existing journal outcomes. Wall commands and table metadata/transforms now commit original-intent receipts and retain quarantine through current affected-state installation; their browser originals remain outside persisted v1/v2. Fog replacement and layer patches now have atomic receipts/current-state settlement; merged layer styles and table-switch defaults are covered. Session game mode/rules acceptance stays open. | Finish remaining R4 settlement and real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
 | A9: core-table imports server infrastructure | Still present. | Defer extraction; introduce only the transaction/worker adapters needed by R1-R3. |
 | A10: browser dependency cycles | Research recorded 39 cycles; the count was not rerun for this plan. | Defer wholesale cleanup. Fix a cycle only when a reproducible release workflow requires it. |
 | A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `efe187ac`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |
@@ -919,7 +959,15 @@ Done when: the named gameplay paths perform no blocking SQL on the server loop, 
 
 Priority: release blocker for supported retry flows. Dependencies: R1/R2 transaction boundaries; contract design can start alongside R1. Estimate: 4-7 days.
 
-Latest November 9 fog status: replacement/clear now shares atomic fog-row/receipt
+Latest November 9 layer status: scoped layer patches merge properties and original
+receipts atomically. Shared table-edit ownership retains quarantine through fresh
+settlement/current-layer installation, including join, cleanup and snapshots.
+Closed original wire IDs and current browser receipt reconciliation are covered;
+validated hydration resets engine defaults on every table switch. No migration
+or persisted v1/v2 domain is added. Next: game mode/session rules acceptance
+and real PostgreSQL/served/restore qualification.
+
+Earlier November 9 fog status: replacement/clear now shares atomic fog-row/receipt
 acceptance and current indexed installation under table-edit ownership. Unknown
 outcomes quarantine reads, writes, snapshots, cleanup and join. SQL load rebuilds
 fog rectangles; committed renderer/store hydration supplies canonical panel IDs,

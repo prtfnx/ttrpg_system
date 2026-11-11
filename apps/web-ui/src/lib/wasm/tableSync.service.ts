@@ -216,12 +216,12 @@ export class TableSyncService {
       this.hydratedTableId = tableId;
 
       const tableData = data.table_data ?? data;
-      const layerSettings = data.layer_settings ?? {};
+      const layerSettings = snapshot.layerSettings;
       Object.entries(layerSettings).forEach(([layer, settings]) => {
         if (typeof settings.visible === 'boolean') engine.set_layer_visibility(layer, settings.visible);
         if (typeof settings.opacity === 'number') engine.set_layer_opacity(layer, settings.opacity);
-        if (Array.isArray(settings.color) && settings.color.length >= 4) {
-          engine.set_layer_color(layer, Number(settings.color[0]), Number(settings.color[1]), Number(settings.color[2]));
+        if (Array.isArray(settings.tint_color) && settings.tint_color.length >= 3) {
+          engine.set_layer_color(layer, settings.tint_color[0], settings.tint_color[1], settings.tint_color[2]);
         }
         if (typeof settings.blend_mode === 'string') engine.set_layer_blend_mode(layer, settings.blend_mode);
       });

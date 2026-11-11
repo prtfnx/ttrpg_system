@@ -388,6 +388,37 @@ describe('TableSyncService', () => {
       service.dispose();
     });
 
+    it('restores layer defaults on scene switch and honors both saved color spellings', () => {
+      const service = makeService(); service.init();
+      try {
+        dispatch('table-response', { table_data: tableSnapshot(), layer_settings: {
+          tokens: { opacity: 0.3, visible: false, tint_color: [0.1, 0.2, 0.3], blend_mode: 'multiply' },
+        } });
+        expect(mockEngine.set_layer_color).toHaveBeenCalledWith('tokens', 0.1, 0.2, 0.3);
+        dispatch('table-response', { table_data: tableSnapshot({ table_id: TABLE_B }) });
+        expect(mockEngine.set_layer_opacity).toHaveBeenLastCalledWith('fog_of_war', 1);
+        expect(mockEngine.set_layer_opacity).toHaveBeenCalledWith('tokens', 1);
+        expect(mockEngine.set_layer_visibility).toHaveBeenCalledWith('tokens', true);
+        expect(mockEngine.set_layer_color).toHaveBeenCalledWith('tokens', 1, 1, 1);
+        expect(mockEngine.set_layer_blend_mode).toHaveBeenCalledWith('tokens', 'alpha');
+        expect(mockGameState.setLayerOpacity).toHaveBeenCalledWith('tokens', 1);
+        dispatch('table-response', { table_data: tableSnapshot({ table_id: TABLE_B }),
+          layer_settings: { tokens: { color: [0.2, 0.3, 0.4, 1] } } });
+        expect(mockEngine.set_layer_color).toHaveBeenCalledWith('tokens', 0.2, 0.3, 0.4);
+      } finally { service.dispose(); }
+    });
+
+    it('rejects malformed layer state before changing renderer or store state', () => {
+      const service = makeService(); service.init();
+      try {
+        dispatch('table-response', { table_data: tableSnapshot(), layer_settings: { tokens: { opacity: 0.4 } } });
+        const count = mockEngine.handle_table_data.mock.calls.length;
+        dispatch('table-response', { table_data: tableSnapshot(), layer_settings: { tokens: { opacity: 2 } } });
+        expect(mockEngine.handle_table_data).toHaveBeenCalledTimes(count);
+        expect(mockGameState.setLayerOpacity).not.toHaveBeenCalledWith('tokens', 2);
+      } finally { service.dispose(); }
+    });
+
     it('resets the table plane color when the next snapshot omits a background', () => {
       const service = makeService();
       service.init();

@@ -109,6 +109,8 @@ export interface RendererWallInput {
 }
 
 export interface NormalizedTableSnapshot {
+  layerSettings: Record<RendererLayerName, { visible: boolean; opacity: number;
+    tint_color: [number, number, number]; blend_mode: string }>;
   wire: WireTableSnapshot;
   renderer: RendererTableInput;
   specialSprites: RendererSpriteInput[];
@@ -489,6 +491,33 @@ export function normalizeTableSnapshot(input: unknown): NormalizedTableSnapshot 
     layerVisibility[name as RendererLayerName] = value;
   }
 
+  // Normalize all layer state before any renderer/store mutation.
+  const rawLayerSettings = record(envelope.layer_settings !== undefined ? envelope.layer_settings
+    : table.layer_settings !== undefined ? table.layer_settings : {}, 'table.layer_settings');
+  const layerSettings = {} as NormalizedTableSnapshot['layerSettings'];
+  for (const name of RENDERER_LAYER_NAMES) {
+    const setting = record(rawLayerSettings[name] === undefined ? {} : rawLayerSettings[name], `table.layer_settings.${name}`);
+    if (setting.opacity !== undefined && typeof setting.opacity !== 'number') {
+      throw new TableSnapshotValidationError('Layer opacity must be numeric');
+    }
+    if (setting.visible !== undefined && typeof setting.visible !== 'boolean') {
+      throw new TableSnapshotValidationError('Layer visibility must be boolean');
+    }
+    const opacity = finiteNumber(setting.opacity, `table.layer_settings.${name}.opacity`, 1);
+    if (opacity < 0 || opacity > 1) throw new TableSnapshotValidationError('Layer opacity must be within 0..1');
+    const tint = setting.tint_color ?? setting.color ?? [1, 1, 1];
+    if (!Array.isArray(tint) || (tint.length !== 3 && tint.length !== 4)
+      || tint.some(value => typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1)) {
+      throw new TableSnapshotValidationError('Layer color must contain finite RGB values within 0..1');
+    }
+    const blend = setting.blend_mode ?? (name === 'light' ? 'additive' : name === 'fog_of_war' ? 'multiply' : 'alpha');
+    if (typeof blend !== 'string' || !['alpha', 'additive', 'modulate', 'multiply'].includes(blend)) {
+      throw new TableSnapshotValidationError('Invalid layer blend mode');
+    }
+    layerSettings[name] = { visible: booleanValue(setting.visible, `table.layer_settings.${name}.visible`, layerVisibility[name] ?? true),
+      opacity, tint_color: [tint[0], tint[1], tint[2]], blend_mode: blend };
+  }
+
   // The response envelope carries the separately persisted authoritative wall
   // set. Prefer it even when the serialized table contains an empty legacy list.
   const rawWalls = envelope.walls ?? table.walls ?? [];
@@ -516,6 +545,7 @@ export function normalizeTableSnapshot(input: unknown): NormalizedTableSnapshot 
   };
 
   return {
+    layerSettings,
     wire,
     renderer: {
       table_id: tableId,

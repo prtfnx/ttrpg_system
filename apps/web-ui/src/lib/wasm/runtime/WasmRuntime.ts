@@ -648,14 +648,16 @@ export class WasmRuntime implements WasmRuntimePort {
     for (const [layer, setting] of Object.entries(settings)) {
       if (typeof setting.opacity === 'number') engine.set_layer_opacity(layer, setting.opacity);
       if (typeof setting.visible === 'boolean') engine.set_layer_visibility(layer, setting.visible);
-      if (Array.isArray(setting.tint_color) && setting.tint_color.length >= 3) {
+      const tint = setting.tint_color ?? setting.color;
+      if (Array.isArray(tint) && tint.length >= 3) {
         engine.set_layer_color(
           layer,
-          Number(setting.tint_color[0]),
-          Number(setting.tint_color[1]),
-          Number(setting.tint_color[2]),
+          Number(tint[0]),
+          Number(tint[1]),
+          Number(tint[2]),
         );
       }
+      if (typeof setting.blend_mode === 'string') engine.set_layer_blend_mode(layer, setting.blend_mode);
     }
     this.invalidateFramedPreview();
   }

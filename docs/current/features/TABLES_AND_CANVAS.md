@@ -481,3 +481,20 @@ for deliberate complete-input retries. Fog remains outside persisted v1/v2 retry
 journals. After validated renderer/store installation, `fog-hydrated` publishes
 canonical rectangle IDs to the panel. A panel opened later reads retained store
 fog. The panel updates its list without clearing/reinstalling renderer state.
+
+## Layer patches and table switches
+
+Database-backed layer edits merge supplied visibility, opacity, RGB color and
+blend properties into the named layer, preserving other saved values. Acceptance
+and the original receipt share one transaction. Unknown outcomes retain the
+existing table-edit owner through current-layer installation, including join,
+snapshot and cleanup protection. Success reloads current state rather than
+replaying historical styles; game mode/session rules acceptance remains separate.
+
+Snapshot validation normalizes all seven renderer layers before any mutation.
+Hydration restores saved values or renderer defaults on every table switch:
+opacity 1, white RGB, alpha blending except additive light and multiply fog, and
+visibility from saved layer settings or the table visibility map (otherwise true).
+This prevents an unstyled scene inheriting the previous scene's opacity/color.
+Legacy `color` RGB/RGBA and canonical `tint_color` are readable; alpha remains
+controlled by opacity. Unknown legacy metadata is retained in SQL, not applied.

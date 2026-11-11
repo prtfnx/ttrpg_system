@@ -370,3 +370,22 @@ The validated snapshot owner installs renderer geometry and publishes
 `fog-hydrated`; the panel follows canonical IDs without clearing or redrawing
 fog during hydration. Late panel mounts use retained store state. These changes
 add no persisted v1/v2 domain, migration or untrusted-client confidentiality model.
+
+## Durable layer style updates
+
+Production layer patches and original `layer_edit` receipts accept together;
+partial opacity edits preserve visibility, tint and unrelated layers. Recovery
+installs the current target layer before releasing shared table-edit quarantine.
+Receipts request current table hydration rather than replaying old styles.
+
+The accepted patch has visibility, opacity in 0..1, RGB `tint_color` (legacy
+`color` also accepted), and alpha/additive/modulate/multiply blend mode.
+RGB/RGBA inputs normalize to RGB; opacity controls alpha. New requests cannot
+supply both color aliases or unsupported `inactive_opacity`. Existing unknown
+metadata survives, but the renderer has no inactive-opacity export.
+
+Validated snapshots restore every renderer layer to saved values or engine
+defaults when switching tables. Default opacity is 1 and color is white; light
+defaults to additive blending, fog to multiply, and other layers to alpha.
+Saved visibility overrides the legacy visibility map. Runtime updates accept
+both color aliases and apply blend modes.

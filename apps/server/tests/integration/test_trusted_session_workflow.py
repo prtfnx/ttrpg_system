@@ -150,6 +150,10 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         fog = await request(service, dm, MessageType.TABLE_UPDATE_REQUEST, {'category': 'table', 'type': 'fog_update',
             'data': {'table_id': table_id, 'hide_rectangles': [[[700, 700], [800, 800]]], 'reveal_rectangles': []}}, MessageType.SUCCESS)
         assert fog['domain'] == 'fog_edit'
+        for settings in ({'visible': False}, {'opacity': 0.4, 'tint_color': [0.2, 0.3, 0.4]}):
+            layer = await request(service, dm, MessageType.LAYER_SETTINGS_UPDATE,
+                {'table_id': table_id, 'layer': 'height', 'settings': settings}, MessageType.SUCCESS)
+            assert layer['domain'] == 'layer_edit' and layer['resync_required']
         wall = await request(service, dm, MessageType.WALL_CREATE, {
             "table_id": table_id, "wall_data": {"x1": 800, "y1": 800, "x2": 900, "y2": 800},
         }, MessageType.WALL_DATA)
@@ -223,6 +227,8 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         assert snapshot["ambient_light_level"] == 0.4
         assert snapshot['table_name'] == 'Revised battlefield' and snapshot['width'] == 1200
         assert snapshot['fog_rectangles']['hide'] == [[[700, 700], [800, 800]]]
+        assert loaded['layer_settings']['height'] == {
+            'visible': False, 'opacity': 0.4, 'tint_color': [0.2, 0.3, 0.4]}
         assert loaded["walls"][0]["wall_id"] == wall["wall"]["wall_id"]
         assert "dungeon_master" not in snapshot["layers"]
         restored_table = service.table_manager.get_table(table_id)

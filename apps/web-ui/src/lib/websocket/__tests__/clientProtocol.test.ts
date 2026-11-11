@@ -294,6 +294,24 @@ describe('WebClientProtocol', () => {
     } finally { protocol.disconnect(); }
   });
 
+  it.each(['table-abc', 'inactive-table'])('keeps unknown layer originals for %s until its current-state receipt', async tableId => {
+    const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
+    try {
+      const id = protocol.updateLayerSettings(tableId, 'tokens', { visible: false }, 'original-layer'); protocol.sendBatch();
+      expect(id).toBe('original-layer');
+      const receive = (message: Message) => (protocol as unknown as { handleIncomingMessage(raw: string): Promise<void> })
+        .handleIncomingMessage(JSON.stringify({ ...message, causation_id: id }));
+      const tracker = (protocol as unknown as { commandTracking: { watermark(id: string): string[] } }).commandTracking;
+      await receive(createMessage(MessageType.ERROR, { outcome: 'unknown', code: 'outcome_unknown', table_id: tableId }));
+      expect(tracker.watermark(tableId)).toContain(id);
+      await receive(createMessage(MessageType.SUCCESS, { success: true, domain: 'layer_edit', table_id: tableId,
+        operation_id: id, replayed: true, resync_required: true }));
+      expect(tracker.watermark(tableId)).not.toContain(id);
+      expect(ws.send.mock.calls.map(([raw]) => JSON.parse(raw)).some(message => message.type === 'table_list_request')).toBe(true);
+      expect(mocks.runtime.applyLayerSettings).not.toHaveBeenCalled();
+    } finally { protocol.disconnect(); }
+  });
+
   it.each(['table-abc', 'inactive-table'])('retains unknown fog for %s and reloads current state on its receipt', async tableId => {
     const protocol = makeProtocol(); const ws = makeOpenWs(protocol);
     try {
@@ -3090,7 +3108,8 @@ describe('WebClientProtocol', () => {
     it('LAYER_SETTINGS_UPDATE applies layer settings via applyLayerSettings', async () => {
       mocks.runtime.applyLayerSettings.mockClear();
       const p = makeProtocol();
-      await dispatch(p, 'layer_settings_update', { layer: 'tokens', settings: { opacity: 0.5 } });
+      await (p as unknown as { handleIncomingMessage(raw: string): Promise<void> }).handleIncomingMessage(JSON.stringify(
+        createMessage(MessageType.LAYER_SETTINGS_UPDATE, { table_id: 'table-abc', layer: 'tokens', settings: { opacity: 0.5 } })));
       expect(mocks.runtime.applyLayerSettings).toHaveBeenCalledWith({ tokens: { opacity: 0.5 } });
     });
 

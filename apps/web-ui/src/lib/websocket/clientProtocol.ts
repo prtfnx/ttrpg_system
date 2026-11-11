@@ -1421,7 +1421,7 @@ export class WebClientProtocol {
     protocolLogger.message('received', { type: 'success', data: message.data });
     
     const data = message.data;
-    if ((data?.domain === 'table_edit' || data?.domain === 'fog_edit') && data.success === true) {
+    if ((data?.domain === 'table_edit' || data?.domain === 'fog_edit' || data?.domain === 'layer_edit') && data.success === true) {
       if (data.table_deleted === true) this.acceptTableDeletion(data);
       else {
         this.requestTableList();
@@ -3341,6 +3341,11 @@ export class WebClientProtocol {
     const message = createMessage(type, data);
     if (requestId !== undefined) message.message_id = requestId;
     return this.sendMessage(message) ? message.message_id : undefined;
+  }
+
+  updateLayerSettings(tableId: string, layer: string, settings: { visible?: boolean; opacity?: number;
+    tint_color?: number[]; color?: number[]; blend_mode?: string }, requestId?: string): string | undefined {
+    return this.sendTableEdit(MessageType.LAYER_SETTINGS_UPDATE, { table_id: tableId, layer, settings }, requestId);
   }
 
   // Cover zones.

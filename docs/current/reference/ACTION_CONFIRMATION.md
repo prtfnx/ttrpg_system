@@ -384,7 +384,7 @@ list probe instead of switching scenes. Later table retirement is explicit.
 Public move/scale/metadata helpers return IDs and accept the original ID/body for
 deliberate retries. No automatic replay or persisted v1/v2 domain is added.
 Fog replacement now has its own atomic receipt/current-projection boundary.
-Remaining layer/session mutations still need review.
+Remaining session mode/rules mutations still need review.
 
 ## Fog originals and UI reconciliation
 
@@ -395,3 +395,13 @@ state rather than carrying old rectangles. The panel uses only committed
 `fog-hydrated` IDs or retained canonical store state; hydration does not reject
 an original or replay renderer mutations. General offline/reload ownership is
 not added to closed persisted v1/v2 contracts.
+
+## Layer originals and current style
+
+`updateLayerSettings` returns an original request ID and accepts it with the
+identical body for a deliberate retry. The panel's existing messages also retain
+their original IDs. Unknown active/inactive edits remain unconfirmed and use the
+existing bounded scene/list probes. A small `layer_edit` receipt clears ownership
+and requests current hydration; it carries no historical style. The shared owner
+keeps reads, snapshots, cleanup and join behind unsettled acceptance/installation.
+No automatic replay or persisted v1/v2 recovery domain is introduced.

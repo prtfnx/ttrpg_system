@@ -175,8 +175,9 @@ class _SessionMixin(_ProtocolBase):
     """Handler methods for session domain."""
 
     async def handle_layer_settings_update(self, msg: Message, client_id: str) -> Message:
-        """DM updates per-layer settings (opacity, tint_color, inactive_opacity, visible).
-        Saves to DB and broadcasts to all clients in the session."""
+        """Accept a scoped layer patch, then reconcile the current saved style."""
+        if getattr(self, 'table_manager', None) is not None and self._durable_table_edits():
+            return await self._execute_table_edit(msg, client_id)
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'Only DMs can change layer settings'})
         if not msg.data:

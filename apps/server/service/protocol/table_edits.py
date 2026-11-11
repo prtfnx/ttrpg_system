@@ -1,6 +1,7 @@
 """Retain table field edits through durable settlement and live installation."""
 from core_table.protocol import Message, MessageType
 from service.fog_edit_service import FogEditIntent, FogEditService
+from service.layer_edit_service import LayerEditIntent, LayerEditService
 from service.session_operation_receipts import OperationRejected
 from service.table_edit_service import PendingTableEdit, TableEditIntent, TableEditService
 from sqlalchemy.orm import Session, scoped_session
@@ -28,12 +29,18 @@ class _TableEditsMixin(_TableSettingsMixin):
     def _fog_edit_service(self):
         return FogEditService()
 
+    def _layer_edit_service(self):
+        return LayerEditService()
+
     @staticmethod
     def _edit_intent(request, session_id, actor_id):
-        intent_type = FogEditIntent if request.data.get('type') == 'fog_update' else TableEditIntent
+        intent_type = (LayerEditIntent if request.type == MessageType.LAYER_SETTINGS_UPDATE else
+            FogEditIntent if request.data.get('type') == 'fog_update' else TableEditIntent)
         return intent_type.create(session_id, actor_id, request.message_id, request.type.value, request.data)
 
     def _edit_service(self, intent):
+        if intent.identity.domain == 'layer_edit':
+            return self._layer_edit_service()
         return self._fog_edit_service() if intent.identity.domain == 'fog_edit' else self._table_edit_service()
 
     @staticmethod
@@ -71,6 +78,8 @@ class _TableEditsMixin(_TableSettingsMixin):
             install_fog_projection(self.table_manager, table, outcome.current)
             return
         values = dict(outcome.current)
+        if 'layer_settings' in values:
+            values['layer_settings'] = {**getattr(table, 'layer_settings', {}), **values['layer_settings']}
         if 'name' in values:
             values['display_name'] = values.pop('name')
         for prefix, attribute in (('position', 'position'), ('scale', 'scale')):

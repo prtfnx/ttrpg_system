@@ -17,6 +17,13 @@ class _ProtocolBase:
     and ServerProtocol.__init__ via Python's MRO at runtime.
     """
 
+    # Shared dispatch supplied by the concrete table-edit mixin.
+    def _durable_table_edits(self) -> bool:
+        raise NotImplementedError
+
+    async def _execute_table_edit(self, request: Message, client_id: str) -> Message:
+        raise NotImplementedError
+
     # Set by ServerProtocol.__init__
     table_manager: Any
     session_manager: Any

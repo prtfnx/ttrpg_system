@@ -323,7 +323,7 @@ class ServerProtocol(
         if self._has_pending_writes() or msg.type in CHOICE_ENCOUNTER_MUTATIONS | {MessageType.COMBAT_COMMAND, MessageType.XP_AWARD, MessageType.MULTICLASS_REQUEST, MessageType.NEW_TABLE_REQUEST, MessageType.TABLE_DELETE, MessageType.TABLE_SETTINGS_UPDATE, MessageType.CHARACTER_UPDATE} or (msg.type in SPRITE_COMMAND_TYPES | {MessageType.BATCH_REQUEST, MessageType.WALL_CREATE,
                 MessageType.WALL_UPDATE, MessageType.WALL_REMOVE, MessageType.DOOR_TOGGLE,
                 MessageType.TABLE_SETTINGS_UPDATE, MessageType.TABLE_UPDATE_REQUEST, MessageType.TABLE_MOVE,
-                MessageType.TABLE_SCALE, MessageType.CHARACTER_UPDATE} and getattr(
+                MessageType.TABLE_SCALE, MessageType.LAYER_SETTINGS_UPDATE, MessageType.CHARACTER_UPDATE} and getattr(
                     getattr(self, "table_manager", None), "db_session", None)):
             # Include post-commit broadcasts in cancellation shielding. The
             # session lock must not release between storage and publication.

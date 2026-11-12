@@ -425,6 +425,215 @@
     }
   },
   "$defs": {
+    "sessionRulesReplacement": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "obstacles_block_movement": {
+          "type": "boolean"
+        },
+        "walls_block_movement": {
+          "type": "boolean"
+        },
+        "enforce_movement_speed": {
+          "type": "boolean"
+        },
+        "diagonal_movement_rule": {
+          "enum": [
+            "standard",
+            "alternate",
+            "realistic"
+          ]
+        },
+        "default_movement_speed": {
+          "type": "number",
+          "maximum": 1000000,
+          "exclusiveMinimum": 0
+        },
+        "out_of_bounds_movement": {
+          "enum": [
+            "all",
+            "dm_only",
+            "none"
+          ]
+        },
+        "turn_order": {
+          "enum": [
+            "none",
+            "concurrent",
+            "initiative",
+            "dm_assigned"
+          ]
+        },
+        "actions_per_turn": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "bonus_actions_per_turn": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "reactions_per_turn": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "free_actions_per_turn": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "allow_player_end_turn": {
+          "type": "boolean"
+        },
+        "explore_movement_per_round": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "explore_actions_per_round": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "explore_auto_advance": {
+          "type": "boolean"
+        },
+        "explore_round_timer": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "auto_roll_npc_initiative": {
+          "type": "boolean"
+        },
+        "auto_sort_initiative": {
+          "type": "boolean"
+        },
+        "skip_defeated_combatants": {
+          "type": "boolean"
+        },
+        "group_npc_initiative": {
+          "type": "boolean"
+        },
+        "death_saves_enabled": {
+          "type": "boolean"
+        },
+        "massive_damage_rule": {
+          "type": "boolean"
+        },
+        "show_npc_hp_to_players": {
+          "enum": [
+            "exact",
+            "descriptor",
+            "none"
+          ]
+        },
+        "show_npc_ac_to_players": {
+          "type": "boolean"
+        },
+        "show_npc_conditions": {
+          "type": "boolean"
+        },
+        "enforce_line_of_sight": {
+          "type": "boolean"
+        },
+        "enforce_range": {
+          "type": "boolean"
+        },
+        "enforce_spell_slots": {
+          "type": "boolean"
+        },
+        "enforce_spell_components": {
+          "type": "boolean"
+        },
+        "critical_hit_rule": {
+          "enum": [
+            "double_dice",
+            "max_dice",
+            "double_total"
+          ]
+        },
+        "enforce_cover": {
+          "type": "boolean"
+        },
+        "enforce_difficult_terrain": {
+          "type": "boolean"
+        },
+        "opportunity_attacks_enabled": {
+          "type": "boolean"
+        },
+        "opportunity_attack_timeout_sec": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "ai_enabled": {
+          "type": "boolean"
+        },
+        "ai_auto_act": {
+          "type": "boolean"
+        },
+        "default_ai_behavior": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "movement_mode": {
+          "enum": [
+            "cell",
+            "free"
+          ]
+        },
+        "server_validation_tier": {
+          "enum": [
+            "lightweight",
+            "full"
+          ]
+        },
+        "custom_rules": {
+          "type": "object"
+        }
+      }
+    },
+    "sessionRulesUpdateData": {
+      "type": "object",
+      "required": [
+        "rules"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "$ref": "#/$defs/sessionRulesReplacement"
+        }
+      }
+    },
+    "gameModeChangeData": {
+      "type": "object",
+      "required": [
+        "game_mode"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "game_mode": {
+          "enum": [
+            "free_roam",
+            "explore",
+            "fight",
+            "custom"
+          ]
+        }
+      }
+    },
     "spritePreviewScope": {
       "type": "object",
       "required": [
@@ -625,19 +834,37 @@
         },
         "code": {
           "enum": [
-            "forbidden", "not_found", "version_conflict", "limit_exceeded",
-            "retry_window_expired", "invalid_payload", "outcome_unknown",
-            "persistence_failed", "table_settings_save_failed", "conflict",
-            "history_conflict", "unsupported", "movement_rejected",
-            "combat_required", "paint_disabled", "history_unavailable",
-            "text_version_conflict", "table_creation_save_failed",
-            "combat_outcome_unknown", "character_outcome_unknown", "choice_outcome_unknown", "operation_id_conflict"
+            "forbidden",
+            "not_found",
+            "version_conflict",
+            "limit_exceeded",
+            "retry_window_expired",
+            "invalid_payload",
+            "outcome_unknown",
+            "persistence_failed",
+            "table_settings_save_failed",
+            "conflict",
+            "history_conflict",
+            "unsupported",
+            "movement_rejected",
+            "combat_required",
+            "paint_disabled",
+            "history_unavailable",
+            "text_version_conflict",
+            "table_creation_save_failed",
+            "combat_outcome_unknown",
+            "character_outcome_unknown",
+            "choice_outcome_unknown",
+            "operation_id_conflict",
+            "session_settings_unavailable"
           ]
         },
         "current_object": {
           "type": "object"
         },
-        "not_accepted": {"type": "boolean"},
+        "not_accepted": {
+          "type": "boolean"
+        },
         "current_version": {
           "type": "integer",
           "minimum": 1
@@ -651,6 +878,9 @@
         },
         "original_message": {
           "type": "object"
+        },
+        "domain": {
+          "const": "session_settings"
         }
       },
       "additionalProperties": false
@@ -2392,6 +2622,64 @@
     }
   },
   "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "game_mode_change"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "message_id",
+          "data"
+        ],
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "\\S"
+          },
+          "data": {
+            "$ref": "#/$defs/gameModeChangeData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "session_rules_update"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "message_id",
+          "data"
+        ],
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "\\S"
+          },
+          "data": {
+            "$ref": "#/$defs/sessionRulesUpdateData"
+          }
+        }
+      }
+    },
     {
       "if": {"properties": {"type": {"const": "layer_settings_update"}}, "required": ["type"]},
       "then": {"required": ["message_id", "data"], "properties": {

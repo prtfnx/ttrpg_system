@@ -2,6 +2,16 @@ import { createMessage, MessageType, parseMessage } from '@lib/websocket/message
 import { describe, expect, it } from 'vitest';
 
 describe('Protocol Message Utilities', () => {
+  it.each([
+    [MessageType.GAME_MODE_CHANGE, { game_mode: 'explore' }],
+    [MessageType.SESSION_RULES_UPDATE, { rules: { movement_mode: 'free', explore_round_timer: null } }],
+  ])('requires original identities for %s', (type, data) => {
+    const original = createMessage(type, data);
+    expect(parseMessage(JSON.stringify(original)).data).toEqual(data);
+    for (const message_id of [undefined, '', ' ', 'x'.repeat(129)]) {
+      expect(() => parseMessage(JSON.stringify({ ...original, message_id }))).toThrow(/Invalid message/);
+    }
+  });
   it('requires scoped original layer patches and rejects unsupported settings', () => {
     const original = createMessage(MessageType.LAYER_SETTINGS_UPDATE, {
       table_id: 'table', layer: 'tokens', settings: { opacity: 0.5, visible: false, tint_color: [0.1, 0.2, 0.3] },

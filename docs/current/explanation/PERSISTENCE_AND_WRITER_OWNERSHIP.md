@@ -549,3 +549,18 @@ membership, send one response and fail closed without inventing default policy
 during outages. Legacy standalone helpers retain their compatibility behavior;
 production database-backed dispatch uses the new owner. No migration or persisted
 v1/v2 recovery domain is added. Real PostgreSQL/provider/restore gates remain.
+
+## Encounter membership and legacy token writes
+
+The existing stable session barrier now precedes raw sprite checks for active
+combat identity/stats/deletion. Durable encounter membership, including legacy
+null phases, protects cold restarts before the combat engine is hydrated.
+The same membership reader serves the stricter canvas history/group fence.
+Denied raw changes roll back the whole durable run without accepted journal rows;
+cosmetics remain receipt-only while the token is in combat.
+
+Combat entry reads current linked source values and fails closed on unavailable/
+invalid/archived data instead of accepting client/stale-token fallbacks.
+Persistent sheet updates and their recovery install persistent token projections
+without modifying active encounter resources. Completion performs no write-back.
+Real database/served qualification remains separate.

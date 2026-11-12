@@ -787,3 +787,22 @@ original IDs. Browser tests retain timed-out/unknown originals, bound probes,
 refresh after acceptance and unwrap current rules/mode. Editor tests preserve
 unmodified choices and drafts without claiming premature success. PostgreSQL,
 served-provider, restore and exact-candidate gates remain open.
+
+## Active combat field authority
+
+test_sprite_editor_commands.py covers raw HP/max-HP/AC, link/controller and delete
+rejection from both live and persisted encounter membership; null-phase legacy
+rows; cosmetic edits; combatant removal; and whole-run rollback.
+test_canvas_command_service.py covers the same cold-start/null-phase membership
+reader under the stricter canvas fence. Four PostgreSQL cases cover raw stat/delete
+denial without receipts; a configured disposable target is required, and skipped
+contracts do not qualify PostgreSQL locks.
+
+Factory tests cover canonical versus stale token/client values, zero/null, missing/
+invalid/legacy sources, unlinked identity and explicit DM entry overrides.
+Command/protocol tests verify rejected source loading, private outage details,
+unchanged encounter state and table-scoped additions. Character transaction tests
+inject uncertain commit/lookup outcomes while encounter HP/resources remain
+unchanged. Trusted-session reconstruction checks stale projections, sheet edits
+during combat, raw-stat denial, current encounter AC after restart, no completion
+write-back and updated persistent values in the next encounter.

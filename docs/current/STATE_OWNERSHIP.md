@@ -139,3 +139,21 @@ Existing-table mutation save failure leaves pending in-memory state for
 retry and returns failure rather than success. It is not a universal rollback of the live cache.
 Unconfirmed edits have no crash-durable command log. A superseded cache cannot
 reclaim ownership or replay its old snapshot onto the new writer.
+
+## Character, token and encounter fields
+
+Field authority verified November 11, 2026:
+
+| Field/lifecycle | Authority |
+| --- | --- |
+| Linked persistent HP/maxHp/AC | Character data.stats and atomic linked token projections. Sheet edits during combat affect this persistent state. |
+| Unlinked persistent HP/max-HP/AC | Saved token fields; raw stat changes wait until that token leaves active combat. |
+| Combat entry HP/max-HP/AC | Current canonical character for a linked token, otherwise saved token values; only explicit supported DM entry overrides take precedence. |
+| Combat character link/controllers | Saved token identity at entry; raw rebind/controller changes and deletion wait until combatant removal. |
+| Active encounter HP/AC/resources | Combat snapshot/journal commands. Sheet edits/recovery do not overwrite these values. |
+| Completion | No automatic HP/resource write-back to character or token. The next encounter reads current persistent values. |
+
+Canonical null/absent entry stats use engine defaults rather than reviving stale
+projection/client values. Unresolved legacy stat locations and source outages
+reject database-backed setup. Existing dry-run/exact-digest repair stays outside
+active combat. This is a field-specific rule, not a universal session transaction.

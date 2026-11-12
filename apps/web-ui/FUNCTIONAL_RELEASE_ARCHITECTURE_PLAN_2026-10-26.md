@@ -5,6 +5,46 @@ Date: 2026-10-26, Europe/Kiev.
 Status: proposed implementation backlog; this document does not declare the remaining work complete.
 
 
+November 10 continuation: the 17 unpublished commits were redated to November 10.
+The oldest nine were pushed through `67b0d96a`; eight remained local. Backup
+`backup/unpublished-before-redate-2026-11-10-6a2a3291` and the verified
+[commit map](audit/release-2026-11-10/commit-map.json) preserve contents, identities,
+order, local times, index and preexisting dirty files. New work follows that push.
+
+Production game mode/rules replacements now accept the affected SQL column and
+bounded original actor/session/message/kind/full-body receipts together under the
+stable session-row barrier and current database DM authority. Unknown commit,
+lookup or installation retains quarantine through current rules/mode movement
+cache installation. Reads, writes, snapshots, cleanup and joins cannot bypass it;
+join settles before loading welcome metadata. Missing known-accepted receipts
+remain unknown, current authority gates private results and repeated mutation
+cancellation retains ownership through publication. Historical policy never replays.
+
+Rules keep their existing replacement contract: omitted fields take defaults and
+session_id comes from SQL. Closed wire validation requires original IDs and typed
+known fields. The editor now sends current rules plus its draft, retaining edits
+until current confirmation instead of claiming success when sent. Browser handlers
+unwrap the actual rules object and update current mode. Page-local originals
+survive timeout/unknown outcomes with bounded read probes; acceptance requests a
+fresh read after blocked probes. No migration or persisted v1/v2 domain is added.
+
+Validation: 1,541 distinct server cases, 627 shared-core, 2,106 jsdom and five
+native browser checks pass (4,279 distinct). The initial broad server run passed
+1,514 and exposed 27 failures from one outdated lifecycle test double; adding the
+explicit pending flag made all 53 cases in that module pass. Overlaps are not
+counted twice. 103 PostgreSQL-dependent cases skip (102 contracts plus one Alembic
+case). Eight new contracts collect for mode/rules atomicity and observed lock
+waits; skips do not qualify locks. Pyright, targeted lint, types, generated binding,
+docs and final production build pass. The sandbox esbuild denial was resolved by
+the same build with escalation. Existing WASM and large-chunk limits remain.
+See [session settings evidence](audit/release-2026-11-10/session-settings-validation.md).
+
+Seven focused local commits, each at most seven files, implement/test/document
+this slice after the limited push. Next: R2 active-combat field authority and
+remaining legacy mutation review. R4 real database/served acceptance, R5 auth/
+resume/private producers, R6 paired DB/R2 restore/timeline invalidation and R0/R7
+PostgreSQL, optimized WASM, exact-candidate CI and load gates remain open.
+
 November 9 layer continuation: production layer patches now merge only supplied
 properties into the named layer and accept a bounded original actor/session/
 message/kind/body receipt in the same worker transaction. Visibility, other
@@ -869,7 +909,7 @@ For a public production service, also require automated independent backups, res
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
 | A6: WebSocket account authority beyond JWT expiry | Server deadline and signed-token integration coverage added in `531e9d09`. Browser close handling still reports generic authentication failure. | Finish and verify the browser reauthentication workflow in R5. |
 | A7: independent database plus R2 recovery | Open; existing operations guide explicitly describes development-level recovery. | R6: paired restore baseline before retaining important data; automation before public production. |
-| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals survive same-tab reloads. Character/repair, choice and multiclass have atomic receipts/current-state replay and negotiated v2 originals. Raw sprite/compendium and direct canvas/history settle existing journal outcomes. Wall commands and table metadata/transforms now commit original-intent receipts and retain quarantine through current affected-state installation; their browser originals remain outside persisted v1/v2. Fog replacement and layer patches now have atomic receipts/current-state settlement; merged layer styles and table-switch defaults are covered. Session game mode/rules acceptance stays open. | Finish remaining R4 settlement and real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
+| A8: inconsistent durable operation identity/outcomes | XP and table create/copy/import/delete/settings have atomic receipts and settlement recovery; their scoped browser originals survive same-tab reloads. Character/repair, choice and multiclass have atomic receipts/current-state replay and negotiated v2 originals. Raw sprite/compendium and direct canvas/history settle existing journal outcomes. Wall commands and table metadata/transforms now commit original-intent receipts and retain quarantine through current affected-state installation; their browser originals remain outside persisted v1/v2. Fog replacement and layer patches now have atomic receipts/current-state settlement; merged layer styles and table-switch defaults are covered. Session mode/rules now have atomic original receipts, current-cache settlement and bounded page-local browser reconciliation. Real database/served acceptance stays open. | Finish remaining R4 settlement and real PostgreSQL/served acceptance; do not infer universal exactly-once delivery or browser-restart durability. |
 | A9: core-table imports server infrastructure | Still present. | Defer extraction; introduce only the transaction/worker adapters needed by R1-R3. |
 | A10: browser dependency cycles | Research recorded 39 cycles; the count was not rerun for this plan. | Defer wholesale cleanup. Fix a cycle only when a reproducible release workflow requires it. |
 | A11: missing PostgreSQL CI gates | Workflow and no-skip result checker added in `efe187ac`. A real successful PostgreSQL run is not established by local skipped tests. | R0 and R7 must record successful execution on the candidate revision. |
@@ -959,7 +999,15 @@ Done when: the named gameplay paths perform no blocking SQL on the server loop, 
 
 Priority: release blocker for supported retry flows. Dependencies: R1/R2 transaction boundaries; contract design can start alongside R1. Estimate: 4-7 days.
 
-Latest November 9 layer status: scoped layer patches merge properties and original
+Latest November 10 session settings status: mode/rules replacements and original
+receipts accept atomically under current SQL DM authority. Pending ownership
+retains quarantine through current movement-policy installation, including reads,
+cleanup and joins before welcome metadata loading. Closed original wire IDs,
+bounded page-local browser probes and confirmed editor behavior are covered.
+Persisted v1/v2 domains remain closed. R4 real PostgreSQL/served/restore acceptance
+remains open; next implementation review is R2 active-combat field authority.
+
+Earlier November 9 layer status: scoped layer patches merge properties and original
 receipts atomically. Shared table-edit ownership retains quarantine through fresh
 settlement/current-layer installation, including join, cleanup and snapshots.
 Closed original wire IDs and current browser receipt reconciliation are covered;

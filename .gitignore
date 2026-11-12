@@ -145,3 +145,11 @@ server_host/doc/
 # Benchmarks
 *.benchmarks*
 bench_results*
+
+# Local development plans, progress reports and release evidence
+/TODO.md
+/TEST_COVERAGE_ANALYSIS.md
+/apps/web-ui/*_20??-??-??.md
+/apps/web-ui/COVERAGE_PLAN.md
+/apps/web-ui/audit/
+/packages/rust-core/REFACTORING_PLAN.md

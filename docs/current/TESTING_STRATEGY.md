@@ -730,8 +730,7 @@ and later retirement. Shared schema tests reject missing/blank/oversized metadat
 transform original IDs; native browser tests exercise the rule under server CSP.
 Six PostgreSQL cases cover atomic fields/grid-revision/receipt rollback and
 observed session-row waits through move/metadata commit and rollback. A configured
-disposable PostgreSQL target is required; skips do not qualify locks. Fog entity
-replacement, remaining session mode/rules acceptance and restore/provider gates remain.
+disposable PostgreSQL target is required; skips do not qualify locks. Fog and session settings recovery are covered below; restore/provider gates remain.
 
 ## Fog replacement recovery
 
@@ -749,8 +748,8 @@ skipped cases do not qualify locks. Shared wire/native CSP cases reject missing
 fog identities. Browser tests cover current receipt reconciliation and unknown
 active/inactive originals. Snapshot tests publish panel state only after validation;
 panel tests cover retained state on late mount, canonical removal IDs, inactive/
-uncommitted input rejection and no renderer replay during hydration. Remaining
-session mode/rules acceptance, restore and served-provider qualification stay open.
+uncommitted input rejection and no renderer replay during hydration. Real session settings,
+restore and served-provider qualification stay open.
 
 ## Layer patch settlement and renderer defaults
 
@@ -770,3 +769,21 @@ reject missing original IDs and malformed patches. Browser tests retain unknown
 active/inactive originals and reconcile receipts without replay. Snapshot tests
 verify table-switch defaults, both color spellings and validation before renderer/
 store mutation. Session mode/rules, restore and served-provider gates remain.
+
+## Session settings settlement and confirmation
+
+test_session_edit_service.py covers real SQL effect/receipt commit and rollback,
+current-state replay, complete original hashing, trusted session code, typed
+replacements, legacy reads, missing known receipts and current authority.
+test_session_edit_recovery.py injects commit/lookup/install failures and verifies
+current movement policy before quarantine release, revocation, changed retries,
+repeated cancellation, SQL off-loop, publication failure, fail-closed single
+query replies, empty cleanup and fresh welcome metadata after recovery.
+
+Eight PostgreSQL contracts cover mode/rules atomicity and observed stable-session
+row waits through commit/rollback. Skips do not qualify locks. Trusted-session
+reconstruction verifies saved policy. Shared wire/native CSP checks require
+original IDs. Browser tests retain timed-out/unknown originals, bound probes,
+refresh after acceptance and unwrap current rules/mode. Editor tests preserve
+unmodified choices and drafts without claiming premature success. PostgreSQL,
+served-provider, restore and exact-candidate gates remain open.

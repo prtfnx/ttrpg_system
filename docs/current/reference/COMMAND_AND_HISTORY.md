@@ -453,8 +453,7 @@ Unknown browser originals survive reconciliation in page memory until a causal
 receipt; snapshot installation alone does not acknowledge them. Retrying retains
 the same operation, full command and original timestamp. Expiry stops retries
 and asks for review without calling the outcome rejected. This does not add tab
-reload/browser-restart persistence for canvas commands. Remaining session mode/rules
-settlement and real provider/candidate qualification remain open.
+reload/browser-restart persistence for canvas commands. Session settings now have receipt/current-cache settlement below. Real provider/candidate qualification remains open.
 
 ## Wall receipts stay separate from canvas history
 
@@ -471,7 +470,7 @@ the browser to reload current walls; later table retirement is explicit.
 Unknown commit/cache outcomes retain session quarantine through installation,
 including snapshots, cleanup and join. Current database authority controls
 private result disclosure. Wall originals remain outside persisted v1/v2 browser
-journals and general offline replay; remaining session mode/rules settlement stays open.
+journals and general offline replay; session settings now have their own receipt boundary below.
 
 ## Table field receipts stay separate from canvas history
 
@@ -481,7 +480,7 @@ Replay and uncertain-outcome recovery install only current affected fields,
 preserve unrelated retained edits, and request list/current-scene reconciliation.
 They do not enqueue old full snapshots or replay historical metadata events.
 Fog replacement now has atomic original receipts and current fog installation;
-session mode/rules mutation review remains separate work. Table
+session mode/rules now have atomic receipts/current-cache settlement. Table
 field originals remain outside persisted v1/v2 browser journals.
 
 ## Fog replacement is not canvas undo history
@@ -501,4 +500,13 @@ layer; they do not create sprite/paint undo roots. Shared table-edit ownership
 retains quarantine through fresh settlement and current-layer installation.
 Browser receipts reload current state and never replay historical styles.
 Layer originals remain outside persisted v1/v2 journals and universal offline
-replay; session game mode/rules acceptance remains separate work.
+replay; real session settings qualification remains open.
+
+## Session settings are separate from canvas history
+
+Mode/rules replacement and original session_settings receipts share one worker
+transaction. They create no canvas undo roots. Pending ownership keeps gameplay,
+reads, snapshots, cleanup and join behind current policy installation; recovery
+never replays a historical mode/rules replacement. Browser originals remain
+page-local through unknown outcomes and do not join persisted v1/v2 journals.
+Real database, provider and restore qualification remains open.

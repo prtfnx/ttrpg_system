@@ -120,7 +120,7 @@ now add atomic choice receipts and fresh settlement, as described below.
 
 ## Deferred consistency work
 
-TODO: review and implement remaining session mode/rules mutation acceptance. Production fog
+Production session mode/rules now have atomic receipts/current-cache settlement below. Production fog
 replacement now shares atomic receipt/current-projection ownership, described below.
 Production table metadata/transforms now use atomic field receipts, described below. Production wall acceptance now has the receipt/settlement boundary described below. Direct canvas commands/history now retain acceptance and installation ownership as described below. Raw sprite/compendium dispatch and bounded sprite runs now retain settlement ownership as described below. Multiclass, choice transitions, general
 character protocol/repair, table creation/deletion/settings and XP now commit
@@ -412,8 +412,7 @@ changed identity, lost tables or an expired unrecorded outcome cannot prove
 rollback. Repeated cancellation retains session ownership through settlement,
 installation and publication. Peers get only current-state resync hints, and
 accepted historical paint/sprite events are never replayed. No new database table,
-migration or persisted v1/v2 browser domain is introduced. Remaining session mode/rules
-uncertainty, restore-timeline invalidation and served/PostgreSQL qualification
+migration or persisted v1/v2 browser domain is introduced. Real session settings qualification, restore-timeline invalidation and served/PostgreSQL qualification
 remain separate work.
 
 ## Wall command acceptance and current-state settlement
@@ -450,8 +449,7 @@ create dependents are discarded with a review notice when no current wall row
 accompanies the receipt. Helpers return the original message ID and accept it
 for deliberate complete-input retries. No wall domain is added to persisted
 v1/v2 journals, no general offline replay is introduced, and standalone core
-callers retain their explicit worker/snapshot contract. Remaining session mode/rules mutation
-settlement, restore-generation invalidation and real PostgreSQL/provider
+callers retain their explicit worker/snapshot contract. Real session settings qualification, restore-generation invalidation and real PostgreSQL/provider
 qualification remain open.
 
 ## Table metadata and transform acceptance
@@ -479,7 +477,7 @@ metadata delta is replayed. Browsers refresh the table list and active scene.
 Inactive uncertain edits use a bounded list read to ask for settlement. Wire
 requests require a bounded nonblank original message ID before decoding can
 generate a replacement. No migration or persisted v1/v2 browser domain is added.
-Remaining session mode/rules mutation review, restore timeline
+Real session settings qualification, restore timeline
 invalidation and real PostgreSQL/provider qualification remain separate work.
 
 ## Fog replacement acceptance and restart hydration
@@ -508,8 +506,8 @@ the compatibility rectangle view during normal SQL load, including legacy marker
 rows without receipt backfill. Browser reconciliation reloads current state.
 The fog panel follows committed snapshot IDs and can reconstruct from the retained
 store when opened afterward; it does not clear/replay renderer geometry during
-hydration. Real PostgreSQL/provider, restore timeline and remaining session mode/rules
-acceptance gates remain open.
+hydration. Real PostgreSQL/provider, restore timeline and session settings
+qualification gates remain open.
 
 ## Layer patch acceptance and recovery
 
@@ -529,5 +527,25 @@ for standalone compatibility; production database-backed dispatch uses this owne
 
 Small `layer_edit` success receipts and peer resync hints request current table
 state, with explicit later retirement. No migration, canvas undo root or persisted
-v1/v2 recovery domain is added. Game mode/session rules acceptance and real
-PostgreSQL/provider/restore qualification remain open.
+v1/v2 recovery domain is added. Real PostgreSQL/provider/restore qualification remains open.
+
+## Session mode/rules acceptance and movement cache
+
+Database-backed mode changes and rules replacements use `SessionEditService`.
+An owned worker transaction locks the stable session row, checks current database
+DM authority and stages the affected column with a small `session_settings`
+original actor/session/message/kind/complete-body receipt. A rules replacement
+fills omitted fields with defaults and binds session_id to the trusted SQL code.
+
+Uncertain commit, lookup or installation retains a pending owner through fresh
+READ COMMITTED settlement and current rules/mode cache installation. Serialized
+reads/writes, snapshots, empty cleanup and joins cannot bypass it. Join settles
+before loading welcome metadata. Repeated mutation cancellation retains ownership
+through publication; current authority gates private results after internal repair.
+Missing known-accepted receipts or a missing session cannot prove rollback.
+
+Replay reads current policy without restoring old values. Queries require current
+membership, send one response and fail closed without inventing default policy
+during outages. Legacy standalone helpers retain their compatibility behavior;
+production database-backed dispatch uses the new owner. No migration or persisted
+v1/v2 recovery domain is added. Real PostgreSQL/provider/restore gates remain.

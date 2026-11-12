@@ -575,3 +575,24 @@ Verified later retirement adds `table_deleted: true`. No historical settings
 are returned. Existing table resync hints and private unknown-outcome rules
 apply; browsers reload current list/active scene state. Layer edits remain
 outside persisted v1/v2 recovery domains. Game mode/session rules are separate.
+
+## Session mode/rules receipts
+
+`game_mode_change` requires a closed `{game_mode}` with free_roam/explore/fight/
+custom. `session_rules_update` requires a closed `{rules}` with a nonempty
+typed replacement of known SessionRules fields. Both require original nonblank
+message IDs of at most 128 characters before decode. The complete original JSON
+is bounded to 8 KiB and digested before trusted session_id normalization.
+
+Booleans are strict; counters are whole numbers in 0..1,000,000; movement speed
+is finite and positive; other numeric movement values are nonnegative. A round
+timer is null or a positive integer. Core enum choices and custom_rules objects
+are validated. The legacy trust_client tier remains readable as lightweight,
+but new writes reject it. Unknown fields reject.
+
+Success is a small `session_settings` receipt with operation_id, setting,
+replayed and resync_required. Current GAME_MODE_STATE/SESSION_RULES_CHANGED
+broadcasts carry present policy, not historical receipt data. Unknown errors use
+the same domain and reveal no other actor's identity. Current read failure uses
+session_settings_unavailable and retains existing browser state. Persisted v1/v2
+domains are unchanged.

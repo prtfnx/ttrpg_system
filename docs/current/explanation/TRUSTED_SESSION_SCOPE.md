@@ -43,7 +43,9 @@ See [Tables](../features/TABLES_AND_CANVAS.md),
 
 These are remaining limitations, not completed architecture guarantees:
 
-- Review and implement remaining session mode/rules mutation acceptance. Production layer
+- Qualify real database/provider/restore boundaries. Production mode/rules now
+  have atomic original receipts and quarantine through current-cache installation,
+  including reads, cleanup and join before welcome metadata loading. Production layer
   patches now merge affected properties with atomic original receipts and retain
   quarantine through current-layer installation; snapshots restore renderer defaults.
   Layer originals remain outside persisted v1/v2 recovery domains. Production fog

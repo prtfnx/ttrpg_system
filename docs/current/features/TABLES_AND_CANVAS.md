@@ -461,7 +461,7 @@ up to 128 characters; clients omitting it must upgrade.
 
 Metadata/transform originals remain outside persisted v1/v2 recovery journals.
 Fog replacement now accepts fog-layer rows and its original receipt atomically,
-with current-projection recovery. Layer/session mutation acceptance still needs review.
+with current-projection recovery. Layer and session settings now have separate atomic receipt/current-state owners; real database/served qualification remains open.
 This change does not add general offline replay, a new migration or universal
 session atomicity.
 
@@ -489,7 +489,7 @@ blend properties into the named layer, preserving other saved values. Acceptance
 and the original receipt share one transaction. Unknown outcomes retain the
 existing table-edit owner through current-layer installation, including join,
 snapshot and cleanup protection. Success reloads current state rather than
-replaying historical styles; game mode/session rules acceptance remains separate.
+replaying historical styles; session mode/rules use a separate receipt/current-cache owner.
 
 Snapshot validation normalizes all seven renderer layers before any mutation.
 Hydration restores saved values or renderer defaults on every table switch:
@@ -498,3 +498,11 @@ visibility from saved layer settings or the table visibility map (otherwise true
 This prevents an unstyled scene inheriting the previous scene's opacity/color.
 Legacy `color` RGB/RGBA and canonical `tint_color` are readable; alpha remains
 controlled by opacity. Unknown legacy metadata is retained in SQL, not applied.
+
+## Session policy and table operations
+
+Unknown session mode/rules acceptance now participates in the same global pending
+write guard as table recovery. Current movement policy installs before table
+reads/writes, snapshots or cleanup resume. Join settles before reading welcome
+metadata. Session settings use their own receipt/current-cache owner and do not
+save a full scene or create canvas undo roots.

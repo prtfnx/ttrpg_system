@@ -5,6 +5,56 @@ Date: 2026-10-26, Europe/Kiev.
 Status: proposed implementation backlog; this document does not declare the remaining work complete.
 
 
+November 11 continuation: 15 unpublished commits were redated to November 11.
+The oldest 11 were pushed through `81b71368`; four prior commits remained local.
+The backup branch `backup/unpublished-before-redate-2026-11-11-a1c977ea` and
+[verified commit map](audit/release-2026-11-11/commit-map.json) preserve contents,
+messages, identities, order, local times, index and existing dirty work.
+
+Publication caveat verified after that push: the 11-commit cutoff precedes
+the session wire-contract commit `e914a986`. The pushed schema rejects the new
+session_settings recovery error domain, while the complete local schema accepts
+it. The next two existing commits (`585b209d`, then `e914a986`) include the editor
+and required wire completion. Keep the requested limit; this prefix is not a
+complete session-recovery release candidate. No extra commits were pushed.
+
+R2 field authority now has additional executable fences. Database-backed combat
+entry reads canonical linked character HP/maxHp/AC ahead of stale token/client
+values, including zero/null. Saved token link/controllers stay authoritative;
+unlinked tokens cannot borrow a client character. Missing/archived/invalid or
+unresolved legacy sources and lookup outages reject before encounter acceptance.
+Explicit supported DM entry overrides remain encounter-only, and added combatants
+must use the active table. Isolated non-database factory compatibility remains.
+
+Raw sprite changes now reject active token HP/max-HP/AC, character/controller
+changes and deletion, even for DMs. Current SQL encounter membership protects
+cold restarts and legacy null phases; canvas uses the same membership reader
+under its stricter group/history rules. A denied durable-run member rolls back
+earlier writes with no receipt. Cosmetics and existing DM movement override
+behavior remain available. Remove the combatant before rebind/controller/delete.
+
+Sheet edits and uncertain outcome recovery still update persistent source/token
+projections without changing active encounter HP/AC/resources. Reconnect and
+service reconstruction preserve encounter values. Completion performs no automatic
+HP/resource write-back; a later encounter reads current persistent values.
+These rules implement the existing split between persistent and encounter state.
+
+Validation: 1,575 server cases pass, including 34 new regressions and the extended
+trusted-session reconstruction. 107 PostgreSQL-dependent cases skip (106 contracts
+plus one Alembic case). Four new contracts cover cold raw stat/delete rejection,
+including null phases, with no receipts. Skips are not real PostgreSQL qualification.
+Pinned Pyright has zero errors/warnings; targeted Ruff, docs, generated bindings
+and diff checks pass. No browser/WASM sources or wire contracts changed; existing
+modified WASM/audits were preserved. See
+[authority evidence](audit/release-2026-11-11/combat-authority-validation.md).
+
+Five focused new local commits, each at most seven files, separate token fences,
+combat entry, workflow/recovery evidence, current docs and plan/publication
+evidence. New work is outside the limited push. Next: R5 auth expiry/resume and
+private-producer acceptance review. R2/R4 real database/served qualification,
+R6 paired DB/R2 restore/timeline invalidation and R0/R7 optimized WASM,
+exact-candidate CI and load acceptance remain open.
+
 November 10 continuation: the 17 unpublished commits were redated to November 10.
 The oldest nine were pushed through `67b0d96a`; eight remained local. Backup
 `backup/unpublished-before-redate-2026-11-10-6a2a3291` and the verified
@@ -903,7 +953,7 @@ For a public production service, also require automated independent backups, res
 | Finding | Current assessment | Release action |
 | --- | --- | --- |
 | A1: combat lifecycle writes before acceptance | Fixed locally in `badecc9f`: engine transitions no longer commit implicitly; accepted snapshot/journal owns the lifecycle save. | Retain failure/restart regressions. Do not reopen this as a separate refactor. |
-| A2: independent table/token/character/combat commits | Partial: combat movement/snapshot/journal share acceptance, as do generic character updates and linked stat projections. Token-originated edits and encounter/sheet reconciliation remain separate. | Finish R1 evidence and remaining R2 boundaries before qualifying retained game state. |
+| A2: independent table/token/character/combat commits | Combat movement/snapshot/journal and character source/projections each share acceptance under explicit field owners. Canonical combat entry and active-token raw-write fences now prevent confirmed authority bypasses; sheet edits/recovery do not overwrite encounter values and completion performs no write-back. | Qualify R1/R2 on real PostgreSQL and served reconnect/repair workflows; preserve the declared persistent/encounter field rules. |
 | A3: cancellation releases combat ownership early | Fixed for command settlement/publication, detached environment snapshots, and pending outcome recovery. Other migrated paths still need review. | Preserve existing coverage; finish remaining input/ordering work in R3. |
 | A4: synchronous database work in async paths | Named R3 paths migrated: choice storage, join metadata/restoration, scoped permission fallbacks and compendium token resolution. Wall workers retained. | SQLite ordering/cancellation coverage implemented; served PostgreSQL/R2 responsiveness remains an R7 gate. |
 | A5: private token stat broadcasts | Known character-stat producer fixed in `dce37e22`, including loaded/unloaded layer filtering. Other sensitive producers still need a bounded audit. | R5; retain a documented distinction between rendering fog and confidential world data. |
@@ -960,7 +1010,16 @@ Done when: rejected actions leave no durable movement/resource changes; accepted
 
 Priority: release blocker. Dependencies: reuse R1's transaction conventions. Estimate: 4-7 days.
 
-Source evidence: [character protocol](../server/service/protocol/characters.py) saves a character before `_sync_character_stats_to_tokens`; failures in that synchronization are logged and swallowed. [Character manager](../server/managers/character_manager.py) and [token persistence service](../server/service/character_protocol_persistence_service.py) own separate transactions. Active combat also keeps stat state.
+Latest November 11 local status: canonical linked source values govern database-backed
+combat entry; current saved token identity/controllers govern actor binding.
+Unavailable or unresolved legacy sources reject before acceptance. Raw changes to
+active token identity/stats/deletion reject under current encounter membership,
+including cold restarts and null phases. Persistent sheet edits/recovery do not
+change active encounter resources/AC; completion performs no write-back. These
+field rules and mixed workflow/restart regressions are now implemented. Real
+PostgreSQL and served-client qualification remains open; next local review is R5.
+
+At plan creation, source evidence: [character protocol](../server/service/protocol/characters.py) saves a character before `_sync_character_stats_to_tokens`; failures in that synchronization are logged and swallowed. [Character manager](../server/managers/character_manager.py) and [token persistence service](../server/service/character_protocol_persistence_service.py) own separate transactions. Active combat also keeps stat state.
 
 Implementation:
 

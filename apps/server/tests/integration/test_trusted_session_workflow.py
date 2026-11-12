@@ -174,6 +174,14 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
                                  {"sequence_id": sequence, "commands": commands}, expected)
 
         await command(dm, 1, [{"type": "set_terrain", "actor_id": "__dm__", "table_id": table_id, "cells": [[10, 10]]}])
+        # A legacy stale projection must not outrank the canonical character.
+        entry_table = service.table_manager.get_table(table_id)
+        assert entry_table is not None
+        entry_token = entry_table.find_entity_by_sprite_id(hero_id)
+        assert entry_token is not None
+        entry_token.ac = 7
+        with factory() as db, db.begin():
+            db.query(models.Entity).filter_by(sprite_id=hero_id).one().ac = 7
         await command(dm, 2, [{"type": "start_combat", "actor_id": "__dm__", "table_id": table_id,
                               "entity_ids": [hero_id, enemy_id], "settings": {"auto_roll_npc_initiative": False}}])
         for sequence, actor, value in ((3, hero_id, 20), (4, enemy_id, 10)):
@@ -182,6 +190,15 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         assert state is not None
         actor = next(item for item in state.combatants if item.entity_id == hero_id)
         assert (actor.hp, actor.max_hp, actor.armor_class) == (20, 20, 13)
+        changed = await request(service, player, MessageType.CHARACTER_UPDATE, {
+            'character_id': character_id, 'updates': {'data': {'stats': {'ac': 18}}}, 'version': 2,
+        }, MessageType.CHARACTER_UPDATE_RESPONSE)
+        assert changed['success'] and changed['version'] == 3
+        assert (actor.hp, actor.max_hp, actor.armor_class) == (20, 20, 13)
+        denied = await request(service, dm, MessageType.SPRITE_UPDATE,
+            {'table_id': table_id, 'sprite_id': enemy_id, 'hp': 1}, MessageType.ERROR)
+        assert denied['code'] == 'combat_required'
+        assert not service.server_protocol.actions._dirty_tables
         current = state.get_current_combatant()
         assert current is not None and current.entity_id == hero_id
         planned = [
@@ -245,15 +262,25 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         restored_hero = restored_table.find_entity_by_sprite_id(hero_id)
         assert restored_hero is not None
         assert restored_hero.position == (200, 100)
-        assert (restored_hero.hp, restored_hero.max_hp, restored_hero.ac, restored_hero.character_id) == (20, 20, 13, character_id)
+        assert (restored_hero.hp, restored_hero.max_hp, restored_hero.ac, restored_hero.character_id) == (20, 20, 18, character_id)
         assert restored_table.difficult_terrain_cells == {(10, 10)}
         restored = await request(service, dm, MessageType.COMBAT_STATE_REQUEST, {}, MessageType.COMBAT_STATE)
         assert restored["combat"]["state_version"] == state_before_reload["state_version"]
         assert restored["combat"]["current_turn_index"] == state_before_reload["current_turn_index"]
         restored_enemy = next(item for item in restored["combat"]["combatants"] if item["entity_id"] == enemy_id)
         assert restored_enemy["hp"] == 17
+        restored_actor = next(item for item in restored['combat']['combatants'] if item['entity_id'] == hero_id)
+        assert restored_actor['armor_class'] == 13
         await command(dm, 7, [{"type": "end_combat", "actor_id": "__dm__"}])
         assert CombatEngine.get_state(code) is None
+        with factory() as db:
+            assert db.query(models.Entity).filter_by(sprite_id=enemy_id).one().hp == 20
+        await command(dm, 8, [{'type': 'start_combat', 'actor_id': '__dm__', 'table_id': table_id,
+            'entity_ids': [hero_id, enemy_id], 'settings': {'auto_roll_npc_initiative': False}}])
+        fresh = CombatEngine.get_state(code)
+        assert fresh is not None
+        assert next(member for member in fresh.combatants if member.entity_id == hero_id).armor_class == 18
+        await command(dm, 9, [{'type': 'end_combat', 'actor_id': '__dm__'}])
     finally:
         for owner in services:
             await owner.stop_persistence()

@@ -106,7 +106,7 @@ Current field boundaries must remain explicit:
 | --- | --- | --- |
 | Character document, version, XP and advancement | Character manager and advancement commands | Sheet/token-panel edits and guarded stat repairs include linked projections atomically; XP has its own atomic receipt transaction; generic character protocol updates include durable actor-scoped receipts. |
 | Token HP/max-HP/AC outside combat | Character projection when linked; independent token fields otherwise | Canonical NPC placement and guarded legacy/projection repair are implemented; qualify PostgreSQL, served creation and recovery. |
-| Active encounter HP, resources and turn state | Combat command snapshot/journal | Define sheet edits during combat and any encounter-completion write-back before unifying these fields. |
+| Active encounter HP, resources and turn state | Combat command snapshot/journal | Sheet edits update only persistent source/projections. Encounter resources/AC remain snapshot-owned; completion performs no write-back. Qualify real PostgreSQL and served workflows. |
 
 Ending an encounter does not currently establish a general character-sheet HP
 write-back guarantee. Do not overwrite active encounter values from a delayed
@@ -601,3 +601,20 @@ Command-tracker timers remain bounded diagnostics. Persisted v1 domains are
 unchanged. Browser protocol tests cover scope replacement, native tab storage,
 tracked uncertainty, denied lookup, later receipts, pending-edit hydration,
 initially unloaded characters and archival.
+
+## Combat entry and sheet edits during an encounter
+
+Database-backed combat start/add reads the linked character's canonical data.stats
+HP, maxHp and AC ahead of stale token projections or flat client hints. Zero and
+explicit null are authoritative; unset values use combat defaults (0/0/10),
+rather than restoring old token values. Unlinked tokens use their saved stats and
+cannot borrow a client-proposed character. Missing/archived/invalid sources,
+unresolved legacy aliases and lookup outages reject setup before acceptance.
+Explicit permitted DM entry overrides remain encounter-only.
+
+Sheet edits, including uncertain-save recovery, continue to commit the persistent
+source and linked projections together. They do not alter an already-active
+encounter's HP, AC or resources. The encounter snapshot remains stable through
+reconnect/reconstruction; the next encounter reads the updated persistent source.
+Completion does not write encounter damage/resources back to the sheet or token.
+Use the existing guarded repair workflow for legacy projections outside combat.

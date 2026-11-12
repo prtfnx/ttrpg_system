@@ -98,6 +98,27 @@ def saved_state(linked):
                 db.query(models.CharacterLog).count())
 
 
+@pytest.mark.parametrize('committed', [False, True])
+async def test_uncertain_sheet_update_recovery_does_not_rewrite_active_encounter_resources(linked, monkeypatch, committed):
+    token = linked.tokens[0]
+    state = CombatEngine.start_combat(linked.code, str(linked.tables[0].table_id), [token.sprite_id],
+        combatants=[{'entity_id': token.sprite_id, 'hp': 20, 'max_hp': 20, 'armor_class': 12}])
+    actor = state.combatants[0]
+    CombatEngine.apply_damage(linked.code, actor.combatant_id, 11, is_dm=True)
+    before = state.to_dict()
+    recovery, lookup = lose_character_commit_response(linked, monkeypatch, committed, unavailable=True)
+    response = await linked.update({'data': {'stats': {'hp': 5, 'ac': 18}}})
+    assert response.type == MessageType.ERROR and linked.proto._has_pending_writes()
+    current = CombatEngine.get_state(linked.code)
+    assert current is not None and current.to_dict() == before
+    monkeypatch.setattr(recovery, '_lookup', lookup)
+    await linked.proto.handle_client(Message(MessageType.TABLE_REQUEST, {'table_id': str(linked.tables[0].table_id)}), 'dm')
+    assert not linked.proto._has_pending_writes()
+    current = CombatEngine.get_state(linked.code)
+    assert current is not None and current.to_dict() == before
+    assert [(item.hp, item.ac) for item in linked.tokens[:2]] == ([(5, 18)] * 2 if committed else [(20, 12)] * 2)
+
+
 def multiclass_source(linked):
     with linked.factory() as db:
         source = db.query(models.SessionCharacter).one()

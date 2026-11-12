@@ -408,3 +408,19 @@ combat mutations:
 - `ATTACK_PREVIEW`;
 - `AI_ACTION`;
 - encounter view/progress messages that do not directly mutate combat state.
+
+## Persistent stats and active encounter resources
+
+Combat setup reads canonical linked character HP/maxHp/AC before token projection
+hints. Saved token identity/controllers remain authoritative; an unlinked token
+cannot attach a client-supplied character during setup. Source lookup failures
+reject entry without accepting a snapshot or journal. Explicit supported DM setup
+overrides affect the encounter only, and new combatants must use its current table.
+
+Character edits during combat update persistent source/token projections, including
+their receipt recovery path. They do not heal, damage, change AC or replenish
+resources in the active encounter. Combat commands own those values until removal
+or completion. Raw sprite writes cannot change active token links/controllers/
+saved HP/max-HP/AC or delete the token, even after restart. Cosmetics and the
+existing DM movement override keep their rules. Completion performs no implicit
+HP write-back; a later encounter starts from the then-current persistent source.

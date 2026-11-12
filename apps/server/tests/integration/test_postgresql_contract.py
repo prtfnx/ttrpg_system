@@ -231,6 +231,47 @@ def test_sprite_rows_and_existing_journal_share_acceptance(sprite_settlement_pos
     assert entity is not None and entity.rotation == (0 if fail_after_flush else 30)
 
 
+@pytest.mark.parametrize('legacy_phase', [False, True])
+@pytest.mark.parametrize('remove', [False, True])
+def test_active_combat_fences_raw_token_changes_without_receipts(sprite_settlement_postgresql, legacy_phase, remove):
+    import copy
+
+    from core_table.protocol import Message, MessageType
+    from service.canvas_command_service import CanvasRejected
+    from service.sprite_editor_commands import SpriteCommandScope, SpriteEditorCommandService
+
+    s = sprite_settlement_postgresql
+    table_id = s.sprite_command['scope'].table_id
+    encounter_id = str(uuid.uuid4())
+    try:
+        with s.factory.begin() as db:
+            encounter = models.CombatEncounter(encounter_id=encounter_id, session_id=s.session_id,
+                table_id=table_id, phase='combat', combatants_json=json.dumps([{'entity_id': s.sprite_id}]))
+            db.add(encounter)
+            db.flush()
+            if legacy_phase:
+                encounter.phase = None
+        staged = copy.deepcopy(s.sprite_command['staged'])
+        token = staged.find_entity_by_sprite_id(s.sprite_id)
+        assert token is not None
+        if remove:
+            staged.remove_entity(token.entity_id)
+        else:
+            token.hp = 2
+        identity = SpriteCommandScope.from_message(Message(MessageType.SPRITE_REMOVE if remove else MessageType.SPRITE_UPDATE,
+            {'table_id': table_id, 'sprite_id': s.sprite_id, **({} if remove else {'hp': 2})}), s.session_id, s.actor_id)
+        with pytest.raises(CanvasRejected, match='Active combat tokens'):
+            SpriteEditorCommandService(s.factory).persist(scope=identity,
+                before_snapshot=s.sprite_command['before_snapshot'], staged=staged)
+        with s.factory() as db:
+            assert db.query(models.CanvasCommandJournal).filter_by(table_id=table_id).count() == 0
+            token = db.query(models.Entity).filter_by(sprite_id=s.sprite_id).one()
+            assert token.hp is None and token.rotation == 0
+    finally:
+        with s.factory.begin() as db:
+            db.query(models.CombatEncounter).filter_by(encounter_id=encounter_id).delete()
+
+
 @pytest.fixture
 def wall_settlement_postgresql(sprite_settlement_postgresql):
     from service.wall_command_service import WallCommandIntent, WallCommandService

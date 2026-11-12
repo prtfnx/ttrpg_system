@@ -136,6 +136,68 @@ def test_text_history_cannot_overwrite_another_edit(editor):
         history("undo")
 
 
+@pytest.mark.parametrize('field,value', [('hp', 3), ('max_hp', 20), ('ac', 12),
+    ('character_id', 'different-source'), ('controlled_by', [999]), ('delete', None)])
+@pytest.mark.parametrize('cold', [False, True])
+def test_active_combat_fences_legacy_identity_stats_and_deletion(editor, field, value, cold):
+    service, table, factory, scope, _, _ = editor
+    context = scope()
+    if cold:
+        with factory.begin() as db:
+            db.add(models.CombatEncounter(encounter_id=str(uuid.uuid4()), session_id=context.session_id,
+                table_id=context.table_id, phase='combat', combatants_json='[{"entity_id":"text"}]'))
+    staged = copy.deepcopy(table)
+    entity = staged.find_entity_by_sprite_id('text')
+    if field == 'delete':
+        staged.remove_entity(entity.entity_id)
+    else:
+        setattr(entity, field, value)
+    with pytest.raises(CanvasRejected, match='Active combat tokens') as error:
+        service.persist(scope=context, before_snapshot=table.to_dict(), staged=staged,
+            combat_sprite_ids=() if cold else ('text',))
+    assert error.value.code == 'combat_required'
+    with factory() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 0
+        row = db.query(models.Entity).one()
+        assert row.character_id is None and row.hp is None and row.ac is None
+
+
+def test_legacy_null_phase_fences_raw_changes_but_cosmetics_and_retired_members_work(editor):
+    service, table, factory, scope, _, _ = editor
+    context = scope()
+    with factory.begin() as db:
+        encounter = models.CombatEncounter(encounter_id=str(uuid.uuid4()), session_id=context.session_id,
+            table_id=context.table_id, phase='combat', combatants_json='[{"entity_id":"text"}]')
+        db.add(encounter)
+        db.flush()
+        encounter.phase = None
+    staged = copy.deepcopy(table)
+    staged.find_entity_by_sprite_id('text').name = 'Cosmetic rename'
+    assert service.persist(scope=context, before_snapshot=table.to_dict(), staged=staged)['success']
+    before = copy.deepcopy(staged)
+    staged.find_entity_by_sprite_id('text').hp = 2
+    with pytest.raises(CanvasRejected, match='Active combat tokens'):
+        service.persist(scope=scope(hp=2), before_snapshot=before.to_dict(), staged=staged)
+    with factory.begin() as db:
+        db.query(models.CombatEncounter).one().combatants_json = '[]'
+    assert service.persist(scope=scope(hp=2), before_snapshot=before.to_dict(), staged=staged)['success']
+
+
+def test_combat_guard_rolls_back_an_earlier_member_of_the_same_run(editor):
+    service, table, factory, scope, _, _ = editor
+    first, second = copy.deepcopy(table), copy.deepcopy(table)
+    first.find_entity_by_sprite_id('text').rotation = 20
+    second.find_entity_by_sprite_id('text').hp = 2
+    with pytest.raises(CanvasRejected, match='Active combat tokens'):
+        service.persist_many([
+            dict(scope=scope(rotation=20), before_snapshot=table.to_dict(), staged=first),
+            dict(scope=scope(hp=2), before_snapshot=table.to_dict(), staged=second, combat_sprite_ids=('text',)),
+        ])
+    with factory() as db:
+        assert db.query(models.CanvasCommandJournal).count() == 0
+        assert db.query(models.Entity).one().rotation == 0
+
+
 def test_commit_failure_rolls_back_sprite_and_journal_together(editor):
     service, table, factory, scope, _, _ = editor
     staged = copy.deepcopy(table)

@@ -20,6 +20,7 @@ from service.canvas_command_service import (
     CanvasRejected,
     encoded,
 )
+from service.combat_token_authority import CombatTokenConflict, active_combat_sprite_ids, guard_combat_token_changes
 from service.compendium_npc_persistence import stage_compendium_npc
 from service.paint_object_service import _Rejected
 from service.session_operation_receipts import OperationIdentity, lock_operation_session
@@ -211,6 +212,16 @@ class SpriteEditorCommandService(CanvasCommandService):
             new = {entity.sprite_id: entity.to_dict() for entity in staged.entities.values()}
         changes = [{"kind": "sprite", "id": target, "before": old.get(target), "after": new.get(target)}
             for target in sorted(old.keys() | new.keys()) if encoded(old.get(target)) != encoded(new.get(target))]
+        combat_scope = (scope.session_id, scope.table_id)
+        persisted_combat = run_state["combat"].get(combat_scope)
+        if persisted_combat is None:
+            persisted_combat = active_combat_sprite_ids(db, scope.session_id, scope.table_id)
+            run_state["combat"][combat_scope] = persisted_combat
+        combat_ids = set(combat_sprite_ids) | persisted_combat
+        try:
+            guard_combat_token_changes(changes, combat_ids)
+        except CombatTokenConflict as exc:
+            raise CanvasRejected('combat_required', str(exc)) from exc
         if scope.new_character:
             stage_compendium_npc(db, scope.session_id, scope.actor_id, scope.new_character, changes)
         projections = self._prepare_character_bindings(db, changes, scope.session_id, scope.actor_id, role)
@@ -239,16 +250,6 @@ class SpriteEditorCommandService(CanvasCommandService):
                 "sprite_data": {**change["after"], "table_id": scope.table_id}})
             if len(publication.to_json().encode("utf-8")) > MAX_COMMAND_BYTES:
                 raise CanvasRejected("limit_exceeded", "Sprite publication exceeds the safe WebSocket frame budget")
-        combat_ids = set(combat_sprite_ids)
-        combat_scope = (scope.session_id, scope.table_id)
-        persisted_combat = run_state["combat"].get(combat_scope)
-        if persisted_combat is None:
-            encounters = db.query(models.CombatEncounter).filter_by(session_id=scope.session_id,
-                table_id=scope.table_id, ended_at=None).filter(models.CombatEncounter.phase != "inactive").all()
-            persisted_combat = {str(member["entity_id"]) for encounter in encounters
-                for member in json.loads(encounter.combatants_json or "[]")}
-            run_state["combat"][combat_scope] = persisted_combat
-        combat_ids.update(persisted_combat)
         reversible = scope.editor and bool(changes) and not any(change["id"] in combat_ids for change in changes)
         if reversible:
             self._authorize(changes, role, scope.actor_id, "sprite", ())

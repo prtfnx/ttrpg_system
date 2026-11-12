@@ -116,7 +116,7 @@ without pretending an unvalidated record is a typed editor object.
 
 ## Linked stat authority
 
-Stat ownership checked against source on 2026-10-27:
+Stat ownership checked against source on 2026-11-11:
 
 | Field | Authority and edit path |
 | --- | --- |
@@ -201,11 +201,10 @@ state after the same control check, but do not write the database.
 - vision fields: `vision_radius`, `has_darkvision`,
   `darkvision_radius`, plus unit-based variants.
 
-`handle_sprite_update()` also syncs HP, max HP, and AC back to a linked
-character when a token stat changes and a character id can be resolved.
-This is a best-effort separate write: failures are logged, and character, token,
-and combat persistence are not one transaction. TODO: define stat authority
-and add transactional synchronization or durable repair.
+Database-backed `handle_sprite_update()` does not reverse-write linked stats.
+Linked values use atomic `character_update` acceptance and projections; independent
+linked sprite stat edits reject. Active encounter identity/stat/deletion fences
+also apply to raw commands, as described below.
 
 Character-to-token stat events use the same role/layer-filtered delivery as
 other sprite events. Loaded tokens use their current authoritative live layer;
@@ -281,3 +280,17 @@ Regressions: `test_sprite_identity_security.py`, `test_sprite_quotas.py`,
 `test_sprite_event_visibility.py`, and `test_sprites_protocol.py` under
 `apps/server/tests/unit/`, plus the real WASM renderer tests. See
 [WebSocket messages](../reference/WEBSOCKET_MESSAGES.md) for preview budgets.
+
+## Active encounter token fences
+
+Database-backed raw sprite commands reject deleting an active combat token or
+changing its character_id, controlled_by, hp, max_hp or ac. This applies to DMs
+too. Remove the combatant first to delete/rebind/change controllers; use combat
+commands for encounter HP. Unlinked saved stats can be edited again after removal
+or completion. Linked persistent stats still use character_update.
+
+The guard reads current encounter membership inside the acceptance transaction,
+including after restart before engine hydration and legacy null phases. A rejected
+member rolls back earlier members of the same durable run and creates no receipt.
+Cosmetic raw edits and the existing DM movement override retain their rules.
+Canvas group edits/history keep their stricter combat fence; copy remains allowed.

@@ -427,10 +427,14 @@ def test_combat_members_cannot_bypass_combat_command_authority(scene):
         scene["execute"](combat_sprite_ids=("sprite",))
 
 
-def test_persisted_combat_fences_editor_commands_before_engine_hydration(scene):
+@pytest.mark.parametrize('legacy_phase', [False, True])
+def test_persisted_combat_fences_editor_commands_before_engine_hydration(scene, legacy_phase):
     with scene["factory"].begin() as db:
         db.add(models.CombatEncounter(encounter_id=str(uuid.uuid4()), session_id=scene["session"],
             table_id=TABLE, phase="combat", combatants_json='[{"entity_id":"sprite"}]'))
+        if legacy_phase:
+            db.flush()
+            db.query(models.CombatEncounter).one().phase = None
     with pytest.raises(CanvasRejected, match="Combat tokens"):
         scene["execute"]()
     assert scene["execute"](scene["command"]("copy")).receipt["clipboard_id"]

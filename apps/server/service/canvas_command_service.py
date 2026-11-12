@@ -23,6 +23,7 @@ from core_table.table import LAYER_NAMES, Entity, VirtualTable
 from database import models
 from service.canvas_journal import MAX_HISTORY_BYTES, MAX_HISTORY_ENTRIES, RETENTION, trim_history
 from service.character_token_binding import CharacterBindingError, prepare_character_bindings
+from service.combat_token_authority import active_combat_sprite_ids
 from service.movement_validator import MovementValidator
 from service.paint_object_service import PaintObjectService, _object_dict, _Rejected
 from service.session_operation_receipts import OperationIdentity, lock_operation_session
@@ -384,14 +385,7 @@ class CanvasCommandService:
         # it inside this transaction and fail closed on malformed storage.
         combat_ids = set(combat_sprite_ids)
         if mode != "copy":
-            encounters = db.query(models.CombatEncounter).filter(
-                models.CombatEncounter.session_id == session_id,
-                models.CombatEncounter.table_id == table_id,
-                models.CombatEncounter.phase != "inactive",
-                models.CombatEncounter.ended_at.is_(None),
-            ).all()
-            for encounter in encounters:
-                combat_ids.update(str(member["entity_id"]) for member in json.loads(encounter.combatants_json or "[]"))
+            combat_ids.update(active_combat_sprite_ids(db, session_id, table_id))
         self._authorize(changes, role, actor_id, mode, combat_ids)
         targets = tuple(change['id'] for change in changes if change['kind'] == 'sprite')
         if attempt is not None:

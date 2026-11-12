@@ -102,9 +102,9 @@ Session rules and game mode are WebSocket state:
 - `game_mode_state`
 
 `handle_session_rules_update()` validates with
-`core_table.session_rules.SessionRules`, persists JSON to `GameSession`, clears
-the per-session rules cache, and broadcasts the new rules. Game mode updates
-validate against `core_table.game_mode.GameMode`, persist, and broadcast.
+`core_table.session_rules.SessionRules`, accepts JSON and original receipts atomically on `GameSession`, installs current
+rules/mode into the movement cache and publishes current policy. Game mode
+updates use the same owner and validate with `core_table.game_mode.GameMode`.
 
 ## Persistence
 
@@ -137,3 +137,13 @@ The public demo is a separate guest path through `/demo` and `/demo/session`.
 It creates expiring spectator membership without replacing an account login.
 It does not make ordinary game-session codes public join credentials. See
 [Auth and roles](AUTH_AND_ROLES.md) for guest authentication and allowed messages.
+
+## Session settings recovery
+
+Production mode/rules writes and original receipts accept atomically with current
+database DM authorization. Uncertain saves keep gameplay and join behind fresh
+settlement and current movement-policy installation. Join loads metadata only
+after settlement; it cannot welcome a client with a pre-recovery policy.
+Current rules reads require session membership and fail closed on unavailable
+storage. Small receipts request current state; historical settings never replay.
+This does not add browser-restart/offline replay or extend persisted v1/v2 domains.

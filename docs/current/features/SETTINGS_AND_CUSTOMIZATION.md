@@ -94,8 +94,8 @@ defaults on table switches. RGB `tint_color` and legacy `color` are supported;
 opacity controls alpha. New unsupported inactive-opacity requests reject.
 
 Game mode, session rules, rules reads and player active-table state also use
-worker-owned ORM sessions. Their acceptance guarantees differ: game mode/session
-rules receipt settlement remains open; do not infer it from the layer path.
+worker-owned ORM sessions. Mode/rules writes now have their own atomic receipt and current-cache settlement
+owner; their uncertainty participates in the shared pending-write guard.
 WebSocket delivery and live cache installation remain on the event-loop thread.
 
 ## Browser-Only Preferences
@@ -159,3 +159,16 @@ grid/background colors. The direct settings route and full-table save path
 must preserve the same fields. `apps/server/tests/unit/test_table_settings_roundtrip.py`
 covers this boundary. See [Tables and canvas](TABLES_AND_CANVAS.md) for shared
 transforms and the distinction from browser camera preferences.
+
+## Saving session rules
+
+The wire API replaces rules; omitted fields take defaults. The editor therefore
+sends current rules merged with the draft, preserving unrelated saved choices.
+It retains the draft while waiting and reports sending/confirmation separately
+from success. Unsent edits remain available. Accepted current rules arrive through
+the rules response's nested `rules` object; its `mode` updates game mode too.
+
+Mode/rules writes use atomic original receipts and current-cache settlement.
+Unknown originals survive page-local acknowledgement timeouts and trigger a
+bounded rules read without replaying mutations. Acceptance requests a fresh read
+even after an earlier blocked probe. No new persisted recovery domain is added.

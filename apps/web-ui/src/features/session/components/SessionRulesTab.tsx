@@ -71,6 +71,7 @@ function Select<T extends string>({ label, field, options, draft, update }: {
 }
 
 export function SessionRulesTab() {
+  const rules = useSessionRulesStore((s) => s.rules);
   const isDirty = useSessionRulesStore((s) => s.isDirty);
   const draft = useSessionRulesStore((s) => s.draft);
   const update = useSessionRulesStore((s) => s.updateDraft);
@@ -79,9 +80,11 @@ export function SessionRulesTab() {
 
   const save = () => {
     const proto = ProtocolService.getProtocol();
-    proto?.sendMessage(createMessage(MessageType.SESSION_RULES_UPDATE, { rules: draft }));
-    reset();
-    showToast.success('Session rules saved');
+    if (!rules || !proto?.sendMessage(createMessage(MessageType.SESSION_RULES_UPDATE, { rules: { ...rules, ...draft } }))) {
+      showToast.error('Session rules could not be sent. Your edits were retained.');
+      return;
+    }
+    showToast.warning('Saving session rules. Waiting for confirmation.');
   };
 
   return (

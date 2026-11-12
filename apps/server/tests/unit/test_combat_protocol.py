@@ -3,6 +3,7 @@
 CombatEngine is patched for all tests — we verify permission gates,
 validation, and correct MessageType in responses.
 """
+import json
 import threading
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -14,6 +15,7 @@ from core_table.session_rules import SessionRules
 from service.attack_resolver import AttackResult
 from service.combat_engine import CombatEngine
 from service.combat_persistence_service import PersistedCombatCommand
+from service.combatant_factory import CombatantFactory, CombatantSourceError
 from service.protocol.combat import _CombatMixin
 
 # ---------------------------------------------------------------------------
@@ -521,5 +523,30 @@ class TestCoverZoneSync:
         )
         assert resp.type == MessageType.COVER_ZONES_SYNC
         assert resp.data["zones"] == []
+
+
+@pytest.mark.parametrize('problem', ['missing', 'archived', 'invalid_json', 'outage'])
+def test_database_combat_sources_fail_closed_without_client_fallback(test_db, test_game_session, monkeypatch, problem):
+    from database.models import SessionCharacter
+    from sqlalchemy.orm import sessionmaker
+    from utils.time import utc_now
+    proto = _ProtoStub()
+    table = SimpleNamespace(entities={'token': SimpleNamespace(character_id='source', hp=99, max_hp=99, ac=99)})
+    proto.table_manager = SimpleNamespace(db_session=test_db, tables_id={'table': table}, tables={})
+    monkeypatch.setattr(proto, '_get_session_id', lambda _msg: test_game_session.id)
+    factory = sessionmaker(bind=test_db.get_bind())
+    if problem != 'missing':
+        test_db.add(SessionCharacter(character_id='source', session_id=test_game_session.id,
+            owner_user_id=test_game_session.owner_id, character_name='Hero',
+            archived_at=utc_now() if problem == 'archived' else None,
+            character_data='{broken' if problem == 'invalid_json' else json.dumps({'data': {'stats': {'hp': 5}}})))
+        test_db.commit()
+    def unavailable():
+        raise OSError('PRIVATE connection details')
+    monkeypatch.setattr('service.protocol.combat.SessionLocal', unavailable if problem == 'outage' else factory)
+    with pytest.raises(CombatantSourceError) as error:
+        CombatantFactory().build_many(['token'], [{'entity_id': 'token', 'hp': 500}],
+            proto._combatant_factory_context(Message(MessageType.COMBAT_COMMAND, {}), 'table'))
+    assert 'PRIVATE' not in str(error.value)
 
 

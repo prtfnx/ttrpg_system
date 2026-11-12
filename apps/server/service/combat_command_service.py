@@ -14,6 +14,7 @@ from core_table.combat import CombatAction, CombatState
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from service.combat_movement import CombatMovementDraft
 from service.combat_persistence_service import CombatCommitOutcomeUnknown, CombatPersistenceService
+from service.combatant_factory import CombatantSourceError
 from utils.blocking import run_blocking
 from utils.roles import can_interact, is_dm
 
@@ -849,12 +850,10 @@ class CombatCommandService:
             entity_ids = [str(item.get("entity_id")) for item in incoming_combatants if item.get("entity_id")]
         combatants = incoming_combatants
         if context.build_combatants is not None:
-            combatants = await run_blocking(
-                context.build_combatants,
-                command.table_id,
-                entity_ids,
-                incoming_combatants,
-            )
+            try:
+                combatants = await run_blocking(context.build_combatants, command.table_id, entity_ids, incoming_combatants)
+            except CombatantSourceError as exc:
+                return {'error': str(exc)}
         settings = CombatSettings.from_dict(command.settings) if command.settings else None
         state = self._engine.start_combat(
             session_id=context.session_code,
@@ -890,6 +889,8 @@ class CombatCommandService:
         table_id = command.table_id or str(getattr(state, "table_id", "") or "")
         if not table_id:
             return {"error": "table_id required"}
+        if table_id != str(state.table_id):
+            return {'error': 'New combatants must belong to the active combat table'}
         incoming = {
             "entity_id": entity_id,
             "character_id": command.character_id,
@@ -898,12 +899,10 @@ class CombatCommandService:
         incoming_combatants = command.combatants or [incoming]
         resolved = incoming_combatants
         if context.build_combatants is not None:
-            resolved = await run_blocking(
-                context.build_combatants,
-                table_id,
-                [str(entity_id)],
-                incoming_combatants,
-            )
+            try:
+                resolved = await run_blocking(context.build_combatants, table_id, [str(entity_id)], incoming_combatants)
+            except CombatantSourceError as exc:
+                return {'error': str(exc)}
         payload = dict(resolved[0]) if resolved else incoming
         extra = {k: v for k, v in payload.items() if k != "entity_id"}
         combatant = self._engine.add_combatant(context.session_code, str(entity_id), **extra)

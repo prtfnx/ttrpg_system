@@ -5,13 +5,20 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from service.character_schema import validate_character_document
+
 CharacterLoader = Callable[[str], Mapping[str, Any] | None]
+
+
+class CombatantSourceError(ValueError):
+    """Current saved combatant inputs cannot safely establish entry values."""
 
 
 @dataclass(frozen=True)
 class CombatantFactoryContext:
     table: Any = None
     load_character: CharacterLoader | None = None
+    require_saved_sources: bool = False
 
 
 class CombatantFactory:
@@ -36,11 +43,14 @@ class CombatantFactory:
         context = context or CombatantFactoryContext()
         client_payload = client_payload or {}
         token = self._find_token(context.table, entity_id)
-        character_id = self._first_text(
-            self._get_attr(token, 'character_id'),
-            client_payload.get('character_id'),
-        )
+        if context.require_saved_sources and token is None:
+            raise CombatantSourceError('Combat token was not found in this table')
+        character_id = (self._text_value(self._get_attr(token, 'character_id')) if token is not None
+            else self._text_value(client_payload.get('character_id')))
         character = context.load_character(character_id) if character_id and context.load_character else None
+        if context.require_saved_sources and character_id and character is None:
+            raise CombatantSourceError('Linked character is unavailable; repair the link before entering combat')
+        canonical_stats = self._canonical_stats(character, context.require_saved_sources) if character is not None else {}
 
         token_values = self._token_values(token)
         character_values = self._character_values(character)
@@ -53,14 +63,35 @@ class CombatantFactory:
             **fallback_values,
             **character_values,
             **token_values,
+            **canonical_stats,
             **explicit_overrides,
             'entity_id': entity_id,
         }
-        payload['character_id'] = character_id or payload.get('character_id')
+        payload['character_id'] = character_id or None
         payload['controlled_by'] = [str(x) for x in payload.get('controlled_by', []) if x is not None]
         payload['movement_speed'] = float(payload.get('movement_speed', 30) or 30)
         payload['is_npc'] = bool(payload.get('is_npc', len(payload['controlled_by']) == 0))
         return payload
+
+    def _canonical_stats(self, character, strict):
+        data = self._dict_value(character.get('data'))
+        stats = self._dict_value(data.get('stats'))
+        if strict:
+            legacy = [character, self._dict_value(character.get('stats')), data, stats]
+            aliases = {'hp': ('hp', 'current_hp', 'hit_points'),
+                'maxHp': ('maxHp', 'max_hp', 'hit_points'), 'ac': ('ac', 'armor_class')}
+            if any(name not in stats and any(alias in location for location in legacy for alias in names)
+                    for name, names in aliases.items()):
+                raise CombatantSourceError('Migrate legacy character stats to data.stats before entering combat')
+            try:
+                validate_character_document(dict(character))
+            except (ValueError, TypeError) as exc:
+                raise CombatantSourceError('Linked character data is invalid; repair it before entering combat') from exc
+        elif not any(key in stats for key in ('hp', 'maxHp', 'ac')):
+            return {}
+        # Missing/null canonical stats cannot revive a stale token/client value.
+        return {'hp': self._int_value(stats.get('hp'), 0), 'max_hp': self._int_value(stats.get('maxHp'), 0),
+            'armor_class': self._int_value(stats.get('ac'), 10)}
 
     def build_many(
         self,

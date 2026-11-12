@@ -2,6 +2,7 @@
 
 import asyncio
 import threading
+from dataclasses import replace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -21,6 +22,37 @@ def _context(role: str = "owner", user_id: int | None = 1) -> CombatCommandConte
         role=role,
         user_id=user_id,
     )
+
+
+@pytest.mark.parametrize('kind', ['start_combat', 'add_combatant'])
+async def test_unavailable_combatant_sources_reject_without_persisting_or_changing_state(kind):
+    from service.combatant_factory import CombatantSourceError
+    state = _state()[0]
+    before = state.to_dict()
+    def failed(*_args):
+        raise CombatantSourceError('Saved character data could not be loaded')
+    context = replace(_context(), build_combatants=failed)
+    persistence = MagicMock()
+    persistence.find_result.return_value = None
+    service = CombatCommandService(persistence=persistence)
+    envelope = service.parse_envelope({'sequence_id': 123, 'commands': [{'type': kind,
+        'actor_id': '__dm__', 'table_id': state.table_id, 'entity_id': 'new-token', 'entity_ids': ['new-token']}]})
+    result = await service.apply_async(envelope, context)
+    assert not result.accepted and 'could not be loaded' in result.reason
+    assert CombatEngine.get_state('cmd').to_dict() == before
+    persistence.persist_accepted.assert_not_called()
+
+
+async def test_add_combatant_cannot_take_a_token_from_a_different_table():
+    state = _state()[0]
+    before = state.to_dict()
+    context = replace(_context(), build_combatants=MagicMock())
+    service = CombatCommandService()
+    result = await service.apply_async(service.parse_envelope({'sequence_id': 124,
+        'commands': [{'type': 'add_combatant', 'actor_id': '__dm__', 'entity_id': 'foreign-token', 'table_id': 'other'}]}), context)
+    assert not result.accepted and 'active combat table' in result.reason
+    assert CombatEngine.get_state('cmd').to_dict() == before
+    context.build_combatants.assert_not_called()
 
 
 def _state():

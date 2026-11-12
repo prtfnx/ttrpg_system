@@ -1,6 +1,56 @@
 from types import SimpleNamespace
 
-from service.combatant_factory import CombatantFactory, CombatantFactoryContext
+import pytest
+from service.combatant_factory import CombatantFactory, CombatantFactoryContext, CombatantSourceError
+
+
+def saved_context(stats, **token_values):
+    token = SimpleNamespace(sprite_id='token', character_id='hero', controlled_by=[7],
+        **{'hp': 99, 'max_hp': 99, 'ac': 99, **token_values})
+    document = {'character_id': 'hero', 'name': 'Hero', 'data': {'stats': stats}}
+    return CombatantFactoryContext(table=SimpleNamespace(entities={'token': token}),
+        load_character=lambda _: document, require_saved_sources=True)
+
+
+@pytest.mark.parametrize('stats,expected', [({'hp': 3, 'maxHp': 20, 'ac': 13}, (3, 20, 13)),
+    ({'hp': 0, 'maxHp': 20, 'ac': 0}, (0, 20, 0)), ({'hp': None, 'maxHp': None, 'ac': None}, (0, 0, 10))])
+def test_saved_character_wins_over_stale_token_and_client_stats(stats, expected):
+    result = CombatantFactory().build_payload('token', {'hp': 999, 'max_hp': 999, 'armor_class': 99}, saved_context(stats))
+    assert (result['hp'], result['max_hp'], result['armor_class']) == expected
+    assert result['controlled_by'] == ['7'] and result['character_id'] == 'hero'
+
+
+def test_unlinked_token_cannot_borrow_a_client_proposed_character_or_controllers():
+    context = CombatantFactoryContext(table=SimpleNamespace(entities={'token': SimpleNamespace(
+        character_id=None, controlled_by=[7], hp=5, max_hp=10, ac=12)}),
+        load_character=lambda _: pytest.fail('Unbound client character must not be read'), require_saved_sources=True)
+    result = CombatantFactory().build_payload('token', {'character_id': 'other', 'controlled_by': [999]}, context)
+    assert result['character_id'] is None and result['controlled_by'] == ['7']
+    assert result['hp'] == 5
+
+
+@pytest.mark.parametrize('document', [None, {'character_id': 'hero', 'hp': 5, 'max_hp': 20},
+    {'character_id': 'hero', 'data': {'stats': {'hp': -1}}},
+    {'character_id': 'hero', 'data': {'stats': {'max_hp': 20}}}])
+def test_missing_invalid_or_unmigrated_linked_sources_fail_closed(document):
+    context = saved_context({})
+    context = CombatantFactoryContext(context.table, lambda _: document, True)
+    with pytest.raises(CombatantSourceError):
+        CombatantFactory().build_payload('token', {'hp': 999}, context)
+
+
+def test_missing_saved_token_rejects_instead_of_manufacturing_a_combatant():
+    with pytest.raises(CombatantSourceError, match='not found'):
+        CombatantFactory().build_payload('missing', {'hp': 999}, CombatantFactoryContext(require_saved_sources=True))
+
+
+def test_explicit_dm_entry_override_does_not_change_the_saved_source():
+    context = saved_context({'hp': 3, 'maxHp': 20, 'ac': 13})
+    result = CombatantFactory().build_payload('token', {'overrides': {'hp': 1, 'controlled_by': [999]}}, context)
+    assert result['hp'] == 1 and result['armor_class'] == 13 and result['controlled_by'] == ['7']
+    assert context.load_character is not None
+    saved = context.load_character('hero')
+    assert saved is not None and saved['data']['stats']['hp'] == 3
 
 
 def test_token_values_win_over_flat_client_stats():

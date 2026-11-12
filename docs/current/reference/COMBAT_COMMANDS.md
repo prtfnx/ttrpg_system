@@ -217,3 +217,18 @@ views, suggestions, or prompts rather than accepted combat writes:
    persistence.
 8. Add browser tests for the user-facing send path when UI changes.
 9. Update [Battle flow](../BATTLE_FLOW.md) if the command model changes.
+
+## Combatant source authority
+
+Database-backed start_combat/add_combatant requires a token in the selected table.
+Its saved character link and token controllers override flat client identity hints.
+Linked canonical HP/maxHp/AC take priority over stale token projections, including
+zero/null clears. Unlinked tokens retain saved independent stats. Supported explicit
+DM entry overrides still apply to encounter values without editing the source.
+
+Missing/archived/invalid linked sources, unknown tokens, unresolved legacy stat
+locations and character lookup outages produce action_rejected before snapshot/
+journal acceptance. No client fallback is installed on that path. add_combatant
+also requires the active encounter's table. These checks leave an existing
+encounter unchanged. Isolated non-database factory consumers retain compatibility
+fallbacks; they are not the production persistence contract.

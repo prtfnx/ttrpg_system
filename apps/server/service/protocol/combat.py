@@ -11,7 +11,8 @@ from service.combat_command_service import CombatCommandContext, CombatCommandSe
 from service.combat_movement import CombatMovementDraft
 from service.combat_persistence_service import CombatCommitOutcomeUnknown, CombatPersistenceService
 from service.combat_state_presenter import CombatStatePresenter
-from service.combatant_factory import CombatantFactory, CombatantFactoryContext
+from service.combatant_factory import CombatantFactory, CombatantFactoryContext, CombatantSourceError
+from sqlalchemy.orm import Session, scoped_session
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import is_dm
@@ -267,6 +268,7 @@ class _CombatMixin(_ProtocolBase):
 
     def _combatant_factory_context(self, msg: Message, table_id: str) -> CombatantFactoryContext:
         session_id = self._get_session_id(msg)
+        strict = isinstance(getattr(self.table_manager, 'db_session', None), (Session, scoped_session))
 
         def load_character(character_id: str) -> dict[str, Any] | None:
             if not session_id or not character_id:
@@ -277,20 +279,27 @@ class _CombatMixin(_ProtocolBase):
                     character = db.query(SessionCharacter).filter(
                         SessionCharacter.session_id == session_id,
                         SessionCharacter.character_id == character_id,
+                        SessionCharacter.archived_at.is_(None),
                     ).first()
                     if not character:
                         return None
                     data = json.loads(character.character_data)
                     if isinstance(data, dict):
+                        if data.get('character_id', character.character_id) != character.character_id:
+                            raise CombatantSourceError('Saved character identity requires repair')
+                        data.setdefault('character_id', character.character_id)
                         data.setdefault('name', character.character_name)
                         return data
             except Exception as exc:
-                logger.debug('Could not load character %s for combatant factory: %s', character_id, exc)
+                logger.exception('Could not load current character for combat setup')
+                if strict:
+                    raise CombatantSourceError('Saved character data could not be loaded; try again after recovery') from exc
             return None
 
         return CombatantFactoryContext(
             table=self._get_table_by_id(str(table_id)) if table_id else None,
             load_character=load_character,
+            require_saved_sources=strict,
         )
 
     async def handle_combat_command(self, msg: Message, client_id: str) -> Message:

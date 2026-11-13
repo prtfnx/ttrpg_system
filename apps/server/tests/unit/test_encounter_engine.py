@@ -41,6 +41,28 @@ def test_detached_transitions_do_not_change_live_registry_or_input():
     assert other.get('sess1') is None
 
 
+def test_detached_subclass_keeps_transition_rules_and_isolates_sibling_drafts():
+    class CustomEngine(EncounterEngine):
+        @staticmethod
+        def _touch(encounter):
+            EncounterEngine._touch(encounter)
+            encounter.title = 'Custom transition'
+
+    live = CustomEngine.create('sess1', 'Live', 'Keep', CHOICES, ['p1'])
+    snapshot = live.to_dict(dm=True)
+    first = CustomEngine.detached(snapshot)
+    sibling = CustomEngine.detached(snapshot)
+
+    assert first.submit_choice('sess1', 'p1', 'c1')['status'] == 'choice_recorded'
+    changed = first.get('sess1')
+    untouched = sibling.get('sess1')
+    assert changed is not None and untouched is not None
+    assert changed.title == 'Custom transition' and changed.player_choices == {'p1': 'c1'}
+    assert untouched.title == 'Live' and not untouched.player_choices
+    assert live.title == 'Live' and not live.player_choices
+    assert snapshot['title'] == 'Live' and not snapshot['player_choices']
+
+
 def test_submit_simple_choice():
     EncounterEngine.create('sess1', 'Test', 'A test.', CHOICES, ['p1'])
     result = EncounterEngine.submit_choice('sess1', 'p1', 'c1')

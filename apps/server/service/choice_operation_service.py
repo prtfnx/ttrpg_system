@@ -3,6 +3,7 @@ import hashlib
 import json
 from copy import deepcopy
 from dataclasses import dataclass
+from typing import Any
 
 from database.models import ChoiceEncounter, GamePlayer, User, VirtualTable
 from service.encounter_engine import EncounterEngine
@@ -170,7 +171,7 @@ class ChoiceOperationService:
                         raise OperationRejected('Table not found in this session', 'forbidden')
                     encounter = draft.create(code, payload['title'], payload['description'], payload['choices'],
                         payload['participants'], dm_notes=payload['dm_notes'], table_id=payload['table_id'])
-                    result = {}
+                    result: dict[str, Any] = {}
                 elif intent.kind == 'encounter_end':
                     encounter = draft.end_encounter(code, payload['encounter_id'])
                     result = {'ended': True}

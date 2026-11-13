@@ -110,9 +110,8 @@ class EncounterEngine:
     @classmethod
     def detached(cls, snapshot: dict[str, Any] | None = None) -> type[EncounterEngine]:
         """Use the same transition rules without changing the live registry."""
-        class DraftEngine(cls):
-            _active: dict[str, EncounterState] = {}
-
+        # Preserve subclass transition rules while giving every draft its own registry.
+        DraftEngine: type[EncounterEngine] = type("DraftEngine", (cls,), {"_active": {}})
         if snapshot is not None:
             DraftEngine.restore(deepcopy(snapshot))
         return DraftEngine

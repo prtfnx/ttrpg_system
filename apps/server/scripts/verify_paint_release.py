@@ -35,6 +35,7 @@ ROOT = Path(__file__).resolve().parents[3]
 SERVER = ROOT / "apps" / "server"
 SECRET = "isolated-paint-release-signing-key-not-for-production"
 LEGACY_COMMIT = "a30567fffd92de92329e8ff1067aad5eaad3664b"
+SUBPROCESS_CREATION_FLAGS = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 def require_local_test_url(raw: str):
@@ -165,7 +166,7 @@ def start_server(url, port: int, directory: Path):
             env=environment,
             stdout=output,
             stderr=subprocess.STDOUT,
-            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+            creationflags=SUBPROCESS_CREATION_FLAGS,
         )
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
@@ -448,7 +449,7 @@ def main() -> int:
             stdin=subprocess.PIPE,
             text=True,
             encoding="utf-8",
-            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+            creationflags=SUBPROCESS_CREATION_FLAGS,
         )
         assert node.stdout and node.stdin
         watchdog = threading.Timer(600, stop_server, args=(node,))

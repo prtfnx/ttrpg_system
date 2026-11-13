@@ -1212,7 +1212,7 @@ class ActionsCore(AsyncActionsProtocol):
                 user_id,
                 expected_version,
                 bypass_owner_check=bypass_owner_check,
-                **({'stat_reconciliation_digest': stat_reconciliation_digest} if stat_reconciliation_digest is not None else {}),
+                stat_reconciliation_digest=stat_reconciliation_digest,
             )
 
             outcome = {name: result[name] for name in ('operation_id', 'accepted_version', 'replayed',

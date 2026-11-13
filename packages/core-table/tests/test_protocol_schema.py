@@ -375,7 +375,7 @@ def test_fog_replacement_requires_original_wire_identity(invalid):
 @pytest.mark.parametrize('kind', ['wall_create', 'wall_update', 'wall_remove', 'door_toggle'])
 @pytest.mark.parametrize('invalid', [None, '', '   ', 'x' * 129])
 def test_wall_wire_requires_original_identity_instead_of_minting_one(kind, invalid):
-    data = {'table_id': 'table', 'wall_id': 'wall'}
+    data: dict[str, object] = {'table_id': 'table', 'wall_id': 'wall'}
     if kind == 'wall_create':
         data = {'table_id': 'table', 'wall_data': {'x1': 0, 'y1': 0, 'x2': 10, 'y2': 10}}
     elif kind == 'wall_update':

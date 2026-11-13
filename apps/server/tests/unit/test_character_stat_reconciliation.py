@@ -120,6 +120,32 @@ def test_guarded_apply_commits_source_projections_and_audit_and_clean_retry_is_n
         assert db.query(CharacterLog).count() == 1
 
 
+async def test_actions_apply_exact_repair_then_allow_an_ordinary_update(manager, repair, monkeypatch):
+    from core_table.actions_core import ActionsCore
+    from core_table.server import TableManager
+
+    service, factory = manager
+    game, source, _ = repair
+    monkeypatch.setattr(character_manager, 'get_server_character_manager', lambda: service)
+    actions = ActionsCore(TableManager())
+    preview = service.preview_stat_reconciliation(game.id, source.character_id, game.owner_id)
+
+    repaired = await actions.update_character(game.id, source.character_id, {}, game.owner_id,
+        expected_version=4, stat_reconciliation_digest=preview['expected_digest'])
+    assert repaired.success and repaired.data['version'] == 5
+    renamed = await actions.update_character(game.id, source.character_id, {'name': 'Repaired hero'},
+        game.owner_id, expected_version=5)
+    assert renamed.success and renamed.data['version'] == 6
+
+    with factory() as db:
+        saved = db.query(SessionCharacter).one()
+        document = json.loads(saved.character_data)
+        assert document['name'] == 'Repaired hero'
+        assert document['data']['stats'] == {'hp': 3, 'maxHp': 20, 'ac': 12}
+        assert db.query(Entity).one().hp == 3
+        assert db.query(CharacterLog).filter_by(action_type='stat_reconciliation').count() == 1
+
+
 @pytest.mark.parametrize('changed', ['projection', 'combat', 'authority'])
 def test_apply_rechecks_projection_combat_and_current_authority(manager, repair, changed):
     service, factory = manager

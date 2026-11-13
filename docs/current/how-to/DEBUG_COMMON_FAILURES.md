@@ -35,6 +35,21 @@ old defects are not current regression tests. Keep maintained regressions under
 `apps/server/tests` or `packages/core-table/tests`, and leave their diagnostics
 enabled. Restart the Python language server after changing workspace configuration.
 
+For executable checks of the original architecture findings, use the maintained
+runner with the repository Python environment:
+
+```powershell
+python apps/server/scripts/verify_architecture_regressions.py
+```
+
+Add `--collect-only` to inspect its selected cases. It runs the current combat
+rollback/cancellation, linked-token visibility, and choice-worker regressions with
+synthetic SQLite fixtures and injected failures. Its child process overrides the
+application database URLs and disables R2; it returns pytest's exit status.
+Local historical audit entry points can forward to this runner instead of
+duplicating test fixtures or calling removed private persistence methods. These
+focused checks do not replace PostgreSQL or served release qualification.
+
 ## Server will not start
 
 Check:

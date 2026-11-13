@@ -29,6 +29,7 @@ from service.game_session import get_connection_manager
 from sqlalchemy.orm import Session
 from utils.audit import audit_event
 from utils.logger import setup_logger
+from utils.login_return import login_return_path
 from utils.observability import record_auth
 from utils.rate_limiter import get_client_ip, login_limiter, password_reset_limiter, registration_limiter
 from utils.time import utc_now
@@ -266,7 +267,7 @@ def login_page(request: Request):
     verify = request.query_params.get("verify")
     verified = request.query_params.get("verified")
     invite_code = request.query_params.get("invite")
-    next_url = request.query_params.get("next")
+    next_url = login_return_path(request.query_params.get("next"))
 
     success_message = None
     if registered and verify:
@@ -303,6 +304,8 @@ def login(
     db: Session = Depends(get_db)
 ):
     """Login with rate limiting protection"""
+    next_url = login_return_path(next_url)
+    login_context = {'invite_code': invite_code, 'next_url': next_url}
     client_ip = get_client_ip(request)
 
     # Rate limiting check - 10 login attempts per 5 minutes per IP
@@ -310,6 +313,7 @@ def login(
         record_auth("password", "denied", "rate_limit")
         time_until_reset = login_limiter.get_time_until_reset(client_ip, window_minutes=5)
         return templates.TemplateResponse(request, "login.html", {
+            **login_context,
             "error": f"Too many login attempts. Please try again in {time_until_reset} seconds."
         }, status_code=429)  # 429 Too Many Requests
 
@@ -317,12 +321,14 @@ def login(
     if len(form_data.username) < 4:
         record_auth("password", "failure", "invalid_credentials")
         return templates.TemplateResponse(request, "login.html", {
+            **login_context,
             "error": "Username must be at least 4 characters long"
         }, status_code=400)  # 400 Bad Request
 
     if len(form_data.password) < 8:
         record_auth("password", "failure", "invalid_credentials")
         return templates.TemplateResponse(request, "login.html", {
+            **login_context,
             "error": "Password must be at least 8 characters long"
         }, status_code=400)  # 400 Bad Request
 
@@ -330,11 +336,12 @@ def login(
         token = _authenticate_password(form_data, request, db)
         if not token:
             return templates.TemplateResponse(request, "login.html", {
+                **login_context,
                 "error": "Incorrect username or password"
             }, status_code=401)
 
         # Handle invite code - redirect to invitation page to auto-accept
-        if invite_code and next_url:
+        if next_url:
             response = RedirectResponse(url=next_url, status_code=302)
         elif invite_code:
             # Auto-accept invitation
@@ -398,9 +405,11 @@ def login(
     except HTTPException as exc:
         if exc.status_code == status.HTTP_503_SERVICE_UNAVAILABLE:
             return templates.TemplateResponse(request, "login.html", {
+                **login_context,
                 "error": "Authentication is temporarily unavailable"
             }, status_code=503)
         return templates.TemplateResponse(request, "login.html", {
+            **login_context,
             "error": "Incorrect username or password"
         }, status_code=401)  # 401 Unauthorized
 

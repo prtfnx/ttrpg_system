@@ -42,6 +42,14 @@ Do not use account login as proof of permission to mutate a session. Check the
 
 Password login posts to `/users/login`.
 
+The login page accepts a `next` destination and posts it as `next_url`. Only
+`/users/dashboard`, `/game/session/<code>` and `/invite/<code>` are accepted;
+codes use bounded letters, digits, underscores and hyphens. External URLs,
+encoded paths, query strings and fragments are rejected. A failed or rate-limited
+attempt retains the validated destination for another attempt. Returning to a
+session does not establish membership or preserve an old role: the destination
+and subsequent WebSocket handshake apply their normal current-authority checks.
+
 The server:
 
 1. Rate-limits by client IP.

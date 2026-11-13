@@ -44,9 +44,9 @@ def test_detached_transitions_do_not_change_live_registry_or_input():
 def test_detached_subclass_keeps_transition_rules_and_isolates_sibling_drafts():
     class CustomEngine(EncounterEngine):
         @staticmethod
-        def _touch(encounter):
-            EncounterEngine._touch(encounter)
-            encounter.title = 'Custom transition'
+        def _touch(enc):
+            EncounterEngine._touch(enc)
+            enc.title = 'Custom transition'
 
     live = CustomEngine.create('sess1', 'Live', 'Keep', CHOICES, ['p1'])
     snapshot = live.to_dict(dm=True)

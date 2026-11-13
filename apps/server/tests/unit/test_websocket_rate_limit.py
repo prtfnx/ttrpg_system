@@ -1,5 +1,6 @@
 import asyncio
 import json
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -71,6 +72,13 @@ def test_malformed_batches_are_rejected(items):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("payload, count, close_code", [(PREVIEW, 1200, None), (COMMAND, 61, 1013)])
 async def test_endpoint_separates_drag_traffic_from_command_abuse(monkeypatch, payload, count, close_code):
+    # This is one burst. Coverage/runner delays must not refill its token bucket.
+    # Replace only the endpoint's clock reference; asyncio still uses real time.
+    monkeypatch.setattr(game_ws, "time", SimpleNamespace(
+        monotonic=lambda: 0.0,
+        perf_counter=game_ws.time.perf_counter,
+        time=game_ws.time.time,
+    ))
     websocket = MagicMock()
     websocket.headers = {"origin": "https://game.example.com"}
     websocket.cookies = {"token": "valid"}

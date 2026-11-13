@@ -377,6 +377,11 @@ ruff check .
 
 ## Web UI
 
+The web CI job pins `ubuntu-24.04`, supported by the locked Playwright
+1.59.1 dependency installer. Changing runner images or Playwright requires
+checking that pairing before running both native browser projects. An unsupported
+image must fail the job; do not skip browser installation or the browser/WASM gates.
+
 Use Vitest in `apps/web-ui`.
 
 - JSDOM tests: React logic, hooks, stores, protocol adapters, services, and

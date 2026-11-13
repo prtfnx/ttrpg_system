@@ -1,0 +1,13 @@
+{
+  "extends": "../../pyrightconfig.json",
+  "include": ["scripts"],
+  "exclude": ["audit", "node_modules", "dist", "**/__pycache__", "**/.*"],
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "extraPaths": ["../server", "../../packages/core-table"]
+    }
+  ],
+  "venvPath": "../..",
+  "venv": ".venv311"
+}

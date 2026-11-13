@@ -21,6 +21,20 @@ Most failures belong to one of these boundaries:
 
 Find the boundary first. It is faster than guessing through the whole app.
 
+## Python imports fail in VS Code
+
+Open `ttrpg_system.code-workspace` and select the repository `.venv311`
+interpreter. Each Python workspace uses its own `pyrightconfig.json`; the web
+workspace also defines server/core-table import paths for local Python tools.
+Runtime `sys.path` edits do not teach Pylance where those imports live.
+
+`apps/web-ui/audit/` contains ignored historical evidence, outside the maintained
+Python analysis scope. Preserve obsolete one-shot defect reproductions as
+`.py.txt` rather than executable tools: their removed APIs and assertions about
+old defects are not current regression tests. Keep maintained regressions under
+`apps/server/tests` or `packages/core-table/tests`, and leave their diagnostics
+enabled. Restart the Python language server after changing workspace configuration.
+
 ## Server will not start
 
 Check:

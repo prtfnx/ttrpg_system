@@ -50,6 +50,16 @@ extend that boundary suite if its ordering or rollback behavior differs. Keep
 domain rollback assertions in the domain service tests and use the authenticated
 Locust scenario only as a post-correctness load check.
 
+Account recovery regressions cover password destination validation and failed
+attempts in `tests/integration/test_login_return.py`, including per-state Google
+returns and rejection of callback-selected destinations. Existing OAuth identity
+security tests still govern provider claims and account binding.
+`tests/integration/test_websocket_auth_expiry.py` uses real signed credentials
+for idle and active expiry. `tests/unit/test_websocket_expiry_dispatch.py` uses
+explicit barriers and an endpoint-local wall clock to verify admitted work can
+settle while queued work cannot start after expiry; asyncio's own clock stays
+live. These fixture tests do not replace served reauthentication acceptance.
+
 Connection-lifecycle tests also assert that handshake lookup, durable session
 construction, autosave, and final persistence execute on a worker thread.
 `tests/unit/test_blocking.py` verifies the shared admission limit and

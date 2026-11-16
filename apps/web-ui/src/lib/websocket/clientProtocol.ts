@@ -6,6 +6,7 @@
  */
 
 import { useGameStore } from '@/store';
+import { terminalConnectionError } from './connectionErrors';
 import type { WallData } from '@/store';
 import type { Character } from '@/types';
 import { useAssetCharacterCache } from '@features/assets/services/assetCache';
@@ -905,7 +906,7 @@ export class WebClientProtocol {
               return; // Prevent reconnection
             } else {
               logger.warn(`Code 1008 but different reason: '${event.reason}'`);
-              rejectConnection(new Error('Authentication failed or not authorized'));
+              rejectConnection(new Error(terminalConnectionError(this.getConnectionDiagnostics())!));
               return; // Prevent reconnection
             }
           } else if (this.isRetryableCloseCode(event.code)) {

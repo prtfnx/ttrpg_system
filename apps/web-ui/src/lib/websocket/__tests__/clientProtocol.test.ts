@@ -3707,7 +3707,7 @@ describe('WebClientProtocol', () => {
       expect(listener).toHaveBeenLastCalledWith('connected');
     });
 
-    it('waits for the authenticated welcome and replays an unacknowledged character edit once', async () => {
+    it.each([1012, 1008])('waits for welcome after close %s and retains the original character edit', async closeCode => {
       vi.useFakeTimers();
       vi.spyOn(Math, 'random').mockReturnValue(0);
       const { sockets } = installWebSocketFactory();
@@ -3728,8 +3728,14 @@ describe('WebClientProtocol', () => {
       protocol.sendBatch();
       const firstBatch = JSON.parse(sockets[0].send.mock.calls[0][0] as string);
       const firstPayload = firstBatch.data.messages[0];
-      sockets[0].onclose!({ code: 1012, reason: 'Restarting', wasClean: true });
-      vi.runOnlyPendingTimers();
+      sockets[0].onclose!({ code: closeCode, reason: closeCode === 1008 ? 'Authentication expired' : 'Restarting', wasClean: true });
+      if (closeCode === 1008) {
+        await vi.advanceTimersByTimeAsync(30_000);
+        expect(sockets).toHaveLength(1);
+        void protocol.connect(); // Deliberate reconnect only after signing in again.
+      } else {
+        vi.runOnlyPendingTimers();
+      }
       sockets[1].readyState = WebSocket.OPEN;
       sockets[1].onopen!();
       await Promise.resolve();

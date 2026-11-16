@@ -84,60 +84,45 @@ describe('useAppBootstrap', () => {
     });
   });
 
-  it('marks auth error and schedules logout on auth failure callback', () => {
-    vi.useFakeTimers();
+  it('requires deliberate sign-in and preserves the selected session after expiry', async () => {
     const { result } = renderHook(() => useAppBootstrap());
-
+    await waitFor(() => expect(result.current.state.loading).toBe(false));
+    vi.useFakeTimers();
     act(() => {
+      result.current.handleSessionSelected('ROOM12', 'owner');
       result.current.handleAuthError();
+      vi.advanceTimersByTime(30_000);
     });
-
     expect(result.current.state).toMatchObject({
       isAuthenticated: false,
       userInfo: null,
-      error: 'Authentication expired. Please login again.',
+      selectedSession: 'ROOM12',
+      authenticationRequired: true,
+      loading: false,
     });
-
-    act(() => {
-      vi.advanceTimersByTime(2000);
-    });
-
-    expect(authService.logout).toHaveBeenCalledTimes(1);
-  });
-
-  it('replaces a pending logout when auth errors repeat', () => {
-    vi.useFakeTimers();
-    const { result } = renderHook(() => useAppBootstrap());
-
-    act(() => {
-      result.current.handleAuthError();
-      vi.advanceTimersByTime(1000);
-      result.current.handleAuthError();
-      vi.advanceTimersByTime(1000);
-    });
-
     expect(authService.logout).not.toHaveBeenCalled();
-
-    act(() => {
-      vi.advanceTimersByTime(1000);
-    });
-
-    expect(authService.logout).toHaveBeenCalledTimes(1);
   });
 
-  it('cancels a pending logout when the app unmounts', () => {
-    vi.useFakeTimers();
-    const { result, unmount } = renderHook(() => useAppBootstrap());
-
+  it('does not let an earlier successful initialization restore expired authority', async () => {
+    let resolve!: (success: boolean) => void;
+    mocks.initialize.mockReturnValueOnce(new Promise<boolean>(done => { resolve = done; }));
+    const { result } = renderHook(() => useAppBootstrap());
     act(() => {
       result.current.handleAuthError();
+      result.current.handleAuthError();
     });
+    await act(async () => resolve(true));
+    expect(result.current.state).toMatchObject({ isAuthenticated: false, userInfo: null,
+      authenticationRequired: true, loading: false });
+  });
+
+  it('discards late initialization after unmounting', async () => {
+    let resolve!: (success: boolean) => void;
+    mocks.initialize.mockReturnValueOnce(new Promise<boolean>(done => { resolve = done; }));
+    const { result, unmount } = renderHook(() => useAppBootstrap());
     unmount();
-
-    act(() => {
-      vi.advanceTimersByTime(2000);
-    });
-
+    await act(async () => resolve(true));
+    expect(result.current.state.isAuthenticated).toBe(false);
     expect(authService.logout).not.toHaveBeenCalled();
   });
 });

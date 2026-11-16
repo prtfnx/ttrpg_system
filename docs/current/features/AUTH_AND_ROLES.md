@@ -124,6 +124,21 @@ replacement (1012) keeps its existing automatic recovery path. A deliberate
 reconnect still waits for the authenticated welcome before recovering saved
 requests under the current actor, session instance and role.
 
+An account-authentication failure hides the current game and offers a deliberate
+**Sign in again** link with the selected session as its validated return target.
+There is no timed logout redirect. A pending earlier bootstrap response cannot
+restore the expired account state. Returning loads fresh account identity and
+server-supplied session authority before establishing another game connection.
+
+Sign-in navigation in the same tab retains the existing v1/v2 session-storage
+journals. Recovery waits for a fresh welcome and uses the original request IDs;
+signing in alone does not create new XP awards, tables or other replacement
+intents. A different actor or session instance does not inherit the old journal.
+This does not add persisted recovery for page-local canvas, sprite, wall, fog,
+layer or session-policy originals. For those uncertain changes, inspect current
+authoritative state before repeating them; there is no universal reload replay.
+Demo expiry and denied session access do not enter the account sign-in flow.
+
 ## Google OAuth
 
 Google OAuth is optional and lives in `apps/server/routers/auth.py`.

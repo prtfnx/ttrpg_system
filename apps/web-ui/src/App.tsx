@@ -11,6 +11,7 @@ import styles from './App.module.css';
 import { WasmRuntimeProvider } from './lib/wasm/runtime';
 import { isDemoSession } from '@shared/utils/demoSession';
 import { PaintControllerProvider } from '@features/painting';
+import { sessionLoginUrl } from '@features/auth/services/loginNavigation';
 
 function App() {
   const { state, handleSessionSelected, handleAuthError } = useAppBootstrap();
@@ -31,8 +32,17 @@ function App() {
     return (
       <div className={`${styles.app} ${styles.errorScreen}`}>
         <div className={styles.errorContent}>
-          <h2>Authentication Error</h2>
+          <h2>{state.authenticationRequired ? 'Sign-in expired' : 'Authentication Error'}</h2>
           <p>{state.error}</p>
+          {state.authenticationRequired && (
+            <>
+              <p>Some changes may still be pending. Check the session after signing in before repeating them.</p>
+              <div className={styles.errorActions}>
+                <a className={styles.retryBtn} href={sessionLoginUrl(state.selectedSession)}>Sign in again</a>
+                <a href="/users/dashboard">Return to dashboard</a>
+              </div>
+            </>
+          )}
         </div>
       </div>
     );

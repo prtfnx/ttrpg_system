@@ -1,4 +1,5 @@
 import { authService, type UserInfo } from '@features/auth';
+import { sessionLoginUrl } from '@features/auth/services/loginNavigation';
 import type { SessionRole } from '@features/session/types/roles';
 import { logger } from '@shared/utils/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -20,6 +21,7 @@ export interface AppState {
   userRole: SessionRole | null;
   loading: boolean;
   error: string | null;
+  authenticationRequired: boolean;
 }
 
 const initialState: AppState = {
@@ -29,6 +31,7 @@ const initialState: AppState = {
   userRole: null,
   loading: true,
   error: null,
+  authenticationRequired: false,
 };
 
 function getInitialData(): InitialData | undefined {
@@ -44,10 +47,12 @@ async function resolveInitialSession(sessionCode: string): Promise<string | null
 
 export function useAppBootstrap() {
   const [state, setState] = useState<AppState>(initialState);
-  const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const authRevision = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    const revision = ++authRevision.current;
+    const isStale = () => cancelled || revision !== authRevision.current;
 
     const initializeAuth = async () => {
       try {
@@ -57,11 +62,11 @@ export function useAppBootstrap() {
         const isInitialized = await authService.initialize();
         logger.debug('App auth initialization result', { isInitialized });
 
-        if (cancelled) return;
+        if (isStale()) return;
 
         if (!isInitialized) {
           logger.info('App auth initialization failed; redirecting to login');
-          window.location.href = '/users/login';
+          window.location.href = sessionLoginUrl(getInitialData()?.sessionCode);
           return;
         }
 
@@ -72,7 +77,7 @@ export function useAppBootstrap() {
           logger.debug('App initial session candidate found', initData.sessionCode);
           try {
             const resolved = await resolveInitialSession(initData.sessionCode);
-            if (cancelled) return;
+            if (isStale()) return;
             if (resolved) {
               logger.debug('App initial session resolved to code', resolved);
               setState(prev => ({
@@ -87,7 +92,7 @@ export function useAppBootstrap() {
             }
             logger.warn('App initial session could not be resolved; using injected value');
           } catch (error) {
-            if (cancelled) return;
+            if (isStale()) return;
             logger.warn('Failed to resolve initial session against user sessions', error);
           }
 
@@ -109,7 +114,7 @@ export function useAppBootstrap() {
           loading: false,
         }));
       } catch (error) {
-        if (cancelled) return;
+        if (isStale()) return;
         logger.error('App auth initialization failed', error);
         setState(prev => ({
           ...prev,
@@ -135,28 +140,15 @@ export function useAppBootstrap() {
   }, []);
 
   const handleAuthError = useCallback(() => {
+    authRevision.current += 1;
     setState(prev => ({
       ...prev,
-      error: 'Authentication expired. Please login again.',
+      error: 'Your sign-in expired. Sign in again to return to this session.',
       isAuthenticated: false,
       userInfo: null,
+      loading: false,
+      authenticationRequired: true,
     }));
-
-    if (logoutTimerRef.current !== null) {
-      clearTimeout(logoutTimerRef.current);
-    }
-
-    logoutTimerRef.current = setTimeout(() => {
-      logoutTimerRef.current = null;
-      authService.logout();
-    }, 2000);
-  }, []);
-
-  useEffect(() => () => {
-    if (logoutTimerRef.current !== null) {
-      clearTimeout(logoutTimerRef.current);
-      logoutTimerRef.current = null;
-    }
   }, []);
 
   return {

@@ -250,9 +250,14 @@ class GameSessionProtocolService:
     def update_user_role(self, user_id: int, role: str) -> int:
         """Refresh authorization context for every client owned by one user."""
         updated_clients = 0
-        for info in self.client_info.values():
+        for client_id, info in self.client_info.items():
             if info.get("user_id") != user_id:
                 continue
+            if info.get('role') != role:
+                websocket = getattr(self, 'clients', {}).get(client_id)
+                outbox = getattr(self, '_outboxes', {}).get(websocket)
+                if outbox is not None:
+                    outbox.close()
             info["role"] = role
             updated_clients += 1
         return updated_clients

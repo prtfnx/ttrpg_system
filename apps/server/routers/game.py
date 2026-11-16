@@ -511,7 +511,7 @@ def change_player_role(
 
     new_role = role_data.role
     connection_manager = get_connection_manager()
-    connection_manager.update_user_role(session_code, user_id, new_role)
+    from_thread.run(connection_manager.refresh_user_role, session_code, user_id, new_role)
     from_thread.run(
         connection_manager.broadcast_to_session,
         session_code,

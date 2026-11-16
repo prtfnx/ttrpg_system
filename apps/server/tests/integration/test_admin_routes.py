@@ -65,6 +65,7 @@ class TestRoleManagement:
     ):
         connection_manager = MagicMock()
         connection_manager.broadcast_to_session = AsyncMock()
+        connection_manager.refresh_user_role = AsyncMock()
         monkeypatch.setattr(game, "get_connection_manager", lambda: connection_manager)
 
         response = auth_client.post(
@@ -81,7 +82,7 @@ class TestRoleManagement:
             session_id=game_session_with_players.id
         ).first()
         assert player.role == "co_dm"
-        connection_manager.update_user_role.assert_called_once_with(
+        connection_manager.refresh_user_role.assert_awaited_once_with(
             game_session_with_players.session_code, player_user.id, "co_dm"
         )
         connection_manager.broadcast_to_session.assert_awaited_once()

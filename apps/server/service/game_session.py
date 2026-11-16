@@ -339,6 +339,16 @@ class ConnectionManager:
 
         return updated_connections
 
+    async def refresh_user_role(self, session_code: str, user_id: int, role: str) -> int:
+        """Install authority and retire every changed socket on the event loop."""
+        targets = [websocket for websocket, info in list(self.connection_info.items())
+            if info.get('session_code') == session_code and info.get('user_id') == user_id
+            and info.get('role') != role]
+        updated = self.update_user_role(session_code, user_id, role)
+        await _finish_before_cancellation(asyncio.create_task(self._disconnect_connections(targets, user_id=user_id,
+            reason='Session role changed; reconnect', close_code=1012)))
+        return updated
+
     async def disconnect_user(
         self,
         session_code: str,
@@ -398,7 +408,7 @@ class ConnectionManager:
             try:
                 await websocket.send_json({
                     "type": MessageType.ERROR.value,
-                    "data": {"error": reason, "retryable": False},
+                    "data": {"error": reason, "retryable": close_code == 1012},
                 })
             except Exception:
                 logger.debug(

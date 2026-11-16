@@ -201,6 +201,18 @@ The server:
 8. Broadcasts `PLAYER_ROLE_CHANGED` with the new permissions and visible
    layers.
 
+After the role commits, live refresh runs on the server event loop. Every
+changed tab's queued delivery is invalidated before retirement awaits; the socket
+then closes with retryable code `1012` and reconnects for fresh role-specific
+welcome and hydration. This applies to promotions as well as demotions so an old
+partial view cannot survive the authority change. Repeating the same role keeps
+healthy sockets. Retirement completes even if the initiating caller is cancelled.
+
+Already-delivered data or a frame already handed to the socket transport cannot
+be retracted. Queued events and remaining snapshot frames stop; an interrupted
+snapshot must be rebuilt under current authority after reconnect. This does not
+change the documented trusted-client/fog confidentiality boundary.
+
 The database commit happens before the live authorization refresh. A demoted
 member therefore loses the old role on all active WebSocket connections before
 the role-change event is broadcast. Protocol handlers do not trust a role sent

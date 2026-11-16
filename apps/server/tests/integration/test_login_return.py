@@ -19,9 +19,11 @@ def test_unsupported_login_destination(target):
 
 
 @pytest.mark.parametrize('target', ['/game/session/ROOM12', '/invite/invite-code_7', '//evil.example'])
-def test_password_login_checks_destination_and_sets_a_fresh_cookie(client, test_user, target):
+@pytest.mark.parametrize('invite_code', [None, 'invitation'])
+def test_password_login_checks_destination_and_sets_a_fresh_cookie(client, test_user, target, invite_code):
     response = client.post('/users/login', data={
         'username': test_user.username, 'password': 'Pass1234', 'next_url': target,
+        **({'invite_code': invite_code} if invite_code else {}),
     }, follow_redirects=False)
     assert response.status_code == 302
     assert response.headers['location'] == (target if login_return_path(target) else '/users/dashboard')

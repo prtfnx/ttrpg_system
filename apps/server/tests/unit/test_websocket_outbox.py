@@ -142,3 +142,34 @@ async def test_recovery_has_separate_bounded_stream_and_byte_budgets():
     await box.drain()
     failed.assert_awaited_once()
     assert box.closed and not box.snapshots
+
+
+@pytest.mark.parametrize('snapshot', [False, True])
+async def test_close_stops_delivery_even_when_the_inflight_transport_swallows_cancellation(snapshot):
+    entered, release = asyncio.Event(), asyncio.Event()
+    delivered = []
+
+    async def send(payload):
+        if not delivered:
+            entered.set()
+            try:
+                await release.wait()
+            except asyncio.CancelledError:
+                await release.wait()
+        delivered.append(payload)
+
+    failed = AsyncMock()
+    box = WebSocketOutbox(send, failed)
+    if snapshot:
+        box.enqueue_snapshot(iter(['in-flight', 'private snapshot tail']))
+    else:
+        box.enqueue('in-flight')
+    box.enqueue('private queued event')
+    await entered.wait()
+    box.close()
+    await asyncio.sleep(0)
+    release.set()
+    await box.drain()
+    assert delivered == ['in-flight']
+    assert box.closed and box.bytes == 0 and box.snapshots == 0
+    failed.assert_not_awaited()

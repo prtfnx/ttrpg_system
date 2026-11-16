@@ -69,15 +69,21 @@ class WebSocketOutbox:
                 if size is None:
                     snapshot_bytes = 0
                     for index, frame in enumerate(payload):
+                        if self.closed:
+                            return
                         snapshot_bytes += len(frame.encode("utf-8"))
                         if index >= self.max_snapshot_frames or snapshot_bytes > self.max_snapshot_bytes:
                             self._failure("snapshot_budget_exceeded")
                             raise ValueError("Recovery snapshot exceeds delivery budget")
                         await self._send_frame(frame, queued_at)
+                    if self.closed:
+                        return
                     self.snapshots -= 1
                     continue
                 # Count the in-flight frame against the byte budget as well.
                 await self._send_frame(payload, queued_at)
+                if self.closed:
+                    return
                 self.bytes -= size
         except asyncio.CancelledError:
             raise

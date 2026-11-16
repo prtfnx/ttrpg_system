@@ -300,7 +300,7 @@ def login(
     request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     invite_code: str = Form(None),
-    next_url: str = Form(None),
+    next_url: str | None = Form(None),
     db: Session = Depends(get_db)
 ):
     """Login with rate limiting protection"""

@@ -123,6 +123,14 @@ login page with an OAuth failure query. It does not return a raw 409 page.
 There is no authenticated account-linking endpoint yet. Authlib keeps
 state, nonce, and PKCE data in the signed, HTTP-only Starlette session so the
 callback remains bound to the initiating browser and works across workers.
+
+The sign-in page also passes its validated local return destination to Google
+sign-in. That destination is kept in the signed session under the individual
+Authlib-generated state, with at most three pending destinations; the callback
+consumes only its matching entry. Callback query parameters cannot choose the
+destination. Identity and provider state must validate before any sign-in cookie
+is issued. A failed flow returns to login with the safe destination retained for
+a deliberate retry; an evicted or absent destination falls back to the dashboard.
 The provider exchange remains asynchronous; account resolution/creation and its
 audit record execute atomically in a worker-owned SQLAlchemy session so the
 callback does not block the application event loop.

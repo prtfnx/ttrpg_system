@@ -31,7 +31,7 @@ import re
 import secrets
 from dataclasses import dataclass
 from datetime import timedelta
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from config import Settings
@@ -43,6 +43,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from utils.audit import audit_event
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
+from utils.login_return import login_page_url, login_return_path
 from utils.observability import record_auth
 
 from .users import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token
@@ -208,6 +209,7 @@ async def google_login(request: Request):
     Redirects user to Google's consent screen.
     Generates and stores CSRF protection state in session.
     """
+    return_target = login_return_path(request.query_params.get('next'))
     if not OAUTH_CONFIGURED:
         record_auth("oauth", "failure", "configuration")
         logger.warning("OAuth login attempted but not configured")
@@ -222,7 +224,7 @@ async def google_login(request: Request):
                     "Set GOOGLE_CLIENT_SECRET in environment variables",
                     f"Add {settings.BASE_URL}/auth/callback to Google Cloud Console authorized redirect URIs"
                 ],
-                "redirect": "/users/login"
+                "redirect": login_page_url(return_target)
             }
         )
 
@@ -236,13 +238,23 @@ async def google_login(request: Request):
         # Move to the configured callback host before Authlib creates state.
         # Compare hosts, not schemes: TLS may terminate at the reverse proxy.
         if request.url.hostname != urlsplit(base_url).hostname:
-            return RedirectResponse(url=f"{base_url}/auth/google", status_code=302)
+            query = '?' + urlencode({'next': return_target}) if return_target else ''
+            return RedirectResponse(url=f"{base_url}/auth/google{query}", status_code=302)
 
         logger.info("Initiating Google OAuth flow", extra={"event_name": "oauth.flow.started"})
 
         # Redirect to Google's authorization endpoint
         # authlib generates and stores state internally for CSRF protection
-        return await oauth.google.authorize_redirect(request, redirect_uri)
+        response = await oauth.google.authorize_redirect(request, redirect_uri)
+        # Bind the local destination to the state Authlib generated and verifies.
+        state = parse_qs(urlsplit(response.headers['location']).query).get('state', [''])[0]
+        if return_target and state and len(state) <= 512:
+            pending = dict(request.session.get('oauth_login_returns', {}))
+            while len(pending) >= 3:
+                pending.pop(next(iter(pending)))
+            pending[state] = return_target
+            request.session['oauth_login_returns'] = pending
+        return response
 
     except Exception as exc:
         record_auth("oauth", "failure", "provider_error")
@@ -251,7 +263,7 @@ async def google_login(request: Request):
             extra={"event_name": "oauth.flow.failed", "error_type": type(exc).__name__},
         )
         return RedirectResponse(
-            url="/users/login?error=oauth_init_failed",
+            url=login_page_url(return_target, error='oauth_init_failed'),
             status_code=302
         )
 
@@ -264,10 +276,16 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     Validates state, exchanges authorization code for tokens,
     retrieves verified user info, and resolves the bound Google subject.
     """
+    pending_returns = dict(request.session.get('oauth_login_returns', {}))
+    return_target = login_return_path(pending_returns.pop(request.query_params.get('state', ''), None))
+    if pending_returns:
+        request.session['oauth_login_returns'] = pending_returns
+    else:
+        request.session.pop('oauth_login_returns', None)
     if not OAUTH_CONFIGURED:
         record_auth("oauth", "failure", "configuration")
         logger.error("OAuth callback received but OAuth not configured")
-        return RedirectResponse(url="/users/login?error=oauth_not_configured")
+        return RedirectResponse(url=login_page_url(return_target, error='oauth_not_configured'))
 
     session_factory = _worker_session_factory(db)
     try:
@@ -277,7 +295,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             await _record_oauth_failure(session_factory, request, "provider_error")
             logger.warning("OAuth provider rejected authentication")
             return RedirectResponse(
-                url="/users/login?error=oauth_failed&reason=provider_error",
+                url=login_page_url(return_target, error='oauth_failed', reason='provider_error'),
                 status_code=302
             )
 
@@ -329,7 +347,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
         # Create response with redirect to dashboard
         response = RedirectResponse(
-            url="/users/dashboard",
+            url=return_target or "/users/dashboard",
             status_code=302
         )
 
@@ -354,7 +372,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             extra={"event_name": "oauth.callback.failed", "error_type": type(exc).__name__},
         )
         return RedirectResponse(
-            url="/users/login?error=oauth_failed&reason=authentication_failed",
+            url=login_page_url(return_target, error='oauth_failed', reason='authentication_failed'),
             status_code=302
         )
     except HTTPException as exc:
@@ -364,7 +382,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             extra={"event_name": "oauth.callback.rejected", "error_type": type(exc).__name__},
         )
         return RedirectResponse(
-            url="/users/login?error=oauth_failed&reason=invalid_response",
+            url=login_page_url(return_target, error='oauth_failed', reason='invalid_response'),
             status_code=302
         )
     except Exception as exc:
@@ -374,6 +392,6 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             extra={"event_name": "oauth.callback.failed", "error_type": type(exc).__name__},
         )
         return RedirectResponse(
-            url="/users/login?error=oauth_failed&reason=unexpected_error",
+            url=login_page_url(return_target, error='oauth_failed', reason='unexpected_error'),
             status_code=302
         )

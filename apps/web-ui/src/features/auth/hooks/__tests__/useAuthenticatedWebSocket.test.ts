@@ -57,6 +57,22 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('useAuthenticatedWebSocket — standalone (no ProtocolProvider)', () => {
+  it.each(['Demo expired', 'Kicked from session', 'Account disabled'])(
+    'does not recreate an initially rejected %s connection after disposing it', async reason => {
+      mockProtocol.connect.mockImplementationOnce(async () => {
+        mockProtocol.getConnectionDiagnostics.mockReturnValue({ state: 'disconnected', lastCloseCode: 1008,
+          lastCloseReason: reason });
+        throw new Error(reason);
+      });
+      const { result } = renderHook(() => useAuthenticatedWebSocket(props));
+      await waitFor(() => expect(result.current.connectionState).toBe('error'));
+      expect(mockProtocol.disconnect).toHaveBeenCalledOnce();
+      vi.useFakeTimers();
+      await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+      expect(vi.mocked(WebClientProtocol)).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it.each(['Authentication expired', 'Demo expired', 'Kicked from session', 'Account disabled'])(
     'surfaces terminal %s after connecting without starting a new connection', async reason => {
       const { result } = renderHook(() => useAuthenticatedWebSocket(props));

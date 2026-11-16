@@ -23,12 +23,14 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
   const protocolRef = useRef<WebClientProtocol | null>(null);
   const connectionUnsubscribeRef = useRef<(() => void) | null>(null);
   const connectionAttemptRef = useRef(0);
+  const terminalFailureRef = useRef(false);
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [error, setError] = useState<string | null>(null);
 
   const connect = useCallback(async () => {
     if (ctx) return; // managed by ProtocolProvider
     const attempt = ++connectionAttemptRef.current;
+    terminalFailureRef.current = false;
     try {
       setConnectionState('connecting');
       setError(null);
@@ -70,6 +72,7 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
           setError('Connection timeout - server not responding');
         } else {
           const terminalError = terminalConnectionError(protocol.getConnectionDiagnostics());
+          terminalFailureRef.current = terminalError !== null;
           setConnectionState(terminalError ? 'error' : 'disconnected');
           setError(terminalError ?? 'Connection lost');
         }
@@ -89,6 +92,8 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
       if (attempt !== connectionAttemptRef.current) return;
       const errorMessage = err instanceof Error ? err.message : 'Connection failed';
       const activeProtocol = protocolRef.current;
+      terminalFailureRef.current = activeProtocol !== null
+        && terminalConnectionError(activeProtocol.getConnectionDiagnostics()) !== null;
       if (activeProtocol?.getConnectionDiagnostics().state === 'reconnecting') {
         setConnectionState('reconnecting');
         setError(null);
@@ -107,6 +112,7 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
   const disconnect = useCallback(() => {
     if (ctx) return; // managed by ProtocolProvider
     connectionAttemptRef.current += 1;
+    terminalFailureRef.current = false;
     connectionUnsubscribeRef.current?.();
     connectionUnsubscribeRef.current = null;
     if (protocolRef.current) {
@@ -127,10 +133,7 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
 
   useEffect(() => {
     if (ctx || connectionState !== 'error' || !error) return;
-    if (!error.includes('Authentication failed')
-      && !terminalConnectionError(protocolRef.current?.getConnectionDiagnostics() ?? {
-        lastCloseCode: null, lastCloseReason: null,
-      })) {
+    if (!error.includes('Authentication failed') && !terminalFailureRef.current) {
       const retryTimer = setTimeout(() => connect(), 5000);
       return () => clearTimeout(retryTimer);
     }

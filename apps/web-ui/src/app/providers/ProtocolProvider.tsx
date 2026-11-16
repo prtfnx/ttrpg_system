@@ -2,6 +2,7 @@ import { authService } from '@features/auth';
 import { OperationRecoveryNotice } from '@features/session/components/OperationRecoveryNotice';
 import { ProtocolService } from '@lib/api/ProtocolService';
 import { WebClientProtocol } from '@lib/websocket';
+import { terminalConnectionError } from '@lib/websocket/connectionErrors';
 import { logger } from '@shared/utils/logger';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
@@ -94,7 +95,9 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
             setConnectionState('error');
             setConnectionError('Server heartbeat timed out');
           } else {
-            setConnectionState('disconnected');
+            const terminalError = terminalConnectionError(p.getConnectionDiagnostics());
+            setConnectionState(terminalError ? 'error' : 'disconnected');
+            setConnectionError(terminalError);
           }
         });
 

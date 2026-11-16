@@ -110,6 +110,15 @@ at that deadline with code `1008` and reason `Authentication expired`, and
 refuses to start queued work afterward. Reauthenticate before reconnecting.
 The separate demo guest expiration contract is unchanged.
 
+Both the provider-owned and standalone browser WebSocket owners surface terminal
+policy closes even after the initial connection promise has resolved. Account
+expiry, missing authentication and account-session revocation require sign-in;
+demo expiry, removal, disabled accounts and other access denials remain distinct.
+These terminal closes do not start automatic reconnect loops. Retryable server
+replacement (1012) keeps its existing automatic recovery path. A deliberate
+reconnect still waits for the authenticated welcome before recovering saved
+requests under the current actor, session instance and role.
+
 ## Google OAuth
 
 Google OAuth is optional and lives in `apps/server/routers/auth.py`.

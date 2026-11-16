@@ -13,7 +13,8 @@ const mocks = vi.hoisted(() => {
     getOperationRecoveryStatus: vi.fn(() => ({ pending: 0, blocked: 0, error: null })),
     retrySavedOperations: vi.fn(),
     discardSavedOperations: vi.fn(),
-    getConnectionDiagnostics: vi.fn(() => ({ instanceId: 'protocol-test', state: 'connected' })),
+    getConnectionDiagnostics: vi.fn(() => ({ instanceId: 'protocol-test', state: 'connected',
+      lastCloseCode: null as number | null, lastCloseReason: null as string | null })),
     onConnectionStateChange: vi.fn((listener) => {
       stateListener = listener;
       return unsubscribe;
@@ -62,8 +63,8 @@ vi.mock('@shared/utils/logger', () => ({
 import { ProtocolProvider, useProtocol } from '../ProtocolProvider';
 
 function ConnectionState() {
-  const { connectionState } = useProtocol();
-  return <output>{connectionState}</output>;
+  const { connectionState, connectionError } = useProtocol();
+  return <><output>{connectionState}</output>{connectionError && <p role="alert">{connectionError}</p>}</>;
 }
 
 describe('ProtocolProvider', () => {
@@ -71,6 +72,25 @@ describe('ProtocolProvider', () => {
     vi.clearAllMocks();
     mocks.resetStateListener();
     mocks.protocol.connect.mockResolvedValue(undefined);
+    mocks.protocol.getConnectionDiagnostics.mockReturnValue({ instanceId: 'protocol-test', state: 'connected',
+      lastCloseCode: null, lastCloseReason: null });
+  });
+
+  it.each([
+    ['Authentication expired', 'Authentication failed. Sign in again to continue.'],
+    ['Account session revoked', 'Authentication failed. Sign in again to continue.'],
+    ['Kicked from session', 'Kicked from session'],
+    ['Demo expired', 'Demo expired'],
+    ['Account disabled', 'Account disabled'],
+    ['Banned from session', 'Session access denied'],
+  ])('surfaces %s after an established connection closes', async (reason, expected) => {
+    render(<ProtocolProvider sessionCode="ROOM"><ConnectionState /></ProtocolProvider>);
+    await waitFor(() => expect(screen.getByText('connected')).toBeInTheDocument());
+    mocks.protocol.getConnectionDiagnostics.mockReturnValue({ instanceId: 'protocol-test', state: 'disconnected',
+      lastCloseCode: 1008, lastCloseReason: reason });
+    act(() => mocks.getStateListener()?.('disconnected'));
+    expect(screen.getByText('error')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(expected);
   });
 
   it('reflects automatic protocol recovery and cleans up its subscription', async () => {

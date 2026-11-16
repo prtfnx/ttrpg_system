@@ -1,13 +1,17 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+type ConnectionListener = (state: 'connected' | 'connecting' | 'reconnecting' | 'disconnected' | 'timeout') => void;
 
 // mockProtocol must be defined via vi.hoisted so vi.mock closures can reference it
 const mockProtocol = vi.hoisted(() => ({
   connect: vi.fn().mockResolvedValue(undefined),
   disconnect: vi.fn(),
   isConnected: vi.fn(() => false),
-  getConnectionDiagnostics: vi.fn(() => ({ state: 'disconnected' })),
-  onConnectionStateChange: vi.fn(() => vi.fn()), // returns unsubscribe fn
+  getConnectionDiagnostics: vi.fn(() => ({ state: 'disconnected', lastCloseCode: null as number | null,
+    lastCloseReason: null as string | null })),
+  listener: null as ConnectionListener | null,
+  onConnectionStateChange: vi.fn((_listener: ConnectionListener) => vi.fn()),
 }));
 
 vi.mock('@lib/api', () => ({ useOptionalProtocol: vi.fn(() => null) }));
@@ -41,12 +45,34 @@ beforeEach(() => {
   });
   mockProtocol.disconnect.mockReset();
   mockProtocol.isConnected.mockReturnValue(false);
-  mockProtocol.getConnectionDiagnostics.mockReturnValue({ state: 'disconnected' });
-  mockProtocol.onConnectionStateChange.mockReturnValue(vi.fn());
+  mockProtocol.getConnectionDiagnostics.mockReturnValue({ state: 'disconnected', lastCloseCode: null, lastCloseReason: null });
+  mockProtocol.listener = null;
+  mockProtocol.onConnectionStateChange.mockImplementation(listener => {
+    mockProtocol.listener = listener;
+    return vi.fn();
+  });
   vi.mocked(authService.getUserSessions).mockResolvedValue([]);
 });
 
+afterEach(() => vi.useRealTimers());
+
 describe('useAuthenticatedWebSocket — standalone (no ProtocolProvider)', () => {
+  it.each(['Authentication expired', 'Demo expired', 'Kicked from session', 'Account disabled'])(
+    'surfaces terminal %s after connecting without starting a new connection', async reason => {
+      const { result } = renderHook(() => useAuthenticatedWebSocket(props));
+      await waitFor(() => expect(result.current.connectionState).toBe('connected'));
+      vi.useFakeTimers();
+      mockProtocol.getConnectionDiagnostics.mockReturnValue({ state: 'disconnected', lastCloseCode: 1008,
+        lastCloseReason: reason });
+      act(() => mockProtocol.listener?.('disconnected'));
+      expect(result.current.connectionState).toBe('error');
+      expect(result.current.error).toBe(reason === 'Authentication expired'
+        ? 'Authentication failed. Sign in again to continue.' : reason);
+      await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+      expect(vi.mocked(WebClientProtocol)).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it('moves to connected after successful auto-connect', async () => {
     const { result } = renderHook(() => useAuthenticatedWebSocket(props));
     await waitFor(() => expect(result.current.connectionState).toBe('connected'));

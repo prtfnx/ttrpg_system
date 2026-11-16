@@ -4,6 +4,7 @@
  */
 import { useOptionalProtocol } from '@lib/api';
 import { WebClientProtocol, type ProtocolConnectionState } from '@lib/websocket';
+import { terminalConnectionError } from '@lib/websocket/connectionErrors';
 import { logger } from '@shared/utils/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UserInfo } from '../services/auth.service';
@@ -68,8 +69,9 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
           setConnectionState('error');
           setError('Connection timeout - server not responding');
         } else {
-          setConnectionState('disconnected');
-          setError('Connection lost');
+          const terminalError = terminalConnectionError(protocol.getConnectionDiagnostics());
+          setConnectionState(terminalError ? 'error' : 'disconnected');
+          setError(terminalError ?? 'Connection lost');
         }
       });
       await protocol.connect();
@@ -125,7 +127,10 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
 
   useEffect(() => {
     if (ctx || connectionState !== 'error' || !error) return;
-    if (!error.includes('Authentication failed')) {
+    if (!error.includes('Authentication failed')
+      && !terminalConnectionError(protocolRef.current?.getConnectionDiagnostics() ?? {
+        lastCloseCode: null, lastCloseReason: null,
+      })) {
       const retryTimer = setTimeout(() => connect(), 5000);
       return () => clearTimeout(retryTimer);
     }

@@ -94,6 +94,11 @@ removing its authorization context. A different user's sockets are unaffected.
 the cookie is HTTP-only, the browser stores a sentinel token value
 `authenticated-via-cookie` rather than the real JWT.
 
+Both the service and React login owner require a fresh `/users/me` identity check
+before reporting successful sign-in. A missing/invalid identity, denied cookie or
+unavailable identity endpoint clears the service's previous cached identity;
+an HTTP success from the password POST alone is insufficient.
+
 `AuthProvider` wraps the React app, initializes `authService`, exposes
 `useAuth()`, and merges account permissions from `/users/me` with session
 permissions stored in the game store.

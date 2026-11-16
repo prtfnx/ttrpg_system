@@ -7,6 +7,7 @@ const mockAuthService = vi.hoisted(() => ({
   getUserInfo: vi.fn().mockReturnValue(null),
   isAuthenticated: vi.fn().mockReturnValue(false),
   logout: vi.fn(),
+  login: vi.fn(),
 }));
 
 vi.mock('@features/auth/services/auth.service', () => ({
@@ -39,6 +40,7 @@ describe('AuthProvider', () => {
     mockAuthService.initialize.mockResolvedValue(undefined);
     mockAuthService.getUserInfo.mockReturnValue(null);
     mockAuthService.isAuthenticated.mockReturnValue(false);
+    mockAuthService.login.mockResolvedValue({ success: false, message: 'Login failed' });
     useGameStore.setState({ permissions: [] });
   });
 
@@ -73,9 +75,12 @@ describe('AuthProvider', () => {
     await waitFor(() => expect(ctx?.loading).toBe(false));
   });
 
-  it('login calls fetch and re-initializes on success', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
-    vi.stubGlobal('fetch', fetchMock);
+  it('login uses the shared service and publishes only a confirmed identity', async () => {
+    mockAuthService.login.mockImplementation(async () => {
+      mockAuthService.getUserInfo.mockReturnValue({ id: 1, username: 'alice' });
+      mockAuthService.isAuthenticated.mockReturnValue(true);
+      return { success: true };
+    });
 
     let ctx!: AuthCtx;
     render(wrap(c => { ctx = c; }));
@@ -83,13 +88,13 @@ describe('AuthProvider', () => {
 
     await act(async () => { await ctx.login('alice', 'pass'); });
 
-    expect(fetchMock).toHaveBeenCalledWith('/users/login', expect.objectContaining({ method: 'POST' }));
-    expect(mockAuthService.initialize).toHaveBeenCalledTimes(2);
-    vi.unstubAllGlobals();
+    expect(mockAuthService.login).toHaveBeenCalledWith('alice', 'pass');
+    expect(ctx.isAuthenticated).toBe(true);
+    expect(ctx.user?.id).toBe(1);
   });
 
   it('login returns false on failed fetch', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, text: vi.fn().mockResolvedValue('error') }));
+    mockAuthService.login.mockResolvedValue({ success: false, message: 'Incorrect password' });
 
     let ctx!: AuthCtx;
     render(wrap(c => { ctx = c; }));
@@ -98,11 +103,11 @@ describe('AuthProvider', () => {
     let result!: boolean;
     await act(async () => { result = await ctx.login('alice', 'wrong'); });
     expect(result).toBe(false);
-    vi.unstubAllGlobals();
+    expect(ctx.error).toBe('Incorrect password');
   });
 
   it('login returns false on network error', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('net error')));
+    mockAuthService.login.mockRejectedValue(new Error('net error'));
 
     let ctx!: AuthCtx;
     render(wrap(c => { ctx = c; }));
@@ -111,7 +116,19 @@ describe('AuthProvider', () => {
     let result!: boolean;
     await act(async () => { result = await ctx.login('alice', 'pass'); });
     expect(result).toBe(false);
-    vi.unstubAllGlobals();
+    expect(ctx.isAuthenticated).toBe(false);
+  });
+
+  it('does not authenticate from a successful response without a validated cookie identity', async () => {
+    mockAuthService.login.mockResolvedValue({ success: true });
+    let ctx!: AuthCtx;
+    render(wrap(c => { ctx = c; }));
+    await waitFor(() => expect(ctx?.loading).toBe(false));
+    let result!: boolean;
+    await act(async () => { result = await ctx.login('alice', 'pass'); });
+    expect(result).toBe(false);
+    expect(ctx.isAuthenticated).toBe(false);
+    expect(ctx.user).toBeNull();
   });
 
   it('logout calls authService.logout', async () => {

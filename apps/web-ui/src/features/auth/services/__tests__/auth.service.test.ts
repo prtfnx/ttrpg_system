@@ -38,6 +38,14 @@ afterEach(() => {
 });
 
 describe('authService.login', () => {
+  it('does not confirm login when the fresh cookie cannot be validated', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true } as Response)
+      .mockResolvedValueOnce(errorResponse(401));
+    expect(await authService.login('alice', 'password')).toEqual({
+      success: false, message: 'Sign-in could not be confirmed. Please try again.',
+    });
+    expect(authService.isAuthenticated()).toBe(false);
+  });
   it('returns success on 200 response', async () => {
     // login fetches /users/login then calls initialize -> extractToken -> /users/me
     mockFetch
@@ -95,6 +103,32 @@ describe('authService.register', () => {
 });
 
 describe('authService.extractToken', () => {
+  it.each([401, 503])('clears earlier account identity after a %s identity check', async status => {
+    mockFetch.mockResolvedValueOnce(okResponse({ id: 1, username: 'alice' }));
+    expect(await authService.initialize()).toBe(true);
+    mockFetch.mockResolvedValueOnce(errorResponse(status));
+    expect(await authService.initialize()).toBe(false);
+    expect(authService.getToken()).toBeNull();
+    expect(authService.getUserInfo()).toBeNull();
+    expect(authService.isAuthenticated()).toBe(false);
+  });
+
+  it.each([null, {}, { id: 0, username: 'alice' }, { id: 1, username: ' ' }])(
+    'rejects a malformed successful identity response %j', async body => {
+      mockFetch.mockResolvedValueOnce(okResponse(body));
+      expect(await authService.initialize()).toBe(false);
+      expect(authService.isAuthenticated()).toBe(false);
+    },
+  );
+
+  it('clears earlier account identity when the identity endpoint is unavailable', async () => {
+    mockFetch.mockResolvedValueOnce(okResponse({ id: 1, username: 'alice' }));
+    await authService.initialize();
+    mockFetch.mockRejectedValueOnce(new Error('offline'));
+    expect(await authService.initialize()).toBe(false);
+    expect(authService.getUserInfo()).toBeNull();
+    expect(authService.isAuthenticated()).toBe(false);
+  });
   it('returns token and sets userInfo on /users/me 200', async () => {
     mockFetch.mockResolvedValueOnce(
       okResponse({ id: 2, username: 'carol' })

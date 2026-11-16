@@ -50,7 +50,9 @@ class AuthService {
 
       if (response.ok) {
         // Re-initialize to get user info from cookie
-        await this.initialize();
+        if (!await this.initialize()) {
+          return { success: false, message: 'Sign-in could not be confirmed. Please try again.' };
+        }
         return { success: true };
       } else {
         const errorText = await response.text();
@@ -123,6 +125,12 @@ class AuthService {
       });
       if (response.ok) {
         const userData = await response.json();
+        if (!Number.isSafeInteger(userData?.id) || userData.id <= 0
+          || typeof userData.username !== 'string' || !userData.username.trim()) {
+          this.token = null;
+          this.userInfo = null;
+          return null;
+        }
         this.userInfo = {
           id: userData.id,
           username: userData.username,
@@ -132,25 +140,13 @@ class AuthService {
         };
         this.token = 'authenticated-via-cookie';
         return this.token;
-      } else if (response.status === 401) {
-        return null;
-      } else {
-        return null;
       }
     } catch (_error) {
-      return null;
+      // A failed identity check cannot leave an earlier account authenticated.
     }
-    const urlToken = this.extractTokenFromURL();
-    if (urlToken) {
-      this.token = urlToken;
-      return urlToken;
-    }
+    this.token = null;
+    this.userInfo = null;
     return null;
-  }
-
-  private extractTokenFromURL(): string | null {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('token');
   }
 
   /**

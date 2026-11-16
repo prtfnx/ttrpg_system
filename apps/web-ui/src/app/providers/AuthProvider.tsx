@@ -67,32 +67,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     setError('');
     try {
-      // Call FastAPI login endpoint
-      const response = await fetch('/users/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          username,
-          password
-        }),
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        // Re-initialize auth service to get user info from cookie
-        await authService.initialize();
+      const result = await authService.login(username, password);
+      if (result.success && authService.isAuthenticated()) {
         setUser(authService.getUserInfo());
         setIsAuthenticated(authService.isAuthenticated());
         setLoading(false);
         return true;
       } else {
-        const errorText = await response.text();
-        // Parse HTML error or use generic message
-        const errorMatch = errorText.match(/error["']: ["']([^"']+)["']/i);
-        const errorMessage = errorMatch ? errorMatch[1] : 'Login failed';
-        setError(errorMessage);
+        setUser(null);
+        setIsAuthenticated(false);
+        setError(result.message ?? 'Sign-in could not be confirmed. Please try again.');
         setLoading(false);
         return false;
       }

@@ -48,8 +48,14 @@ come from the current database; start/end require current DM authority. An
 explicit encounter target is required after start. Retries retain the original
 message identity/body. A new identity denotes a new deliberate action.
 
-Player broadcasts are built from a player-safe snapshot. Private DM notes are
-stored but appear only in the DM response.
+Live choice updates and recovery notifications build a detached snapshot for
+each currently authorized recipient. Owners and co-DMs receive DM notes;
+player, trusted-player and spectator views omit them. Missing recipient
+authority never falls back to a session-wide private broadcast. One failed
+peer cannot suppress delivery to the remaining recipients or reject an
+accepted transition; the actor is told to resynchronize when delivery fails.
+Recovery receipts remain correlated only to the original actor's tabs and
+their snapshots also respect each tab's current role.
 
 ## Restart and reconnect
 
@@ -119,7 +125,8 @@ Unavailable outcomes return `choice_outcome_unknown` and never claim rollback.
 Proven missing acceptance returns `not_accepted: true`; retained acceptance returns
 the original receipt with current role-filtered state. Authority revocation permits
 internal cache repair while withholding private outcome details. Peer recovery
-publishes only a public current snapshot. Notification failure after installation
+publishes current state projected for each recipient's role, including DM notes
+only for current DMs. Notification failure after installation
 reports accepted state requiring resync. Receipts follow the existing retained
 session/actor lifetime; no new table or migration is introduced.
 

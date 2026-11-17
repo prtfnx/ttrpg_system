@@ -9,7 +9,7 @@ from core_table.protocol import Message, MessageType
 from core_table.server import TableManager
 from database import models
 from service.choice_encounter_persistence_service import ChoiceEncounterPersistenceService
-from service.choice_operation_service import ChoiceOperationService
+from service.choice_operation_service import ChoiceOperationService, ChoiceOutcome
 from service.encounter_engine import EncounterEngine
 from service.protocol.base import ServerProtocol
 from service.session_operation_receipts import OperationOutcomeUnknown
@@ -73,14 +73,76 @@ def game(tmp_path, monkeypatch):
     engine.dispose()
 
 
-async def test_start_uses_current_db_authority_and_only_actor_dm_view_has_private_notes(game):
-    _, response = await game.start()
+@pytest.mark.parametrize('actor,peer', [('dm', 'codm'), ('codm', 'dm')])
+async def test_start_projects_dm_notes_for_each_recipient(game, actor, peer):
+    _, response = await game.start(actor)
     assert response.type == MessageType.ENCOUNTER_STATE and response.data['accepted']
     assert response.data['encounter']['dm_notes'] == 'Private secret'
-    peers = [frame for frame, client in game.frames if client != 'dm']
-    assert peers and all(frame.data['encounter']['dm_notes'] == '' for frame in peers)
+    peers = {client: frame for frame, client in game.frames if client != actor}
+    assert peers.keys() == {peer, 'player', 'spectator'}
+    assert peers[peer].data['encounter']['dm_notes'] == 'Private secret'
+    assert all(peers[client].data['encounter']['dm_notes'] == '' for client in ('player', 'spectator'))
     with game.factory() as db:
         assert db.query(models.SessionOperationReceipt).count() == 1
+
+
+async def test_recipient_snapshots_do_not_share_mutable_state(game):
+    await game.start()
+    peers = {client: frame.data['encounter'] for frame, client in game.frames if client != 'dm'}
+    peers['codm']['choices'][0]['text'] = 'Changed by one transport'
+    assert peers['player']['choices'][0]['text'] == 'Go'
+    assert peers['spectator']['choices'][0]['text'] == 'Go'
+    active = EncounterEngine.get('CHOICE')
+    assert active is not None and active.to_dict(dm=True)['choices'][0]['text'] == 'Go'
+
+
+@pytest.mark.parametrize('metadata', [None, [], 'unavailable'])
+async def test_choice_publication_fails_closed_without_recipient_authority(game, metadata):
+    game.proto.session_manager.client_info = metadata
+    outcome = ChoiceOutcome({}, {'dm_notes': 'Private secret'}, 'CHOICE', 'owner')
+    assert not await game.proto._publish_choice_state(outcome, MessageType.ENCOUNTER_STATE, {})
+    assert not game.frames
+
+
+@pytest.mark.parametrize('kind', [MessageType.ENCOUNTER_CHOICE, MessageType.ENCOUNTER_ROLL, MessageType.ENCOUNTER_END])
+async def test_later_transitions_preserve_each_recipient_view(game, kind):
+    data, actor = await game.prepare(kind)
+    game.frames.clear()
+    await game.send(kind, data, actor)
+    assert {recipient for _frame, recipient in game.frames} == set(game.clients)
+    for frame, recipient in game.frames:
+        if kind == MessageType.ENCOUNTER_END:
+            assert frame.data['encounter'] is None
+        else:
+            assert frame.data['encounter']['dm_notes'] == ('Private secret' if recipient in {'dm', 'codm'} else '')
+
+
+@pytest.mark.parametrize('role', ['co_dm', 'trusted_player', 'player', 'spectator'])
+async def test_recovery_projects_current_roles_and_keeps_receipts_actor_scoped(game, monkeypatch, role):
+    install = game.proto._install_choice
+    monkeypatch.setattr(game.proto, '_install_choice', lambda _: (_ for _ in ()).throw(RuntimeError('Cache unavailable')))
+    original, unknown = await game.start()
+    assert unknown.data['code'] == 'choice_outcome_unknown'
+    monkeypatch.setattr(game.proto, '_install_choice', install)
+    with game.factory() as db:
+        db.query(models.GamePlayer).filter_by(user_id=2).one().role = role
+        db.commit()
+    game.clients['codm']['role'] = role
+    game.clients['actor-second'] = {'user_id': 1, 'role': 'player'}
+    game.frames.clear()
+    await game.send(MessageType.TABLE_LIST_REQUEST, client='player')
+
+    snapshots = {recipient: frame.data['encounter'] for frame, recipient in game.frames
+                 if frame.type == MessageType.ENCOUNTER_STATE and frame.correlation_id is None}
+    assert snapshots.keys() == game.clients.keys()
+    assert snapshots['dm']['dm_notes'] == 'Private secret'
+    assert snapshots['codm']['dm_notes'] == ('Private secret' if role == 'co_dm' else '')
+    assert all(snapshots[client]['dm_notes'] == '' for client in ('player', 'spectator', 'actor-second'))
+    receipts = {recipient: frame for frame, recipient in game.frames if frame.correlation_id == original.message_id}
+    assert receipts.keys() == {'dm', 'actor-second'}
+    assert receipts['dm'].data['encounter']['dm_notes'] == 'Private secret'
+    assert receipts['actor-second'].data['encounter']['dm_notes'] == ''
+    assert not game.proto._has_pending_writes()
 
 
 @pytest.mark.parametrize('client', ['player', 'spectator'])
@@ -254,12 +316,17 @@ async def test_recovery_cancellation_retains_ownership_until_current_installatio
 
 
 async def test_publication_failure_cannot_reject_an_accepted_transition(game, monkeypatch):
-    async def fail(*_args, **_kwargs):
-        raise OSError('Peer unavailable')
+    send = game.proto.send_to_client
 
-    monkeypatch.setattr(game.proto, 'broadcast_to_session', fail)
+    async def fail_peer(message, recipient):
+        if recipient == 'codm':
+            raise OSError('Peer unavailable')
+        await send(message, recipient)
+
+    monkeypatch.setattr(game.proto, 'send_to_client', fail_peer)
     _, response = await game.start()
     assert response.data['accepted'] and response.data['resync_required']
     assert EncounterEngine.get('CHOICE') is not None and not game.proto._has_pending_writes()
+    assert {'player', 'spectator'} <= {recipient for _frame, recipient in game.frames}
     with game.factory() as db:
         assert db.query(models.SessionOperationReceipt).count() == 1

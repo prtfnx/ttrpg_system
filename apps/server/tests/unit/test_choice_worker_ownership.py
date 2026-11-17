@@ -59,8 +59,10 @@ def game(tmp_path, monkeypatch):
     responses = []
 
     async def send(kind, data=None, client='dm'):
-        async def capture(response, _client):
+        async def capture(response, recipient):
             responses.append(response)
+            if recipient in svc.clients:
+                await svc.send_to_client(response, recipient)
         proto._transport_send = capture
         data = dict(data or {})
         active = EncounterEngine.get('WORK')
@@ -102,7 +104,7 @@ async def test_repeated_cancellation_keeps_mutation_until_worker_and_publication
 
     monkeypatch.setattr(game.store, 'stage_snapshot', delayed)
     publication = AsyncMock()
-    monkeypatch.setattr(game.svc, 'broadcast_to_session', publication)
+    monkeypatch.setattr(game.proto, '_publish_choice_state', publication)
     data = ({'choices': [{'choice_id': 'go', 'text': 'Go'}]} if kind == MessageType.ENCOUNTER_START
             else {} if kind == MessageType.ENCOUNTER_END else {'choice_id': 'go'})
     task = asyncio.create_task(game.send(kind, data))
@@ -203,7 +205,7 @@ async def test_failed_selection_restores_detached_before_state(game, monkeypatch
 
     monkeypatch.setattr(game.store, 'stage_snapshot', fail)
     publication = AsyncMock()
-    monkeypatch.setattr(game.svc, 'broadcast_to_session', publication)
+    monkeypatch.setattr(game.proto, '_publish_choice_state', publication)
     assert (await game.send(MessageType.ENCOUNTER_CHOICE, {'choice_id': 'go'})).type == MessageType.ERROR
     restored = EncounterEngine.get('WORK')
     assert restored is not None and restored.to_dict(dm=True) == before

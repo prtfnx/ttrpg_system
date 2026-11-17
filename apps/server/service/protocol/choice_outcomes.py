@@ -66,6 +66,26 @@ class _ChoiceOutcomesMixin(_ProtocolBase):
         return Message(kind, {**outcome.receipt, 'encounter': self._choice_snapshot(outcome, dm=is_dm(outcome.role)),
             'state_authoritative': True, 'replayed': outcome.replayed, 'resync_required': outcome.replayed})
 
+    async def _publish_choice_state(self, outcome: ChoiceOutcome, kind: MessageType, data: dict,
+                                    exclude_client: str | None = None) -> bool:
+        """Project detached current state for each live recipient's authority."""
+        recipients = getattr(self.session_manager, 'client_info', None)
+        if not isinstance(recipients, dict):
+            return False
+        delivered = True
+        for recipient in list(recipients):
+            info = recipients.get(recipient)
+            if recipient == exclude_client or not isinstance(info, dict) or info.get('user_id') is None:
+                continue
+            try:
+                await self.send_to_client(Message(kind, {**deepcopy(data),
+                    'encounter': self._choice_snapshot(outcome, dm=is_dm(info.get('role')))}), recipient)
+            except Exception:
+                # One peer failure must not suppress other views or undo acceptance.
+                delivered = False
+                logger.exception('Choice state delivery failed after installation')
+        return delivered
+
     async def _recover_pending_choice(self, request: Message | None, client_id: str | None):
         intent = self._pending_choice
         if intent is None:
@@ -80,8 +100,8 @@ class _ChoiceOutcomesMixin(_ProtocolBase):
         # empty state, precede releasing snapshots/cleanup and later mutations.
         self._pending_choice = None
         try:
-            await self.broadcast_to_session(Message(MessageType.ENCOUNTER_STATE, {
-                'encounter': self._choice_snapshot(outcome), 'state_authoritative': True, 'resync_required': True}), '')
+            await self._publish_choice_state(outcome, MessageType.ENCOUNTER_STATE, {
+                'state_authoritative': True, 'resync_required': True})
         except Exception:
             logger.exception('Choice recovery notification failed after installation')
         response = self._choice_response(outcome, intent)
@@ -91,7 +111,11 @@ class _ChoiceOutcomesMixin(_ProtocolBase):
             if info.get('user_id') != intent.identity.actor_id or matching and recipient == client_id:
                 continue
             try:
-                await self.send_to_client(Message(response.type, dict(response.data),
+                data = deepcopy(response.data)
+                if 'encounter' in data:
+                    data['encounter'] = self._choice_snapshot(outcome,
+                        dm=is_dm(outcome.role) and is_dm(self._get_client_role(recipient)))
+                await self.send_to_client(Message(response.type, data,
                     causation_id=intent.identity.operation_id, correlation_id=intent.identity.operation_id), recipient)
             except Exception:
                 logger.exception('Choice outcome delivery failed')
@@ -135,8 +159,8 @@ class _ChoiceOutcomesMixin(_ProtocolBase):
         response = self._choice_response(outcome, intent)
         if not outcome.replayed:
             try:
-                await self.broadcast_to_session(Message(response.type, {**response.data,
-                    'encounter': self._choice_snapshot(outcome)}), client_id)
+                if not await self._publish_choice_state(outcome, response.type, response.data, client_id):
+                    response.data['resync_required'] = True
             except Exception:
                 logger.exception('Choice notification failed after durable acceptance')
                 response.data['resync_required'] = True

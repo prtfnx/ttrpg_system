@@ -9,24 +9,26 @@ import copy
 import json
 import time
 from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from typing import Dict, List, Optional
 
 from config import Settings
+from core_table.action_batches import _finish_before_cancellation
 from core_table.protocol import Message, MessageType
 from core_table.server import TableManager
 from database import models as db_models
-from database.crud import append_ban_to_session
 from fastapi import WebSocket
 from starlette.datastructures import QueryParams
 from utils.blocking import run_blocking
 from utils.logger import log_context, setup_logger
-from utils.roles import can_modify_role, get_permissions, get_visible_layers
+from utils.roles import get_permissions, get_visible_layers
 from utils.roles import is_dm as _is_dm
 from utils.time import utc_now
 
 from .asset_manager import get_server_asset_manager
 from .server_protocol import ServerProtocol
 from .session_join_hydration import load_join_metadata
+from .session_moderation import ModerationOutcomeUnknown, ModerationRejected, ModerationResult, SessionModerationService
 from .websocket_outbox import WebSocketOutbox
 
 logger = setup_logger(__name__)
@@ -36,6 +38,7 @@ settings = Settings()
 
 class GameSessionProtocolService:
     """Manages table protocol within a game session with database persistence"""
+    revoke_user: Callable[..., Awaitable[int]] | None = None
     def __init__(self, session_code: str, db_session=None, game_session_db_id: int | None = None):
         logger.info(f"Creating GameSessionProtocolService for session {session_code}")
         self.session_code = session_code
@@ -562,137 +565,59 @@ class GameSessionProtocolService:
         finally:
             self._release_db_session()
 
-    async def kick_player(
-        self,
-        target_player_id: str | int | None,
-        target_username: str | None,
-        reason: str,
-        kicked_by_client_id: str,
-    ) -> bool:
-        """Kick a player from the session"""
+    async def kick_player(self, target_player_id: str | int | None, target_username: str | None,
+                          reason: str, kicked_by_client_id: str) -> ModerationResult | bool:
+        return await self._moderate_player(target_player_id, target_username, reason, kicked_by_client_id)
+
+    async def ban_player(self, target_player_id: str | int | None, target_username: str | None,
+                         reason: str, duration: str, banned_by_client_id: str) -> ModerationResult | bool:
+        return await self._moderate_player(target_player_id, target_username, reason, banned_by_client_id,
+                                           ban=True, duration=duration)
+
+    async def _moderate_player(self, target_id, target_username, reason, actor_client, *, ban=False, duration='permanent'):
+        revoke = self.revoke_user
+        actor_id = self.client_info.get(actor_client, {}).get('user_id')
+        if revoke is None or self.game_session_db_id is None or actor_id is None:
+            return False
         try:
-            target_client_id = None
-            target_websocket = None
+            result = await run_blocking(SessionModerationService().execute,
+                self.session_code, actor_id, target_id, target_username, reason, ban=ban, duration=duration)
+        except ModerationRejected:
+            logger.info('Session moderation denied', extra={'event_name': 'player.moderation.denied'})
+            return False
+        except ModerationOutcomeUnknown as unknown:
+            # Even an uncertain removal cannot leave the old tabs serving cached
+            # authority. Rejoining must prove current membership and credential.
+            target_user_id = unknown.result.user_id
 
-            # Find target client by player_id or username
-            for client_id, info in self.client_info.items():
-                if (str(info.get('user_id')) == str(target_player_id) or
-                    info.get('username') == target_username):
-                    target_client_id = client_id
-                    target_websocket = self.clients.get(client_id)
-                    break
+            async def retire_uncertain():
+                return await revoke(self.session_code, target_user_id, reason='Session access requires revalidation')
 
-            if not target_client_id or not target_websocket:
-                logger.warning(f"Player not found for kick: {target_username}/{target_player_id}")
-                return False
-
-            target_info = self.client_info[target_client_id]
-            actor_info = self.client_info.get(kicked_by_client_id)
-            if not actor_info:
-                logger.warning(
-                    "Player moderation denied: requesting client not found",
-                    extra={"event_name": "player.moderation.denied", "reason": "actor_not_found"},
-                )
-                return False
-            if target_client_id == kicked_by_client_id:
-                logger.warning(
-                    "Player moderation denied: self-targeting is not allowed",
-                    extra={"event_name": "player.moderation.denied", "reason": "self_target"},
-                )
-                return False
-            if not can_modify_role(
-                actor_info.get('role', 'player'),
-                target_info.get('role', 'player'),
-            ):
-                logger.warning(
-                    "Player moderation denied by role hierarchy",
-                    extra={"event_name": "player.moderation.denied", "reason": "role_hierarchy"},
-                )
-                return False
-
-            kicked_username = target_info.get('username', 'unknown')
-            kicker_username = actor_info.get('username', 'unknown')
-
-            # Notify the kicked player
-            kick_message = Message(MessageType.ERROR, {
-                'error': 'You have been kicked from the session',
-                'reason': reason,
-                'kicked_by': kicker_username
-            })
-            await self._send_message(target_websocket, kick_message)
-
-            # Broadcast kick notification to other players
-            kick_notification = Message(MessageType.PLAYER_LEFT, {
-                'username': kicked_username,
-                'reason': f'Kicked by {kicker_username}: {reason}',
-                'timestamp': utc_now().isoformat(),
-                'kicked': True
-            })
-            await self.broadcast_to_session(kick_notification, exclude_client=target_client_id)
-
-            # Remove the player
-            await self.remove_client(target_websocket)
-
-            # Close the WebSocket connection
             try:
-                await target_websocket.close()
-            except Exception as e:
-                logger.error(f"Error closing WebSocket for kicked player: {e}")
-
-            logger.info(f"Player {kicked_username} kicked by {kicker_username}: {reason}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error kicking player: {e}")
+                await _finish_before_cancellation(asyncio.create_task(retire_uncertain()))
+            except Exception:
+                logger.exception('Uncertain moderation socket retirement failed')
+            raise
+        except Exception:
+            logger.exception('Session moderation did not accept a change')
             return False
 
-    async def ban_player(
-        self,
-        target_player_id: str | int | None,
-        target_username: str | None,
-        reason: str,
-        duration: str,
-        banned_by_client_id: str,
-    ) -> bool:
-        """Ban a player from the session"""
+        resync = False
         try:
-            # First kick the player
-            kick_success = await self.kick_player(target_player_id, target_username, f"Banned: {reason}", banned_by_client_id)
-
-            if kick_success:
-                # Persist ban in the database if available
-                banner_username = self.client_info.get(banned_by_client_id, {}).get('username', 'unknown')
-                if self.db_session and self.game_session_db_id:
-                    try:
-                        append_ban_to_session(self.db_session, self.game_session_db_id, {
-                            "player_id": target_player_id,
-                            "username": target_username,
-                            "reason": reason,
-                            "duration": duration,
-                            "banned_by": banner_username,
-                            "timestamp": utc_now().isoformat()
-                        })
-                    finally:
-                        self._release_db_session()
-                logger.info(f"Player {target_username} banned by {banner_username} for {duration}: {reason}")
-
-                # Broadcast ban notification
-                ban_notification = Message(MessageType.PLAYER_LEFT, {
-                    'username': target_username,
-                    'reason': f'Banned by {banner_username} for {duration}: {reason}',
-                    'timestamp': utc_now().isoformat(),
-                    'banned': True,
-                    'duration': duration
-                })
-                await self.broadcast_to_session(ban_notification)
-
-                return True
-            else:
-                return False
-
-        except Exception as e:
-            logger.error(f"Error banning player: {e}")
-            return False
+            await revoke(self.session_code, result.user_id,
+                         reason='Banned from session' if ban else 'Kicked from session')
+        except Exception:
+            logger.exception('Accepted moderation needs connection cleanup')
+            resync = True
+        try:
+            await self.broadcast_to_session(Message(MessageType.PLAYER_LEFT, {
+                'username': result.username, 'reason': reason, 'timestamp': utc_now().isoformat(),
+                'kicked': not ban, 'banned': ban,
+            }))
+        except Exception:
+            logger.exception('Accepted moderation notification failed')
+            resync = True
+        return replace(result, resync_required=resync)
 
     def get_session_players(self) -> List[dict]:
         """Get list of connected players in this session"""

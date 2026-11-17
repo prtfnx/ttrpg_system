@@ -29,6 +29,7 @@ from .game_session_protocol import GameSessionProtocolService
 from .legacy_paint import is_legacy_paint_message, legacy_paint_upgrade_data
 
 logger = setup_logger(__name__)
+_REMOVAL_IO_TIMEOUT_SECONDS = 5.0
 
 
 def _load_protocol_service(session_code: str):
@@ -146,6 +147,7 @@ class ConnectionManager:
         else:
             protocol_service = self.sessions_protocols[session_code]
 
+        protocol_service.revoke_user = self.disconnect_user
         admission.require_active()
         await websocket.accept()
         if self.application_writer is not None:
@@ -442,6 +444,14 @@ class ConnectionManager:
     ) -> int:
         """Revoke indexed sockets without allowing one failed close to stop the rest."""
 
+        # Stop every queued view before any cleanup or socket I/O can yield.
+        for websocket in targets:
+            info = self.connection_info.get(websocket, {})
+            service = self.sessions_protocols.get(info.get('session_code', ''))
+            boxes = getattr(service, '_outboxes', {})
+            outbox = boxes.get(websocket) if isinstance(boxes, dict) else None
+            if outbox is not None:
+                outbox.close()
         for websocket in targets:
             try:
                 await self.disconnect(websocket)
@@ -451,11 +461,12 @@ class ConnectionManager:
                     extra={"event_name": "websocket.revocation.cleanup_failed"},
                 )
 
+        for websocket in targets:
             try:
-                await websocket.send_json({
+                await asyncio.wait_for(websocket.send_json({
                     "type": MessageType.ERROR.value,
                     "data": {"error": reason, "retryable": close_code == 1012},
-                })
+                }), timeout=_REMOVAL_IO_TIMEOUT_SECONDS)
             except Exception:
                 logger.debug(
                     "WebSocket removal notice could not be delivered",
@@ -463,7 +474,8 @@ class ConnectionManager:
                 )
             finally:
                 try:
-                    await websocket.close(code=close_code, reason=reason)
+                    await asyncio.wait_for(websocket.close(code=close_code, reason=reason),
+                                           timeout=_REMOVAL_IO_TIMEOUT_SECONDS)
                 except Exception:
                     logger.debug(
                         "Removed WebSocket was already closed",
@@ -748,14 +760,14 @@ class ConnectionManager:
         """Kick a player from a session"""
         if session_code in self.sessions_protocols:
             protocol_service = self.sessions_protocols[session_code]
-            return await protocol_service.kick_player(target_player_id, target_username, reason, kicked_by_client_id)
+            return bool(await protocol_service.kick_player(target_player_id, target_username, reason, kicked_by_client_id))
         return False
 
     async def ban_player(self, session_code: str, target_player_id: str, target_username: str, reason: str, duration: str, banned_by_client_id: str) -> bool:
         """Ban a player from a session"""
         if session_code in self.sessions_protocols:
             protocol_service = self.sessions_protocols[session_code]
-            return await protocol_service.ban_player(target_player_id, target_username, reason, duration, banned_by_client_id)
+            return bool(await protocol_service.ban_player(target_player_id, target_username, reason, duration, banned_by_client_id))
         return False
 
 # Dependency function to get connection manager

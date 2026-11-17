@@ -270,6 +270,34 @@ When changing auth or roles:
 6. Check `AuthProvider`, `authService`, and game-store session permissions.
 7. Add or update tests in server auth/role tests and web auth/session tests.
 
+## WebSocket moderation
+
+The player panel's `player_kick_request` and `player_ban_request` resolve current
+actor and target membership in a worker-owned transaction. The existing role
+hierarchy protects owners, self-targets and co-DM peers. A cached role cannot grant
+moderation. A supplied user ID and username must identify the same member.
+
+Membership removal, a permanent ban when requested, and its audit commit together
+before live retirement. Numeric ban IDs are stored as strings so join checks use
+the same identity. Other bans survive. Only permanent bans are supported; timed
+duration input is rejected rather than silently becoming a permanent ban.
+
+The connection manager discards every target tab's queued delivery and clears
+all indexed sockets before sending removal notices. Each notice and close has
+a five-second I/O bound; an unresponsive peer cannot indefinitely hold session
+mutation ownership. Terminal `1008` closes stop
+automatic reconnect, and pending joins are invalidated. A deliberate new join
+must pass current membership and ban checks. Protocol moderation uses the same
+connection-manager retirement path as REST/account revocation.
+
+A failed transaction leaves membership, bans and audit unchanged. A lost commit
+response returns `outcome_unknown` with `domain: session_moderation` and
+conservatively retires the old tabs. Refresh authoritative membership before making another deliberate decision;
+these actions are not added to persisted automatic mutation replay. A delivery
+failure after known acceptance reports success with `resync_required` and cannot
+undo the committed removal. Regression owners: `test_session_moderation.py` and
+`test_moderation_protocol.py`, plus existing connection/admission and admin suites.
+
 ## Separate demo identity
 
 `GET /demo` creates a unique 30-minute guest, a spectator membership in

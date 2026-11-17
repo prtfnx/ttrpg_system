@@ -1,12 +1,18 @@
 import time
 
 from core_table.protocol import Message, MessageType
+from service.session_operation_receipts import OperationOutcomeUnknown
 from utils.logger import setup_logger
 from utils.roles import is_dm
 
 from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
+
+
+def _moderation_unknown() -> Message:
+    return Message(MessageType.ERROR, {'error': 'Moderation outcome is uncertain. Refresh session membership before another action.',
+        'code': 'outcome_unknown', 'domain': 'session_moderation', 'outcome': 'unknown', 'resync_required': True})
 
 
 class _PlayersMixin(_ProtocolBase):
@@ -74,13 +80,16 @@ class _PlayersMixin(_ProtocolBase):
                         'success': True,
                         'kicked_player': target_username or target_player_id,
                         'reason': reason,
-                        'kicked_by': requesting_client_info.get('username', 'unknown')
+                        'kicked_by': requesting_client_info.get('username', 'unknown'),
+                        **({'resync_required': True} if getattr(success, 'resync_required', False) else {}),
                     })
                 else:
                     return Message(MessageType.ERROR, {'error': 'Failed to kick player'})
             else:
                 return Message(MessageType.ERROR, {'error': 'Session manager not available'})
 
+        except OperationOutcomeUnknown:
+            return _moderation_unknown()
         except Exception:
             logger.exception("Player kick request failed")
             return Message(MessageType.ERROR, {'error': 'Failed to kick player'})
@@ -118,13 +127,16 @@ class _PlayersMixin(_ProtocolBase):
                         'banned_player': target_username or target_player_id,
                         'reason': reason,
                         'duration': duration,
-                        'banned_by': requesting_client_info.get('username', 'unknown')
+                        'banned_by': requesting_client_info.get('username', 'unknown'),
+                        **({'resync_required': True} if getattr(success, 'resync_required', False) else {}),
                     })
                 else:
                     return Message(MessageType.ERROR, {'error': 'Failed to ban player'})
             else:
                 return Message(MessageType.ERROR, {'error': 'Session manager not available'})
 
+        except OperationOutcomeUnknown:
+            return _moderation_unknown()
         except Exception:
             logger.exception("Player ban request failed")
             return Message(MessageType.ERROR, {'error': 'Failed to ban player'})

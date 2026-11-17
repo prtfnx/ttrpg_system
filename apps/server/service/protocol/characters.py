@@ -98,10 +98,10 @@ class _CharactersMixin(_CharacterOutcomesMixin):
         session_id: int,
         character_id: str,
         exclude_client: str | None = None,
-    ) -> list[str] | None:
+    ) -> list[str]:
         client_info = getattr(self.session_manager, 'client_info', None)
         if not isinstance(client_info, dict):
-            return None
+            return []
         from managers.character_manager import get_server_character_manager
 
         manager = get_server_character_manager()
@@ -136,9 +136,6 @@ class _CharactersMixin(_CharacterOutcomesMixin):
         targets = target_clients
         if targets is None:
             targets = await self._character_client_ids(session_id, character_id, exclude_client)
-        if targets is None:
-            await self.broadcast_to_session(message, exclude_client or '')
-            return
         for target_client_id in targets:
             await self.send_to_client(message, target_client_id)
 

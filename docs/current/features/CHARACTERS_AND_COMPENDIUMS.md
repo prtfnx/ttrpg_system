@@ -37,6 +37,13 @@ One access policy covers load, list, update, roll, logs, and event delivery.
 Owners and explicit editors can edit. Session DMs can inspect and administer.
 Only owners and DMs can change sharing or archive a character.
 
+Private character events require an explicit authorized recipient set. Missing
+or unavailable connection metadata never falls back to session-wide delivery.
+Archival captures authorized recipients before removing sharing grants, so
+existing viewers receive the removal without exposing it to other members.
+Role changes invalidate queued delivery and reconnect affected tabs under
+current authority; see [Authentication and roles](AUTH_AND_ROLES.md).
+
 Updates use recursive JSON Merge Patch semantics and an atomic version
 compare-and-swap. A conflict returns the canonical document and current version.
 Accepted HP, max-HP, and AC changes synchronize every linked token in the

@@ -367,11 +367,16 @@ class TestCharacterSaveBroadcast:
             data={"character_id": "c1", "version": 2},
         )
 
-        with patch.object(proto.actions, "save_character", new=AsyncMock(return_value=save_result)):
+        with (
+            patch.object(proto.actions, "save_character", new=AsyncMock(return_value=save_result)),
+            patch.object(proto, "_character_client_ids", new=AsyncMock(return_value=["authorized-peer"])),
+        ):
             await proto.handle_character_save_request(msg, "c1")
 
-        proto.broadcast_to_session.assert_awaited_once() # type: ignore[attr-defined]
-        broadcast_msg = proto.broadcast_to_session.call_args[0][0] # type: ignore[attr-defined]
+        proto.broadcast_to_session.assert_not_awaited()
+        proto.send_to_client.assert_awaited_once()
+        broadcast_msg, recipient = proto.send_to_client.call_args.args
+        assert recipient == "authorized-peer"
         assert broadcast_msg.type == MessageType.CHARACTER_UPDATE, (
             f"Expected CHARACTER_UPDATE, got {broadcast_msg.type}"
         )
@@ -429,13 +434,18 @@ class TestCharacterDeleteBroadcast:
             "user_id": 1,
         })
 
-        with patch.object(proto.actions, "delete_character", new=AsyncMock(
-            return_value=MagicMock(success=True, message="Deleted", data=None)
-        )):
+        with (
+            patch.object(proto.actions, "delete_character", new=AsyncMock(
+                return_value=MagicMock(success=True, message="Deleted", data=None)
+            )),
+            patch.object(proto, "_character_client_ids", new=AsyncMock(return_value=["authorized-peer"])),
+        ):
             await proto.handle_character_delete_request(msg, "c1")
 
-        proto.broadcast_to_session.assert_awaited_once() # type: ignore[attr-defined]
-        broadcast_msg = proto.broadcast_to_session.call_args[0][0] # type: ignore[attr-defined]
+        proto.broadcast_to_session.assert_not_awaited()
+        proto.send_to_client.assert_awaited_once()
+        broadcast_msg, recipient = proto.send_to_client.call_args.args
+        assert recipient == "authorized-peer"
         assert broadcast_msg.type == MessageType.CHARACTER_UPDATE, (
             f"Expected CHARACTER_UPDATE, got {broadcast_msg.type}"
         )
@@ -461,6 +471,57 @@ def _make_proto():
     proto._get_user_id = MagicMock(return_value=1)
     proto._get_client_role = MagicMock(return_value="player")
     return proto
+
+
+@pytest.mark.unit
+class TestCharacterEventPrivacy:
+    @pytest.mark.parametrize("metadata", [None, [], MagicMock(), {}])
+    async def test_missing_recipient_authority_never_falls_back_to_session_delivery(self, metadata):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto.session_manager.client_info = metadata
+        await proto._broadcast_character_event(
+            Message(MessageType.CHARACTER_UPDATE, {"character_id": "private", "updates": {"hp": 7}}),
+            1, "private",
+        )
+
+        proto.send_to_client.assert_not_awaited()
+        proto.broadcast_to_session.assert_not_awaited()
+
+    async def test_archive_recipients_are_authorized_before_their_grants_are_removed(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto.session_manager.client_info = {
+            "actor": {"user_id": 1, "role": "player"},
+            "viewer": {"user_id": 2, "role": "player"},
+            "stranger": {"user_id": 3, "role": "player"},
+        }
+        archived = False
+        manager = MagicMock()
+        manager.can_view_character.side_effect = lambda _session, _character, user_id, **_kwargs: user_id == 2 and not archived
+
+        async def archive(*_args, **_kwargs):
+            nonlocal archived
+            archived = True
+            return MagicMock(success=True, message="Archived")
+
+        with (
+            patch("managers.character_manager.get_server_character_manager", return_value=manager),
+            patch.object(proto.actions, "delete_character", new=AsyncMock(side_effect=archive)),
+        ):
+            response = await proto.handle_character_delete_request(
+                Message(MessageType.CHARACTER_DELETE_REQUEST, {"character_id": "private"}), "actor",
+            )
+
+        assert response.data["success"] is True
+        assert archived
+        proto.send_to_client.assert_awaited_once()
+        message, recipient = proto.send_to_client.call_args.args
+        assert recipient == "viewer"
+        assert message.data == {"operation": "delete", "character_id": "private"}
+        proto.broadcast_to_session.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -603,16 +664,21 @@ class TestCharacterUpdate:
             "version": 3,
             "session_code": "TST",
         })
-        with patch.object(proto.actions, "update_character", new=AsyncMock(
-            return_value=MagicMock(success=True, message="updated", data={"version": 4})
-        )):
+        with (
+            patch.object(proto.actions, "update_character", new=AsyncMock(
+                return_value=MagicMock(success=True, message="updated", data={"version": 4})
+            )),
+            patch.object(proto, "_character_client_ids", new=AsyncMock(return_value=["authorized-peer"])),
+        ):
             with patch.object(proto, "_sync_character_stats_to_tokens", new=AsyncMock()):
                 resp = await proto.handle_character_update(msg, "client1")
 
         assert resp.data["success"] is True
         assert resp.data["version"] == 4
-        proto.broadcast_to_session.assert_awaited_once()  # type: ignore[attr-defined]
-        broadcast = proto.broadcast_to_session.call_args[0][0]  # type: ignore[attr-defined]
+        proto.broadcast_to_session.assert_not_awaited()
+        proto.send_to_client.assert_awaited_once()
+        broadcast, recipient = proto.send_to_client.call_args.args
+        assert recipient == "authorized-peer"
         assert broadcast.type == MessageType.CHARACTER_UPDATE
         assert broadcast.data["updates"] == {"hp": 8}
 

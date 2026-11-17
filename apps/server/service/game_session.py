@@ -4,6 +4,8 @@ WebSocket-based game session manager with integrated table protocol
 import asyncio
 import json
 import uuid
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Set, Union
 
@@ -16,7 +18,8 @@ from database.session_utils import (
     load_game_session_protocol_from_db,
 )
 from database.writer import ApplicationWriter
-from fastapi import WebSocket, status
+from fastapi import WebSocket, WebSocketDisconnect, status
+from starlette.websockets import WebSocketState
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.time import utc_now
@@ -40,6 +43,18 @@ def _load_protocol_service(session_code: str):
     finally:
         db_session.remove()
 
+@dataclass
+class _JoinAdmission:
+    session_code: str
+    user_id: int
+    role: str
+    close_code: int | None = None
+
+    def require_active(self) -> None:
+        if self.close_code is not None:
+            raise WebSocketDisconnect(code=self.close_code, reason='Session authority changed during join')
+
+
 class ConnectionManager:
     """Manages WebSocket connections for game sessions with protocol support"""
 
@@ -52,6 +67,7 @@ class ConnectionManager:
         self.game_session_db_ids: Dict[str, int] = {}  # session_code -> game_session_db_id
         self._session_lifecycle_locks: Dict[str, asyncio.Lock] = {}
         self._cleanup_tasks: dict[str, asyncio.Task] = {}
+        self._pending_joins: dict[WebSocket, _JoinAdmission] = {}
         self.application_writer: ApplicationWriter | None = None
 
     def _generate_client_id(self) -> str:
@@ -60,33 +76,39 @@ class ConnectionManager:
 
     async def connect(self, websocket: WebSocket, session_code: str,
                       user_id: int, username: str, role: str = "player",
-                      connection_id: str | None = None) -> str:
+                      connection_id: str | None = None, *,
+                      reauthorize: Callable[[], Awaitable[str]] | None = None) -> str:
         """Connect a user to a game session with protocol support"""
         lifecycle_lock = self._session_lifecycle_locks.setdefault(
             session_code,
             asyncio.Lock(),
         )
-        async with lifecycle_lock:
-            client_id = await self._connect_locked(
-                websocket,
-                session_code,
-                user_id,
-                username,
-                role,
-                connection_id,
-            )
+        admission = _JoinAdmission(session_code, user_id, role)
+        self._pending_joins[websocket] = admission
+        try:
+            async with lifecycle_lock:
+                admission.require_active()
+                client_id = await self._connect_locked(
+                    websocket, session_code, user_id, username, role, connection_id, admission, reauthorize,
+                )
 
-        message = Message(
-            MessageType.PLAYER_JOINED, {
-                "username": username,
-                "user_id": user_id,
-                "client_id": client_id,
-                "role": role,
-                "timestamp": utc_now().isoformat()
-            }
-        )
-        await self.broadcast_to_session(session_code, message, exclude_websocket=websocket)
-        return client_id
+            message = Message(
+                MessageType.PLAYER_JOINED, {
+                    "username": username,
+                    "user_id": user_id,
+                    "client_id": client_id,
+                    "role": self.connection_info[websocket]['role'],
+                    "timestamp": utc_now().isoformat()
+                }
+            )
+            await self.broadcast_to_session(session_code, message, exclude_websocket=websocket)
+            return client_id
+        except WebSocketDisconnect as exc:
+            if websocket.application_state != WebSocketState.DISCONNECTED:
+                await websocket.close(code=exc.code, reason=exc.reason)
+            raise
+        finally:
+            self._pending_joins.pop(websocket, None)
 
     async def _connect_locked(
         self,
@@ -96,6 +118,8 @@ class ConnectionManager:
         username: str,
         role: str,
         connection_id: str | None,
+        admission: _JoinAdmission,
+        reauthorize: Callable[[], Awaitable[str]] | None,
     ) -> str:
         """Initialize and register a socket while holding its session lifecycle lock."""
         if self.application_writer is not None:
@@ -122,6 +146,7 @@ class ConnectionManager:
         else:
             protocol_service = self.sessions_protocols[session_code]
 
+        admission.require_active()
         await websocket.accept()
         if self.application_writer is not None:
             self.application_writer.require_active()
@@ -137,24 +162,31 @@ class ConnectionManager:
         }
         self.user_connections.setdefault(user_id, set()).add(websocket)
 
-        # Setup R2 asset permissions using the role resolved by the caller
-        user_role = role
+        async def finalize_authority() -> str:
+            admission.require_active()
+            current_role = await reauthorize() if reauthorize is not None else role
+            # The worker result cannot supersede a role change or revocation
+            # observed while loading. No await separates this check and enqueue.
+            admission.require_active()
+            self.connection_info[websocket]['role'] = current_role
+            get_server_asset_manager().setup_session_permissions(session_code, user_id, username, current_role)
+            return current_role
 
         try:
-            asset_manager = get_server_asset_manager()
-            asset_manager.setup_session_permissions(session_code, user_id, username, user_role)
             await protocol_service.add_client(websocket, client_id, {
                 "user_id": user_id,
                 "username": username,
                 "role": role,
                 "session_code": session_code,
                 "connection_id": self.connection_info[websocket]["connection_id"],
-            })
+            }, finalize_authority=finalize_authority)
+            admission.require_active()
         except BaseException as exc:
             # The endpoint has not yet marked this socket connected. Roll back
             # provisional registrations here, without recursively acquiring the
             # lifecycle lock via disconnect(). Cleanup must survive cancellation.
-            code = 4003 if isinstance(exc, PermissionError) else 1013
+            code = admission.close_code or (exc.code if isinstance(exc, WebSocketDisconnect)
+                else 4003 if isinstance(exc, PermissionError) else 1013)
             cleanup = asyncio.create_task(self._rollback_join(
                 protocol_service, websocket, session_code, user_id, code))
             await _finish_before_cancellation(cleanup)
@@ -341,6 +373,7 @@ class ConnectionManager:
 
     async def refresh_user_role(self, session_code: str, user_id: int, role: str) -> int:
         """Install authority and retire every changed socket on the event loop."""
+        self._invalidate_pending_joins(user_id, session_code, role=role, close_code=1012)
         targets = [websocket for websocket, info in list(self.connection_info.items())
             if info.get('session_code') == session_code and info.get('user_id') == user_id
             and info.get('role') != role]
@@ -348,6 +381,16 @@ class ConnectionManager:
         await _finish_before_cancellation(asyncio.create_task(self._disconnect_connections(targets, user_id=user_id,
             reason='Session role changed; reconnect', close_code=1012)))
         return updated
+
+    def _invalidate_pending_joins(self, user_id: int, session_code: str | None = None, *,
+                                  role: str | None = None, close_code: int = 4003) -> None:
+        for admission in self._pending_joins.values():
+            if admission.user_id != user_id or session_code is not None and admission.session_code != session_code:
+                continue
+            if role is not None and admission.role == role:
+                continue
+            if admission.close_code != 4003:
+                admission.close_code = close_code
 
     async def disconnect_user(
         self,
@@ -358,6 +401,7 @@ class ConnectionManager:
         close_code: int = status.WS_1008_POLICY_VIOLATION,
     ) -> int:
         """Close every live socket for a user and immediately clear its authority."""
+        self._invalidate_pending_joins(user_id, session_code)
         targets = [
             websocket
             for websocket in self.user_connections.get(user_id, set())
@@ -379,6 +423,7 @@ class ConnectionManager:
         close_code: int = status.WS_1008_POLICY_VIOLATION,
     ) -> int:
         """Close every live socket after account-level session revocation."""
+        self._invalidate_pending_joins(user_id)
         return await self._disconnect_connections(
             list(self.user_connections.get(user_id, set())),
             user_id=user_id,

@@ -8,6 +8,7 @@ import asyncio
 import copy
 import json
 import time
+from collections.abc import Awaitable, Callable
 from typing import Dict, List, Optional
 
 from config import Settings
@@ -147,7 +148,8 @@ class GameSessionProtocolService:
             logger.error(f"Session {self.session_code} - Force save failed: {e}")
             return False
 
-    async def add_client(self, websocket: WebSocket, client_id: str, user_info: dict):
+    async def add_client(self, websocket: WebSocket, client_id: str, user_info: dict, *,
+                         finalize_authority: Callable[[], Awaitable[str]] | None = None):
         """Add a client to this game session. Raises PermissionError if the player is banned."""
         game_mode = 'free_roam'
         rules_dict: dict = {}
@@ -164,10 +166,12 @@ class GameSessionProtocolService:
                     load_join_metadata, self.game_session_db_id, self.session_code,
                     str(user_info.get('user_id', '')), user_info.get('username', ''),
                 )
-            await self._register_client(websocket, client_id, user_info, game_mode, rules_dict, recovery)
+            await self._register_client(websocket, client_id, user_info, game_mode, rules_dict, recovery,
+                                        finalize_authority=finalize_authority)
         await self._outboxes[websocket].drain()
 
-    async def _register_client(self, websocket, client_id, user_info, game_mode, rules_dict, recovery=None):
+    async def _register_client(self, websocket, client_id, user_info, game_mode, rules_dict, recovery=None, *,
+                               finalize_authority: Callable[[], Awaitable[str]] | None = None):
         if self.server_protocol._has_pending_session_edit():
             raise RuntimeError('Session settings must settle before loading join metadata')
         if self.server_protocol._has_pending_table_edit():
@@ -182,8 +186,9 @@ class GameSessionProtocolService:
         if self.server_protocol._has_pending_sprite_write():
             if await self.server_protocol._recover_pending_sprite_write() is not None:
                 raise RuntimeError('Sprite acceptance must settle before joining')
-        role = user_info.get('role', 'player')
         active_encounter = await self.server_protocol._load_active_choice_encounter(self.session_code)
+        role = await finalize_authority() if finalize_authority is not None else user_info.get('role', 'player')
+        user_info = {**user_info, 'role': role}
         choice_encounter = active_encounter.to_dict(dm=_is_dm(role)) if active_encounter else None
 
         self.clients[client_id] = websocket

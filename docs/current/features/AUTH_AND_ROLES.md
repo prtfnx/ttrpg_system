@@ -208,6 +208,15 @@ welcome and hydration. This applies to promotions as well as demotions so an old
 partial view cannot survive the authority change. Repeating the same role keeps
 healthy sockets. Retirement completes even if the initiating caller is cancelled.
 
+Pending joins are indexed before waiting for session initialization. A role
+change invalidates changed-role admissions with retryable `1012`; a kick or
+account revocation invalidates admission with terminal access denial. The
+admission is checked after asynchronous hydration and before private welcome
+enqueue, so a late load cannot register a retired socket. Final authority is
+installed consistently in the protocol, connection index, asset permissions,
+welcome, and peer announcement. Unrelated or same-role refreshes preserve
+pending joins. `test_join_admission.py` covers these suspension boundaries.
+
 Already-delivered data or a frame already handed to the socket transport cannot
 be retracted. Queued events and remaining snapshot frames stop; an interrupted
 snapshot must be rebuilt under current authority after reconnect. This does not

@@ -340,6 +340,22 @@ describe('Protocol Message Utilities', () => {
     }))).toThrow(/Invalid message/);
   });
 
+  it('validates moderation resync and scoped unknown outcomes', () => {
+    const accepted = { type: MessageType.PLAYER_KICK_RESPONSE, data: {
+      success: true, kicked_player: '3', kicked_by: 'GM', reason: 'Reason', resync_required: true,
+    } };
+    expect(parseMessage(JSON.stringify(accepted)).data).toMatchObject({ success: true, resync_required: true });
+    expect(() => parseMessage(JSON.stringify({ ...accepted,
+      data: { ...accepted.data, resync_required: 'yes' },
+    }))).toThrow(/Invalid message/);
+    const unknown = { type: MessageType.ERROR, data: { error: 'Refresh membership', code: 'outcome_unknown',
+      domain: 'session_moderation', outcome: 'unknown', resync_required: true } };
+    expect(parseMessage(JSON.stringify(unknown)).data).toMatchObject({ outcome: 'unknown' });
+    expect(() => parseMessage(JSON.stringify({ ...unknown,
+      data: { ...unknown.data, domain: 'unregistered' },
+    }))).toThrow(/Invalid message/);
+  });
+
   it('should validate table settings payloads', () => {
     const validData = {
       table_id: 'table-1',

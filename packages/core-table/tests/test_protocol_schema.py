@@ -9,6 +9,26 @@ SPRITE_MUTATIONS = {"sprite_create", "sprite_remove", "sprite_move", "sprite_sca
                     "compendium_sprite_add", "compendium_sprite_update", "compendium_sprite_remove"}
 
 
+@pytest.mark.parametrize('kind,details', [
+    ('player_kick_response', {'kicked_player': '3', 'kicked_by': 'GM'}),
+    ('player_ban_response', {'banned_player': '3', 'banned_by': 'GM', 'duration': 'permanent'}),
+])
+def test_moderation_acceptance_allows_optional_typed_resync(kind, details):
+    data = {'success': True, 'reason': 'Reason', **details}
+    Message.from_dict({'type': kind, 'data': data})
+    Message.from_dict({'type': kind, 'data': {**data, 'resync_required': True}})
+    with pytest.raises(ValueError):
+        Message.from_dict({'type': kind, 'data': {**data, 'resync_required': 'yes'}})
+
+
+def test_moderation_unknown_uses_the_shared_uncertainty_code_and_explicit_domain():
+    message = {'type': 'error', 'data': {'error': 'Refresh membership', 'code': 'outcome_unknown',
+        'domain': 'session_moderation', 'outcome': 'unknown', 'resync_required': True}}
+    Message.from_dict(message)
+    with pytest.raises(ValueError):
+        Message.from_dict({**message, 'data': {**message['data'], 'domain': 'unregistered'}})
+
+
 @pytest.mark.parametrize('extra', [{}, {'source_table_id': '51f0094e-66af-4f2d-91e1-b0caef9d33ed'},
     {'table_data': {'layers': {}}}])
 def test_table_create_copy_and_import_have_original_wire_identity(extra):

@@ -880,7 +880,7 @@
           "type": "object"
         },
         "domain": {
-          "const": "session_settings"
+          "enum": ["session_settings", "session_moderation"]
         }
       },
       "additionalProperties": false
@@ -1224,6 +1224,7 @@
         "reason"
       ],
       "properties": {
+        "resync_required": {"type": "boolean"},
         "success": {
           "const": true
         },

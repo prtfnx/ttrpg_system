@@ -596,3 +596,17 @@ broadcasts carry present policy, not historical receipt data. Unknown errors use
 the same domain and reveal no other actor's identity. Current read failure uses
 session_settings_unavailable and retains existing browser state. Persisted v1/v2
 domains are unchanged.
+
+
+## Moderation acknowledgement recovery
+
+`player_kick_response` and `player_ban_response` retain their closed success
+payloads and allow an optional boolean `resync_required`. A missing flag remains
+valid. It requests a fresh player-list read after known acceptance; it does not
+turn acceptance into rejection.
+
+Uncertain moderation uses the existing `outcome_unknown` error code with
+`domain: session_moderation`, `outcome: unknown`, and `resync_required: true`.
+The error domain is closed to `session_settings` and `session_moderation`.
+The canonical schema and generated Python/browser validators enforce the same
+types. Moderation is outside the persisted automatic recovery journal domains.

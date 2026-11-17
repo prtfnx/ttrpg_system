@@ -1396,6 +1396,12 @@ export class WebClientProtocol {
     }
     this.settingsBuffer.reject(message);
     if (message.data?.outcome === 'unknown') {
+      if (message.data.domain === 'session_moderation') {
+        this.requestPlayerList();
+        showToast.warning('The moderation result is uncertain. Check session membership before trying again.');
+        emitProtocolEvent('protocol-error', message.data);
+        return;
+      }
       if (message.data.domain === 'session_settings') {
         if ((message.causation_id ?? message.correlation_id) !== this.sessionSettingsProbeId) this.reconcileSessionSettings();
         emitProtocolEvent('protocol-error', message.data);
@@ -3162,11 +3168,13 @@ export class WebClientProtocol {
 
   private async handlePlayerKickResponse(message: Message): Promise<void> {
     logger.debug('Protocol: Player kick response:', message.data);
+    if (message.data?.resync_required === true) this.requestPlayerList();
     emitProtocolEvent('player-kick-response', message.data);
   }
 
   private async handlePlayerBanResponse(message: Message): Promise<void> {
     logger.debug('Protocol: Player ban response:', message.data);
+    if (message.data?.resync_required === true) this.requestPlayerList();
     emitProtocolEvent('player-ban-response', message.data);
   }
 

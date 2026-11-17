@@ -295,7 +295,11 @@ response returns `outcome_unknown` with `domain: session_moderation` and
 conservatively retires the old tabs. Refresh authoritative membership before making another deliberate decision;
 these actions are not added to persisted automatic mutation replay. A delivery
 failure after known acceptance reports success with `resync_required` and cannot
-undo the committed removal. Regression owners: `test_session_moderation.py` and
+undo the committed removal. The browser refreshes the connected-player list
+after a resync acknowledgement or uncertain moderation error and keeps an
+explicit uncertainty warning. That read cannot prove the database commit and
+never resends the destructive original. Regression owners:
+`test_session_moderation.py` and
 `test_moderation_protocol.py`, plus existing connection/admission and admin suites.
 
 ## Separate demo identity

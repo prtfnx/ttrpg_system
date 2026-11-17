@@ -2329,6 +2329,40 @@ describe('WebClientProtocol', () => {
       expect(fn).toHaveBeenCalledOnce();
     });
 
+    it.each([
+      ['player_kick_response', { kicked_player: '3', kicked_by: 'GM' }],
+      ['player_ban_response', { banned_player: '3', banned_by: 'GM', duration: 'permanent' }],
+    ])('%s refreshes the player list after accepted delivery failure', async (kind, details) => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      await dispatch(p, kind, { ...details, success: true, reason: 'Reason', resync_required: true });
+      expect(ws.send.mock.calls.map(call => JSON.parse(call[0]).type)).toEqual(['player_list_request']);
+    });
+
+    it('refreshes uncertain moderation without resending the destructive original', async () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.banPlayer('3');
+      const original = JSON.parse(ws.send.mock.calls[0][0]);
+      const error = vi.fn();
+      window.addEventListener('protocol-error', error);
+      try {
+        await (p as unknown as { handleIncomingMessage(raw: string): Promise<void> }).handleIncomingMessage(JSON.stringify({
+          type: 'error', causation_id: original.message_id, data: { error: 'Refresh membership', code: 'outcome_unknown',
+            domain: 'session_moderation', outcome: 'unknown', resync_required: true },
+        }));
+        p.sendBatch();
+        expect(ws.send.mock.calls.map(call => JSON.parse(call[0]).type)).toEqual(['player_ban_request', 'player_list_request']);
+        expect(error).toHaveBeenCalledOnce();
+        const { showToast } = await import('@shared/utils/toast');
+        expect(showToast.warning).toHaveBeenCalledWith(
+          'The moderation result is uncertain. Check session membership before trying again.',
+        );
+      } finally {
+        window.removeEventListener('protocol-error', error);
+      }
+    });
+
     it('TABLE_DATA dispatches table-data-received', async () => {
       const p = makeProtocol();
       const fn = vi.fn();

@@ -205,9 +205,22 @@ async def websocket_game_endpoint(
 
                 raise RuntimeError("Unknown WebSocket authorization result")
 
+            assert token is not None
             user_id = context.user_id
             username = context.username
             role = context.role
+
+            async def reauthorize() -> str:
+                nonlocal context
+                current, reason = await run_blocking(
+                    _load_websocket_session_context, token, session_code, *([True] if demo else []),
+                )
+                if current is None or current.user_id != user_id:
+                    raise WebSocketDisconnect(code=status.WS_1008_POLICY_VIOLATION,
+                        reason=('Demo expired' if demo else 'Authentication expired')
+                        if reason == 'authentication' else 'Session access revoked')
+                context = current
+                return current.role
 
             client_id = await connection_manager.connect(
                 websocket,
@@ -216,7 +229,9 @@ async def websocket_game_endpoint(
                 username,
                 role,
                 connection_id=connection_id,
+                reauthorize=reauthorize,
             )
+            role = context.role
             connected = True
             WS_ACTIVE.inc()
             record_ws_connection("opened")

@@ -217,6 +217,15 @@ installed consistently in the protocol, connection index, asset permissions,
 welcome, and peer announcement. Unrelated or same-role refreshes preserve
 pending joins. `test_join_admission.py` covers these suspension boundaries.
 
+The WebSocket endpoint repeats the signed-cookie authentication and active
+membership lookup in a fresh worker-owned database session after hydration.
+It uses the current role rather than the earlier handshake role. Expired or
+revoked credentials, disabled accounts, removed membership, and inactive
+sessions close with terminal `1008` before a welcome is sent. Demo joins use
+the same final check with their scoped guest credential. A revocation seen
+during the worker read wins over its late result. Signed-token/SQLite cases
+in `test_join_admission.py` verify these changes during hydration.
+
 Already-delivered data or a frame already handed to the socket transport cannot
 be retracted. Queued events and remaining snapshot frames stop; an interrupted
 snapshot must be rebuilt under current authority after reconnect. This does not

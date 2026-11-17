@@ -168,6 +168,7 @@ class ConnectionManager:
             # The worker result cannot supersede a role change or revocation
             # observed while loading. No await separates this check and enqueue.
             admission.require_active()
+            admission.role = current_role
             self.connection_info[websocket]['role'] = current_role
             get_server_asset_manager().setup_session_permissions(session_code, user_id, username, current_role)
             return current_role

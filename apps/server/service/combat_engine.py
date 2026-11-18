@@ -786,7 +786,7 @@ class CombatEngine:
         conc_results = []
         for dr in result.damage_results:
             if dr['damage'] > 0:
-                conc = cls.apply_damage(session_id, dr['target_id'], dr['damage'])
+                conc = cls.apply_damage(session_id, dr['target_id'], dr['damage'], damage_type)
                 conc_results.append(conc)
 
         action = CombatAction(

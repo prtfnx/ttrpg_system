@@ -113,9 +113,18 @@ class AttackResolver:
 
     def resolve_saving_throw(
         self, combatant: Combatant, ability: str, dc: int,
-        bonus: int = 0
+        bonus: int | None = None,
     ) -> SaveResult:
-        roll = DiceEngine.roll(f'1d20+{bonus}')
+        if bonus is None:
+            name = ability.strip().lower()
+            canonical = {
+                'str': 'strength', 'dex': 'dexterity', 'con': 'constitution',
+                'int': 'intelligence', 'wis': 'wisdom', 'cha': 'charisma',
+            }.get(name, name)
+            bonus = combatant.save_modifiers.get(
+                canonical, combatant.save_modifiers.get(canonical[:3], 0),
+            )
+        roll = DiceEngine.roll(f'1d20{bonus:+d}')
         return SaveResult(success=roll.total >= dc, roll=roll, dc=dc)
 
     @staticmethod

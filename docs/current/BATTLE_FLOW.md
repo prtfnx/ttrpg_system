@@ -186,6 +186,13 @@ or compendium/NPC data. Explicit DM overrides are limited to safe display/core
 stat fields. Ownership, spell slots, save modifiers, action definitions, damage
 traits, and other rules metadata are server-derived.
 
+Spell saving throws resolve their bonus from the target combatant's stored
+`save_modifiers`, accepting short and full ability names. An explicit resolver
+bonus still overrides that lookup, including zero. Spell damage carries its
+damage type into HP application so resistance, immunity and vulnerability
+apply to both attack-roll and saving-throw spells. `test_spell_defenses.py`
+checks the resulting HP and resource use.
+
 ## Movement and opportunity attacks
 
 Combat movement has one write path:

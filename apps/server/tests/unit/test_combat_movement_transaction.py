@@ -66,7 +66,7 @@ def game(test_db, test_db_engine, test_game_session, monkeypatch):
                 "from_x": start, "from_y": 100, "target_x": target, "target_y": 100, **fields}
 
     def attack(**fields):
-        return {"type": "attack", "actor_id": hero.sprite_id, "target_id": enemy.sprite_id,
+        return {"type": "attack", "manual": True, "actor_id": hero.sprite_id, "target_id": enemy.sprite_id,
                 "table_id": str(table.table_id), "attack_bonus": 20, "damage_formula": "1d4", "range_ft": 5, **fields}
 
     async def command(commands, sequence=2):

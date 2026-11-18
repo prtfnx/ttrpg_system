@@ -6,7 +6,9 @@ from dataclasses import replace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from core_table.table import VirtualTable
 from service.attack_resolver import AttackResult
+from service.combat_actions import available_combat_actions
 from service.combat_command_service import (
     CombatCommandContext,
     CombatCommandService,
@@ -15,12 +17,24 @@ from service.combat_engine import CombatEngine
 from service.combat_persistence_service import CombatJournalEntry, PersistedCombatCommand
 
 
+def _table():
+    table = VirtualTable('Commands', 1000, 1000)
+    table.add_entity({'sprite_id': 'sprite-a', 'position': [0, 0], 'layer': 'tokens'})
+    table.add_entity({'sprite_id': 'sprite-b', 'position': [50, 0], 'layer': 'tokens'})
+    return table
+
+
+def _action(actor, kind='attack'):
+    return next(action.action_id for action in available_combat_actions(actor) if action.kind == kind)
+
+
 def _context(role: str = "owner", user_id: int | None = 1) -> CombatCommandContext:
     return CombatCommandContext(
         session_code="cmd",
         client_id="c1",
         role=role,
         user_id=user_id,
+        table_lookup=lambda _: _table(),
     )
 
 
@@ -83,6 +97,13 @@ def _state():
         ],
     )
     state.current_turn_index = 0
+    for actor in state.combatants:
+        actor.actor_actions = [
+            {'name': 'Sword', 'combat': {'kind': 'attack', 'effect': 'attack_roll',
+                'damage_formula': '1d6+2', 'damage_type': 'slashing', 'range_ft': 5.0, 'attack_bonus': 5}},
+            {'name': 'Test bolt', 'combat': {'kind': 'spell', 'effect': 'automatic',
+                'damage_formula': '1d4', 'damage_type': 'force', 'range_ft': 120.0, 'spell_level': 1}},
+        ]
     return state, state.combatants[0], state.combatants[1]
 
 
@@ -95,7 +116,7 @@ def test_player_command_executes_attack_for_owned_current_combatant():
             "type": "attack",
             "actor_id": attacker.combatant_id,
             "target_id": target.combatant_id,
-            "damage_formula": "1d6",
+            "action_id": _action(attacker),
         }],
     })
 
@@ -119,7 +140,7 @@ def test_command_accepts_token_ids_and_applies_to_combatants():
             "type": "attack",
             "actor_id": attacker.entity_id,
             "target_id": target.entity_id,
-            "damage_formula": "1d6",
+            "action_id": _action(attacker),
         }],
     })
 
@@ -993,9 +1014,7 @@ def test_player_resolves_owned_opportunity_attack_outside_their_turn():
             "type": "resolve_opportunity_attack",
             "actor_id": attacker.combatant_id,
             "target_id": target.combatant_id,
-            "attack_bonus": 5,
-            "damage_formula": "1d6+2",
-            "damage_type": "slashing",
+            "action_id": _action(attacker),
         }],
     })
 
@@ -1074,6 +1093,7 @@ def test_opportunity_attack_persistence_failure_rolls_back_reaction_and_damage()
             "type": "resolve_opportunity_attack",
             "actor_id": attacker.combatant_id,
             "target_id": target.combatant_id,
+            "action_id": _action(attacker),
         }],
     })
 
@@ -1200,7 +1220,7 @@ async def test_planned_move_attack_end_turn_resolves_as_one_batch():
                 "type": "attack",
                 "actor_id": actor.combatant_id,
                 "target_id": target.combatant_id,
-                "damage_formula": "1d6",
+                "action_id": _action(actor),
             },
             {
                 "type": "end_turn",
@@ -1214,6 +1234,7 @@ async def test_planned_move_attack_end_turn_resolves_as_one_batch():
         client_id="c1",
         role="player",
         user_id=1,
+        table_lookup=lambda _: _table(),
         move_sprite=move_sprite,
         validate_move=lambda *_args: {
             "success": True,
@@ -1252,8 +1273,7 @@ def test_planned_spell_consumes_action_and_spell_slot():
         "commands": [{
             "type": "cast_spell",
             "actor_id": caster.combatant_id,
-            "spell_name": "Magic Missile",
-            "spell_level": 1,
+            "action_id": _action(caster, "spell"),
             "target_ids": [target.combatant_id],
         }],
     })

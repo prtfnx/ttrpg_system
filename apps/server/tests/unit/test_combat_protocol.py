@@ -12,7 +12,9 @@ import pytest
 from core_table.protocol import Message, MessageType
 from core_table.server import TableManager
 from core_table.session_rules import SessionRules
+from core_table.table import VirtualTable
 from service.attack_resolver import AttackResult
+from service.combat_actions import available_combat_actions
 from service.combat_engine import CombatEngine
 from service.combat_persistence_service import PersistedCombatCommand
 from service.combatant_factory import CombatantFactory, CombatantSourceError
@@ -313,11 +315,17 @@ class TestCombatCommand:
         state.current_turn_index = 0
         attacker = state.combatants[0]
         target = state.combatants[1]
+        attacker.actor_actions = [{'name': 'Sword', 'combat': {'kind': 'attack', 'effect': 'attack_roll',
+            'damage_formula': '1d6', 'damage_type': 'slashing', 'range_ft': 5.0}}]
         proto = _ProtoStub(client_info={
             "c1": {"user_id": 1, "role": "player"},
             "c2": {"user_id": 2, "role": "player"},
         })
 
+        table = VirtualTable('Protocol', 1000, 1000)
+        for index, actor in enumerate(state.combatants):
+            table.add_entity({'sprite_id': actor.entity_id, 'position': [index * 50, 0], 'layer': 'tokens'})
+        proto.table_manager.tables_id['t1'] = table
         with patch.object(CombatEngine, "apply_damage", return_value={"new_hp": 15}):
             with patch("service.attack_resolver.AttackResolver") as resolver:
                 resolver.return_value.resolve_attack.return_value = AttackResult(hit=True, damage_dealt=5)
@@ -328,7 +336,7 @@ class TestCombatCommand:
                             "type": "attack",
                             "actor_id": attacker.combatant_id,
                             "target_id": target.combatant_id,
-                            "damage_formula": "1d6",
+                            "action_id": available_combat_actions(attacker)[0].action_id,
                         }],
                     }),
                     "c1",

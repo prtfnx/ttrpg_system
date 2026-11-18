@@ -8,11 +8,12 @@ from copy import deepcopy
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 from enum import Enum
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Literal, Optional
 
 from core_table.combat import CombatAction, CombatState
 from core_table.dice import validate_dice_formula
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from service.combat_action_commands import apply_combat_action
 from service.combat_movement import CombatMovementDraft
 from service.combat_persistence_service import CombatCommitOutcomeUnknown, CombatPersistenceService
 from service.combatant_factory import CombatantSourceError
@@ -96,6 +97,10 @@ class CombatCommand(BaseModel):
     cost_ft: Optional[float] = None
     path: list[Any] = Field(default_factory=list)
     attack_bonus: int = 0
+    action_id: str | None = Field(default=None, min_length=1, max_length=96)
+    manual: bool = False
+    effect: Literal['attack_roll', 'saving_throw', 'automatic'] | None = None
+    save_half: bool = True
     damage_formula: str = "1d4"
     damage_type: str = "bludgeoning"
     attack_type: str = "melee"
@@ -518,50 +523,9 @@ class CombatCommandService:
         if command.type == CombatCommandType.DM_OVERRIDE:
             return self._apply_dm_override(command, context, state, actor_id)
 
-        if command.type == CombatCommandType.RESOLVE_OPPORTUNITY_ATTACK:
-            return self._apply_opportunity_attack(command, context, state, actor_id)
-
-        if command.type == CombatCommandType.ATTACK:
-            if not command.target_id:
-                return {"error": "target_id required"}
-            target_id = self._resolve_combatant_id(state, command.target_id)
-            if target_id is None:
-                return {"error": "target_id not found"}
-            table = context.table_lookup(command.table_id or "")
-            return self._engine.execute_attack(
-                context.session_code,
-                attacker_id=actor_id,
-                target_id=target_id,
-                attack_bonus=command.attack_bonus,
-                damage_formula=command.damage_formula,
-                damage_type=command.damage_type,
-                attack_type=command.attack_type,
-                weapon_range_ft=command.range_ft,
-                table=table,
-            )
-
-        if command.type == CombatCommandType.CAST_SPELL:
-            target_ids = [
-                combatant_id
-                for target in command.target_ids
-                if (combatant_id := self._resolve_combatant_id(state, target)) is not None
-            ]
-            if command.target_ids and len(target_ids) != len(command.target_ids):
-                return {"error": "target_id not found"}
-            return self._engine.execute_spell(
-                context.session_code,
-                caster_id=actor_id,
-                spell_name=command.spell_name,
-                spell_level=command.spell_level,
-                target_ids=target_ids,
-                damage_formula=command.damage_formula,
-                save_ability=command.save_ability,
-                save_dc=command.save_dc,
-                damage_type=command.damage_type,
-                requires_attack_roll=command.requires_attack_roll,
-                attack_bonus=command.attack_bonus,
-                is_concentration=command.is_concentration,
-            )
+        if command.type in {CombatCommandType.ATTACK, CombatCommandType.CAST_SPELL,
+                            CombatCommandType.RESOLVE_OPPORTUNITY_ATTACK}:
+            return apply_combat_action(self, command, context, state, actor_id)
 
         if command.type == CombatCommandType.ROLL_INITIATIVE:
             value = self._engine.roll_initiative(context.session_code, actor_id)
@@ -619,65 +583,6 @@ class CombatCommandService:
             actor_id,
             command.type.value,
         )
-
-    def _apply_opportunity_attack(
-        self,
-        command: CombatCommand,
-        context: CombatCommandContext,
-        state,
-        actor_id: str,
-    ) -> dict[str, Any]:
-        if not command.use_reaction:
-            return {
-                "resolved": True,
-                "passed": True,
-                "attacker": actor_id,
-                "target": command.target_id,
-            }
-        if not command.target_id:
-            return {"error": "target_id required"}
-        target_id = self._resolve_combatant_id(state, command.target_id)
-        if target_id is None:
-            return {"error": "target_id not found"}
-
-        attacker = self._get_combatant(state, actor_id)
-        target = self._get_combatant(state, target_id)
-        if attacker is None or target is None:
-            return {"error": "Combatant not found"}
-        if not attacker.has_reaction:
-            return {"error": "Reaction already used"}
-
-        from core_table.session_rules import SessionRules
-        from service.attack_resolver import AttackResolver
-
-        attacker.has_reaction = False
-        resolver = AttackResolver(SessionRules.defaults(context.session_code or "default"))
-        result = resolver.resolve_attack(
-            attacker,
-            target,
-            attack_bonus=command.attack_bonus,
-            damage_formula=command.damage_formula or "1d6+0",
-            damage_type=command.damage_type or "bludgeoning",
-            combat=state,
-        )
-        damage_result = None
-        if result.hit:
-            damage_result = self._engine.apply_damage(
-                context.session_code,
-                target_id,
-                result.damage_dealt,
-            )
-
-        payload = {
-            "hit": result.hit,
-            "damage": result.damage_dealt,
-            "attacker": actor_id,
-            "target": target_id,
-            "reason": result.reason,
-        }
-        if damage_result is not None:
-            payload["damage_result"] = damage_result
-        return payload
 
     def _apply_revert_action(
         self,

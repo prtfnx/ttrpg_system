@@ -3,6 +3,7 @@ from copy import deepcopy
 from unittest.mock import MagicMock
 
 import pytest
+from core_table.table import VirtualTable
 from service.combat_command_service import CombatCommandContext, CombatCommandService
 from service.combat_engine import CombatEngine
 
@@ -25,9 +26,13 @@ def scenario(monkeypatch):
     envelope = service.parse_envelope({'sequence_id': 12, 'commands': [
         {'type': 'dm_override', 'actor_id': target.combatant_id, 'override_type': 'set_hp', 'value': 5},
         {'type': 'cast_spell', 'actor_id': caster.combatant_id, 'spell_name': 'Test',
-         'spell_level': 1, 'target_ids': [target.combatant_id]},
+         'spell_level': 1, 'manual': True, 'effect': 'automatic', 'target_ids': [target.combatant_id]},
     ]})
-    context = CombatCommandContext(session_code='apply-rollback', client_id='owner', role='owner', user_id=1)
+    table = VirtualTable('Rollback', 1000, 1000)
+    table.add_entity({'sprite_id': 'caster', 'position': [0, 0], 'layer': 'tokens'})
+    table.add_entity({'sprite_id': 'target', 'position': [50, 0], 'layer': 'tokens'})
+    context = CombatCommandContext(session_code='apply-rollback', client_id='owner', role='owner', user_id=1,
+                                  table_lookup=lambda _: table)
 
     def fail(*_args, **_kwargs):
         caster.spell_slots[1] -= 1

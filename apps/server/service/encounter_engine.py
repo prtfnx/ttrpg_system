@@ -250,7 +250,7 @@ class EncounterEngine:
             return {"error": "invalid state"}
 
         dc = int(choice.roll_dc)
-        roll = DiceEngine.roll(f"1d20+{bonus}")
+        roll = DiceEngine.roll(f"1d20{bonus:+d}")
         success = roll.total >= dc
         enc.roll_results.append(EncounterRollResult(
             player_id=player_id,

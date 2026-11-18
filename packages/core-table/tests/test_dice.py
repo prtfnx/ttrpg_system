@@ -1,4 +1,5 @@
 """Tests for dice engine."""
+import pytest
 from core_table.dice import DiceEngine
 
 
@@ -62,3 +63,28 @@ def test_roll_zero_modifier():
     result = DiceEngine.roll('1d4')
     assert result.modifier == 0
     assert 1 <= result.total <= 4
+
+
+@pytest.mark.parametrize('formula', [
+    '1000000000d6', '51d6+50d8', '1d0', '1d1001', '0d6', '1d6junk',
+    '1d6+-2', '1d6-1d4', '', '1d6+1000001', '1d6+600000+600000',
+    '+'.join(['1d6'] * 11), '1' * 201,
+])
+def test_invalid_or_excessive_formula_is_rejected_before_rng(monkeypatch, formula):
+    def forbidden(*_args):
+        pytest.fail('invalid formulas must not roll any dice')
+
+    monkeypatch.setattr('core_table.dice.random.randint', forbidden)
+    with pytest.raises(ValueError):
+        DiceEngine.roll(formula)
+
+
+@pytest.mark.parametrize(('formula', 'dice_count', 'modifier'), [
+    ('100d1000', 100, 0), ('2d6 + 1d8 - 3 + 2', 3, -1),
+    ('d6+0', 1, 0), ('4', 0, 4), ('1D20-3', 1, -3),
+])
+def test_complete_bounded_formula_contract(formula, dice_count, modifier):
+    result = DiceEngine.roll(formula)
+    assert len(result.rolls) == dice_count
+    assert result.modifier == modifier
+    assert result.total == sum(result.rolls) + modifier

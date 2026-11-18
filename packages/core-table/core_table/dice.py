@@ -25,17 +25,54 @@ class DiceRollResult:
 
 
 _DICE_RE = re.compile(r'(\d+)d(\d+)')
-_MOD_RE = re.compile(r'([+-]\d+)$')
+MAX_FORMULA_LENGTH = 200
+MAX_FORMULA_TERMS = 10
+MAX_DICE_PER_ROLL = 100
+MAX_DIE_SIDES = 1000
+MAX_ROLL_MODIFIER = 1_000_000
+_FORMULA_RE = re.compile(r'[+-]?(?:\d*d\d+|\d+)(?:[+-](?:\d*d\d+|\d+))*')
+_TERM_RE = re.compile(r'([+-]?)(?:(\d*)d(\d+)|(\d+))')
+
+
+def validate_dice_formula(formula: str) -> tuple[tuple[tuple[int, int], ...], int]:
+    """Parse a complete bounded expression without rolling or allocating dice."""
+    if not isinstance(formula, str) or not 1 <= len(formula) <= MAX_FORMULA_LENGTH:
+        raise ValueError('Dice formula must contain 1-200 characters')
+    normalized = re.sub(r'\s+', '', formula).lower()
+    if not _FORMULA_RE.fullmatch(normalized):
+        raise ValueError('Dice formula must contain dice and integer modifiers joined by + or -')
+    groups: list[tuple[int, int]] = []
+    modifier = dice_count = term_count = 0
+    for term in _TERM_RE.finditer(normalized):
+        term_count += 1
+        if term_count > MAX_FORMULA_TERMS:
+            raise ValueError('Dice formula exceeds 10 terms')
+        sign, count, sides, constant = term.groups()
+        if sides is not None:
+            count_value, sides_value = int(count or '1'), int(sides)
+            if sign == '-' or not 1 <= count_value <= MAX_DICE_PER_ROLL:
+                raise ValueError('Dice groups require 1-100 positive dice')
+            if not 1 <= sides_value <= MAX_DIE_SIDES:
+                raise ValueError('Die sides must be between 1 and 1000')
+            dice_count += count_value
+            if dice_count > MAX_DICE_PER_ROLL:
+                raise ValueError('Dice formula exceeds 100 total dice')
+            groups.append((count_value, sides_value))
+        else:
+            value = int(constant)
+            if value > MAX_ROLL_MODIFIER:
+                raise ValueError('Dice modifier exceeds 1000000')
+            modifier += -value if sign == '-' else value
+            if abs(modifier) > MAX_ROLL_MODIFIER:
+                raise ValueError('Total dice modifier exceeds 1000000')
+    return tuple(groups), modifier
 
 
 def _parse_rolls(formula: str) -> tuple[list[int], int]:
     """Return (all rolls combined, total modifier) for a formula like '2d6+1d8+3'."""
     rolls: list[int] = []
-    mod = 0
-    for m in _MOD_RE.finditer(formula):
-        mod += int(m.group(1))
-    for m in _DICE_RE.finditer(formula):
-        count, sides = int(m.group(1)), int(m.group(2))
+    groups, mod = validate_dice_formula(formula)
+    for count, sides in groups:
         rolls.extend(random.randint(1, sides) for _ in range(count))
     return rolls, mod
 

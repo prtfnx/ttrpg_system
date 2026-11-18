@@ -11,6 +11,7 @@ from enum import Enum
 from typing import Any, Awaitable, Callable, Optional
 
 from core_table.combat import CombatAction, CombatState
+from core_table.dice import validate_dice_formula
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from service.combat_movement import CombatMovementDraft
 from service.combat_persistence_service import CombatCommitOutcomeUnknown, CombatPersistenceService
@@ -70,7 +71,7 @@ class DMResourceType(str, Enum):
 
 
 class CombatCommand(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     type: CombatCommandType
     actor_id: str = Field(min_length=1)
@@ -122,6 +123,13 @@ class CombatCommand(BaseModel):
     slot_level: Optional[int] = Field(default=None, ge=1, le=9)
     use_reaction: bool = True
 
+    @field_validator('damage_formula')
+    @classmethod
+    def _validate_damage_formula(cls, value: str) -> str:
+        if value:
+            validate_dice_formula(value)
+        return value
+
     @field_validator("target_ids", mode="before")
     @classmethod
     def _coerce_target_ids(cls, value: Any) -> list[str]:
@@ -145,7 +153,7 @@ class CombatCommandEnvelope(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     sequence_id: int = 0
-    commands: list[CombatCommand] = Field(default_factory=list, min_length=1)
+    commands: list[CombatCommand] = Field(default_factory=list, min_length=1, max_length=50)
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "CombatCommandEnvelope":

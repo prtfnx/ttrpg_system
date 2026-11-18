@@ -232,3 +232,14 @@ journal acceptance. No client fallback is installed on that path. add_combatant
 also requires the active encounter's table. These checks leave an existing
 encounter unchanged. Isolated non-database factory consumers retain compatibility
 fallbacks; they are not the production persistence contract.
+
+## Computational input limits
+
+A combat envelope admits at most 50 commands and rejects non-finite numeric
+fields before application. Damage formulas use the shared bounded dice parser:
+1-200 characters, at most 10 additive terms, 100 total positive dice, die sides
+from 1 to 1000 and integer modifiers bounded to 1000000 in magnitude. Constants
+and short forms such as `d6` are supported; negative dice groups, trailing junk,
+zero-sided dice and zero-count dice are rejected before any RNG or mutation.
+Whitespace and letter case are normalized. `test_combat_input_budget.py` and
+the shared `test_dice.py` regressions cover both the protocol and engine limits.

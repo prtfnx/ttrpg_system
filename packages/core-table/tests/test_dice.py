@@ -43,12 +43,28 @@ def test_roll_disadvantage():
         assert 1 <= r.total <= 20
 
 
-def test_apply_critical_doubles_dice():
-    import random
-    random.seed(42)
+def test_apply_critical_rolls_extra_dice_without_doubling_modifier(monkeypatch):
+    rolls = iter([2, 5])
+    monkeypatch.setattr('core_table.dice.random.randint', lambda *_args: next(rolls))
     result = DiceEngine.roll('1d6+3')
-    crit = DiceEngine.apply_critical(result, 'double_dice')
-    assert crit.rolls >= result.rolls  # doubled dice
+    crit = DiceEngine.apply_critical(result, 'double_dice', is_critical=True)
+    assert crit.rolls == [2, 5]
+    assert crit.total == 10
+    assert crit.modifier == 3
+    assert crit.is_critical
+
+
+@pytest.mark.parametrize(('rule', 'total'), [('max_dice', 9), ('double_total', 10)])
+def test_critical_rule_totals(monkeypatch, rule, total):
+    monkeypatch.setattr('core_table.dice.random.randint', lambda *_args: 2)
+    result = DiceEngine.apply_critical(DiceEngine.roll('1d6+3'), rule, is_critical=True)
+    assert result.total == total
+
+
+@pytest.mark.parametrize('formula', ['d20', '1D20', '1d20+3'])
+def test_supported_d20_spelling_retains_natural_critical_flags(monkeypatch, formula):
+    monkeypatch.setattr('core_table.dice.random.randint', lambda *_args: 20)
+    assert DiceEngine.roll(formula).is_critical
 
 
 def test_is_fumble():

@@ -24,7 +24,6 @@ class DiceRollResult:
         }
 
 
-_DICE_RE = re.compile(r'(\d+)d(\d+)')
 MAX_FORMULA_LENGTH = 200
 MAX_FORMULA_TERMS = 10
 MAX_DICE_PER_ROLL = 100
@@ -68,26 +67,28 @@ def validate_dice_formula(formula: str) -> tuple[tuple[tuple[int, int], ...], in
     return tuple(groups), modifier
 
 
-def _parse_rolls(formula: str) -> tuple[list[int], int]:
-    """Return (all rolls combined, total modifier) for a formula like '2d6+1d8+3'."""
+def _parse_rolls(formula: str) -> tuple[list[int], int, int | None]:
+    """Return rolls, modifier and the first d20's index after complete validation."""
     rolls: list[int] = []
     groups, mod = validate_dice_formula(formula)
+    first_d20 = None
     for count, sides in groups:
+        if sides == 20 and first_d20 is None:
+            first_d20 = len(rolls)
         rolls.extend(random.randint(1, sides) for _ in range(count))
-    return rolls, mod
+    return rolls, mod, first_d20
 
 
 class DiceEngine:
     @staticmethod
     def roll(formula: str) -> DiceRollResult:
-        rolls, mod = _parse_rolls(formula)
+        rolls, mod, first_d20 = _parse_rolls(formula)
         total = sum(rolls) + mod
         # Check critical/fumble on first d20 group
         is_crit = is_fum = False
-        d20_match = re.search(r'(\d+)d20', formula)
-        if d20_match and rolls:
-            is_crit = rolls[0] == 20
-            is_fum = rolls[0] == 1
+        if first_d20 is not None:
+            is_crit = rolls[first_d20] == 20
+            is_fum = rolls[first_d20] == 1
         return DiceRollResult(total=total, rolls=rolls, modifier=mod,
                               formula=formula, is_critical=is_crit, is_fumble=is_fum)
 
@@ -108,18 +109,22 @@ class DiceEngine:
         return winner
 
     @staticmethod
-    def apply_critical(result: DiceRollResult, rule: str = 'double_dice') -> DiceRollResult:
+    def apply_critical(
+        result: DiceRollResult, rule: str = 'double_dice', *, is_critical: bool | None = None,
+    ) -> DiceRollResult:
         """Double the damage dice portion for a critical hit."""
-        if not result.is_critical:
+        if not (result.is_critical if is_critical is None else is_critical):
             return result
+        if rule not in {'double_dice', 'max_dice', 'double_total'}:
+            raise ValueError('Unsupported critical hit rule')
+        groups, _ = validate_dice_formula(result.formula)
+        result.is_critical = True
         if rule == 'double_dice':
-            extra = sum(result.rolls)
-            result.total += extra
+            extra = [random.randint(1, sides) for count, sides in groups for _ in range(count)]
+            result.rolls.extend(extra)
+            result.total += sum(extra)
         elif rule == 'max_dice':
-            result.total = max(result.total, result.modifier + sum(
-                int(m.group(1)) * int(m.group(2))
-                for m in _DICE_RE.finditer(result.formula)
-            ))
+            result.total = result.modifier + sum(count * sides for count, sides in groups)
         elif rule == 'double_total':
             result.total *= 2
         return result

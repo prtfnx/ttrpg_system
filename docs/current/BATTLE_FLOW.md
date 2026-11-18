@@ -448,3 +448,12 @@ or completion. Raw sprite writes cannot change active token links/controllers/
 saved HP/max-HP/AC or delete the token, even after restart. Cosmetics and the
 existing DM movement override keep their rules. Completion performs no implicit
 HP write-back; a later encounter starts from the then-current persistent source.
+
+## Critical damage resolution
+
+The attack roll determines whether damage is critical. Ordinary damage dice
+do not need their own natural-critical flag. `double_dice` rolls another copy
+of each damage die and adds the modifier once; `max_dice` maximizes the original
+damage dice; `double_total` doubles dice plus modifier. Bounded formula parsing
+applies before any extra roll. Dice and attack-resolver tests assert actual
+damage totals rather than only the critical flag.

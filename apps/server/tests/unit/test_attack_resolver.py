@@ -117,3 +117,12 @@ def test_no_dodge_uses_normal_roll(resolver):
         resolver.resolve_attack(attacker, target, attack_bonus=0, damage_formula='1d6')
 
     mock_dis.assert_not_called()
+
+
+def test_natural_twenty_increases_ordinary_damage(resolver):
+    rolls = iter([20, 2, 5])
+    with patch('core_table.dice.random.randint', side_effect=lambda *_args: next(rolls)):
+        result = resolver.resolve_attack(make_attacker(), make_target(), 0, '1d6+3')
+    assert result.is_critical
+    assert result.damage_dealt == 10
+    assert result.damage_roll.rolls == [2, 5]

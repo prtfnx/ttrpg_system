@@ -104,7 +104,7 @@ class AttackResolver:
         is_crit = roll.is_critical or any(t in target_conds for t in INCAPACITATING_COND)
         dmg_roll = DiceEngine.roll(damage_formula)
         if is_crit:
-            dmg_roll = DiceEngine.apply_critical(dmg_roll, self.rules.critical_hit_rule)
+            dmg_roll = DiceEngine.apply_critical(dmg_roll, self.rules.critical_hit_rule, is_critical=True)
 
         return AttackResult(
             hit=True, is_critical=is_crit, attack_roll=roll,

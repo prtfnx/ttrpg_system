@@ -223,3 +223,11 @@ schema in that test database; its name must contain `test`. The fixture removes
 only its own schema and explicitly configures the child server database URL.
 Without that URL the PostgreSQL cases skip. A local delay relay and SQLite do
 not establish production PostgreSQL, Internet jitter or deployment latency.
+
+## Retention worker ownership
+
+Audit and chat retention use `service/retention.py` through the bounded
+`run_blocking` boundary. Each worker creates, commits and closes its own ORM
+session; daily scheduling and completion metrics stay on the event loop.
+`test_retention_workers.py` verifies cutoff/commit behavior with SQLite and
+keeps a heartbeat responsive while each worker is blocked in commit.

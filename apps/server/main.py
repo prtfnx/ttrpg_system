@@ -12,7 +12,6 @@ import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager
-from datetime import timedelta
 from pathlib import Path
 
 from utils.runtime import require_supported_python
@@ -23,8 +22,8 @@ import uvicorn
 from api import game_ws
 from config import Settings
 from core_table.server import TableManager
-from database import crud, models
-from database.database import SessionLocal, create_database_engine, engine, get_db, schema_is_current
+from database import models
+from database.database import create_database_engine, engine, get_db, schema_is_current
 from database.writer import ApplicationWriter, WriterOwnershipLost
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,6 +41,7 @@ from service.asset_upload_cleanup_service import process_pending_upload_cleanups
 from service.game_session import get_connection_manager
 from service.paint_operation_cleanup import cleanup_expired_paint_operations
 from service.readiness import ReadinessChecker, preflight_failure_message
+from service.retention import cleanup_expired_audit_logs, cleanup_expired_chat_messages
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 from storage.r2_manager import R2AssetManager
@@ -51,7 +51,6 @@ from utils.http_security import add_security_headers, asset_connect_origins, tru
 from utils.logger import bind_log_context, configure_logging, reset_log_context, setup_logger
 from utils.observability import configure_tracing, observe_http, record_job, refresh_durable_metrics
 from utils.rate_limiter import login_limiter, registration_limiter
-from utils.time import utc_now
 
 settings = Settings()
 browser_asset_origins = asset_connect_origins(settings)
@@ -228,24 +227,15 @@ async def audit_retention_task():
         try:
             await asyncio.sleep(86400)
             started = time.perf_counter()
-            db = SessionLocal()
-            try:
-                deleted = db.query(models.AuditLog).filter(
-                    models.AuditLog.timestamp < utc_now() - timedelta(
-                        days=settings.AUDIT_RETENTION_DAYS
-                    )
-                ).delete(synchronize_session=False)
-                db.commit()
-                record_job("audit_retention", "success", time.perf_counter() - started)
-                logger.info(
-                    "Audit retention cleanup completed",
-                    extra={
-                        "event_name": "audit.retention.completed",
-                        "deleted_count": deleted,
-                    },
-                )
-            finally:
-                db.close()
+            deleted = await run_blocking(cleanup_expired_audit_logs, settings.AUDIT_RETENTION_DAYS)
+            record_job("audit_retention", "success", time.perf_counter() - started)
+            logger.info(
+                "Audit retention cleanup completed",
+                extra={
+                    "event_name": "audit.retention.completed",
+                    "deleted_count": deleted,
+                },
+            )
         except asyncio.CancelledError:
             break
         except Exception:
@@ -263,22 +253,15 @@ async def chat_retention_task():
         try:
             await asyncio.sleep(86400)
             started = time.perf_counter()
-            db = SessionLocal()
-            try:
-                deleted = crud.delete_expired_chat_messages(
-                    db,
-                    utc_now() - timedelta(days=settings.CHAT_RETENTION_DAYS),
-                )
-                record_job("chat_retention", "success", time.perf_counter() - started)
-                logger.info(
-                    "Chat retention cleanup completed",
-                    extra={
-                        "event_name": "chat.retention.completed",
-                        "deleted_count": deleted,
-                    },
-                )
-            finally:
-                db.close()
+            deleted = await run_blocking(cleanup_expired_chat_messages, settings.CHAT_RETENTION_DAYS)
+            record_job("chat_retention", "success", time.perf_counter() - started)
+            logger.info(
+                "Chat retention cleanup completed",
+                extra={
+                    "event_name": "chat.retention.completed",
+                    "deleted_count": deleted,
+                },
+            )
         except asyncio.CancelledError:
             break
         except Exception:

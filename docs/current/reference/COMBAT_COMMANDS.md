@@ -243,3 +243,21 @@ and short forms such as `d6` are supported; negative dice groups, trailing junk,
 zero-sided dice and zero-count dice are rejected before any RNG or mutation.
 Whitespace and letter case are normalized. `test_combat_input_budget.py` and
 the shared `test_dice.py` regressions cover both the protocol and engine limits.
+
+## Structured action definitions
+
+`service/combat_actions.py` accepts explicit executable definitions in an
+encounter actor's saved `actor_actions` entries. Each entry has a name and a
+`combat` object with `schema_version: 1`, `kind` (`attack` or `spell`), `effect`
+(`attack_roll`, `saving_throw`, or `automatic`), bounded `damage_formula`,
+`damage_type` and positive `range_ft`. Weapon attacks use one target and their
+stored `attack_bonus`; spells derive attack bonus and save DC from the encounter
+actor. A saving-throw definition also requires a full ability name and may set
+`save_half`. Spell level, concentration and a bounded target limit are explicit
+metadata. Only ordinary action-cost entries are automated in this version.
+
+Definitions receive a content-derived `action_id` covering their resolved
+mechanics. Unsupported/descriptive compendium entries remain for DM manual
+resolution; the server does not infer rules from prose. The catalogue is bounded
+to the first 64 source entries. `test_combat_action_definitions.py` covers
+validation, reference stability and canonical spell statistics.

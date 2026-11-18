@@ -5,7 +5,7 @@ Audience: contributors changing combat mutations or combat UI send paths.
 Status: partial. This page catalogs the current command model and command
 types. Use source code for exact payload validation.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-11-17
 
 ## Source of truth
 
@@ -61,7 +61,8 @@ Common fields include:
 - movement: `from_x`, `from_y`, `target_x`, `target_y`, `cost_ft`, `path`,
   `confirm_opportunity_attacks`;
 - targeting: `target_id`, `target_ids`;
-- attack and spell data: `attack_bonus`, `damage_formula`, `damage_type`,
+- action references: `action_id`; DM manual resolution: `manual`, `effect`, `save_half`;
+- DM manual attack and spell data: `attack_bonus`, `damage_formula`, `damage_type`,
   `attack_type`, `range_ft`, `spell_name`, `spell_level`, `save_ability`,
   `save_dc`, `requires_attack_roll`, `is_concentration`;
 - initiative and turn control: `initiative`;
@@ -174,20 +175,21 @@ The persisted record includes the command payload, result payload, requester,
 before/after state, and state version. If persistence fails, the service
 restores the prior combat state and rejects the command.
 
-Movement commands also use the protocol combat context to move sprites and
-validate movement. If a batch fails after movement, the service restores the
-combat state and moves affected sprites back when possible. These are
-compensating writes, not a database transaction covering the whole envelope.
+Authenticated movement uses a detached table draft. Token movement and the
+encounter journal commit in one transaction; rejected application discards the
+draft and restores the pre-envelope combat snapshot. Legacy direct callers
+supplying their own movement callback own that callback's persistence.
+Unexpected application errors also restore the whole batch before rejection.
+Cancellation settles restoration before propagation. An uncertain commit is
+reconciled through a fresh session and stable row lock; an unavailable outcome
+quarantines the session and reports `combat_outcome_unknown` without restoring a
+possibly committed cache. See [Battle flow](../BATTLE_FLOW.md) for recovery.
 
 Table environment commands (`set_terrain`, `add_cover_zone`,
 `remove_cover_zone`) are restricted to one DM command outside active combat.
 They save table state without an encounter journal. Environment batches, mixed
 envelopes, and environment edits during combat are rejected before mutation.
 Normal move/attack planning is still supported.
-
-TODO: one table/combat transaction for mixed effects and crash-safe result
-reconciliation. Do not interpret the current restoration code as complete
-durable rollback when compensating saves fail.
 
 ## Related non-mutation messages
 
@@ -261,3 +263,62 @@ mechanics. Unsupported/descriptive compendium entries remain for DM manual
 resolution; the server does not infer rules from prose. The catalogue is bounded
 to the first 64 source entries. `test_combat_action_definitions.py` covers
 validation, reference stability and canonical spell statistics.
+
+## Executing a structured action
+
+Controllers and DMs receive `available_actions` in their authorized combat views.
+Other players and spectators receive neither this catalogue nor raw actor actions.
+An attack command supplies `actor_id`, `target_id`, and `action_id`; a spell uses
+`target_ids`. `table_id` is optional, but if provided must match the encounter.
+The server always loads the encounter table, including the staged movement draft
+inside a batch. Missing token geometry, invalid units, excess/duplicate/hidden
+player targets, closed sight-blocking walls and out-of-range targets are rejected
+before spending actions, reactions, slots, or concentration. Range uses table
+units converted to feet and token positions, with no extra range allowance.
+Cover zones continue to affect attack rolls. Obstacle sprite geometry and the
+renderer vision protocol are separate limitations; wall checks do not implement
+those missing geometry contracts.
+
+References are re-resolved against the current saved encounter actor. A stale or
+foreign reference is rejected. Supplying any mechanical field alongside a
+reference is rejected, even if the value matches the definition. Clients send
+intent and targets, without copying preview mechanics into the command.
+
+```json
+{"type":"cast_spell","actor_id":"caster-id","target_ids":["target-id"],"action_id":"action_from_available_actions"}
+```
+
+To author an executable entry, store explicit metadata in the saved character or
+NPC source's `actions` array before starting the encounter. The factory preserves
+that entry in `actor_actions`. For example:
+
+```json
+{
+  "name": "Arcane bolt",
+  "action_cost": "action",
+  "combat": {
+    "schema_version": 1,
+    "kind": "spell",
+    "effect": "attack_roll",
+    "spell_level": 0,
+    "damage_formula": "1d10",
+    "damage_type": "force",
+    "range_ft": 120,
+    "attack_type": "ranged"
+  }
+}
+```
+
+This phase supports damage actions, fixed spell levels, and a bounded list of
+explicit targets. It does not infer areas, upcasting, healing, conditions,
+summons, or descriptive spell effects. Unsupported automation is unavailable
+without spending resources. DMs resolve those effects using the existing typed
+DM Overrides. The action panel also offers an explicit **Manual damage (DM)**
+mode: manual commands set `manual: true`, supply bounded mechanics, and require
+an explicit spell effect. Non-DMs cannot use manual commands. A manual damage
+spell rolls automatic damage; it does not implement the named spell's rules.
+Opportunity-attack commands use a supported melee reference and reaction budget;
+this does not add a durable trigger/timing state machine or generate OA prompts.
+
+`test_combat_action_authority.py` exercises the command boundary and verifies
+that rejected authority and geometry checks preserve the full encounter state.

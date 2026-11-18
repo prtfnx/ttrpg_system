@@ -1,6 +1,6 @@
 # Battle flow
 
-Last source audit: 2026-10-26
+Last source audit: 2026-11-17
 
 Battle flow is command-oriented now. React can help the user plan a turn, and
 Rust/WASM can draw previews, but the server is the only place that accepts
@@ -465,3 +465,16 @@ applies before any extra roll. Dice and attack-resolver tests assert actual
 damage totals rather than only the critical flag.
 
 Structured spell execution distinguishes attack rolls, saving throws, and automatic damage. Save effects explicitly choose half or zero damage on success. Casting a spell without concentration preserves the caster's existing concentration; replacement occurs only for a concentration spell. Attack and spell critical rules use the encounter settings.
+
+## Executable action references
+
+Attack and spell controls select from `available_actions` on the current actor.
+Both immediate and planned commands submit the selected `action_id` and targets;
+only the server resolves damage, range, bonuses, saves, concentration and slots.
+Unsupported descriptive actions require DM manual resolution. Supported cantrips
+remain available without spell slots. The DM can opt into explicit manual damage
+or use typed DM Overrides for other effects. The action panel uses the encounter
+table even when the user is viewing another table.
+
+See [Combat commands](reference/COMBAT_COMMANDS.md#structured-action-definitions)
+for the metadata contract, accepted effects, authority checks and limitations.

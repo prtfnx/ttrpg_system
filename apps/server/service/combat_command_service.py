@@ -16,7 +16,10 @@ from service.combat_movement import CombatMovementDraft
 from service.combat_persistence_service import CombatCommitOutcomeUnknown, CombatPersistenceService
 from service.combatant_factory import CombatantSourceError
 from utils.blocking import run_blocking
+from utils.logger import setup_logger
 from utils.roles import can_interact, is_dm
+
+logger = setup_logger(__name__)
 
 
 class CombatCommandType(str, Enum):
@@ -263,47 +266,55 @@ class CombatCommandService:
             return duplicate
         applied: list[dict[str, Any]] = []
 
-        for idx, command in enumerate(envelope.commands):
-            actor_id: str | None = None
-            if self._requires_existing_combatant(command):
-                actor_id = self._resolve_combatant_id(state, command.actor_id)
-                if actor_id is None:
+        try:
+            for idx, command in enumerate(envelope.commands):
+                actor_id: str | None = None
+                if self._requires_existing_combatant(command):
+                    actor_id = self._resolve_combatant_id(state, command.actor_id)
+                    if actor_id is None:
+                        self._restore(context.session_code, snapshot)
+                        return self._reject(envelope.sequence_id, idx, "Combatant not found")
+
+                error = self._assert_turn_and_control(state, actor_id, command, context)
+                if error:
                     self._restore(context.session_code, snapshot)
-                    return self._reject(envelope.sequence_id, idx, "Combatant not found")
+                    return self._reject(envelope.sequence_id, idx, error)
 
-            error = self._assert_turn_and_control(state, actor_id, command, context)
-            if error:
-                self._restore(context.session_code, snapshot)
-                return self._reject(envelope.sequence_id, idx, error)
+                command_result = self._apply_one(command, context, state, actor_id)
+                if "error" in command_result:
+                    self._restore(context.session_code, snapshot)
+                    return self._reject(
+                        envelope.sequence_id,
+                        idx,
+                        str(command_result["error"]),
+                        self._result_details(command_result),
+                    )
 
-            command_result = self._apply_one(command, context, state, actor_id)
-            if "error" in command_result:
-                self._restore(context.session_code, snapshot)
-                return self._reject(
-                    envelope.sequence_id,
-                    idx,
-                    str(command_result["error"]),
-                    self._result_details(command_result),
-                )
+                applied.append({
+                    "sequence_index": idx,
+                    "action_type": command.type.value,
+                    "actor_id": actor_id,
+                    "result": command_result,
+                })
+                state = self._engine.get_state(context.session_code)
+                if not state:
+                    self._restore(context.session_code, snapshot)
+                    return self._reject(envelope.sequence_id, idx, "Combat ended unexpectedly")
 
-            applied.append({
-                "sequence_index": idx,
-                "action_type": command.type.value,
-                "actor_id": actor_id,
-                "result": command_result,
-            })
-            state = self._engine.get_state(context.session_code)
-            if not state:
-                self._restore(context.session_code, snapshot)
-                return self._reject(envelope.sequence_id, idx, "Combat ended unexpectedly")
+            current = self._engine.get_state(context.session_code)
+            accepted_result = CombatCommandResult(
+                accepted=True,
+                sequence_id=envelope.sequence_id,
+                applied=applied,
+                combat=current.to_dict() if current else None,
+            )
+        except CombatCommitOutcomeUnknown:
+            raise
+        except Exception:
+            logger.exception('Combat command application failed')
+            self._restore(context.session_code, snapshot)
+            return self._reject(envelope.sequence_id, idx, "Combat command could not be applied")
 
-        current = self._engine.get_state(context.session_code)
-        accepted_result = CombatCommandResult(
-            accepted=True,
-            sequence_id=envelope.sequence_id,
-            applied=applied,
-            combat=current.to_dict() if current else None,
-        )
         try:
             return self._persist_result(
                 envelope,
@@ -383,66 +394,81 @@ class CombatCommandService:
         applied: list[dict[str, Any]] = []
         move_undos: list[tuple[str, str, dict[str, float], dict[str, float]]] = []
 
-        for idx, command in enumerate(envelope.commands):
-            actor_id: str | None = None
-            if self._requires_existing_combatant(command):
-                if state is None:
-                    await self._restore_async(context, snapshot, move_undos)
-                    return self._reject(envelope.sequence_id, idx, "No active combat")
-                actor_id = self._resolve_combatant_id(state, command.actor_id)
-                if actor_id is None:
-                    await self._restore_async(context, snapshot, move_undos)
-                    return self._reject(envelope.sequence_id, idx, "Combatant not found")
+        try:
+            for idx, command in enumerate(envelope.commands):
+                actor_id: str | None = None
+                if self._requires_existing_combatant(command):
+                    if state is None:
+                        await self._restore_async(context, snapshot, move_undos)
+                        return self._reject(envelope.sequence_id, idx, "No active combat")
+                    actor_id = self._resolve_combatant_id(state, command.actor_id)
+                    if actor_id is None:
+                        await self._restore_async(context, snapshot, move_undos)
+                        return self._reject(envelope.sequence_id, idx, "Combatant not found")
 
-            error = self._assert_turn_and_control(state, actor_id, command, context)
-            if error:
-                await self._restore_async(context, snapshot, move_undos)
-                return self._reject(envelope.sequence_id, idx, error)
+                error = self._assert_turn_and_control(state, actor_id, command, context)
+                if error:
+                    await self._restore_async(context, snapshot, move_undos)
+                    return self._reject(envelope.sequence_id, idx, error)
 
-            command_result = await self._apply_one_async(
-                command, context, state, actor_id, move_undos
-            )
-            if "error" in command_result:
-                await self._restore_async(context, snapshot, move_undos)
-                return self._reject(
-                    envelope.sequence_id,
-                    idx,
-                    str(command_result["error"]),
-                    self._result_details(command_result),
+                command_result = await self._apply_one_async(
+                    command, context, state, actor_id, move_undos
                 )
+                if "error" in command_result:
+                    await self._restore_async(context, snapshot, move_undos)
+                    return self._reject(
+                        envelope.sequence_id,
+                        idx,
+                        str(command_result["error"]),
+                        self._result_details(command_result),
+                    )
 
-            applied.append({
-                "sequence_index": idx,
-                "action_type": command.type.value,
-                "actor_id": (
-                    command_result.get("combatant_id")
-                    or actor_id
-                    or command.actor_id
+                applied.append({
+                    "sequence_index": idx,
+                    "action_type": command.type.value,
+                    "actor_id": (
+                        command_result.get("combatant_id")
+                        or actor_id
+                        or command.actor_id
+                    ),
+                    "result": command_result,
+                })
+                state = self._engine.get_state(context.session_code)
+                if (
+                    not state
+                    and command.type != CombatCommandType.END_COMBAT
+                    and command.type not in table_environment_types
+                ):
+                    await self._restore_async(context, snapshot, move_undos)
+                    return self._reject(envelope.sequence_id, idx, "Combat ended unexpectedly")
+
+            current = self._engine.get_state(context.session_code)
+            accepted_result = CombatCommandResult(
+                accepted=True,
+                sequence_id=envelope.sequence_id,
+                applied=applied,
+                combat=(
+                    current.to_dict()
+                    if current
+                    else command_result.get("combat")
                 ),
-                "result": command_result,
-            })
-            state = self._engine.get_state(context.session_code)
-            if (
-                not state
-                and command.type != CombatCommandType.END_COMBAT
-                and command.type not in table_environment_types
-            ):
-                await self._restore_async(context, snapshot, move_undos)
-                return self._reject(envelope.sequence_id, idx, "Combat ended unexpectedly")
+            )
+            if current is None and all(command.type in table_environment_types for command in envelope.commands):
+                return accepted_result
+        except CombatCommitOutcomeUnknown:
+            raise
+        except asyncio.CancelledError:
+            from core_table.action_batches import _finish_before_cancellation
 
-        current = self._engine.get_state(context.session_code)
-        accepted_result = CombatCommandResult(
-            accepted=True,
-            sequence_id=envelope.sequence_id,
-            applied=applied,
-            combat=(
-                current.to_dict()
-                if current
-                else command_result.get("combat")
-            ),
-        )
-        if current is None and all(command.type in table_environment_types for command in envelope.commands):
-            return accepted_result
+            await _finish_before_cancellation(asyncio.create_task(
+                self._restore_async(context, snapshot, move_undos),
+            ))
+            raise
+        except Exception:
+            logger.exception('Combat command application failed')
+            await self._restore_async(context, snapshot, move_undos)
+            return self._reject(envelope.sequence_id, idx, "Combat command could not be applied")
+
         try:
             return await self._persist_result_async(
                 envelope,

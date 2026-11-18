@@ -346,6 +346,16 @@ ORM sessions. The environment save callback still reads a live table through
 State-version application, restoration, and broadcasts remain on the
 serialized event-loop task.
 
+
+
+Unexpected exceptions while applying commands restore the pre-envelope combat
+snapshot before returning a generic rejection, including earlier mutations in
+the same batch. Cancellation raised during application also finishes restoration
+before propagating. This application guard ends before durable persistence;
+uncertain commits retain their existing quarantine/recovery path.
+`test_combat_application_rollback.py` verifies resources, concentration, prior
+commands and cancellation alongside the persistence/cancellation regressions.
+
 Combat command cancellation waits for the submitted operation to settle,
 including cache installation or rollback. Protocol dispatch also retains the
 session mutation lock through recipient-filtered peer publication, even after

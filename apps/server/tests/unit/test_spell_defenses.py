@@ -71,3 +71,26 @@ def test_spell_saving_throw_reduces_damage_using_the_targets_modifier(monkeypatc
 
     assert result['damage_results'][0]['saved']
     assert target.hp == 16
+
+
+@pytest.mark.parametrize(('effect', 'save_half', 'expected_hp'), [
+    ('automatic', False, 12), ('saving_throw', False, 20), ('saving_throw', True, 16),
+])
+def test_explicit_effects_and_nonconcentration_casts(monkeypatch, effect, save_half, expected_hp):
+    monkeypatch.setattr('core_table.dice.random.randint', lambda _low, high: min(high, 10))
+    caster = Combatant(combatant_id='caster', entity_id='caster', name='Caster',
+                       spell_slots={1: 1}, concentration_spell='Bless')
+    target = Combatant(combatant_id='target', entity_id='target', name='Target', hp=20, max_hp=20)
+    state = CombatState(combat_id='effects', session_id='effects', table_id='table',
+                        phase=CombatPhase.ACTIVE, combatants=[caster, target])
+    monkeypatch.setitem(CombatEngine._active, 'effects', state)
+
+    result = CombatEngine.execute_spell(
+        'effects', 'caster', 'Explicit damage', 1, ['target'], damage_formula='1d8',
+        save_ability='dex', save_dc=5, effect=effect, save_half=save_half,
+    )
+
+    assert 'error' not in result
+    assert target.hp == expected_hp
+    assert caster.spell_slots[1] == 0
+    assert caster.concentration_spell == 'Bless'

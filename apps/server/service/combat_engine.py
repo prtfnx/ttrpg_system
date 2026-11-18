@@ -622,7 +622,7 @@ class CombatEngine:
             if range_err:
                 return {'error': range_err}
 
-        rules = rules or SessionRules.defaults(session_id)
+        rules = rules or SessionRules(session_id=session_id, critical_hit_rule=state.settings.critical_hit_rule)
         resolver = AttackResolver(rules)
 
         # Snapshot for undo
@@ -756,6 +756,9 @@ class CombatEngine:
         requires_attack_roll: bool = False,
         attack_bonus: int = 0,
         is_concentration: bool = False,
+        effect: str | None = None,
+        save_half: bool = True,
+        table=None,
     ) -> dict:
         state = cls._active.get(session_id)
         if not state:
@@ -767,12 +770,13 @@ class CombatEngine:
             return {'error': 'No action remaining'}
 
         targets = [x for x in state.combatants if x.combatant_id in target_ids]
-        resolver = SpellResolver(SessionRules(session_id=session_id))
+        resolver = SpellResolver(SessionRules(session_id=session_id, critical_hit_rule=state.settings.critical_hit_rule))
         result = resolver.resolve_spell(
             caster, spell_name, spell_level, targets,
             damage_formula=damage_formula, save_ability=save_ability,
             save_dc=save_dc, damage_type=damage_type,
             requires_attack_roll=requires_attack_roll, attack_bonus=attack_bonus,
+            effect=effect, save_half=save_half, is_concentration=is_concentration, table=table, combat=state,
         )
 
         if not result.success:

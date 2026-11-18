@@ -463,3 +463,5 @@ of each damage die and adds the modifier once; `max_dice` maximizes the original
 damage dice; `double_total` doubles dice plus modifier. Bounded formula parsing
 applies before any extra roll. Dice and attack-resolver tests assert actual
 damage totals rather than only the critical flag.
+
+Structured spell execution distinguishes attack rolls, saving throws, and automatic damage. Save effects explicitly choose half or zero damage on success. Casting a spell without concentration preserves the caster's existing concentration; replacement occurs only for a concentration spell. Attack and spell critical rules use the encounter settings.

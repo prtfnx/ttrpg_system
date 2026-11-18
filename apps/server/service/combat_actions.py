@@ -71,7 +71,7 @@ class CombatActionDefinition(BaseModel):
 
 def available_combat_actions(actor: Combatant) -> list[CombatActionDefinition]:
     definitions: dict[str, CombatActionDefinition] = {}
-    for raw in actor.actor_actions[:64]:
+    for raw in getattr(actor, 'actor_actions', [])[:64]:
         if not isinstance(raw, dict) or raw.get('action_cost', 'action') != 'action':
             continue
         structured = raw.get('combat')

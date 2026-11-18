@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+from service.combat_actions import available_combat_actions
 from utils.roles import SessionRole, is_dm
 
 
@@ -31,7 +32,9 @@ class CombatStatePresenter:
         if state is None:
             return None
         if is_dm(role):
-            return state.to_dict()
+            view = state.to_dict()
+            CombatStatePresenter._attach_available_actions(view, state, role, user_id)
+            return view
 
         visibility = CombatStatePresenter._npc_hp_visibility(
             getattr(getattr(state, 'settings', None), 'show_npc_hp_to_players', 'descriptor')
@@ -59,7 +62,21 @@ class CombatStatePresenter:
             view.get('action_log', []),
             visible_ids,
         )
+        CombatStatePresenter._attach_available_actions(view, state, role, user_id)
         return view
+
+    @staticmethod
+    def _attach_available_actions(view, state, role, user_id) -> None:
+        actors = {actor.combatant_id: actor for actor in state.combatants}
+        for item in view.get('combatants', []):
+            actor = actors.get(item.get('combatant_id'))
+            owns = (actor is not None and role != SessionRole.SPECTATOR.value and not getattr(actor, 'is_npc', True)
+                    and user_id is not None and str(user_id) in getattr(actor, 'controlled_by', []))
+            if actor is not None and (is_dm(role) or owns):
+                item['available_actions'] = [action.to_public() for action in available_combat_actions(actor)]
+            elif not is_dm(role):
+                item.pop('actor_actions', None)
+                item.pop('available_actions', None)
 
     @staticmethod
     def message_for_client(

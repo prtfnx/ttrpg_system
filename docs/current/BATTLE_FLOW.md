@@ -296,6 +296,12 @@ The server uses `CombatStatePresenter` to build role-aware views.
 NPC private fields, hidden combatants, rollback snapshots, and rich rules
 metadata are filtered from player-facing messages.
 
+`available_actions` contains validated executable definitions only for DMs and
+the controlling player's own non-NPC actor. Other players and spectators receive
+neither that catalogue nor the actor's raw action definitions. Action references
+are derived from the encounter actor, not browser-provided mechanics. Recipient
+coverage lives in `test_combat_action_presentation.py`.
+
 The browser accepts these filtered views through `useCombatStore.setCombat`.
 Missing controller grants become an empty local grant list; omitted NPC HP and
 max HP become null, and hidden AC/AI metadata stays absent. Components never

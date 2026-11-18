@@ -8,6 +8,24 @@ export interface ActiveCondition {
   duration_remaining: number | null;
 }
 
+export interface AvailableCombatAction {
+  action_id: string;
+  name: string;
+  kind: 'attack' | 'spell';
+  effect: 'attack_roll' | 'saving_throw' | 'automatic';
+  damage_formula: string;
+  damage_type: string;
+  range_ft: number;
+  attack_type: 'melee' | 'ranged';
+  attack_bonus: number;
+  spell_level: number;
+  save_ability: string | null;
+  save_dc: number;
+  save_half: boolean;
+  is_concentration: boolean;
+  max_targets: number;
+}
+
 export interface Combatant {
   combatant_id: string;
   entity_id: string;
@@ -50,6 +68,7 @@ export interface Combatant {
   spell_attack_bonus?: number;
   save_modifiers?: Record<string, number>;
   actor_actions?: Array<Record<string, unknown>>;
+  available_actions?: AvailableCombatAction[];
 }
 
 export interface CombatSettings {

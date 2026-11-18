@@ -41,7 +41,7 @@ impl GridSystem {
     }
 
     pub fn set_size(&mut self, size: f32) {
-        self.size = size.clamp(10.0, 200.0);
+        self.sync_from_table(size);
     }
 
     /// Sync grid cell size from table's grid_cell_px. Use this instead of set_size().
@@ -162,7 +162,7 @@ mod tests {
     fn set_size_clamps_max() {
         let mut grid = GridSystem::new();
         grid.set_size(999.0);
-        assert_eq!(grid.get_size(), 200.0);
+        assert_eq!(grid.get_size(), 500.0);
     }
 
     #[test]
@@ -170,6 +170,17 @@ mod tests {
         let mut grid = GridSystem::new();
         grid.set_size(75.0);
         assert_eq!(grid.get_size(), 75.0);
+    }
+
+    #[test]
+    fn live_size_matches_table_units_above_200_pixels() {
+        for size in [200.0, 201.0, 300.0, 500.0] {
+            let mut grid = GridSystem::new();
+            grid.sync_from_table(size);
+            assert_eq!(grid.get_size(), size);
+            grid.set_size(size);
+            assert_eq!(grid.get_size(), size);
+        }
     }
 
     #[test]

@@ -70,6 +70,12 @@ plane remains visible when no map is configured, a map texture fails to load,
 or the grid is disabled; those states must not make the table indistinguishable
 from the surrounding canvas.
 
+Grid cells use the persisted 10-500 pixel range during both snapshot hydration
+and live updates. `GridSystem.set_size` shares its bounds with table-unit sync,
+so applying a published size above 200 pixels cannot silently shrink the drawn
+grid or snapping interval. Native boundary tests and the Chromium grid-pixel
+regression in `wasmCore.wasm-test.ts` cover this contract.
+
 ## Main workflows
 
 Table list:

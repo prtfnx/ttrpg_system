@@ -60,6 +60,38 @@ function hydrateEmptyTable(engine: RenderEngine, tableId: string): void {
 }
 
 describe('WASM module (real browser)', () => {
+  it('renders accepted grid sizes above 200 pixels after live application', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 600; canvas.height = 400;
+    document.body.append(canvas);
+    const engine = new RenderEngine(canvas);
+    try {
+      for (const size of [201, 300, 500]) {
+        engine.handle_table_data(normalizeTableSnapshot({ table_data: {
+          table_id: '550e8400-e29b-41d4-a716-446655440099', table_name: 'Grid units',
+          width: 1000, height: 1000, scale: 1, grid_cell_px: size,
+          cell_distance: 5, distance_unit: 'ft', layers: {},
+        } }).renderer);
+        // TableSyncService applies the published size after snapshot hydration.
+        engine.set_grid_size(size);
+        engine.set_grid_enabled(true);
+        engine.set_background_color('#000000');
+        engine.render();
+        const gridPixel = Math.max(
+          brightness(readPixel(canvas, size - 1, 80)), brightness(readPixel(canvas, size, 80)),
+        );
+        expect(gridPixel).toBeGreaterThan(brightness(readPixel(canvas, size + 10, 80)));
+        if (size > 201) {
+          expect(brightness(readPixel(canvas, 199, 80))).toBe(0);
+          expect(brightness(readPixel(canvas, 200, 80))).toBe(0);
+        }
+      }
+    } finally {
+      engine.free();
+      canvas.remove();
+    }
+  });
+
   it('clears a deleted scene and cannot restore it after real renderer reattachment', async () => {
     const canvas = document.createElement('canvas');
     canvas.width = 220; canvas.height = 140;

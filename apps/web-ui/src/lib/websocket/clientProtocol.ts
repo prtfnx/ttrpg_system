@@ -11,7 +11,7 @@ import type { WallData } from '@/store';
 import type { Character } from '@/types';
 import { useAssetCharacterCache } from '@features/assets/services/assetCache';
 import { sendSpriteMovement } from '@features/combat/services/movementCommand.service';
-import { useCombatStore } from '@features/combat/stores/combatStore';
+import { useCombatStore, type CombatStateView } from '@features/combat/stores/combatStore';
 import { useOAStore } from '@features/combat/stores/oaStore';
 import {
   assertPaintObject,
@@ -604,9 +604,10 @@ export class WebClientProtocol {
         maybeCombat &&
         typeof maybeCombat === 'object' &&
         'combat_id' in maybeCombat &&
-        'combatants' in maybeCombat
+        'combatants' in maybeCombat &&
+        Array.isArray(maybeCombat.combatants)
       ) {
-        useCombatStore.getState().setCombat(maybeCombat as never);
+        useCombatStore.getState().setCombat(maybeCombat as CombatStateView);
       }
     };
     this.registerHandler(MessageType.COMBAT_STATE, async (m) => setCombat(m.data));

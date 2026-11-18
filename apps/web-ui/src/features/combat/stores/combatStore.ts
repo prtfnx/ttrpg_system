@@ -22,14 +22,14 @@ export interface Combatant {
   hp: number | null;  // null when server hides it
   max_hp: number | null;
   temp_hp: number;
-  armor_class: number;
+  armor_class?: number;
   conditions: ActiveCondition[];
   is_npc: boolean;
   is_hidden: boolean;
   is_defeated: boolean;
   controlled_by: string[];
-  ai_enabled: boolean;
-  ai_behavior: string;
+  ai_enabled?: boolean;
+  ai_behavior?: string;
   hp_descriptor?: string;  // when hp_visibility='descriptor'
   concentration_spell?: string | null;
   death_save_successes?: number;
@@ -78,11 +78,24 @@ export interface CombatState {
   state_hash: string;
 }
 
+// Public views omit controller grants and NPC health/private fields. Keep the
+// incoming view distinct from the normalized state consumed by components.
+export type CombatantView = Omit<Combatant, 'controlled_by' | 'hp' | 'max_hp' | 'temp_hp'> & {
+  controlled_by?: string[];
+  hp?: number | null;
+  max_hp?: number | null;
+  temp_hp?: number;
+};
+
+export type CombatStateView = Omit<CombatState, 'combatants'> & {
+  combatants: CombatantView[];
+};
+
 interface CombatStore {
   combat: CombatState | null;
   isMyTurn: boolean;
 
-  setCombat: (combat: CombatState | null) => void;
+  setCombat: (combat: CombatStateView | null) => void;
   updateCombatant: (combatant_id: string, patch: Partial<Combatant>) => void;
   setConditions: (combatant_id: string, conditions: ActiveCondition[]) => void;
   getCurrentCombatant: () => Combatant | null;
@@ -92,7 +105,20 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   combat: null,
   isMyTurn: false,
 
-  setCombat: (combat) => set({ combat }),
+  setCombat: (combat) => set({
+    combat: combat === null ? null : {
+      ...combat,
+      combatants: combat.combatants.map((combatant) => ({
+        ...combatant,
+        controlled_by: Array.isArray(combatant.controlled_by)
+          ? combatant.controlled_by.filter((id): id is string => typeof id === 'string')
+          : [],
+        hp: combatant.hp ?? null,
+        max_hp: combatant.max_hp ?? null,
+        temp_hp: combatant.temp_hp ?? 0,
+      })),
+    },
+  }),
 
   updateCombatant: (combatant_id, patch) =>
     set((s) => ({

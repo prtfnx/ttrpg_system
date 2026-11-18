@@ -289,6 +289,13 @@ The server uses `CombatStatePresenter` to build role-aware views.
 NPC private fields, hidden combatants, rollback snapshots, and rich rules
 metadata are filtered from player-facing messages.
 
+The browser accepts these filtered views through `useCombatStore.setCombat`.
+Missing controller grants become an empty local grant list; omitted NPC HP and
+max HP become null, and hidden AC/AI metadata stays absent. Components never
+infer control or private stats from omitted fields. Real presenter fixtures in
+`combatPrivacy.test.tsx` cover player, spectator and controller views across NPC
+and player turns.
+
 Accepted command responses are broadcast as `ACTION_RESULT` with a filtered
 combat view per recipient. Rejections are sent to the requester.
 

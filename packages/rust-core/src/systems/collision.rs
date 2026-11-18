@@ -519,19 +519,18 @@ impl CollisionSystem {
     }
 
     fn reconstruct_path(came_from: HashMap<Cell, Cell>, goal: Cell, grid_size: f32) -> Vec<f32> {
-        let mut path = Vec::new();
+        let mut waypoints = Vec::new();
         let mut cur = goal;
         loop {
             let p = cur.to_world(grid_size);
-            path.push(p.x);
-            path.push(p.y);
+            waypoints.push([p.x, p.y]);
             match came_from.get(&cur) {
                 Some(&prev) => cur = prev,
                 None => break,
             }
         }
-        path.reverse();
-        path
+        waypoints.reverse();
+        waypoints.into_iter().flatten().collect()
     }
 }
 
@@ -771,6 +770,19 @@ mod tests {
         assert!(!path.is_empty());
         // Path should have more than start+end since it must go around
         assert!(path.len() > 4);
+    }
+
+    #[test]
+    fn astar_detour_preserves_world_coordinate_pairs() {
+        let mut sys = make_system();
+        sys.set_walls(r#"[{"x1":96,"y1":0,"x2":96,"y2":200,"is_door":false,"door_open":false}]"#);
+        let path = sys.find_path(32.0, 160.0, 224.0, 96.0);
+        assert!(path.len() > 4);
+        assert_eq!(&path[..2], &[32.0, 160.0]);
+        assert_eq!(&path[path.len() - 2..], &[224.0, 96.0]);
+        for segment in path.chunks_exact(2).collect::<Vec<_>>().windows(2) {
+            assert!(!sys.line_blocked(segment[0][0], segment[0][1], segment[1][0], segment[1][1]));
+        }
     }
 
     #[test]

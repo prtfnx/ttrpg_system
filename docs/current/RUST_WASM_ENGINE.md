@@ -50,6 +50,11 @@ create or expose a second standalone `TableSync` object.
 ghost movement, movement range overlays, local distance estimates, line of
 sight previews, and AoE candidate targets. It is not a combat authority.
 
+Collision A* reconstruction preserves each world-space X/Y pair when reversing
+waypoint order. The asymmetric native detour regression checks both endpoints
+and every returned segment against the blocking wall; a nonempty path alone
+is not sufficient evidence of correctness.
+
 ## RenderEngine
 
 `RenderEngine` owns the canvas engine state:

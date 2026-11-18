@@ -38,6 +38,8 @@ export interface AttackCommandInput {
   actorId: string;
   targetId: string;
   tableId?: string;
+  actionId?: string;
+  manual?: boolean;
   attackBonus?: number;
   damageFormula?: string;
   damageType?: string;
@@ -47,8 +49,14 @@ export interface AttackCommandInput {
 
 export interface SpellCommandInput {
   actorId: string;
-  spellName: string;
-  spellLevel: number;
+  actionId?: string;
+  manual?: boolean;
+  tableId?: string;
+  spellName?: string;
+  spellLevel?: number;
+  effect?: 'attack_roll' | 'saving_throw' | 'automatic';
+  saveHalf?: boolean;
+  rangeFt?: number;
   targetIds: string[];
   damageFormula?: string;
   saveAbility?: string;
@@ -146,7 +154,11 @@ export function useCombatCommands() {
   ), [sendUtilityAction]);
 
   const sendAttack = useCallback((input: AttackCommandInput) => (
-    sendCommand({
+    (input.actionId || input.manual === true) && sendCommand(input.actionId ? {
+      type: 'attack', actor_id: input.actorId, target_id: input.targetId,
+      table_id: input.tableId, action_id: input.actionId,
+    } : {
+      manual: true,
       type: 'attack',
       actor_id: input.actorId,
       target_id: input.targetId,
@@ -160,7 +172,15 @@ export function useCombatCommands() {
   ), [sendCommand]);
 
   const sendSpell = useCallback((input: SpellCommandInput) => (
-    sendCommand({
+    (input.actionId || input.manual === true) && sendCommand(input.actionId ? {
+      type: 'cast_spell', actor_id: input.actorId, target_ids: input.targetIds,
+      table_id: input.tableId, action_id: input.actionId,
+    } : {
+      manual: true,
+      table_id: input.tableId,
+      effect: input.effect,
+      save_half: input.saveHalf ?? true,
+      range_ft: input.rangeFt ?? 5,
       type: 'cast_spell',
       actor_id: input.actorId,
       spell_name: input.spellName,

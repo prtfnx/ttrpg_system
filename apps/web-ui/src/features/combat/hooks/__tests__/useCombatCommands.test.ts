@@ -58,6 +58,7 @@ describe('useCombatCommands', () => {
       actorId: 'attacker-1',
       targetId: 'target-1',
       tableId: 'table-1',
+      manual: true,
       attackBonus: 5,
       damageFormula: '1d8+3',
       damageType: 'slashing',
@@ -88,6 +89,8 @@ describe('useCombatCommands', () => {
 
     result.current.sendSpell({
       actorId: 'caster-1',
+      manual: true,
+      effect: 'saving_throw',
       spellName: 'Burning Hands',
       spellLevel: 1,
       targetIds: ['target-1'],
@@ -113,6 +116,22 @@ describe('useCombatCommands', () => {
         })],
       }),
     }));
+  });
+
+  it('sends only references for structured actions even if preview fields are present', () => {
+    const { result } = renderHook(() => useCombatCommands());
+    result.current.sendAttack({ actorId: 'actor', targetId: 'target', actionId: 'sword', attackBonus: 999 });
+    result.current.sendSpell({ actorId: 'actor', targetIds: ['target'], actionId: 'bolt', damageFormula: '999' });
+    expect(mockSendMessage.mock.calls.map(([message]) => message.data.commands[0])).toEqual([
+      { type: 'attack', actor_id: 'actor', target_id: 'target', action_id: 'sword', table_id: undefined },
+      { type: 'cast_spell', actor_id: 'actor', target_ids: ['target'], action_id: 'bolt', table_id: undefined },
+    ]);
+  });
+
+  it('does not silently fall back to client mechanics without explicit manual resolution', () => {
+    const { result } = renderHook(() => useCombatCommands());
+    expect(result.current.sendAttack({ actorId: 'actor', targetId: 'target' })).toBeFalsy();
+    expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
   it('sends typed DM overrides through combat_command', () => {

@@ -56,7 +56,14 @@ export function buildPlannedCombatCommands(
       if (!action.target_id) {
         return { ok: false, error: `${action.label} is missing a target.` };
       }
-      commands.push({
+      if (!action.action_id && !action.manual) {
+        return { ok: false, error: `${action.label} needs a supported action or DM manual resolution.` };
+      }
+      commands.push(action.action_id ? {
+        type: 'attack', actor_id: actorId, target_id: action.target_id,
+        table_id: action.table_id || context.tableId || undefined, action_id: action.action_id,
+      } : {
+        manual: true,
         type: 'attack',
         actor_id: actorId,
         target_id: action.target_id,
@@ -71,11 +78,28 @@ export function buildPlannedCombatCommands(
     }
 
     if (action.action_type === 'cast_spell') {
+      const targets = action.target_ids ?? (action.target_id ? [action.target_id] : []);
+      if (targets.length === 0) {
+        return { ok: false, error: `${action.label} is missing a target.` };
+      }
+      if (action.action_id) {
+        commands.push({ type: 'cast_spell', actor_id: actorId, target_ids: targets,
+          table_id: action.table_id || context.tableId || undefined, action_id: action.action_id });
+        continue;
+      }
+      if (!action.manual || !action.effect) {
+        return { ok: false, error: `${action.label} needs a supported action or DM manual resolution.` };
+      }
       if (!action.spell_name?.trim()) {
         return { ok: false, error: `${action.label} is missing a spell name.` };
       }
       commands.push({
         type: 'cast_spell',
+        manual: true,
+        effect: action.effect,
+        save_half: action.save_half ?? true,
+        range_ft: action.range_ft ?? 5,
+        table_id: action.table_id || context.tableId || undefined,
         actor_id: actorId,
         spell_name: action.spell_name.trim(),
         spell_level: action.spell_level ?? 0,

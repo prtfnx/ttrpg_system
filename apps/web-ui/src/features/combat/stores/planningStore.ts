@@ -13,6 +13,10 @@ export interface PlannedAction {
   target_y?: number;
   target_id?: string;
   target_ids?: string[];
+  action_id?: string;
+  manual?: boolean;
+  effect?: 'attack_roll' | 'saving_throw' | 'automatic';
+  save_half?: boolean;
   spell_id?: string;
   spell_name?: string;
   spell_level?: number;

@@ -25,6 +25,7 @@ describe('buildPlannedCombatCommands', () => {
       }),
       action({
         action_type: 'attack',
+        manual: true,
         actor_id: 'combatant-1',
         target_id: 'target-1',
         attack_bonus: 6,
@@ -33,6 +34,8 @@ describe('buildPlannedCombatCommands', () => {
       }),
       action({
         action_type: 'cast_spell',
+        manual: true,
+        effect: 'saving_throw',
         actor_id: 'combatant-1',
         spell_name: 'Burning Hands',
         spell_level: 1,
@@ -82,6 +85,17 @@ describe('buildPlannedCombatCommands', () => {
         }),
       ],
     });
+  });
+
+  it('serializes references without copying preview mechanics', () => {
+    const result = buildPlannedCombatCommands([
+      action({ action_type: 'attack', action_id: 'sword', target_id: 'target', damage_formula: '999' }),
+      action({ action_type: 'cast_spell', action_id: 'bolt', target_ids: ['target'], save_dc: 999 }),
+    ], { actorId: 'actor', tableId: 'table' });
+    expect(result).toEqual({ ok: true, commands: [
+      { type: 'attack', actor_id: 'actor', target_id: 'target', table_id: 'table', action_id: 'sword' },
+      { type: 'cast_spell', actor_id: 'actor', target_ids: ['target'], table_id: 'table', action_id: 'bolt' },
+    ] });
   });
 
   it('uses each accepted movement destination as the next movement source', () => {

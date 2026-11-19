@@ -326,9 +326,31 @@ impl RenderEngine {
         self.occlusion_scene.revision()
     }
 
+    /// Replace read-only boundaries for the resident table without creating sprites.
+    #[wasm_bindgen]
+    pub fn replace_occlusion_geometry(&mut self, table_id: &str, geometry_json: &str) -> bool {
+        if self.table_manager.active_table_id() != Some(table_id) {
+            return false;
+        }
+        let parsed = crate::server_occlusion::ServerOcclusion::parse(geometry_json);
+        let valid_payload = parsed.is_some();
+        let next = (
+            table_id.to_owned(),
+            parsed.unwrap_or_else(crate::server_occlusion::ServerOcclusion::unavailable),
+        );
+        if self.server_occlusion.as_ref() != Some(&next) {
+            self.server_occlusion = Some(next);
+            self.mark_occlusion_dirty();
+        }
+        valid_payload
+    }
+
     #[wasm_bindgen]
     pub fn compute_sight_visibility_polygons(&mut self, sources: &js_sys::Float32Array) -> JsValue {
         self.ensure_occlusion_scene_current();
+        if !self.server_occlusion_available() {
+            return js_sys::Array::new().into();
+        }
         crate::geometry::compute_visibility_polygons_impl(
             &self.occlusion_scene.sight,
             &sources.to_vec(),
@@ -339,6 +361,9 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn compute_light_visibility_polygons(&mut self, sources: &js_sys::Float32Array) -> JsValue {
         self.ensure_occlusion_scene_current();
+        if !self.server_occlusion_available() {
+            return js_sys::Array::new().into();
+        }
         crate::geometry::compute_visibility_polygons_impl(
             &self.occlusion_scene.light,
             &sources.to_vec(),

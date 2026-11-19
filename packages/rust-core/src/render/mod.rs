@@ -79,6 +79,7 @@ pub struct RenderEngine {
 
     // Renderer-owned, atomically replaced sight and light occlusion indexes.
     pub(crate) occlusion_scene: OcclusionScene,
+    pub(crate) server_occlusion: Option<(String, crate::server_occlusion::ServerOcclusion)>,
     pub(crate) visibility_workspace: VisibilityWorkspace,
 
     // Deterministic diagnostics for the most recently submitted frame.
@@ -183,6 +184,7 @@ impl RenderEngine {
             table_manager,
             wall_manager,
             occlusion_scene: OcclusionScene::default(),
+            server_occlusion: None,
             visibility_workspace: VisibilityWorkspace::default(),
             diagnostics: RenderFrameCounters::default(),
             occlusion_dirty: true,
@@ -314,6 +316,12 @@ impl RenderEngine {
         let Some(active_table_id) = self.table_manager.active_table_id() else {
             return;
         };
+        if let Some((owner, geometry)) = &self.server_occlusion {
+            if owner == active_table_id && geometry.valid {
+                obstacles.extend_from_slice(&geometry.segments);
+            }
+            return;
+        }
         if let Some(obstacles_layer) = self.layer_manager.get_layer("obstacles") {
             for sprite in &obstacles_layer.sprites {
                 if sprite.table_id == active_table_id {
@@ -327,6 +335,14 @@ impl RenderEngine {
         self.layer_manager
             .find_sprite(sprite_id)
             .map(|(sprite, _)| sprite)
+    }
+
+    pub(crate) fn server_occlusion_available(&self) -> bool {
+        self.server_occlusion
+            .as_ref()
+            .is_none_or(|(owner, geometry)| {
+                Some(owner.as_str()) == self.table_manager.active_table_id() && geometry.valid
+            })
     }
 }
 

@@ -222,15 +222,17 @@ impl RenderEngine {
             self.canvas_size,
         );
 
-        self.lighting.render_lights_filtered(
-            &self.occlusion_scene.light,
-            self.occlusion_scene.revision(),
-            &self.view_matrix.to_array(),
-            self.canvas_size.x,
-            self.canvas_size.y,
-            Some(&active_table_id),
-            Some(table_scissor),
-        )?;
+        if self.server_occlusion_available() {
+            self.lighting.render_lights_filtered(
+                &self.occlusion_scene.light,
+                self.occlusion_scene.revision(),
+                &self.view_matrix.to_array(),
+                self.canvas_size.x,
+                self.canvas_size.y,
+                Some(&active_table_id),
+                Some(table_scissor),
+            )?;
+        }
 
         self.paint
             .render_objects(&self.renderer, &viewport_bounds, self.camera.zoom as f32)?;

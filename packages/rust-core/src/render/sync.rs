@@ -27,6 +27,7 @@ impl RenderEngine {
         validate_table_snapshot(&table)?;
         let prepared_sprites = prepare_table_sprites(&table)?;
         self.table_sync.handle_table_data(table_data_js)?;
+        self.server_occlusion = None;
 
         if let Some(table_id) = self.table_sync.get_table_id() {
             web_sys::console::log_1(
@@ -134,6 +135,7 @@ impl RenderEngine {
             }
         }
 
+        self.mark_occlusion_dirty();
         web_sys::console::log_1(
             &format!(
                 "Successfully synced table '{}' with {} layers",

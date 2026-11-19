@@ -4,6 +4,9 @@
 //! Application orchestration and network transport remain in TypeScript. This
 //! crate exposes only the WebAssembly boundary needed by the browser runtime.
 
+#[cfg(any(target_arch = "wasm32", test))]
+mod server_occlusion;
+
 use wasm_bindgen::prelude::*;
 
 /// Deterministic identity of the Rust sources and locked build inputs.

@@ -1457,6 +1457,16 @@
         "duplicate": {
           "type": "boolean"
         },
+        "table_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operation_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
         "sprite_id": {
           "type": "string",
           "minLength": 1

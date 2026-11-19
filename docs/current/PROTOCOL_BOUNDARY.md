@@ -383,3 +383,8 @@ nonacceptance completes the matching v2 record; unknown and denied outcomes
 retain its original evidence. Snapshots and command-tracker timeouts cannot
 complete a saved request. Tab closure/storage loss and database-restore timeline
 invalidation remain separate limitations and release work.
+
+Rejected sprite actions may carry `table_id`, `sprite_id`, `action_id` and
+`operation_id` for correlation. The `action_rejected` schema accepts these
+identities after the server stamps the response; the browser must be able to
+parse a rejection and release the corresponding optimistic command.

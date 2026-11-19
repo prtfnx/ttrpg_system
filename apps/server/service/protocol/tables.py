@@ -3,10 +3,12 @@ from typing import Any
 
 from core_table.async_actions_protocol import Position
 from core_table.protocol import Message, MessageType
+from core_table.table import VirtualTable
 from service.canvas_persistence_service import (
     load_table_hydration,
     load_table_preview_metadata,
 )
+from service.occlusion_geometry import versioned_occlusion_snapshot
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import get_visible_layers, is_dm
@@ -102,6 +104,8 @@ class _TablesMixin(_TableEditsMixin):
             table_data_with_hashes = await self.add_asset_hashes_to_table(
                 table_data, session_code=session_code, user_id=user_id
             )
+            if isinstance(table_obj, VirtualTable):
+                table_data_with_hashes['occlusion_geometry'] = versioned_occlusion_snapshot(self, table_obj)
 
             role = self._get_client_role(client_id)
             if not is_dm(role):

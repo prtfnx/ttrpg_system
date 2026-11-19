@@ -34,6 +34,7 @@ from starlette.websockets import WebSocketState
 class RecordedSocket(WebSocket):
     def __init__(self):
         self.messages: list[Message] = []
+        self.record_errors: list[str] = []
         super().__init__({"type": "websocket"}, AsyncMock(), self._record)
         # The endpoint accepts real connections before handing them to the
         # session service. Keep Starlette's send/close state checks in this test.
@@ -41,7 +42,11 @@ class RecordedSocket(WebSocket):
 
     async def _record(self, message):
         if message["type"] == "websocket.send":
-            self.messages.append(Message.from_json(message["text"]))
+            try:
+                self.messages.append(Message.from_json(message["text"]))
+            except ValueError as exc:
+                self.record_errors.append(json.loads(message["text"])["type"] + ": " + str(exc) + ": " + str(json.loads(message["text"])["data"].get("reason")))
+                raise
 
 
 async def request(service, socket, message_type, data, expected):
@@ -50,7 +55,7 @@ async def request(service, socket, message_type, data, expected):
     await service.handle_protocol_message(socket, message.to_json())
     await service.drain_outbound()
     responses = [item for item in socket.messages[offset:] if item.causation_id == message.message_id]
-    assert len(responses) == 1, socket.messages[offset:]
+    assert len(responses) == 1, (socket.record_errors, socket.messages[offset:])
     response = responses[0]
     assert response.type == expected, response.data.get("reason") or response.data.get("error") or response.data
     return response.data
@@ -171,6 +176,37 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
             "table_id": table_id, "dynamic_lighting_enabled": True, "grid_enabled": False,
             "grid_cell_px": 50, "cell_distance": 5, "ambient_light_level": 0.4,
         }, MessageType.TABLE_SETTINGS_CHANGED)
+
+        blocker = await request(service, dm, MessageType.SPRITE_CREATE, {
+            'table_id': table_id, 'sprite_data': {'name': 'Private occluder', 'x': 600, 'y': 100,
+                'width': 20, 'height': 100, 'layer': 'obstacles', 'obstacle_type': 'rectangle',
+                'metadata': 'private room notes'},
+        }, MessageType.SPRITE_RESPONSE)
+        public_scene = await request(service, player, MessageType.TABLE_REQUEST,
+                                     {'table_id': table_id}, MessageType.TABLE_RESPONSE)
+        public_geometry = public_scene['table_data']['occlusion_geometry']
+        assert public_geometry['valid'] and public_geometry['segments']
+        assert 'obstacles' not in public_scene['table_data']['layers']
+        assert 'Private occluder' not in json.dumps(public_scene) and 'private room notes' not in json.dumps(public_scene)
+        # Buffered edits publish only committed geometry, without private sprite events.
+        private_id = blocker['sprite_id']
+        await request(service, dm, MessageType.BATCH_REQUEST, {'messages': [
+            Message(MessageType.SPRITE_SCALE, {'table_id': table_id, 'sprite_id': private_id,
+                'width': 40, 'height': 100}).to_dict(),
+            Message(MessageType.SPRITE_SCALE, {'table_id': table_id, 'sprite_id': private_id,
+                'width': 60, 'height': 100}).to_dict(),
+        ]}, MessageType.BATCH_RESPONSE)
+        changes = [message.data for message in player.messages if message.type == MessageType.TABLE_UPDATE
+                   and message.data.get('type') == 'occlusion_geometry']
+        assert changes[-1]['occlusion_geometry']['revision'] > public_geometry['revision']
+        assert max(changes[-1]['occlusion_geometry']['segments'][::2]) == 660
+        assert not any(message.type in {MessageType.SPRITE_UPDATE, MessageType.SPRITE_MOVE, MessageType.SPRITE_SCALE}
+                       and message.data.get('sprite_id') == private_id for message in player.messages)
+        await request(service, dm, MessageType.SPRITE_REMOVE,
+                      {'table_id': table_id, 'sprite_id': private_id}, MessageType.SPRITE_RESPONSE)
+        changes = [message.data for message in player.messages if message.type == MessageType.TABLE_UPDATE
+                   and message.data.get('type') == 'occlusion_geometry']
+        assert changes[-1]['occlusion_geometry']['segments'] == []
 
         async def command(socket, sequence, commands, expected=MessageType.ACTION_RESULT):
             return await request(service, socket, MessageType.COMBAT_COMMAND,

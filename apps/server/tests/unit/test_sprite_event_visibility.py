@@ -136,7 +136,13 @@ async def test_character_stat_sync_respects_recipient_visibility(monkeypatch, lo
     await proto._sync_character_stats_to_tokens(1, "linked-character", {"hp": 7, "max_hp": 12, "ac": 15})
     await service.drain_outbound()
 
-    proto.broadcast_to_session.assert_not_awaited()
+    geometry = proto.broadcast_to_session.await_args_list
+    if loaded and layer == 'obstacles':
+        assert len(geometry) == 1
+        assert geometry[0].args[0].data['type'] == 'occlusion_geometry'
+        assert 'hp' not in str(geometry[0].args[0].data)
+    else:
+        assert not geometry
     for role, socket in sockets.items():
         if is_dm(role) or layer in get_visible_layers(role):
             socket.send_text.assert_awaited_once()

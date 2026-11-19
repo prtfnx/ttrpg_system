@@ -2,6 +2,8 @@ import time
 from typing import Optional
 
 from core_table.protocol import Message, MessageType
+from core_table.table import VirtualTable
+from service.occlusion_geometry import versioned_occlusion_snapshot
 from service.sprite_control import can_control_persisted_sprite, controller_ids
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
@@ -22,6 +24,9 @@ class _HelpersMixin(_ProtocolBase):
 
     async def broadcast_to_session(self, message: Message, client_id: Optional[str] = None):
         """Send message to all clients in the session. Excludes client_id if provided."""
+        if message.type == MessageType.TABLE_UPDATE and message.data.get('operation') == 'delete':
+            for name in ('_occlusion_cache', '_published_occlusion'):
+                getattr(self, name, {}).pop(message.data.get('table_id'), None)
         if self.session_manager and hasattr(self.session_manager, 'broadcast_to_session'):
             await self.session_manager.broadcast_to_session(message, exclude_client=client_id)
         else:
@@ -35,6 +40,20 @@ class _HelpersMixin(_ProtocolBase):
             await self.session_manager.broadcast_filtered(message, layer, exclude_client=client_id)
         else:
             await self.broadcast_to_session(message, client_id)
+        # Sprite publications happen after installation/commit, including buffered
+        # sprite commands and canvas undo/redo. Only geometry crosses the layer gate.
+        table_id = (message.data or {}).get('table_id')
+        table = self.table_manager.get_table(table_id) if isinstance(table_id, str) else None
+        if isinstance(table, VirtualTable):
+            snapshot = versioned_occlusion_snapshot(self, table)
+            previous = getattr(self, '_published_occlusion', {}).get(table_id)
+            if snapshot != previous and (layer == 'obstacles' or previous is not None or snapshot['segments'] or not snapshot['valid']):
+                await self.broadcast_to_session(Message(MessageType.TABLE_UPDATE, {
+                    'table_id': table_id, 'type': 'occlusion_geometry', 'occlusion_geometry': snapshot,
+                }))
+                if not hasattr(self, '_published_occlusion'):
+                    self._published_occlusion = {}
+                self._published_occlusion[table_id] = snapshot
 
     async def _broadcast_error(self, client_id: str, error_message: str):
         """Send error message to specific client"""

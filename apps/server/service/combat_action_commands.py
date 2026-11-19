@@ -126,6 +126,7 @@ def apply_combat_action(service, command, context, state, actor_id):
             save_ability=action.save_ability or '', save_dc=action.save_dc, damage_type=action.damage_type,
             requires_attack_roll=action.effect == 'attack_roll', attack_bonus=action.attack_bonus,
             is_concentration=action.is_concentration, effect=action.effect, save_half=action.save_half, table=table,
+            attack_type=action.attack_type,
         )
     if not opportunity:
         return service._engine.execute_attack(

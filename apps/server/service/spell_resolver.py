@@ -40,6 +40,7 @@ class SpellResolver:
         attack_bonus: int = 0,
         *,
         effect: str | None = None,
+        attack_type: str = 'ranged',
         save_half: bool = True,
         is_concentration: bool = False,
         table=None,
@@ -67,6 +68,7 @@ class SpellResolver:
             if effect == 'attack_roll' or effect is None and requires_attack_roll:
                 attack = self._resolver.resolve_attack(
                     caster, target, attack_bonus, damage_formula, damage_type, table=table, combat=combat,
+                    attack_type=attack_type,
                 )
                 if attack.hit:
                     result.targets_hit.append(target.combatant_id)

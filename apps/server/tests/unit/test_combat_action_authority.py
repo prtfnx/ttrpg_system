@@ -111,6 +111,17 @@ def test_action_reference_cannot_be_reused_after_source_mechanics_change(scenari
     assert not execute(scenario).accepted
 
 
+def test_ranged_spell_uses_encounter_geometry_for_adjacent_attack_disadvantage(scenario, monkeypatch):
+    source = scenario.hero.actor_actions[1]['combat']
+    source.update(effect='attack_roll', attack_type='ranged')
+    reference = available_combat_actions(scenario.hero)[1].action_id
+    disadvantage = MagicMock(wraps=DiceEngine.roll)
+    monkeypatch.setattr(DiceEngine, 'roll_with_disadvantage', disadvantage)
+    result = execute(scenario, 'cast_spell', action_id=reference)
+    assert result.accepted, result.reason
+    disadvantage.assert_called_once()
+
+
 def test_explicit_manual_damage_requires_a_dm(scenario):
     manual = {'action_id': None, 'manual': True, 'effect': 'automatic', 'spell_name': 'Manual damage',
               'damage_formula': '4', 'damage_type': 'force', 'range_ft': 30.0, 'spell_level': 1}

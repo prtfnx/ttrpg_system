@@ -757,6 +757,7 @@ class CombatEngine:
         attack_bonus: int = 0,
         is_concentration: bool = False,
         effect: str | None = None,
+        attack_type: str = 'ranged',
         save_half: bool = True,
         table=None,
     ) -> dict:
@@ -777,6 +778,7 @@ class CombatEngine:
             save_dc=save_dc, damage_type=damage_type,
             requires_attack_roll=requires_attack_roll, attack_bonus=attack_bonus,
             effect=effect, save_half=save_half, is_concentration=is_concentration, table=table, combat=state,
+            attack_type=attack_type,
         )
 
         if not result.success:

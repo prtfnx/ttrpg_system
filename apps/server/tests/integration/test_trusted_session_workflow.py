@@ -84,7 +84,10 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
     test_db.add(models.SessionCharacter(
         character_id=character_id, session_id=session_id, owner_user_id=player_user.id,
         character_name="Hero", character_data=json.dumps({"character_id": character_id, "name": "Hero",
-            "schemaVersion": 1, "data": {"stats": {"hp": 20, "maxHp": 20, "ac": 12}}}),
+            "schemaVersion": 1, "data": {"stats": {"hp": 20, "maxHp": 20, "ac": 12},
+                "actions": [{"name": "Sword", "combat": {"schema_version": 1, "kind": "attack",
+                    "effect": "attack_roll", "damage_formula": "1d4", "damage_type": "slashing",
+                    "attack_bonus": 20, "range_ft": 5.0}}]}}),
     ))
     test_db.commit()
     CombatEngine._active.pop(code, None)
@@ -201,11 +204,15 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         assert not service.server_protocol.actions._dirty_tables
         current = state.get_current_combatant()
         assert current is not None and current.entity_id == hero_id
+        player_view = await request(service, player, MessageType.COMBAT_STATE_REQUEST, {}, MessageType.COMBAT_STATE)
+        player_actor = next(member for member in player_view['combat']['combatants'] if member['entity_id'] == hero_id)
+        action_id = player_actor['available_actions'][0]['action_id']
+        assert player_actor['available_actions'][0]['name'] == 'Sword'
         planned = [
             {"type": "move", "actor_id": hero_id, "table_id": table_id, "from_x": 150, "from_y": 100,
              "target_x": 200, "target_y": 100, "cost_ft": 5},
             {"type": "attack", "actor_id": hero_id, "target_id": enemy_id, "table_id": table_id,
-             "attack_bonus": 20, "damage_formula": "1d4", "range_ft": 5},
+             "action_id": action_id},
         ]
         rejected = await command(player, 50, [planned[0], {
             **planned[1], "target_id": str(uuid.uuid4()),
@@ -271,6 +278,7 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
         assert restored_enemy["hp"] == 17
         restored_actor = next(item for item in restored['combat']['combatants'] if item['entity_id'] == hero_id)
         assert restored_actor['armor_class'] == 13
+        assert restored_actor['available_actions'][0]['action_id'] == action_id
         await command(dm, 7, [{"type": "end_combat", "actor_id": "__dm__"}])
         assert CombatEngine.get_state(code) is None
         with factory() as db:

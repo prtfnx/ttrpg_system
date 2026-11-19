@@ -656,9 +656,12 @@ export class WebClientProtocol {
       const { usePlanningStore } = await import('@features/combat/stores/planningStore');
       const data = m.data as { sequence_id?: number; applied?: unknown[]; combat?: unknown };
       if (data?.applied?.length) {
-        usePlanningStore.getState().clearQueue();
-        usePlanningStore.getState().stopPlanning();
-        useOAStore.getState().clearPendingCombatCommand();
+        if (data.sequence_id != null) {
+          usePlanningStore.getState().finishSubmission(data.sequence_id, true);
+          if (useOAStore.getState().pendingCombatCommand?.sequence_id === data.sequence_id) {
+            useOAStore.getState().clearPendingCombatCommand();
+          }
+        }
         const resolvedOpportunityAttack = data.applied.some((item) => (
           typeof item === 'object'
           && item !== null
@@ -724,6 +727,11 @@ export class WebClientProtocol {
         return;
       }
       if (data?.sequence_id != null) {
+        const { usePlanningStore } = await import('@features/combat/stores/planningStore');
+        usePlanningStore.getState().finishSubmission(data.sequence_id, false);
+        if (useOAStore.getState().pendingCombatCommand?.sequence_id === data.sequence_id) {
+          useOAStore.getState().clearPendingCombatCommand();
+        }
         emitProtocolEvent('sprite-action-rejected', {
           actionId: String(data.sequence_id),
           reason: data.reason ?? 'Action rejected',

@@ -47,6 +47,8 @@ function setup(overrides: Record<string, unknown> = {}) {
     selectedSpriteId: 'sprite-1',
     stopPlanning: mockStopPlanning,
     nextSequenceId: mockNextSequenceId,
+    markSubmitted: vi.fn(),
+    finishSubmission: vi.fn(),
     ...overrides,
   } as never);
 }

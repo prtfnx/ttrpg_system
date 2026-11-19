@@ -32,6 +32,7 @@ vi.mock('@lib/wasm/runtime', () => ({ getCurrentWasmRuntime: vi.fn(() => mocks.r
 
 import { WebClientProtocol } from '../clientProtocol';
 import { createMessage, MessageType, type Message } from '../message';
+import { usePlanningStore } from '@features/combat/stores/planningStore';
 import { useCombatStore } from '@features/combat/stores/combatStore';
 import { useCoverStore } from '@features/combat/stores/coverStore';
 import { useEncounterStore } from '@features/combat/stores/encounterStore';
@@ -1513,6 +1514,33 @@ describe('WebClientProtocol', () => {
       window.removeEventListener('sprite-action-confirmed', handler);
       expect(handler).toHaveBeenCalledOnce();
       expect((handler.mock.calls[0][0] as CustomEvent).detail).toEqual({ actionId: '42' });
+    });
+
+    it('peer action results preserve unsent local plans', async () => {
+      const p = makeProtocol();
+      usePlanningStore.setState({ queue: [], isPlanningMode: false, pendingSubmission: null });
+      usePlanningStore.getState().startPlanning('sprite');
+      usePlanningStore.getState().addAction({ id: 'local', action_type: 'dodge', label: 'Dodge' });
+      await dispatch(p, 'action_result', { accepted: true, sequence_id: 123, applied: [{ action_type: 'attack', actor_id: 'peer' }] });
+      expect(usePlanningStore.getState().queue.map((action) => action.id)).toEqual(['local']);
+      expect(usePlanningStore.getState().isPlanningMode).toBe(true);
+    });
+
+    it('matching acknowledgements clear only the submitted actions', async () => {
+      const p = makeProtocol();
+      usePlanningStore.setState({ queue: [], isPlanningMode: true, pendingSubmission: null });
+      usePlanningStore.getState().addAction({ id: 'sent', action_type: 'dodge', label: 'Dodge' });
+      usePlanningStore.getState().markSubmitted(124);
+      usePlanningStore.getState().addAction({ id: 'new', action_type: 'hide', label: 'Hide' });
+      await dispatch(p, 'action_result', { accepted: true, sequence_id: 123, applied: [{ action_type: 'attack' }] });
+      expect(usePlanningStore.getState().queue).toHaveLength(2);
+      await dispatch(p, 'action_result', { accepted: true, sequence_id: 124, applied: [{ action_type: 'dodge' }] });
+      expect(usePlanningStore.getState().queue.map((action) => action.id)).toEqual(['new']);
+      expect(usePlanningStore.getState().isPlanningMode).toBe(true);
+      usePlanningStore.getState().markSubmitted(125);
+      await dispatch(p, 'action_result', { accepted: true, sequence_id: 125, applied: [{ action_type: 'hide' }] });
+      expect(usePlanningStore.getState().queue).toHaveLength(0);
+      expect(usePlanningStore.getState().isPlanningMode).toBe(false);
     });
 
     it('ACTION_RESULT clears combat after an accepted end combat command', async () => {

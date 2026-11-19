@@ -11,7 +11,7 @@ import { useGameStore } from '@/store';
 export function CommitButton() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { queue, isPlanningMode, selectedSpriteId, stopPlanning, nextSequenceId } = usePlanningStore();
+  const { queue, isPlanningMode, selectedSpriteId, stopPlanning, nextSequenceId, markSubmitted, finishSubmission } = usePlanningStore();
   const mode = useGameModeStore((s) => s.mode);
   const activeTableId = useGameStore((s) => s.activeTableId);
   const { sendCommandBatch } = useCombatCommands();
@@ -53,7 +53,11 @@ export function CommitButton() {
     if (built.commands.some((command) => command.type === 'move')) {
       setPendingCombatCommand(payload);
     }
-    sendCommandBatch(payload);
+    markSubmitted(sequenceId);
+    if (!sendCommandBatch(payload)) {
+      finishSubmission(sequenceId, false);
+      setError('Connect to the session before committing your plan.');
+    }
 
     // Queue cleared and planning stopped by ACTION_RESULT / ACTION_REJECTED handlers
     setPending(false);

@@ -42,6 +42,9 @@ interface PlanningStore {
   isPlanningMode: boolean;
   selectedSpriteId: string | null;
   sequenceId: number;   // last submitted protocol identity
+  pendingSubmission: { sequenceId: number; actionIds: string[] } | null;
+  markSubmitted: (sequenceId: number) => void;
+  finishSubmission: (sequenceId: number, accepted: boolean) => boolean;
 
   startPlanning: (spriteId: string) => void;
   stopPlanning: () => void;
@@ -51,15 +54,29 @@ interface PlanningStore {
   nextSequenceId: () => number;
 }
 
-export const usePlanningStore = create<PlanningStore>((set) => ({
+export const usePlanningStore = create<PlanningStore>((set, get) => ({
   queue: [],
   isPlanningMode: false,
   selectedSpriteId: null,
   sequenceId: 0,
+  pendingSubmission: null,
+  markSubmitted: (sequenceId) => set((state) => ({
+    pendingSubmission: { sequenceId, actionIds: state.queue.map((action) => action.id) },
+  })),
+  finishSubmission: (sequenceId, accepted) => {
+    const state = get();
+    if (state.pendingSubmission?.sequenceId !== sequenceId) return false;
+    const submittedIds = new Set(state.pendingSubmission.actionIds);
+    const queue = accepted ? state.queue.filter((action) => !submittedIds.has(action.id)) : state.queue;
+    set({ pendingSubmission: null, queue: queue.map((action, index) => ({ ...action, sequence_index: index })),
+      ...(accepted && queue.length === 0 ? { isPlanningMode: false, selectedSpriteId: null } : {}),
+    });
+    return true;
+  },
 
   startPlanning: (spriteId) => set({ isPlanningMode: true, selectedSpriteId: spriteId }),
 
-  stopPlanning: () => set({ isPlanningMode: false, selectedSpriteId: null }),
+  stopPlanning: () => set({ isPlanningMode: false, selectedSpriteId: null, pendingSubmission: null }),
 
   addAction: (action) => set((s) => ({
     queue: [...s.queue, { ...action, sequence_index: s.queue.length }],

@@ -1,6 +1,7 @@
 import { useGameStore } from '@/store';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AvailableCombatAction } from '../../stores/combatStore';
 import { useCombatStore } from '../../stores/combatStore';
 import { useGameModeStore } from '../../stores/gameModeStore';
 import { usePlanningStore } from '../../stores/planningStore';
@@ -25,6 +26,17 @@ vi.mock('@features/session/types/roles', () => ({
   isDM: (role: string) => role === 'owner' || role === 'dm',
 }));
 
+const sword: AvailableCombatAction = {
+  action_id: 'sword', name: 'Sword', kind: 'attack', effect: 'attack_roll',
+  damage_formula: '1d6', damage_type: 'slashing', range_ft: 5, attack_type: 'melee',
+  attack_bonus: 4, spell_level: 0, save_ability: null, save_dc: 0, save_half: false,
+  is_concentration: false, max_targets: 1,
+};
+const bolt: AvailableCombatAction = {
+  ...sword, action_id: 'bolt', name: 'Arcane bolt', kind: 'spell', effect: 'automatic',
+  damage_type: 'force', range_ft: 60, spell_level: 1,
+};
+
 const makeCombatant = (overrides = {}) => ({
   combatant_id: 'c1',
   entity_id: 'e1',
@@ -47,6 +59,7 @@ const makeCombatant = (overrides = {}) => ({
   controlled_by: ['42'],
   ai_enabled: false,
   ai_behavior: 'passive',
+  available_actions: [sword, bolt],
   ...overrides,
 });
 
@@ -228,6 +241,7 @@ describe('ActionPanel', () => {
             type: 'attack',
             actor_id: 'attacker',
             target_id: 'target',
+            action_id: 'sword',
           })],
         }),
       }),
@@ -245,8 +259,6 @@ describe('ActionPanel', () => {
     useCombatStore.setState({ combat: { ...baseCombat, combatants: [actor, target] } });
 
     render(<ActionPanel />);
-    fireEvent.change(screen.getByLabelText(/spell/i), { target: { value: 'Burning Hands' } });
-    fireEvent.change(screen.getByLabelText(/damage/i), { target: { value: '3d6' } });
     fireEvent.click(screen.getByRole('button', { name: /cast spell/i }));
 
     expect(mockOptionalProtocol.sendMessage).toHaveBeenCalledWith(
@@ -256,10 +268,8 @@ describe('ActionPanel', () => {
           commands: [expect.objectContaining({
             type: 'cast_spell',
             actor_id: 'caster',
-            spell_name: 'Burning Hands',
-            spell_level: 1,
+            action_id: 'bolt',
             target_ids: ['target'],
-            damage_formula: '3d6',
           })],
         }),
       }),
@@ -303,26 +313,59 @@ describe('ActionPanel', () => {
     usePlanningStore.setState({ isPlanningMode: true, selectedSpriteId: actor.entity_id });
 
     render(<ActionPanel />);
-    fireEvent.change(screen.getByLabelText(/spell/i), { target: { value: 'Burning Hands' } });
-    fireEvent.change(screen.getByLabelText(/damage/i), { target: { value: '3d6' } });
     fireEvent.click(screen.getByRole('button', { name: /cast spell/i }));
 
     expect(usePlanningStore.getState().queue).toEqual([
       expect.objectContaining({
         action_type: 'cast_spell',
-        label: 'Cast Burning Hands',
+        label: 'Cast Arcane bolt',
+        action_id: 'bolt',
         actor_id: 'caster',
         target_ids: ['target'],
-        spell_name: 'Burning Hands',
+        spell_name: 'Arcane bolt',
         spell_level: 1,
-        damage_formula: '3d6',
-        save_dc: 14,
-        attack_bonus: 6,
         cost_type: 'action',
         sequence_index: 0,
       }),
     ]);
     expect(mockOptionalProtocol.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('disables unsupported automation without sending or spending resources', () => {
+    const actor = makeCombatant({ available_actions: [], spell_slots: { 1: 1 } });
+    const target = makeCombatant({ combatant_id: 'target' });
+    useCombatStore.setState({ combat: { ...baseCombat, combatants: [actor, target] } });
+    render(<ActionPanel />);
+    const button = screen.getByRole('button', { name: /^attack$/i });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(screen.queryByRole('button', { name: /cast spell/i })).toBeNull();
+    expect(mockOptionalProtocol.sendMessage).not.toHaveBeenCalled();
+    expect(useCombatStore.getState().combat?.combatants[0]?.spell_slots?.[1]).toBe(1);
+  });
+
+  it('lets a DM explicitly select manual automatic damage', () => {
+    useGameStore.setState({ sessionRole: 'owner' });
+    const actor = makeCombatant({ available_actions: [], spell_slots: { 1: 1 } });
+    const target = makeCombatant({ combatant_id: 'target' });
+    useCombatStore.setState({ combat: { ...baseCombat, combatants: [actor, target] } });
+    render(<ActionPanel />);
+    fireEvent.click(screen.getByLabelText('Manual damage (DM)'));
+    fireEvent.click(screen.getByRole('button', { name: /cast spell/i }));
+    const command = mockOptionalProtocol.sendMessage.mock.calls[0]?.[0]?.data.commands[0];
+    expect(command).toMatchObject({ type: 'cast_spell', manual: true, effect: 'automatic' });
+    expect(command).not.toHaveProperty('action_id');
+  });
+
+  it('shows supported cantrips even when every spell slot is exhausted', () => {
+    const actor = makeCombatant({ available_actions: [{ ...bolt, spell_level: 0 }], spell_slots: {} });
+    const target = makeCombatant({ combatant_id: 'target' });
+    useCombatStore.setState({ combat: { ...baseCombat, combatants: [actor, target] } });
+    render(<ActionPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /cast spell/i }));
+    expect(mockOptionalProtocol.sendMessage.mock.calls[0]?.[0]?.data.commands).toEqual([
+      { type: 'cast_spell', actor_id: 'c1', target_ids: ['target'], table_id: 'table1', action_id: 'bolt' },
+    ]);
   });
 
   it('sends utility actions through combat_command', () => {

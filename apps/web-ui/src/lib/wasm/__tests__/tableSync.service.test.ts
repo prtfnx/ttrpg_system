@@ -11,6 +11,7 @@ const TABLE_A = '550e8400-e29b-41d4-a716-446655440000';
 const TABLE_B = '550e8400-e29b-41d4-a716-446655440001';
 
 const mockEngine = {
+  replace_occlusion_geometry: vi.fn().mockReturnValue(true),
   handle_table_data: vi.fn(),
   set_grid_size: vi.fn(),
   set_grid_enabled: vi.fn(),
@@ -90,7 +91,53 @@ beforeEach(() => {
   getState.mockImplementation(() => mockGameState);
 });
 
+function occlusion(revision = 1, segments = [100, 0, 100, 200], epoch = 'session') {
+  return { schema_version: 1, valid: true, epoch, revision, segments };
+}
+
 describe('TableSyncService', () => {
+  it('applies read-only geometry without creating selectable sprites', () => {
+    const service = makeService(); service.init();
+    try {
+      dispatch('table-response', { table_data: tableSnapshot({ occlusion_geometry: occlusion() }) });
+      expect(mockEngine.replace_occlusion_geometry).toHaveBeenLastCalledWith(TABLE_A,
+        JSON.stringify({ schema_version: 1, valid: true, segments: [100, 0, 100, 200] }));
+      expect(mockSpriteSync.addSpriteToWasm).not.toHaveBeenCalled();
+    } finally { service.dispose(); }
+  });
+
+  it('retains newer geometry through renderer detach and rejects older hydration revisions', () => {
+    let attached = false;
+    mockGameState.activeTableId = TABLE_A;
+    const service = new TableSyncService(() => attached ? mockEngine as never : null, mockSpriteSync as never);
+    service.init();
+    try {
+      dispatch('table-response', { table_data: tableSnapshot({ occlusion_geometry: occlusion() }) });
+      dispatch('table-updated', { table_id: TABLE_A, type: 'occlusion_geometry', occlusion_geometry: occlusion(2, []) });
+      attached = true; service.flushPending();
+      const empty = JSON.stringify({ schema_version: 1, valid: true, segments: [] });
+      expect(mockEngine.replace_occlusion_geometry).toHaveBeenLastCalledWith(TABLE_A, empty);
+      dispatch('table-response', { table_data: tableSnapshot({ occlusion_geometry: occlusion() }) });
+      expect(mockEngine.replace_occlusion_geometry).toHaveBeenLastCalledWith(TABLE_A, empty);
+      mockEngine.replace_occlusion_geometry.mockClear();
+      dispatch('table-updated', { table_id: TABLE_B, type: 'occlusion_geometry', occlusion_geometry: occlusion(3) });
+      expect(mockEngine.replace_occlusion_geometry).not.toHaveBeenCalled();
+      dispatch('table-updated', { table_id: TABLE_A, type: 'occlusion_geometry', occlusion_geometry: occlusion(1, [1, 2, 3, 4], 'new-session') });
+      expect(mockEngine.replace_occlusion_geometry).toHaveBeenLastCalledWith(TABLE_A,
+        JSON.stringify({ schema_version: 1, valid: true, segments: [1, 2, 3, 4] }));
+    } finally { service.dispose(); }
+  });
+
+  it('suppresses visibility for malformed geometry instead of keeping a partial boundary', () => {
+    const service = makeService(); service.init(); mockGameState.activeTableId = TABLE_A;
+    try {
+      dispatch('table-response', { table_data: tableSnapshot({ occlusion_geometry: occlusion() }) });
+      dispatch('table-updated', { table_id: TABLE_A, type: 'occlusion_geometry', occlusion_geometry: occlusion(2, [1, 2, 3]) });
+      expect(mockEngine.replace_occlusion_geometry).toHaveBeenLastCalledWith(TABLE_A,
+        JSON.stringify({ schema_version: 1, valid: false, segments: [] }));
+    } finally { service.dispose(); }
+  });
+
   it('clears a retired resident scene and never rehydrates it after renderer reattachment', () => {
     const deleted = vi.fn();
     const service = new TableSyncService(() => mockEngine as never, mockSpriteSync as never, { onDeleted: deleted });

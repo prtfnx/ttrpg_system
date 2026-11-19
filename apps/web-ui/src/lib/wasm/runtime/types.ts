@@ -72,6 +72,7 @@ export interface RenderEngine {
   get_layer_names(): string[];
   get_layer_sprite_count(layerName: string): number;
   get_occlusion_revision(): number;
+  replace_occlusion_geometry(tableId: string, geometryJson: string): boolean;
   compute_sight_visibility_polygons(sources: Float32Array): VisibilityPoint[][];
   compute_light_visibility_polygons(sources: Float32Array): VisibilityPoint[][];
   get_render_diagnostics?(): RenderDiagnostics;

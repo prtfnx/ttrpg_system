@@ -10,6 +10,7 @@ export function createMockRenderEngine() {
     add_fog_polygon: vi.fn(),
     remove_fog_polygon: vi.fn(),
     get_occlusion_revision: vi.fn().mockReturnValue(0),
+    replace_occlusion_geometry: vi.fn().mockReturnValue(true),
     compute_sight_visibility_polygons: vi.fn().mockReturnValue([]),
     compute_light_visibility_polygons: vi.fn().mockReturnValue([]),
     set_ambient_light: vi.fn(),

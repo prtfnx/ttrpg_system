@@ -102,6 +102,7 @@ export function createMockRenderEngine() {
 
     // Visibility
     get_occlusion_revision: vi.fn().mockReturnValue(0),
+    replace_occlusion_geometry: vi.fn().mockReturnValue(true),
     compute_sight_visibility_polygons: vi.fn().mockReturnValue([]),
     compute_light_visibility_polygons: vi.fn().mockReturnValue([]),
 

@@ -6,6 +6,7 @@
 import { useGameStore } from '@/store';
 import { emitProtocolEvent, onProtocolEvent } from '@lib/websocket/protocolEvents';
 import { logger } from '@shared/utils/logger';
+import { parseOcclusionGeometry, type OcclusionGeometry } from './occlusionGeometry';
 
 const DEFAULT_TABLE_BACKGROUND = '#1a1a1a';
 import { normalizeTableSnapshot, RENDERER_LAYER_NAMES } from './tableSnapshot';
@@ -48,6 +49,7 @@ export class TableSyncService {
   private cacheInvalidated = false;
   private freshSnapshotRequested = false;
   private hydratedTableId: string | null = null;
+  private readonly occlusion = new Map<string, OcclusionGeometry>();
   private readonly retiredTableIds = new Set<string>();
   private readonly tableDerivedLightIds = new Map<string, Set<string>>();
   private eventCleanups: Array<() => void> = [];
@@ -104,6 +106,7 @@ export class TableSyncService {
     this.hydratedTableId = null;
     this.tableDerivedLightIds.clear();
     this.retiredTableIds.clear();
+    this.occlusion.clear();
   }
 
   flushPending(): void {
@@ -176,6 +179,10 @@ export class TableSyncService {
       this.spriteSync.retainTextSprites(snapshot.specialSprites
         .filter(sprite => sprite.texture_path === '__TEXT__').map(sprite => sprite.sprite_id));
       engine.handle_table_data(snapshot.renderer);
+      const wireTable = data.table_data ?? data;
+      if (wireTable.occlusion_geometry !== undefined) this.retainOcclusion(tableId, wireTable.occlusion_geometry);
+      const geometry = this.occlusion.get(tableId);
+      if (geometry) engine.replace_occlusion_geometry(tableId, JSON.stringify(geometry.geometry));
       engine.set_grid_size(snapshot.renderer.grid_cell_px);
       engine.set_grid_enabled(snapshot.renderer.show_grid);
       engine.set_grid_snapping(snapshot.snapToGrid);
@@ -263,6 +270,15 @@ export class TableSyncService {
   }
 
   private handleTableUpdate(data: TablePayload): void {
+    if (data.type === 'occlusion_geometry' && typeof data.table_id === 'string') {
+      const tableId = data.table_id;
+      if (this.retiredTableIds.has(tableId) || tableId !== useGameStore.getState().activeTableId) return;
+      const geometry = this.retainOcclusion(tableId, data.occlusion_geometry);
+      if (this.hydratedTableId === tableId) {
+        this.getEngine()?.replace_occlusion_geometry(tableId, JSON.stringify(geometry.geometry));
+      }
+      return;
+    }
     if (data.operation === 'delete') {
       this.handleTableDeletion(data);
       return;
@@ -285,6 +301,7 @@ export class TableSyncService {
     const tableId = data.table_id;
     if (!tableId) return;
     this.retiredTableIds.add(tableId);
+    this.occlusion.delete(tableId);
     const payloadId = (payload: TablePayload | null) => (payload?.table_data ?? payload)?.table_id;
     if (payloadId(this.pendingPayload) === tableId) this.pendingPayload = null;
     if (payloadId(this.latestPayload) === tableId) this.latestPayload = null;
@@ -305,12 +322,21 @@ export class TableSyncService {
         engine.clear_walls();
         engine.clear_fog();
         engine.clear_vision_polygons?.();
+        engine.replace_occlusion_geometry(tableId, JSON.stringify({ schema_version: 1, valid: false, segments: [] }));
         engine.set_grid_enabled(false);
       }
       this.spriteSync.retainTextSprites([]);
     }
     this.tableDerivedLightIds.delete(tableId);
     this.onDeleted(tableId);
+  }
+
+  private retainOcclusion(tableId: string, value: unknown): OcclusionGeometry {
+    const incoming = parseOcclusionGeometry(value);
+    const previous = this.occlusion.get(tableId);
+    if (previous && previous.epoch === incoming.epoch && previous.revision > incoming.revision) return previous;
+    this.occlusion.set(tableId, incoming);
+    return incoming;
   }
 
 }

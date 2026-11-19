@@ -1,3 +1,4 @@
+import { nextCombatSequenceId } from '../services/combatSequence';
 import { useOptionalProtocol } from '@lib/api';
 import { createMessage, MessageType, type MessageType as ProtocolMessageType } from '@lib/websocket';
 import { useCallback } from 'react';
@@ -135,7 +136,7 @@ export function useCombatCommands() {
     return Boolean(protocol);
   }, [protocol]);
 
-  const sendCommand = useCallback((command: CombatCommandPayload, sequenceId = Date.now()) => (
+  const sendCommand = useCallback((command: CombatCommandPayload, sequenceId = nextCombatSequenceId()) => (
     sendCommandBatch({
       sequence_id: sequenceId,
       commands: [command],
@@ -198,7 +199,7 @@ export function useCombatCommands() {
 
   const sendDMOverrides = useCallback((inputs: DMOverrideInput[]) => (
     inputs.length > 0 && sendCommandBatch({
-      sequence_id: Date.now(),
+      sequence_id: nextCombatSequenceId(),
       commands: inputs.map(buildDMOverrideCommand),
     })
   ), [sendCommandBatch]);

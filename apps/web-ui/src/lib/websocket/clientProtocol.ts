@@ -1,3 +1,4 @@
+import { nextCombatSequenceId } from '@features/combat/services/combatSequence';
 
 // All member variables and methods are now inside the WebClientProtocol class body below.
 /**
@@ -3407,7 +3408,7 @@ export class WebClientProtocol {
 
   addCoverZone(tableId: string, zone: Record<string, unknown>): void {
     this.sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
-      sequence_id: Date.now(),
+      sequence_id: nextCombatSequenceId(),
       commands: [{
         type: 'add_cover_zone',
         actor_id: '__dm__',
@@ -3419,7 +3420,7 @@ export class WebClientProtocol {
 
   removeCoverZone(tableId: string, zoneId: string): void {
     this.sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
-      sequence_id: Date.now(),
+      sequence_id: nextCombatSequenceId(),
       commands: [{
         type: 'remove_cover_zone',
         actor_id: '__dm__',
@@ -3439,7 +3440,7 @@ export class WebClientProtocol {
   }): void {
     if (!data.attacker_combatant_id || (data.use_reaction && !data.action_id)) return;
     this.sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
-      sequence_id: Date.now(),
+      sequence_id: nextCombatSequenceId(),
       commands: [{
         type: 'resolve_opportunity_attack',
         actor_id: data.attacker_combatant_id,

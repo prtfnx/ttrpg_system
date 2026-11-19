@@ -260,10 +260,11 @@ describe('usePlanningStore', () => {
     expect(usePlanningStore.getState().queue).toHaveLength(0);
   });
 
-  it('nextSequenceId returns incrementing values', () => {
+  it('nextSequenceId returns distinct protocol identities', () => {
     const id1 = usePlanningStore.getState().nextSequenceId();
     const id2 = usePlanningStore.getState().nextSequenceId();
-    expect(id2).toBeGreaterThan(id1);
+    expect(id2).not.toBe(id1);
+    expect(Number.isSafeInteger(id2)).toBe(true);
   });
 });
 

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { nextCombatSequenceId } from '../services/combatSequence';
 
 export type ActionType = 'move' | 'attack' | 'cast_spell' | 'use_item' | 'dodge' | 'dash' |
   'disengage' | 'hide' | 'help' | 'ready' | 'bonus_action' | 'reaction';
@@ -40,7 +41,7 @@ interface PlanningStore {
   queue: PlannedAction[];
   isPlanningMode: boolean;
   selectedSpriteId: string | null;
-  sequenceId: number;   // increments each commit - matches server sequence_id
+  sequenceId: number;   // last submitted protocol identity
 
   startPlanning: (spriteId: string) => void;
   stopPlanning: () => void;
@@ -49,8 +50,6 @@ interface PlanningStore {
   clearQueue: () => void;
   nextSequenceId: () => number;
 }
-
-let _seq = 0;
 
 export const usePlanningStore = create<PlanningStore>((set) => ({
   queue: [],
@@ -75,7 +74,7 @@ export const usePlanningStore = create<PlanningStore>((set) => ({
   clearQueue: () => set({ queue: [] }),
 
   nextSequenceId: () => {
-    const id = ++_seq;
+    const id = nextCombatSequenceId();
     set({ sequenceId: id });
     return id;
   },

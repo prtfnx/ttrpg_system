@@ -252,7 +252,6 @@ class _ChatMixin(_ProtocolBase):
         server_message_id = str(uuid.uuid4())
 
         saved_message_payload = {
-            **message_payload,
             'id': server_message_id,
             'client_operation_id': client_operation_id,
             'user': username,

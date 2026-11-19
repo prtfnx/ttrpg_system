@@ -2,10 +2,10 @@
 
 Audience: contributors changing chat delivery, history, privacy, or chat UI.
 
-Status: current but partial. Code-level delivery boundaries are implemented.
-Retention, moderation, export, and DM-whisper policy remain product decisions.
+Status: current but partial. Delivery, retention, moderation and DM whisper
+visibility are implemented. Export and attachment support remain product work.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-11-17
 
 ## Ownership
 
@@ -25,8 +25,8 @@ Last source audit: 2026-08-17
    connection. Client identity fields are not trusted.
 4. Text, channel, recipient, and attachment policy are validated.
 5. The server persists a server UUID plus the sender-scoped operation id.
-6. Public messages broadcast to the session. Whispers go only to the sender
-   and a distinct active session member.
+6. Public messages broadcast to the session. Whispers go to the sender,
+   recipient and connected DMs; history applies the same DM visibility policy.
 7. Confirmation or error moves the pending row to sent or failed. Retrying uses
    the same operation id and does not rebroadcast a committed duplicate.
 
@@ -66,15 +66,23 @@ normal cleanup path instead of stalling fan-out indefinitely.
 Production-shaped load tests still need to set the final timeout and capacity
 limits for the deployed Render tier.
 
-## Remaining product policy
+## Retention and moderation
 
-Before public release, decide and document:
+`CHAT_RETENTION_DAYS` defaults to 365 and accepts 30-3650 days. The daily worker
+removes expired rows using its own ORM transaction, without blocking sockets.
+Moderation supports delete and redact, preserves a tombstone in history, and
+records an audit event. Moderating another user's message requires a reason.
+Only an authorized moderator or the message owner may moderate a message.
+DM whisper visibility applies to live delivery and history; whispers are not
+private from session DMs.
 
-- retention and deletion/export behavior;
-- moderation and abuse response;
-- whether a DM may inspect whispers;
-- whether authorized asset attachments are supported;
-- legal/privacy notice and message quotas.
+User chat is constructed from validated fields. Client-supplied `kind`,
+`system_event`, history cursors, moderation flags, creation times and arbitrary
+metadata cannot become persisted or delivered system messages. Legitimate
+character-roll system rows still originate from the server roll path.
+
+Remaining product work includes deletion/export policy, abuse response,
+authorized asset attachments, privacy notices and message quotas.
 
 ## Verification
 

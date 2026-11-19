@@ -285,3 +285,23 @@ async def test_chat_database_operations_run_off_event_loop(chat_db, monkeypatch)
 
     assert set(worker_threads) == {"write", "history", "moderation"}
     assert all(thread_id != event_loop_thread for thread_id in worker_threads.values())
+
+
+async def test_user_chat_cannot_forge_system_metadata_or_history_cursors(chat_db):
+    session_factory, session_id, alice_id, _, _ = chat_db
+    harness = ChatHarness(session_id, alice_id, {'alice-client': {'user_id': alice_id, 'username': 'alice'}})
+    message = _message()
+    message.data['message'].update(kind='system', system_event={'type': 'character_roll'},
+        server_cursor=999999, deleted=True, redacted=True, created_at='forged', arbitrary='payload')
+    result = await harness.handle_chat(message, 'alice-client')
+    assert result.type == MessageType.CHAT_CONFIRMATION
+    delivered = harness.broadcast_to_session.await_args.args[0].data['message']
+    history = await harness.handle_chat_request(Message(MessageType.CHAT_REQUEST, {'count': 30}), 'alice-client')
+    with session_factory() as db:
+        saved = db.query(models.ChatMessage).one()
+        assert delivered['server_cursor'] == saved.id
+        assert result.data['chat_message'] == delivered
+        assert history.data['messages'][0] == delivered
+        import json
+        raw = json.loads(saved.message_json)
+        assert not {'kind', 'system_event', 'server_cursor', 'deleted', 'redacted', 'created_at', 'arbitrary'} & raw.keys()

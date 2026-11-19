@@ -34,6 +34,15 @@ describe('server-filtered combat views', () => {
     }
   }
 
+  it('does not grant a visible actor a hidden actor turn', () => {
+    useGameStore.setState({ userId: 8, sessionRole: 'player' });
+    useCombatStore.getState().setCombat({ ...views.controller, current_turn_index: -1 } as CombatStateView);
+    render(<><CombatDock /><TurnBanner /></>);
+    expect(screen.queryByRole('button', { name: 'Plan turn' })).toBeNull();
+    expect(screen.queryByText('Your Turn!')).toBeNull();
+    expect(useCombatStore.getState().getCurrentCombatant()).toBeNull();
+  });
+
   it('preserves explicit controller grants and visible health', () => {
     useGameStore.setState({ userId: 8, sessionRole: 'player' });
     const incoming = { ...views.controller, current_turn_index: 1 } as CombatStateView;

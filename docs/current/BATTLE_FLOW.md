@@ -478,3 +478,16 @@ table even when the user is viewing another table.
 
 See [Combat commands](reference/COMBAT_COMMANDS.md#structured-action-definitions)
 for the metadata contract, accepted effects, authority checks and limitations.
+
+## Visible turn positions
+
+Public views remap `current_turn_index` into the active, visible combatant list.
+If the real current actor is hidden, the public index is `-1`: the browser shows
+no current actor or turn controls. Filtering never grants another actor that
+turn. Defeated actors do not count toward either active turn index.
+
+Planning submissions use cryptographically random JavaScript-safe numeric
+identities across tabs and reloads. An acknowledgement clears only the action
+IDs captured by the matching local submission. Peer broadcasts, stale results,
+and later local edits preserve the unsent queue. Rejection leaves the submitted
+actions available for correction.

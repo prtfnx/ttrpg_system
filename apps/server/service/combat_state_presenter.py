@@ -43,6 +43,10 @@ class CombatStatePresenter:
             getattr(getattr(state, 'settings', None), 'show_npc_ac_to_players', False)
         )
         view = state.to_dict_for_player(visibility)
+        source_active = [item for item in view.get('combatants', []) if not item.get('is_defeated')]
+        current_index = view.get('current_turn_index', 0)
+        current_id = (source_active[current_index % len(source_active)].get('combatant_id')
+                      if source_active else None)
         view['combatants'] = [
             CombatStatePresenter._sanitize_combatant(
                 combatant,
@@ -58,6 +62,10 @@ class CombatStatePresenter:
             for combatant in view['combatants']
             if combatant.get('combatant_id') is not None
         }
+        visible_active = [item for item in view['combatants'] if not item.get('is_defeated')]
+        # A hidden actor's turn must not become a visible actor's turn after filtering.
+        view['current_turn_index'] = next((index for index, item in enumerate(visible_active)
+                                           if item.get('combatant_id') == current_id), -1)
         view['action_log'] = CombatStatePresenter._sanitize_action_log(
             view.get('action_log', []),
             visible_ids,

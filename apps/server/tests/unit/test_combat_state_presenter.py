@@ -1,3 +1,4 @@
+import pytest
 from core_table.combat import (
     ActionCost,
     CombatAction,
@@ -200,3 +201,28 @@ def test_dm_event_context_remains_complete():
 
     assert data['combatant_id'] == 'npc-hidden'
     assert data['result']['new_hp'] == 24
+
+
+@pytest.mark.parametrize('role', ['player', 'spectator'])
+@pytest.mark.parametrize(('source_index', 'expected_id'), [(0, None), (1, 'pc-1'), (2, 'npc-1')])
+def test_hidden_turns_do_not_shift_the_visible_current_actor(role, source_index, expected_id):
+    state = _state()
+    hidden = state.combatants.pop()
+    state.combatants.insert(0, hidden)
+    state.current_turn_index = source_index
+    view = CombatStatePresenter.for_client(state, role, user_id=7)
+    active = [actor for actor in view['combatants'] if not actor['is_defeated']]
+    if expected_id is None:
+        assert view['current_turn_index'] == -1
+    else:
+        assert active[view['current_turn_index']]['combatant_id'] == expected_id
+    assert state.current_turn_index == source_index
+
+
+def test_filtered_turn_index_counts_active_actors_only():
+    state = _state()
+    state.combatants[0].is_defeated = True
+    state.current_turn_index = 0
+    view = CombatStatePresenter.for_client(state, 'player', user_id=7)
+    active = [actor for actor in view['combatants'] if not actor['is_defeated']]
+    assert active[view['current_turn_index']]['combatant_id'] == 'npc-1'

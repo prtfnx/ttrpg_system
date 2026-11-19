@@ -4,6 +4,7 @@ import { AssetManager } from '@features/assets';
 import { GridControls, LayerPanel } from '@features/canvas';
 import { useLayerHotkeys } from '@features/canvas/hooks';
 import { OAPrompt, OAWarningModal, useCombatCommands, useOAStore } from '@features/combat';
+import { useCombatStore } from '@features/combat/stores/combatStore';
 import { startDmPreview, stopDmPreview } from '@features/lighting';
 import { MeasurementTool } from '@features/measurement';
 import { PaintPanel } from '@features/painting';
@@ -78,6 +79,7 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
   const oaWarning = useOAStore((s) => s.warningEntityId);
   const oaTriggers = useOAStore((s) => s.warningTriggers);
   const oaPrompt = useOAStore((s) => s.prompt);
+  const combat = useCombatStore((s) => s.combat);
   const pendingOACommand = useOAStore((s) => s.pendingCombatCommand);
   const clearOA = useOAStore((s) => s.clearAll);
   const { sendCommandBatch } = useCombatCommands();
@@ -644,10 +646,12 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
       {oaPrompt && (
         <OAPrompt
           targetName={oaPrompt.target_name}
-          onUseReaction={() => {
+          actions={combat?.combatants.find((actor) => actor.combatant_id === oaPrompt.attacker_combatant_id)?.available_actions?.filter((action) => action.kind === 'attack' && action.attack_type === 'melee')}
+          onUseReaction={(actionId) => {
             if (ProtocolService.hasProtocol())
               ProtocolService.getProtocol().resolveOA({
                 use_reaction: true,
+                action_id: actionId,
                 attacker_combatant_id: oaPrompt.attacker_combatant_id,
                 target_combatant_id: oaPrompt.target_combatant_id,
               });
@@ -655,7 +659,7 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
           }}
           onPass={() => {
             if (ProtocolService.hasProtocol())
-              ProtocolService.getProtocol().resolveOA({ use_reaction: false });
+              ProtocolService.getProtocol().resolveOA({ use_reaction: false, attacker_combatant_id: oaPrompt.attacker_combatant_id, target_combatant_id: oaPrompt.target_combatant_id });
             clearOA();
           }}
         />

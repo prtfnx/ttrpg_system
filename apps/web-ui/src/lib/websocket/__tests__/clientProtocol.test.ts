@@ -1211,9 +1211,7 @@ describe('WebClientProtocol', () => {
         use_reaction: true,
         attacker_combatant_id: 'attacker-1',
         target_combatant_id: 'target-1',
-        attack_bonus: 4,
-        damage_formula: '1d8+2',
-        damage_type: 'piercing',
+        action_id: 'sword',
       });
       p.sendBatch();
 
@@ -1227,9 +1225,7 @@ describe('WebClientProtocol', () => {
           actor_id: 'attacker-1',
           target_id: 'target-1',
           use_reaction: true,
-          attack_bonus: 4,
-          damage_formula: '1d8+2',
-          damage_type: 'piercing',
+          action_id: 'sword',
         }),
       ]);
     });

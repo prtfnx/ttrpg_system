@@ -3435,11 +3435,9 @@ export class WebClientProtocol {
     use_reaction: boolean;
     attacker_combatant_id?: string;
     target_combatant_id?: string;
-    attack_bonus?: number;
-    damage_formula?: string;
-    damage_type?: string;
+    action_id?: string;
   }): void {
-    if (!data.attacker_combatant_id) return;
+    if (!data.attacker_combatant_id || (data.use_reaction && !data.action_id)) return;
     this.sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
       sequence_id: Date.now(),
       commands: [{
@@ -3447,9 +3445,7 @@ export class WebClientProtocol {
         actor_id: data.attacker_combatant_id,
         target_id: data.target_combatant_id,
         use_reaction: data.use_reaction,
-        attack_bonus: data.attack_bonus ?? 0,
-        damage_formula: data.damage_formula || '1d6+0',
-        damage_type: data.damage_type || 'bludgeoning',
+        ...(data.use_reaction ? { action_id: data.action_id } : {}),
       }],
     }));
   }

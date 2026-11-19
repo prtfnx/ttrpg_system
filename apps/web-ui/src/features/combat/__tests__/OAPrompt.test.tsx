@@ -15,9 +15,9 @@ describe('OAPrompt', () => {
 
   it('calls onUseReaction when use reaction clicked', async () => {
     const onUseReaction = vi.fn();
-    render(<OAPrompt targetName="Goblin" onUseReaction={onUseReaction} onPass={vi.fn()} />);
+    render(<OAPrompt targetName="Goblin" actions={[{ action_id: 'sword', name: 'Sword' }]} onUseReaction={onUseReaction} onPass={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: /use reaction/i }));
-    expect(onUseReaction).toHaveBeenCalledOnce();
+    expect(onUseReaction).toHaveBeenCalledWith('sword');
   });
 
   it('calls onPass when pass clicked', async () => {

@@ -431,3 +431,11 @@ saved-session workflow with buffered obstacle edits, frontend revision/lifecycle
 regressions, native payload validation, and browser visibility plus pixel-shadow
 checks without an obstacle sprite. The browser regression also proves that an
 invalid replacement cannot retain the previous visible footprint.
+
+The Lighting layer visibility setting gates the decorative point-light render
+pass. Hiding and restoring the layer removes and restores its rendered color;
+it does not rewrite each light's persisted `isOn` value. Light strength belongs
+to the Lighting controls, so the generic layer opacity slider is unavailable
+for Lighting. Fog visibility and opacity belong to Fog tools and Player Vision
+& Fog; the layer panel exposes neither an ineffective fog toggle nor a generic
+fog opacity slider. Local layer controls cannot disable the player fog compositor.

@@ -238,14 +238,6 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
           <span>Initializing layers...</span>
         </div>
         
-        {/* Test fog toggle button for test compatibility */}
-        <button 
-          aria-label="Toggle fog of war layer"
-          className={styles.fogTestBtn}
-          onClick={(e) => handleVisibilityToggle('fog_of_war', e)}
-        >
-          Toggle Fog of War
-        </button>
       </div>
     );
   }
@@ -302,7 +294,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
                 </button>
                 
                 <div className={styles.layerControls}>
-                  <button
+                  {layer.id !== 'fog_of_war' && <button
                     type="button"
                     className={clsx(styles.visibilityBtn, !isVisible && styles.hidden)}
                     onClick={(e) => {
@@ -313,11 +305,11 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
                     data-testid={`visibility-toggle-${layer.id}`}
                   >
                     {isVisible ? <Eye size={14} aria-hidden /> : <EyeOff size={14} aria-hidden />}
-                  </button>
+                  </button>}
                 </div>
               </div>
 
-              {isExpanded && (
+              {isExpanded && layer.id !== 'light' && layer.id !== 'fog_of_war' && (
                 <div className={styles.layerOpacity}>
                   <label className={styles.opacityLabel}>
                     Opacity: {Math.round(opacity * 100)}%
@@ -337,6 +329,8 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
                 </div>
               )}
 
+              {isExpanded && layer.id === 'light' && <p>Adjust light strength in Lighting controls.</p>}
+              {isExpanded && layer.id === 'fog_of_war' && <p>Use Fog tools and Player Vision &amp; Fog.</p>}
               <div 
                 className={styles.layerColorIndicator} 
                 style={{ backgroundColor: layer.color }}

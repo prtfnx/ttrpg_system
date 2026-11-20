@@ -1132,6 +1132,25 @@ describe('WASM module (real browser)', () => {
     }
   });
 
+  it('hides decorative point lights when the light layer is hidden', () => {
+    const canvas = document.createElement('canvas'); canvas.width = 200; canvas.height = 200;
+    const engine = new RenderEngine(canvas);
+    const tableId = '550e8400-e29b-41d4-a716-446655440092';
+    try {
+      hydrateEmptyTable(engine, tableId);
+      engine.set_background_color('#000000');
+      engine.add_light_for_table('layer-light', 100, 100, tableId);
+      engine.set_light_color('layer-light', 1, 1, 1, 1);
+      engine.set_light_intensity('layer-light', 2); engine.set_light_radius('layer-light', 90);
+      engine.render(); const visible = brightness(readPixel(canvas, 110, 100));
+      expect(visible).toBeGreaterThan(20);
+      engine.set_layer_visibility('light', false); engine.render();
+      expect(brightness(readPixel(canvas, 110, 100))).toBeLessThan(visible - 20);
+      engine.set_layer_visibility('light', true); engine.render();
+      expect(brightness(readPixel(canvas, 110, 100))).toBe(visible);
+    } finally { engine.free(); }
+  });
+
   it('clips point-light accumulation to the active table plane', () => {
     const canvas = document.createElement('canvas');
     canvas.width = 200;

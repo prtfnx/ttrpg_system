@@ -222,7 +222,12 @@ impl RenderEngine {
             self.canvas_size,
         );
 
-        if self.server_occlusion_available() {
+        if self.server_occlusion_available()
+            && self
+                .layer_manager
+                .get_layer("light")
+                .is_some_and(|layer| layer.settings.visible)
+        {
             self.lighting.render_lights_filtered(
                 &self.occlusion_scene.light,
                 self.occlusion_scene.revision(),

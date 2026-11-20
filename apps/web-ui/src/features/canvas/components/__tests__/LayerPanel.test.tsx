@@ -366,16 +366,15 @@ describe('LayerPanel - Game Master Layer Management', () => {
     it('allows adjusting multiple layer settings', async () => {
       render(<LayerPanel initialLayers={TEST_LAYERS} />);
 
-      // User adjusts Lighting layer opacity
       await user.click(screen.getByText('Lighting'));
-      const lightSlider = screen.getByTestId('opacity-slider-light');
-      expect(lightSlider).toBeInTheDocument();
-      await user.type(lightSlider, '{arrowleft}');
-
-      // User toggles Fog of War visibility
-      const fogToggle = screen.getByRole('button', { name: /toggle fog/i });
-      expect(fogToggle).toBeInTheDocument();
-      await user.click(fogToggle);
+      expect(screen.queryByTestId('opacity-slider-light')).toBeNull();
+      const lightToggle = screen.getByRole('button', { name: /toggle lighting/i });
+      await user.click(lightToggle);
+      expect(mockRenderEngine.set_layer_visibility).toHaveBeenCalledWith('light', false);
+      await user.click(screen.getByText('Fog of War'));
+      expect(screen.queryByRole('button', { name: /toggle fog/i })).toBeNull();
+      expect(screen.queryByTestId('opacity-slider-fog_of_war')).toBeNull();
+      expect(screen.getByText('Use Fog tools and Player Vision & Fog.')).toBeInTheDocument();
 
       // User adjusts Tokens layer opacity
       await user.click(screen.getByText('Tokens'));

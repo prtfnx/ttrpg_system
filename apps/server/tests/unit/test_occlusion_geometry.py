@@ -26,7 +26,7 @@ def test_scaled_rotated_rectangle_matches_rendered_boundary_without_identity():
         135, 95, 135, 135, 135, 135, 105, 135,
         105, 135, 105, 95, 105, 95, 135, 95,
     ])
-    assert set(snapshot) == {'schema_version', 'valid', 'segments'}
+    assert set(snapshot) == {'schema_version', 'valid', 'segments', 'shapes'}
     assert 'Secret' not in str(snapshot) and 'private' not in str(snapshot)
 
 
@@ -38,6 +38,8 @@ def test_world_vertices_are_not_transformed_a_second_time(kind):
     snapshot = obstacle_occlusion_snapshot(table)
     assert snapshot['valid']
     assert snapshot['segments'][:4] == [5, 6, 50, 6]
+    assert snapshot['shapes'][0]['closed'] is (kind == 'polygon')
+    assert snapshot['shapes'][0]['vertices'][:2] == [[5, 6], [50, 6]]
     assert len(snapshot['segments']) == (4 if kind == 'line' else 12)
 
 
@@ -54,7 +56,7 @@ def test_invalid_or_oversized_geometry_never_publishes_a_partial_boundary(monkey
     table = VirtualTable('Geometry', 1000, 1000)
     entity = obstacle(table)
     monkeypatch.setattr('service.occlusion_geometry.MAX_SEGMENTS', 3)
-    assert obstacle_occlusion_snapshot(table) == {'schema_version': 1, 'valid': False, 'segments': []}
+    assert obstacle_occlusion_snapshot(table) == {'schema_version': 1, 'valid': False, 'segments': [], 'shapes': []}
     monkeypatch.setattr('service.occlusion_geometry.MAX_SEGMENTS', 8192)
     entity.rotation = float('nan')
     assert not obstacle_occlusion_snapshot(table)['valid']
@@ -125,3 +127,17 @@ async def test_post_commit_publications_replace_geometry_and_clear_last_obstacle
         'operation': 'delete', 'table_id': str(table.table_id),
     }))
     assert not harness._occlusion_cache and not harness._published_occlusion
+
+
+async def test_terrain_changes_share_the_geometry_revision_stream(monkeypatch):
+    table = VirtualTable('Geometry', 1000, 1000)
+    harness = Harness(table)
+    monkeypatch.setattr('service.protocol.tables.load_table_hydration', lambda _: SimpleNamespace(
+        walls=[], layer_settings={}, settings_revision=0))
+    request = Message(MessageType.TABLE_REQUEST, {'table_id': str(table.table_id)})
+    first = (await harness.handle_table_request(request, 'player')).data['table_data']['occlusion_geometry']
+    table.difficult_terrain_cells.add((1, 2))
+    second = (await harness.handle_table_request(request, 'player')).data['table_data']['occlusion_geometry']
+    assert first['revision'] + 1 == second['revision']
+    assert second['epoch'] == first['epoch']
+    assert second['difficult_terrain_cells'] == [[1, 2]]

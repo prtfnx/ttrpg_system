@@ -10,6 +10,7 @@ MAX_COORDINATE = 10_000_000
 
 def obstacle_occlusion_snapshot(table: VirtualTable) -> dict:
     segments = []
+    shapes = []
     try:
         for entity in table.entities.values():
             if entity.layer != 'obstacles' or entity.texture_path in {'__LIGHT__', '__FOG_HIDE__', '__FOG_REVEAL__'}:
@@ -18,13 +19,14 @@ def obstacle_occlusion_snapshot(table: VirtualTable) -> dict:
             count = len(points) if closed else len(points) - 1
             if len(segments) // 4 + count > MAX_SEGMENTS:
                 raise ValueError('Occlusion segment budget exceeded')
+            shapes.append({'vertices': [list(point) for point in points], 'closed': closed})
             for index in range(count):
                 segments.extend(value for point in (points[index], points[(index + 1) % len(points)])
                                 for value in point)
-        return {'schema_version': 1, 'valid': True, 'segments': segments}
+        return {'schema_version': 1, 'valid': True, 'segments': segments, 'shapes': shapes}
     except (ValueError, TypeError, OverflowError):
         # Never publish a partial boundary that would reveal behind an omitted obstacle.
-        return {'schema_version': 1, 'valid': False, 'segments': []}
+        return {'schema_version': 1, 'valid': False, 'segments': [], 'shapes': []}
 
 
 def versioned_occlusion_snapshot(protocol, table: VirtualTable) -> dict:
@@ -33,7 +35,8 @@ def versioned_occlusion_snapshot(protocol, table: VirtualTable) -> dict:
         protocol._occlusion_cache = {}
         protocol._occlusion_epoch = str(uuid.uuid4())
     key = str(table.table_id)
-    geometry = obstacle_occlusion_snapshot(table)
+    geometry = {**obstacle_occlusion_snapshot(table),
+                'difficult_terrain_cells': [list(cell) for cell in sorted(table.difficult_terrain_cells)]}
     previous = protocol._occlusion_cache.get(key)
     if previous is not None and all(previous[field] == value for field, value in geometry.items()):
         return previous

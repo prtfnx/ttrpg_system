@@ -4,6 +4,7 @@ from typing import Any
 
 from core_table.protocol import Message, MessageType
 from core_table.session_rules import SessionRules
+from core_table.table import VirtualTable
 from database.crud import get_game_mode, get_session_rules_json
 from database.database import SessionLocal
 from pydantic import ValidationError
@@ -12,6 +13,7 @@ from service.combat_movement import CombatMovementDraft
 from service.combat_persistence_service import CombatCommitOutcomeUnknown, CombatPersistenceService
 from service.combat_state_presenter import CombatStatePresenter
 from service.combatant_factory import CombatantFactory, CombatantFactoryContext, CombatantSourceError
+from service.occlusion_geometry import versioned_occlusion_snapshot
 from sqlalchemy.orm import Session, scoped_session
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
@@ -325,6 +327,12 @@ class _CombatMixin(_ProtocolBase):
             return self._combat_uncertain_response(envelope.sequence_id)
         response_type = MessageType.ACTION_RESULT if result.accepted else MessageType.ACTION_REJECTED
         if result.accepted:
+            for item in result.applied:
+                if item.get('action_type') == 'set_terrain':
+                    payload = item.get('result', {})
+                    table = self._get_table_by_id(payload.get('table_id'))
+                    if isinstance(table, VirtualTable):
+                        payload['occlusion_geometry'] = versioned_occlusion_snapshot(self, table)
             from service.combat_engine import CombatEngine
             state = CombatEngine.get_state(self._get_session_code())
             context = result.to_dict()

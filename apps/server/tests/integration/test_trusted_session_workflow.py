@@ -212,7 +212,8 @@ async def test_dm_player_play_reconnect_and_reconstruct_saved_session(
             return await request(service, socket, MessageType.COMBAT_COMMAND,
                                  {"sequence_id": sequence, "commands": commands}, expected)
 
-        await command(dm, 1, [{"type": "set_terrain", "actor_id": "__dm__", "table_id": table_id, "cells": [[10, 10]]}])
+        terrain_result = await command(dm, 1, [{"type": "set_terrain", "actor_id": "__dm__", "table_id": table_id, "cells": [[10, 10]]}])
+        assert terrain_result['applied'][0]['result']['occlusion_geometry']['difficult_terrain_cells'] == [[10, 10]]
         # A legacy stale projection must not outrank the canonical character.
         entry_table = service.table_manager.get_table(table_id)
         assert entry_table is not None

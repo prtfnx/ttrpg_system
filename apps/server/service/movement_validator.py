@@ -124,15 +124,18 @@ class MovementValidator:
         # Speed check (only when rules say so and combatant info is available)
         movement_cost = 0.0
         if self.rules.enforce_movement_speed and combatant is not None:
-            movement_cost = PathfindingSystem.get_path_movement_cost(
-                path, grid_size=table.grid_cell_px,
-                diagonal_rule=self.rules.diagonal_movement_rule,
-                cell_distance=getattr(table, 'cell_distance', 5.0),
-                distance_unit=getattr(table, 'distance_unit', 'ft'),
-                difficult_cells=getattr(table, 'difficult_terrain_cells', set())
-                if self.rules.enforce_difficult_terrain else (),
-            )
-            if movement_cost > combatant.movement_remaining:
+            try:
+                movement_cost = PathfindingSystem.get_path_movement_cost(
+                    path, grid_size=table.grid_cell_px,
+                    diagonal_rule=self.rules.diagonal_movement_rule,
+                    cell_distance=getattr(table, 'cell_distance', 5.0),
+                    distance_unit=getattr(table, 'distance_unit', 'ft'),
+                    difficult_cells=getattr(table, 'difficult_terrain_cells', set())
+                    if self.rules.enforce_difficult_terrain else (),
+                )
+            except ValueError as exc:
+                return MovementResult(valid=False, reason=str(exc))
+            if movement_cost > combatant.movement_remaining + 1e-6:
                 return MovementResult(
                     valid=False,
                     reason=(
@@ -322,15 +325,18 @@ class MovementValidator:
 
         movement_cost = 0.0
         if self.rules.enforce_movement_speed and combatant is not None:
-            movement_cost = PathfindingSystem.get_path_movement_cost(
-                path, grid_size=table.grid_cell_px,
-                diagonal_rule=self.rules.diagonal_movement_rule,
-                cell_distance=getattr(table, 'cell_distance', 5.0),
-                distance_unit=getattr(table, 'distance_unit', 'ft'),
-                difficult_cells=getattr(table, 'difficult_terrain_cells', set())
-                if self.rules.enforce_difficult_terrain else (),
-            )
-            if movement_cost > combatant.movement_remaining:
+            try:
+                movement_cost = PathfindingSystem.get_path_movement_cost(
+                    path, grid_size=table.grid_cell_px,
+                    diagonal_rule=self.rules.diagonal_movement_rule,
+                    cell_distance=getattr(table, 'cell_distance', 5.0),
+                    distance_unit=getattr(table, 'distance_unit', 'ft'),
+                    difficult_cells=getattr(table, 'difficult_terrain_cells', set())
+                    if self.rules.enforce_difficult_terrain else (),
+                )
+            except ValueError as exc:
+                return MovementResult(valid=False, reason=str(exc))
+            if movement_cost > combatant.movement_remaining + 1e-6:
                 return MovementResult(valid=False, reason=f"Insufficient movement: need {movement_cost:.0f}ft")
 
         return MovementResult(valid=True, valid_path=path, movement_cost=movement_cost)

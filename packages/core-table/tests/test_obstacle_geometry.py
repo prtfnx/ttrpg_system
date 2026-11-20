@@ -45,3 +45,11 @@ def test_malformed_vertices_fail_closed_for_movement():
     with pytest.raises(ValueError):
         obstacle_boundary(obstacle)
     assert PathfindingSystem.is_path_blocked_by_obstacles((0, 0), (1, 1), [obstacle])
+
+
+@pytest.mark.parametrize('rule', ['standard', 'alternate', 'realistic'])
+def test_terrain_cost_does_not_depend_on_client_waypoint_placement(rule):
+    arguments = dict(grid_size=50, diagonal_rule=rule, difficult_cells={(1, 0)})
+    direct = PathfindingSystem.get_path_movement_cost([(25, 25), (175, 25)], **arguments)
+    split = PathfindingSystem.get_path_movement_cost([(25, 25), (50, 25), (100, 25), (175, 25)], **arguments)
+    assert direct == split == 20

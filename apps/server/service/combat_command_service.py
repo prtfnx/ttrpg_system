@@ -997,7 +997,7 @@ class CombatCommandService:
         if (not isinstance(movement_cost, (int, float)) or isinstance(movement_cost, bool)
                 or not math.isfinite(movement_cost) or movement_cost < 0):
             return {"error": "Movement validation did not return a valid cost"}
-        if movement_cost > actor.movement_remaining:
+        if movement_cost > actor.movement_remaining + 1e-6:
             return {
                 "error": (
                     f"Insufficient movement: need {movement_cost:.0f}ft, "
@@ -1035,7 +1035,7 @@ class CombatCommandService:
             from_pos = move_result["from"]
             to_pos = move_result["to"]
 
-        actor.movement_remaining -= movement_cost
+        actor.movement_remaining = max(0.0, actor.movement_remaining - movement_cost)
         state.action_log.append(CombatAction(
             action_id=str(uuid.uuid4()),
             combat_id=state.combat_id,

@@ -274,20 +274,36 @@ class PathfindingSystem:
             raise ValueError('Movement requires finite positive table units')
         feet_per_cell = cell_distance / 0.3048 if distance_unit == 'm' else cell_distance
         total = diagonal_count = 0.0
-        for start, end in zip(path, path[1:]):
-            dx = abs(end[0] - start[0]) / grid_size
-            dy = abs(end[1] - start[1]) / grid_size
-            diagonal = min(dx, dy)
-            if diagonal_rule == 'realistic':
-                cells = math.hypot(dx, dy)
-            else:
-                cells = max(dx, dy)
+        intervals = 0
+        for first, last in zip(path, path[1:]):
+            breaks = {0.0, 1.0}
+            if difficult_cells:
+                for axis in (0, 1):
+                    low, high = sorted((first[axis], last[axis]))
+                    lower, upper = math.floor(low / grid_size), math.floor(high / grid_size)
+                    if upper - lower > 8192:
+                        raise ValueError('Movement terrain sampling budget exceeded')
+                    if first[axis] != last[axis]:
+                        for boundary in range(lower + 1, upper + 1):
+                            t = (boundary * grid_size - first[axis]) / (last[axis] - first[axis])
+                            if 0 < t < 1:
+                                breaks.add(t)
+            ordered = sorted(breaks)
+            intervals += len(ordered) - 1
+            if intervals > 8192:
+                raise ValueError('Movement terrain sampling budget exceeded')
+            for begin, finish in zip(ordered, ordered[1:]):
+                dx = abs(last[0] - first[0]) * (finish - begin) / grid_size
+                dy = abs(last[1] - first[1]) * (finish - begin) / grid_size
+                diagonal = min(dx, dy)
+                cells = math.hypot(dx, dy) if diagonal_rule == 'realistic' else max(dx, dy)
                 if diagonal_rule == 'alternate':
-                    cells += (diagonal_count + diagonal) // 2 - diagonal_count // 2
-            diagonal_count += diagonal
-            midpoint = (int((start[0] + end[0]) / 2 // grid_size), int((start[1] + end[1]) / 2 // grid_size))
-            total += cells * feet_per_cell * (2 if midpoint in difficult_cells else 1)
-        return total
+                    cells += math.floor((diagonal_count + diagonal) / 2 + 1e-9) - math.floor(diagonal_count / 2 + 1e-9)
+                diagonal_count += diagonal
+                middle = (begin + finish) / 2
+                midpoint = tuple(math.floor((first[axis] + (last[axis] - first[axis]) * middle) / grid_size) for axis in (0, 1))
+                total += cells * feet_per_cell * (2 if midpoint in difficult_cells else 1)
+        return round(total, 9)
 
     @staticmethod
     def find_path_astar(

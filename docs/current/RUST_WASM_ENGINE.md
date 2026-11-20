@@ -321,3 +321,10 @@ Native tests cover color parsing. `packages/rust-core/tests/wasm_browser.rs`
 covers actual image success/failure, renderer disposal, unavailable WebGL2,
 and malformed color behavior in a browser. Rebuild the tracked generated WASM
 when changing this code; native tests alone do not exercise DOM/GL lifetimes.
+
+Collision segment tests treat touching endpoints and collinear overlap as
+blocked, with a 0.000001 coordinate/cross-product tolerance. Closed obstacles
+also block segments wholly inside their boundary, including zero-length moves.
+A blocked direct move inside one grid cell does not become a successful A* path.
+Native regressions cover wall overlap, polygon/rectangle containment, circle
+containment and disjoint segments.

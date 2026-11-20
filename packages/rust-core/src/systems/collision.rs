@@ -320,7 +320,7 @@ impl CollisionSystem {
         let start = Cell((sx / g).floor() as i32, (sy / g).floor() as i32);
         let goal = Cell((ex / g).floor() as i32, (ey / g).floor() as i32);
         if start == goal {
-            return vec![sx, sy, ex, ey];
+            return Vec::new();
         }
 
         let h = |c: Cell| -> i32 {
@@ -542,7 +542,9 @@ pub(crate) fn seg_intersect(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> Option<Ve
     let s = b2 - b1;
     let rxs = r.x * s.y - r.y * s.x;
     if rxs.abs() < 1e-6 {
-        return None;
+        return [a1, a2, b1, b2]
+            .into_iter()
+            .find(|point| point_on_segment(*point, a1, a2) && point_on_segment(*point, b1, b2));
     }
     let t = ((b1 - a1).x * s.y - (b1 - a1).y * s.x) / rxs;
     let u = ((b1 - a1).x * r.y - (b1 - a1).y * r.x) / rxs;
@@ -553,12 +555,29 @@ pub(crate) fn seg_intersect(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> Option<Ve
     }
 }
 
+fn point_on_segment(point: Vec2, start: Vec2, end: Vec2) -> bool {
+    let offset = point - start;
+    let direction = end - start;
+    (offset.x * direction.y - offset.y * direction.x).abs() <= 1e-6
+        && point.x >= start.x.min(end.x) - 1e-6
+        && point.x <= start.x.max(end.x) + 1e-6
+        && point.y >= start.y.min(end.y) - 1e-6
+        && point.y <= start.y.max(end.y) + 1e-6
+}
+
 fn line_vs_circle(a: Vec2, b: Vec2, center: Vec2, radius: f32) -> bool {
     let d = b - a;
     let f = a - center;
     let aa = d.x * d.x + d.y * d.y;
     let bv = 2.0 * (f.x * d.x + f.y * d.y);
     let c = f.x * f.x + f.y * f.y - radius * radius;
+    let end_offset = b - center;
+    if c <= 0.0 || end_offset.x * end_offset.x + end_offset.y * end_offset.y <= radius * radius {
+        return true;
+    }
+    if aa <= f32::EPSILON {
+        return false;
+    }
     let disc = bv * bv - 4.0 * aa * c;
     if disc < 0.0 {
         return false;
@@ -571,6 +590,9 @@ fn line_vs_circle(a: Vec2, b: Vec2, center: Vec2, radius: f32) -> bool {
 
 fn line_vs_polygon(a: Vec2, b: Vec2, verts: &[Vec2]) -> bool {
     let n = verts.len();
+    if point_in_polygon(a, verts) || point_in_polygon(b, verts) {
+        return true;
+    }
     for i in 0..n {
         let j = (i + 1) % n;
         if seg_intersect(a, b, verts[i], verts[j]).is_some() {
@@ -578,6 +600,23 @@ fn line_vs_polygon(a: Vec2, b: Vec2, verts: &[Vec2]) -> bool {
         }
     }
     false
+}
+
+fn point_in_polygon(point: Vec2, vertices: &[Vec2]) -> bool {
+    let mut inside = false;
+    if vertices.len() < 3 {
+        return false;
+    }
+    for index in 0..vertices.len() {
+        let a = vertices[index];
+        let b = vertices[(index + 1) % vertices.len()];
+        if (a.y > point.y) != (b.y > point.y)
+            && point.x < (b.x - a.x) * (point.y - a.y) / (b.y - a.y) + a.x
+        {
+            inside = !inside;
+        }
+    }
+    inside
 }
 
 // ── Native tests ──────────────────────────────────────────────────────
@@ -588,6 +627,43 @@ mod tests {
 
     fn make_system() -> CollisionSystem {
         CollisionSystem::new(64.0)
+    }
+
+    #[test]
+    fn collinear_overlaps_and_points_are_blocked_without_blocking_disjoint_lines() {
+        let a = Vec2::new(0.0, 0.0);
+        let b = Vec2::new(10.0, 0.0);
+        for (start, end) in [
+            (a, b),
+            (Vec2::new(5.0, 0.0), Vec2::new(15.0, 0.0)),
+            (Vec2::new(5.0, 0.0), Vec2::new(5.0, 0.0)),
+        ] {
+            assert!(seg_intersect(a, b, start, end).is_some());
+            assert!(seg_intersect(end, start, b, a).is_some());
+        }
+        assert!(seg_intersect(a, b, Vec2::new(11.0, 0.0), Vec2::new(20.0, 0.0)).is_none());
+    }
+
+    #[test]
+    fn segments_fully_inside_shapes_are_blocked_including_zero_length_segments() {
+        let mut sys = make_system();
+        for shape in [
+            r#"[{"id":"shape","obstacle_type":"rectangle","x":50,"y":50,"width":40,"height":40,"radius":0}]"#,
+            r#"[{"id":"shape","obstacle_type":"circle","x":50,"y":50,"width":0,"height":0,"radius":20}]"#,
+            r#"[{"id":"shape","obstacle_type":"polygon","x":50,"y":50,"width":40,"height":40,"radius":0,"vertices":[[30,30],[70,30],[70,70],[30,70]]}]"#,
+        ] {
+            sys.set_obstacles(shape);
+            assert!(sys.line_blocked(45.0, 50.0, 55.0, 50.0));
+            assert!(sys.line_blocked(50.0, 50.0, 50.0, 50.0));
+            assert!(!sys.line_blocked(5.0, 5.0, 15.0, 5.0));
+        }
+    }
+
+    #[test]
+    fn blocked_move_inside_one_cell_is_not_reported_as_a_clear_path() {
+        let mut sys = make_system();
+        sys.set_walls(r#"[{"x1":20,"y1":0,"x2":20,"y2":64,"is_door":false,"door_open":false}]"#);
+        assert!(sys.find_path(5.0, 10.0, 40.0, 10.0).is_empty());
     }
 
     #[test]

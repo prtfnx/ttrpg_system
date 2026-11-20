@@ -4,6 +4,8 @@ import heapq
 import math
 from typing import TYPE_CHECKING, Optional
 
+from .obstacle_geometry import obstacle_boundary
+
 if TYPE_CHECKING:
     pass
 
@@ -17,6 +19,10 @@ class SpatialHashGrid:
 
     def __init__(self, cell_size: float):
         self.cell_size = cell_size
+        self._all_walls: set[int] = set()
+        self._all_obstacles: set[int] = set()
+        self._global_walls: set[int] = set()
+        self._global_obstacles: set[int] = set()
         self._walls: dict[tuple[int, int], list[int]] = {}
         self._obstacles: dict[tuple[int, int], list[int]] = {}
 
@@ -25,30 +31,47 @@ class SpatialHashGrid:
         return (int(x // c), int(y // c))
 
     def insert_wall(self, idx: int, wall) -> None:
+        self._all_walls.add(idx)
+        if self._span(wall.x1, wall.y1, wall.x2, wall.y2) > 4096:
+            self._global_walls.add(idx)
+            return
         for cell in self._cells_along(wall.x1, wall.y1, wall.x2, wall.y2):
             self._walls.setdefault(cell, []).append(idx)
 
     def insert_obstacle(self, idx: int, entity) -> None:
-        px, py = entity.position[0], entity.position[1]
-        w = getattr(entity, 'width', 1.0) or 1.0
-        h = getattr(entity, 'height', 1.0) or 1.0
-        min_c = self._bucket(px, py)
-        max_c = self._bucket(px + w, py + h)
+        self._all_obstacles.add(idx)
+        try:
+            points, _closed = obstacle_boundary(entity)
+            min_c = self._bucket(min(p[0] for p in points), min(p[1] for p in points))
+            max_c = self._bucket(max(p[0] for p in points), max(p[1] for p in points))
+        except (ValueError, TypeError, OverflowError):
+            self._global_obstacles.add(idx)
+            return
+        if (max_c[0] - min_c[0] + 1) * (max_c[1] - min_c[1] + 1) > 4096:
+            self._global_obstacles.add(idx)
+            return
         for cx in range(min_c[0], max_c[0] + 1):
             for cy in range(min_c[1], max_c[1] + 1):
                 self._obstacles.setdefault((cx, cy), []).append(idx)
 
     def query_walls(self, x1: float, y1: float, x2: float, y2: float) -> set[int]:
-        result: set[int] = set()
+        if self._span(x1, y1, x2, y2) > 4096:
+            return self._all_walls.copy()
+        result = self._global_walls.copy()
         for cell in self._cells_along(x1, y1, x2, y2):
             result.update(self._walls.get(cell, []))
         return result
 
     def query_obstacles(self, x1: float, y1: float, x2: float, y2: float) -> set[int]:
-        result: set[int] = set()
+        if self._span(x1, y1, x2, y2) > 4096:
+            return self._all_obstacles.copy()
+        result = self._global_obstacles.copy()
         for cell in self._cells_along(x1, y1, x2, y2):
             result.update(self._obstacles.get(cell, []))
         return result
+
+    def _span(self, x1, y1, x2, y2):
+        return abs(int(x2 // self.cell_size) - int(x1 // self.cell_size)) + abs(int(y2 // self.cell_size) - int(y1 // self.cell_size)) + 2
 
     def _cells_along(self, x1: float, y1: float, x2: float, y2: float) -> list[tuple[int, int]]:
         """DDA grid walk — same algorithm as Rust cells_along_segment."""
@@ -210,41 +233,61 @@ class PathfindingSystem:
         else:
             candidates = obstacles
         for entity in candidates:
-            if exclude_entity_id and str(entity.entity_id) == str(exclude_entity_id):
+            if exclude_entity_id and str(exclude_entity_id) in {
+                str(getattr(entity, 'entity_id', '')), str(getattr(entity, 'sprite_id', '')),
+            }:
                 continue
-            ot = getattr(entity, 'obstacle_type', None)
-            px, py = entity.position[0], entity.position[1]
-            w = getattr(entity, 'width', 1.0) or 1.0
-            h = getattr(entity, 'height', 1.0) or 1.0
-            if ot == 'circle':
-                r = max(w, h) / 2
-                if PathfindingSystem.line_intersects_circle(x1, y1, x2, y2, px + w / 2, py + h / 2, r):
-                    return True
-            elif ot in ('rectangle', 'polygon', None):
-                if PathfindingSystem.line_intersects_aabb(x1, y1, x2, y2, px, py, w, h):
+            try:
+                points, closed = obstacle_boundary(entity)
+            except (ValueError, TypeError, OverflowError):
+                return True
+            if closed and (PathfindingSystem.point_in_polygon(start, points) or PathfindingSystem.point_in_polygon(end, points)):
+                return True
+            count = len(points) if closed else len(points) - 1
+            for index in range(count):
+                if PathfindingSystem.line_segments_intersect(x1, y1, x2, y2,
+                        *points[index], *points[(index + 1) % len(points)]):
                     return True
         return False
 
     @staticmethod
-    def get_movement_cost(
-        start: tuple, end: tuple,
-        grid_size: float,
-        diagonal_rule: str = "standard",
-    ) -> float:
-        """Distance in game units (feet). Uses Chebyshev for standard D&D 5e diagonal."""
-        dx = abs(end[0] - start[0]) / grid_size
-        dy = abs(end[1] - start[1]) / grid_size
-        straight = abs(dx - dy)
-        diag = min(dx, dy)
-        if diagonal_rule == 'alternate':
-            # 5-10-5: every other diagonal costs 10ft instead of 5ft
-            cost = straight * 5 + diag * 5 + (diag // 2) * 5
-        elif diagonal_rule == 'realistic':
-            cost = math.sqrt(dx * dx + dy * dy) * 5
-        else:
-            # standard: diagonals count as 5ft (Chebyshev × 5)
-            cost = (straight + diag) * 5
-        return cost
+    def point_in_polygon(point, vertices):
+        inside = False
+        for index, first in enumerate(vertices):
+            second = vertices[(index + 1) % len(vertices)]
+            if (first[1] > point[1]) != (second[1] > point[1]) and point[0] < (
+                (second[0] - first[0]) * (point[1] - first[1]) / (second[1] - first[1]) + first[0]
+            ):
+                inside = not inside
+        return inside
+
+    @staticmethod
+    def get_movement_cost(start, end, grid_size, diagonal_rule='standard', *, cell_distance=5.0, distance_unit='ft'):
+        return PathfindingSystem.get_path_movement_cost([start, end], grid_size, diagonal_rule,
+            cell_distance=cell_distance, distance_unit=distance_unit)
+
+    @staticmethod
+    def get_path_movement_cost(path, grid_size, diagonal_rule='standard', *, cell_distance=5.0,
+                               distance_unit='ft', difficult_cells=()):
+        if (not math.isfinite(grid_size) or grid_size <= 0 or not math.isfinite(cell_distance)
+                or cell_distance <= 0 or distance_unit not in {'ft', 'm'}):
+            raise ValueError('Movement requires finite positive table units')
+        feet_per_cell = cell_distance / 0.3048 if distance_unit == 'm' else cell_distance
+        total = diagonal_count = 0.0
+        for start, end in zip(path, path[1:]):
+            dx = abs(end[0] - start[0]) / grid_size
+            dy = abs(end[1] - start[1]) / grid_size
+            diagonal = min(dx, dy)
+            if diagonal_rule == 'realistic':
+                cells = math.hypot(dx, dy)
+            else:
+                cells = max(dx, dy)
+                if diagonal_rule == 'alternate':
+                    cells += (diagonal_count + diagonal) // 2 - diagonal_count // 2
+            diagonal_count += diagonal
+            midpoint = (int((start[0] + end[0]) / 2 // grid_size), int((start[1] + end[1]) / 2 // grid_size))
+            total += cells * feet_per_cell * (2 if midpoint in difficult_cells else 1)
+        return total
 
     @staticmethod
     def find_path_astar(
@@ -296,7 +339,7 @@ class PathfindingSystem:
 
         visited: set = set()
 
-        while open_set:
+        while open_set and len(visited) < 8192:
             _, current = heapq.heappop(open_set)
             if current in visited:
                 continue

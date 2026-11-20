@@ -64,7 +64,7 @@ class MovementValidator:
             obstacles = [
                 e for e in table.entities.values()
                 if getattr(e, 'layer', None) == 'obstacles'
-                and str(getattr(e, 'entity_id', '')) != str(entity_id)
+                and str(entity_id) not in {str(getattr(e, 'entity_id', '')), str(getattr(e, 'sprite_id', ''))}
             ]
 
         # Build spatial hash once for all collision checks
@@ -124,24 +124,14 @@ class MovementValidator:
         # Speed check (only when rules say so and combatant info is available)
         movement_cost = 0.0
         if self.rules.enforce_movement_speed and combatant is not None:
-            difficult: set[tuple[int, int]] = getattr(
-                table, 'difficult_terrain_cells', set()
+            movement_cost = PathfindingSystem.get_path_movement_cost(
+                path, grid_size=table.grid_cell_px,
+                diagonal_rule=self.rules.diagonal_movement_rule,
+                cell_distance=getattr(table, 'cell_distance', 5.0),
+                distance_unit=getattr(table, 'distance_unit', 'ft'),
+                difficult_cells=getattr(table, 'difficult_terrain_cells', set())
+                if self.rules.enforce_difficult_terrain else (),
             )
-            # Sum cost of each segment in the actual path (accounts for detours)
-            for seg_start, seg_end in zip(path, path[1:]):
-                seg_cost = PathfindingSystem.get_movement_cost(
-                    seg_start, seg_end,
-                    grid_size=table.grid_cell_px,
-                    diagonal_rule=self.rules.diagonal_movement_rule,
-                )
-                if difficult and getattr(self.rules, 'enforce_difficult_terrain', True):
-                    # Mid-point cell of segment determines terrain type
-                    mid_x = (seg_start[0] + seg_end[0]) / 2
-                    mid_y = (seg_start[1] + seg_end[1]) / 2
-                    cell = (int(mid_x // table.grid_cell_px), int(mid_y // table.grid_cell_px))
-                    if cell in difficult:
-                        seg_cost *= 2
-                movement_cost += seg_cost
             if movement_cost > combatant.movement_remaining:
                 return MovementResult(
                     valid=False,
@@ -282,7 +272,7 @@ class MovementValidator:
             obstacles = [
                 e for e in table.entities.values()
                 if getattr(e, 'layer', None) == 'obstacles'
-                and str(getattr(e, 'entity_id', '')) != str(entity_id)
+                and str(entity_id) not in {str(getattr(e, 'entity_id', '')), str(getattr(e, 'sprite_id', ''))}
             ]
         return walls, obstacles
 
@@ -332,21 +322,14 @@ class MovementValidator:
 
         movement_cost = 0.0
         if self.rules.enforce_movement_speed and combatant is not None:
-            difficult: set[tuple[int, int]] = getattr(
-                table, 'difficult_terrain_cells', set()
+            movement_cost = PathfindingSystem.get_path_movement_cost(
+                path, grid_size=table.grid_cell_px,
+                diagonal_rule=self.rules.diagonal_movement_rule,
+                cell_distance=getattr(table, 'cell_distance', 5.0),
+                distance_unit=getattr(table, 'distance_unit', 'ft'),
+                difficult_cells=getattr(table, 'difficult_terrain_cells', set())
+                if self.rules.enforce_difficult_terrain else (),
             )
-            for seg_start, seg_end in zip(path, path[1:]):
-                seg_cost = PathfindingSystem.get_movement_cost(
-                    seg_start, seg_end, grid_size=grid,
-                    diagonal_rule=self.rules.diagonal_movement_rule,
-                )
-                if difficult:
-                    mid_x = (seg_start[0] + seg_end[0]) / 2
-                    mid_y = (seg_start[1] + seg_end[1]) / 2
-                    cell = (int(mid_x // grid), int(mid_y // grid))
-                    if cell in difficult:
-                        seg_cost *= 2
-                movement_cost += seg_cost
             if movement_cost > combatant.movement_remaining:
                 return MovementResult(valid=False, reason=f"Insufficient movement: need {movement_cost:.0f}ft")
 

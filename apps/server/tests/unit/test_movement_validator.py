@@ -30,6 +30,8 @@ def make_table(width=1000, height=1000, grid_cell_px=50.0, walls=None, entities=
     t.width = width
     t.height = height
     t.grid_cell_px = grid_cell_px
+    t.cell_distance = 5.0
+    t.distance_unit = 'ft'
     t.walls = walls or {}
     t.entities = entities or {}
     t.find_entity_by_sprite_id.return_value = None
@@ -325,3 +327,26 @@ def test_validate_lightweight_rejects_incomplete_client_path():
 
     assert not result.valid
     assert 'at least two' in result.reason
+
+
+@pytest.mark.parametrize('method', ['validate', 'validate_lightweight'])
+@pytest.mark.parametrize(('distance', 'unit', 'expected'), [(10.0, 'ft', 10.0), (2.0, 'm', 2.0 / 0.3048)])
+def test_movement_budgets_use_the_tables_cell_distance_and_unit(method, distance, unit, expected):
+    table = make_table()
+    table.cell_distance, table.distance_unit = distance, unit
+    table.difficult_terrain_cells = set()
+    validator = MovementValidator(make_rules(enforce_movement_speed=True, movement_mode='free'))
+    result = getattr(validator, method)('hero', (25, 25), (75, 25), table, Combatant('hero', 30))
+    assert result.valid and result.movement_cost == pytest.approx(expected)
+    denied = getattr(validator, method)('hero', (25, 25), (75, 25), table, Combatant('hero', expected - 1))
+    assert not denied.valid
+
+
+@pytest.mark.parametrize('method', ['validate', 'validate_lightweight'])
+def test_client_waypoint_splitting_cannot_discount_alternating_diagonals(method):
+    table = make_table()
+    table.difficult_terrain_cells = set()
+    validator = MovementValidator(make_rules(enforce_movement_speed=True, movement_mode='free', diagonal_movement_rule='alternate'))
+    result = getattr(validator, method)('hero', (25, 25), (125, 125), table, Combatant('hero', 30),
+                                      client_path=[(25, 25), (75, 75), (125, 125)])
+    assert result.valid and result.movement_cost == 15

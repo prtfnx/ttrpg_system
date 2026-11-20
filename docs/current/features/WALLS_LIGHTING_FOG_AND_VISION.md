@@ -5,7 +5,7 @@ vision, or layer visibility.
 
 Status: current.
 
-Last source audit: 2026-11-04 (wall acceptance and recovery)
+Last source audit: 2026-11-18 (read-only obstacle geometry and vision recovery)
 
 ## Source owners
 
@@ -55,8 +55,8 @@ The implementation has two related but distinct pipelines:
 
 Consequently, a colored light and the area that it makes visible are generated
 separately from the same light-sprite metadata. They use the same obstacle
-shapes but can use different wall flags: `blocks_light` for colored light and
-`blocks_sight` for token/light visibility polygons.
+shapes but can use different wall flags: `blocks_light` for colored light and light visibility polygons, and
+`blocks_sight` for token vision polygons.
 
 The persisted `dynamic_lighting_enabled` field enables player vision and the
 fog compositor. It does not enable or disable decorative point-light color;
@@ -389,3 +389,45 @@ defaults when switching tables. Default opacity is 1 and color is white; light
 defaults to additive blending, fog to multiply, and other layers to alpha.
 Saved visibility overrides the legacy visibility map. Runtime updates accept
 both color aliases and apply blend modes.
+
+## Read-only obstacle occlusion
+
+Player table snapshots continue to omit editable obstacle sprites. The server
+adds an independent `table_data.occlusion_geometry` object containing
+`schema_version: 1`, a session `epoch`, an increasing per-table `revision`,
+`valid`, and flat world-space segments `[x1,y1,x2,y2,...]`. Segment payloads
+contain no sprite IDs, names, asset references, notes or actor data. Players can
+inspect the supplied boundaries; this contract protects sprite metadata and
+editing authority, rather than concealing geometry processed by their browser.
+
+`service/occlusion_geometry.py` derives rectangle, ellipse, polygon and line
+boundaries from installed table entities. Rectangle/ellipse scale and rotation
+match rendering; saved line/polygon vertices already use world coordinates.
+Each payload is bounded to 8192 segments and finite coordinates within 10000000
+pixels. Invalid geometry produces `valid: false` without a partial boundary.
+
+After committed sprite publications, including buffered edits and canvas
+undo/redo, the server publishes a full replacement using `table_update` with
+`type: occlusion_geometry`, `table_id` and `occlusion_geometry`. Unchanged
+geometry needs no extra publication. Deleting the last obstacle sends an empty
+valid replacement. Table deletion retires the server and browser geometry caches.
+Walls retain their separate sight/light flags and wall synchronization path.
+
+`TableSyncService` retains the latest geometry during renderer detachment and
+pre-attachment hydration. Revisions from the same epoch cannot be overwritten
+by older snapshots; a new session epoch starts a new revision stream. Updates
+for another active table or a deleted table cannot affect the resident scene.
+
+WASM `replace_occlusion_geometry` stores boundaries outside sprite layers and
+selection state. Both occlusion indexes use this geometry instead of deriving
+a second copy from editable sprites. A table switch clears the prior owner and
+invalidates the indexes. Invalid geometry suppresses visibility queries and
+point lights; the vision pipeline replaces old footprints with an empty result.
+Legacy standalone snapshots without this contract still derive local obstacle
+boundaries. Authenticated server snapshots always provide the contract.
+
+Verification includes server snapshot/privacy and publication tests, the real
+saved-session workflow with buffered obstacle edits, frontend revision/lifecycle
+regressions, native payload validation, and browser visibility plus pixel-shadow
+checks without an obstacle sprite. The browser regression also proves that an
+invalid replacement cannot retain the previous visible footprint.

@@ -887,6 +887,50 @@ describe('WASM module (real browser)', () => {
     }
   }, 30_000);
 
+  it('blocks player sight and light with read-only geometry without obstacle sprites', () => {
+    const canvas = document.createElement('canvas'); canvas.width = 200; canvas.height = 200;
+    const engine = new RenderEngine(canvas);
+    const tableId = '550e8400-e29b-41d4-a716-446655440090';
+    const sources = new Float32Array([60, 100, 90]);
+    try {
+      hydrateEmptyTable(engine, tableId);
+      engine.set_background_color('#000000');
+      engine.add_light_for_table('light', 60, 100, tableId);
+      engine.set_light_color('light', 1, 1, 1, 1); engine.set_light_intensity('light', 2); engine.set_light_radius('light', 90);
+      const open = engine.compute_sight_visibility_polygons(sources);
+      expect(engine.replace_occlusion_geometry(tableId, JSON.stringify({
+        schema_version: 1, valid: true, segments: [100, 0, 100, 200],
+      }))).toBe(true);
+      const blocked = engine.compute_sight_visibility_polygons(sources);
+      expect(blocked).not.toEqual(open);
+      expect(blocked[0].every((point: { x: number }) => point.x <= 100.001)).toBe(true);
+      expect(engine.compute_light_visibility_polygons(sources)).toEqual(blocked);
+      expect(engine.get_layer_sprite_count('obstacles')).toBe(0);
+      expect(engine.selection_hit_test_sprite(100, 100)).toBeUndefined();
+      engine.render();
+      expect(brightness(readPixel(canvas, 80, 100))).toBeGreaterThan(brightness(readPixel(canvas, 130, 100)) + 20);
+      expect(engine.replace_occlusion_geometry('other-table', '{bad')).toBe(false);
+      expect(engine.compute_sight_visibility_polygons(sources)).toEqual(blocked);
+      expect(engine.replace_occlusion_geometry(tableId, JSON.stringify({ schema_version: 1, valid: true, segments: [] }))).toBe(true);
+      expect(engine.compute_sight_visibility_polygons(sources)).toEqual(open);
+      engine.set_background_color('#ffffff');
+      engine.set_dynamic_lighting_enabled(true);
+      engine.add_fog_polygon('vision_player', [{ x: 60, y: 100 }, ...open[0]]);
+      engine.render();
+      const previousVisibility = brightness(readPixel(canvas, 70, 100));
+      expect(previousVisibility).toBeGreaterThan(0);
+      expect(engine.replace_occlusion_geometry(tableId, '{bad')).toBe(false);
+      // The vision service replaces the footprint even when the query is empty.
+      engine.add_fog_polygon('vision_player', [{ x: 60, y: 100 }]);
+      engine.render();
+      expect(brightness(readPixel(canvas, 70, 100))).toBeLessThan(previousVisibility);
+      expect(engine.compute_sight_visibility_polygons(sources)).toEqual([]);
+      expect(engine.compute_light_visibility_polygons(sources)).toEqual([]);
+      hydrateEmptyTable(engine, '550e8400-e29b-41d4-a716-446655440091');
+      expect(engine.compute_sight_visibility_polygons(sources)).toEqual(open);
+    } finally { engine.free(); }
+  });
+
   it('queries sight-blocking walls independently from light-blocking walls', () => {
     const engine = new RenderEngine(document.createElement('canvas'));
     const sources = new Float32Array([25, 50, 100]);

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSessionRulesStore } from '../../stores/sessionRulesStore';
+import { planningService } from '../../services/planning.service';
 import { MovementPlanner } from '../MovementPlanner';
 
 vi.mock('../../services/planning.service', () => ({
@@ -8,6 +9,7 @@ vi.mock('../../services/planning.service', () => ({
     movementRange: vi.fn().mockResolvedValue({}),
     clearGhost: vi.fn(),
     startGhost: vi.fn().mockResolvedValue(15),
+    getGhost: vi.fn().mockResolvedValue({ preview_x: 25, preview_y: 75, path: [[100, 100], [25, 75]] }),
   },
 }));
 
@@ -67,7 +69,18 @@ describe('MovementPlanner', () => {
     await waitFor(() => expect(screen.getByText('15ft')).toBeInTheDocument());
     fireEvent.click(screen.getByText('Confirm'));
 
-    expect(onConfirm).toHaveBeenCalledWith(25, 50, 15);
+    expect(onConfirm).toHaveBeenCalledWith(25, 75, 15, [[100, 100], [25, 75]]);
+    expect(screen.getByText('Destination: 25, 75')).toBeInTheDocument();
+  });
+
+  it('cannot confirm a blocked route', async () => {
+    vi.mocked(planningService.startGhost).mockResolvedValueOnce(Infinity);
+    const onConfirm = vi.fn();
+    render(<><canvas data-testid="game-canvas" /><MovementPlanner {...baseProps} onConfirm={onConfirm} /></>);
+    fireEvent.click(screen.getByTestId('game-canvas'), { clientX: 25, clientY: 50 });
+    expect(await screen.findByRole('alert')).toHaveTextContent('No clear path');
+    expect(screen.getByText('Confirm')).toBeDisabled();
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 
   it('shows hint text', () => {

@@ -19,8 +19,12 @@ vi.mock('../DMCombatPanel', () => ({
 vi.mock('../GameModeSwitch', () => ({ GameModeSwitch: () => <div>Game mode</div> }));
 vi.mock('../InitiativePanel', () => ({ InitiativePanel: () => <div>Initiative order</div> }));
 vi.mock('../MovementPlanner', () => ({
-  MovementPlanner: ({ onConfirm }: { onConfirm: (x: number, y: number, cost: number) => void }) => (
-    <button onClick={() => onConfirm(64, 96, 15)}>Confirm movement</button>
+  MovementPlanner: ({ onConfirm, realX, realY, speedFt }: {
+    onConfirm: (x: number, y: number, cost: number, path: [number, number][]) => void;
+    realX: number; realY: number; speedFt: number;
+  }) => (
+    <button aria-label={`Confirm movement from ${realX},${realY} with ${speedFt}ft`}
+      onClick={() => onConfirm(64, 96, 15, [[realX, realY], [64, 96]])}>Confirm movement</button>
   ),
 }));
 vi.mock('../PlanningQueue', () => ({ PlanningQueue: () => <div>Planned actions</div> }));
@@ -149,17 +153,35 @@ describe('CombatDock', () => {
     expect(screen.getByRole('button', { expanded: false })).toBeTruthy();
   });
 
+  it('continues only this actor and table movement, preserving other queued actions', () => {
+    useCombatStore.setState({ combat });
+    usePlanningStore.setState({ isPlanningMode: true, selectedSpriteId: 'token-1', queue: [
+      { id: 'own', action_type: 'move', label: 'Move', sequence_index: 0,
+        actor_id: 'combatant-1', table_id: 'table-1', target_x: 40, target_y: 60, cost_ft: 5 },
+      { id: 'peer', action_type: 'move', label: 'Move', sequence_index: 1,
+        actor_id: 'other', table_id: 'table-1', target_x: 900, target_y: 900, cost_ft: 100 },
+      { id: 'other-table', action_type: 'move', label: 'Move', sequence_index: 2,
+        actor_id: 'combatant-1', table_id: 'table-2', target_x: 800, target_y: 800, cost_ft: 100 },
+    ] });
+    render(<CombatDock />);
+    expect(screen.getByRole('button', { name: 'Confirm movement from 40,60 with 20ft' })).toBeTruthy();
+    expect(usePlanningStore.getState().queue).toHaveLength(3);
+  });
+
   it('starts planning and queues confirmed movement for the active actor', () => {
     useCombatStore.setState({ combat });
     render(<CombatDock />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Plan turn' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm movement' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm movement from 10,20 with 25ft' }));
 
     expect(usePlanningStore.getState().selectedSpriteId).toBe('token-1');
     expect(usePlanningStore.getState().queue).toEqual([
       expect.objectContaining({
         action_type: 'move',
+        actor_id: 'combatant-1',
+        table_id: 'table-1',
+        path: [[10, 20], [64, 96]],
         target_x: 64,
         target_y: 96,
         cost_ft: 15,

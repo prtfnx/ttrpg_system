@@ -31,6 +31,7 @@ export function CombatDock() {
   const startPlanning = usePlanningStore((state) => state.startPlanning);
   const stopPlanning = usePlanningStore((state) => state.stopPlanning);
   const addAction = usePlanningStore((state) => state.addAction);
+  const plannedMoves = usePlanningStore((state) => state.queue);
 
   useEffect(() => {
     setSetupOpen(false);
@@ -54,6 +55,10 @@ export function CombatDock() {
     dmMode
     || (userId !== null && current.controlled_by.includes(String(userId)))
   );
+  const actorMoves = plannedMoves.filter((action) => action.action_type === 'move'
+    && action.actor_id === current?.combatant_id && action.table_id === combat?.table_id);
+  const lastMove = actorMoves.at(-1);
+  const plannedMovement = actorMoves.reduce((total, action) => total + (action.cost_ft ?? 0), 0);
   const planningSprite = selectedSpriteId
     ? sprites.find((sprite) => sprite.id === selectedSpriteId)
     : undefined;
@@ -123,10 +128,14 @@ export function CombatDock() {
                   {isPlanningMode && planningSprite && current && (
                     <MovementPlanner
                       spriteId={planningSprite.id}
-                      realX={planningSprite.x}
-                      realY={planningSprite.y}
-                      speedFt={current.movement_remaining}
-                      onConfirm={(targetX, targetY, costFt) => addAction({
+                      tableId={combat.table_id}
+                      realX={lastMove?.target_x ?? planningSprite.x}
+                      realY={lastMove?.target_y ?? planningSprite.y}
+                      speedFt={Math.max(0, current.movement_remaining - plannedMovement)}
+                      onConfirm={(targetX, targetY, costFt, path) => addAction({
+                        actor_id: current.combatant_id,
+                        table_id: combat.table_id,
+                        path,
                         id: globalThis.crypto?.randomUUID?.() ?? `move-${Date.now()}`,
                         action_type: 'move',
                         label: 'Move',

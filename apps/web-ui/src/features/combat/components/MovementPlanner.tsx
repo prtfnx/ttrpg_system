@@ -1,3 +1,4 @@
+import { useGameStore } from '@/store';
 import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import { useEffect, useState } from 'react';
 import styles from './MovementPlanner.module.css';
@@ -9,21 +10,34 @@ interface Props {
   realX: number;
   realY: number;
   speedFt?: number;
-  onConfirm: (targetX: number, targetY: number, costFt: number) => void;
+  tableId?: string;
+  onConfirm: (targetX: number, targetY: number, costFt: number, path: [number, number][]) => void;
   onCancel: () => void;
 }
-export function MovementPlanner({ spriteId, realX, realY, speedFt = 30, onConfirm, onCancel }: Props) {
+export function MovementPlanner({ spriteId, realX, realY, speedFt = 30, tableId, onConfirm, onCancel }: Props) {
   const rules = useSessionRulesStore((s) => s.rules);
-  const diagonal5105 = rules?.diagonal_movement_rule === 'alternate';
+  const activeTableId = useGameStore((state) => state.activeTableId);
+  const geometry = useGameStore((state) => state.planningGeometry);
+  const walls = useGameStore((state) => state.walls);
+  const grid = useGameStore((state) => state.gridCellPx);
+  const cellDistance = useGameStore((state) => state.cellDistance);
+  const distanceUnit = useGameStore((state) => state.distanceUnit);
 
-  const [preview, setPreview] = useState<{ x: number; y: number; costFt: number } | null>(null);
+  const [preview, setPreview] = useState<{ x: number; y: number; costFt: number; path: [number, number][] } | null>(null);
 
-  // Pre-compute movement range on mount
+  const [error, setError] = useState<string | null>(null);
+
+  // Preview exactly the route that will be submitted.
   useEffect(() => {
-    planningService.movementRange(realX, realY, speedFt, diagonal5105);
+    let requestId = 0;
+    let disposed = false;
+    setPreview(null);
+    setError(null);
     const canvas = document.querySelector<HTMLCanvasElement>('canvas[data-testid="game-canvas"]');
     const handleCanvasClick = async (event: MouseEvent) => {
-      if (!canvas) return;
+      if (!canvas || (tableId && tableId !== activeTableId)) return;
+      const currentRequest = ++requestId;
+      setPreview(null);
       event.preventDefault();
       event.stopPropagation();
 
@@ -44,18 +58,25 @@ export function MovementPlanner({ spriteId, realX, realY, speedFt = 30, onConfir
         targetY,
         speedFt,
       );
-      setPreview({ x: targetX, y: targetY, costFt });
+      const ghost = await planningService.getGhost(spriteId);
+      if (disposed || currentRequest !== requestId) return;
+      if (!ghost || !Number.isFinite(costFt) || ghost.path.length < 2 || ghost.path.length > 1000) {
+        setError('No clear path is available for this move.'); return;
+      }
+      setError(null);
+      setPreview({ x: ghost.preview_x, y: ghost.preview_y, costFt, path: ghost.path });
     };
     canvas?.addEventListener('click', handleCanvasClick, true);
     return () => {
+      disposed = true;
       canvas?.removeEventListener('click', handleCanvasClick, true);
       planningService.clearGhost(spriteId);
     };
-  }, [spriteId, realX, realY, speedFt, diagonal5105]);
+  }, [spriteId, realX, realY, speedFt, tableId, activeTableId, geometry, walls, grid, cellDistance, distanceUnit, rules]);
 
   const handleConfirm = () => {
     if (!preview) return;
-    onConfirm(preview.x, preview.y, preview.costFt);
+    onConfirm(preview.x, preview.y, preview.costFt, preview.path);
   };
 
   return (
@@ -68,9 +89,12 @@ export function MovementPlanner({ spriteId, realX, realY, speedFt = 30, onConfir
       </div>
       <div className={styles.overBudget}>
         {(preview?.costFt ?? 0) > speedFt && (
-          <span className={styles.warn}>Over movement speed — uses Dash action</span>
+          <span className={styles.warn}>Over movement budget</span>
         )}
       </div>
+      {tableId && tableId !== activeTableId && <p>Open the combat table to plan movement.</p>}
+      {error && <p role="alert">{error}</p>}
+      {preview && <p>Destination: {preview.x}, {preview.y}</p>}
       <div className={styles.actions}>
         <button className={styles.confirmBtn} onClick={handleConfirm} disabled={!preview}>Confirm</button>
         <button className={styles.cancelBtn} onClick={onCancel}>Cancel</button>

@@ -646,6 +646,7 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
       {oaPrompt && (
         <OAPrompt
           targetName={oaPrompt.target_name}
+          allowResolution={dmMode}
           actions={combat?.combatants.find((actor) => actor.combatant_id === oaPrompt.attacker_combatant_id)?.available_actions?.filter((action) => action.kind === 'attack' && action.attack_type === 'melee')}
           onUseReaction={(actionId) => {
             if (ProtocolService.hasProtocol())

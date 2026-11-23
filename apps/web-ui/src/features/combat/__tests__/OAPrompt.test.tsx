@@ -15,9 +15,15 @@ describe('OAPrompt', () => {
 
   it('calls onUseReaction when use reaction clicked', async () => {
     const onUseReaction = vi.fn();
-    render(<OAPrompt targetName="Goblin" actions={[{ action_id: 'sword', name: 'Sword' }]} onUseReaction={onUseReaction} onPass={vi.fn()} />);
+    render(<OAPrompt targetName="Goblin" allowResolution actions={[{ action_id: 'sword', name: 'Sword' }]} onUseReaction={onUseReaction} onPass={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: /use reaction/i }));
     expect(onUseReaction).toHaveBeenCalledWith('sword');
+  });
+
+  it('keeps automatic reaction timing unavailable to players', () => {
+    render(<OAPrompt targetName="Goblin" onUseReaction={vi.fn()} onPass={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /use reaction/i })).toBeDisabled();
+    expect(screen.getByText(/Ask the DM to resolve opportunity attack timing/)).toBeInTheDocument();
   });
 
   it('calls onPass when pass clicked', async () => {

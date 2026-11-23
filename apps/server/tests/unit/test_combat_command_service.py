@@ -992,7 +992,7 @@ def test_dm_revert_restores_prior_state_and_persists_revert():
     assert persisted["state_after"]["combatants"][0]["hp"] == 20
 
 
-def test_player_resolves_owned_opportunity_attack_outside_their_turn():
+def test_dm_resolves_supported_opportunity_attack_outside_the_actors_turn():
     state, target, attacker = _state()
     persistence = MagicMock()
     persistence.requester_key.return_value = "user:2"
@@ -1024,7 +1024,7 @@ def test_player_resolves_owned_opportunity_attack_outside_their_turn():
             damage_dealt=5,
             reason="Hit",
         )
-        result = service.apply(envelope, _context(role="player", user_id=2))
+        result = service.apply(envelope, _context(role="owner", user_id=2))
 
     persisted = persistence.persist_accepted.call_args.kwargs
     live_state = CombatEngine.get_state("cmd")
@@ -1103,7 +1103,7 @@ def test_opportunity_attack_persistence_failure_rolls_back_reaction_and_damage()
             damage_dealt=5,
             reason="Hit",
         )
-        result = service.apply(envelope, _context(role="player", user_id=2))
+        result = service.apply(envelope, _context(role="owner", user_id=2))
 
     live_state = CombatEngine.get_state("cmd")
     assert result.accepted is False

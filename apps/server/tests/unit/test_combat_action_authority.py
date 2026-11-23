@@ -80,7 +80,7 @@ def test_forged_or_unsupported_commands_preserve_state(scenario, kind, attack_fi
     scenario.persistence.persist_accepted.assert_not_called()
 
 
-@pytest.mark.parametrize('fault', ['table', 'token', 'range', 'meters', 'wall', 'hidden', 'duplicate'])
+@pytest.mark.parametrize('fault', ['table', 'token', 'range', 'meters', 'wall', 'obstacle', 'hidden', 'duplicate'])
 def test_geometry_and_targets_are_validated_before_spell_slots(scenario, fault):
     context = scenario.context
     extra = {}
@@ -96,6 +96,9 @@ def test_geometry_and_targets_are_validated_before_spell_slots(scenario, fault):
     elif fault == 'wall':
         scenario.table.walls['wall'] = SimpleNamespace(blocks_sight=True, is_door=False,
                                                       x1=125, y1=0, x2=125, y2=200)
+    elif fault == 'obstacle':
+        scenario.table.add_entity({'sprite_id': 'private-boundary', 'position': [125, 0], 'layer': 'obstacles',
+            'obstacle_type': 'line', 'obstacle_data': {'vertices': [[125, 0], [125, 200]]}})
     elif fault == 'hidden':
         scenario.enemy.is_hidden = True
     else:
@@ -135,3 +138,10 @@ def test_effectless_manual_spell_does_not_consume_a_slot(scenario):
                      action_id=None, manual=True)
     assert not result.accepted
     assert CombatEngine.get_state('authority').combatants[0].spell_slots.get(1, 2) == 2
+
+
+def test_player_cannot_invent_an_opportunity_trigger(scenario):
+    before = deepcopy(scenario.state.to_dict())
+    result = execute(scenario, type='resolve_opportunity_attack')
+    assert not result.accepted and 'DM manual resolution' in result.reason
+    assert CombatEngine.get_state('authority').to_dict() == before

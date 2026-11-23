@@ -90,12 +90,17 @@ def validate_targets(state, actor, targets, table, action, role):
                 continue
             if PathfindingSystem.line_segments_intersect(*start, *end, wall.x1, wall.y1, wall.x2, wall.y2):
                 raise ActionCommandRejected('Action line of sight is blocked')
+        obstacles = [entity for entity in table.entities.values() if entity.layer == 'obstacles']
+        if PathfindingSystem.is_path_blocked_by_obstacles(start, end, obstacles, actor.entity_id):
+            raise ActionCommandRejected('Action line of sight is blocked')
 
 
 def apply_combat_action(service, command, context, state, actor_id):
     opportunity = command.type.value == 'resolve_opportunity_attack'
     if opportunity and not command.use_reaction:
         return {'resolved': True, 'passed': True, 'attacker': actor_id, 'target': command.target_id}
+    if opportunity and not is_dm(context.role):
+        return {'error': 'Opportunity attack timing requires DM manual resolution'}
     spell = command.type.value == 'cast_spell'
     if not spell and not command.target_id:
         return {'error': 'target_id required'}

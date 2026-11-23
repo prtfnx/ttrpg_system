@@ -23,14 +23,26 @@ export interface ActionsClient {
   update_table(tableId: string, updates: unknown): unknown;
 }
 
+export interface PlanningGhost {
+  sprite_id: string;
+  real_x: number;
+  real_y: number;
+  preview_x: number;
+  preview_y: number;
+  path: [number, number][];
+  movement_cost_ft: number;
+  opacity: number;
+}
+
 export interface PlanningManager {
+  configure(json: string): boolean;
   clear_all(): void;
   clear_aoe(): void;
   clear_ghost(spriteId: string): void;
   free(): void;
   get_aoe(): unknown;
-  get_ghost(spriteId: string): { sprite_id: string; x: number; y: number; [key: string]: unknown } | null;
-  get_ghosts(): Array<{ sprite_id: string; x: number; y: number; [key: string]: unknown }>;
+  get_ghost(spriteId: string): PlanningGhost | null;
+  get_ghosts(): PlanningGhost[];
   has_los(x1: number, y1: number, x2: number, y2: number): boolean;
   measure_ft(x1: number, y1: number, x2: number, y2: number): number;
   movement_range(sx: number, sy: number, speedFt: number, diagonal_5_10_5: boolean): unknown;

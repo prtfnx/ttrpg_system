@@ -1,3 +1,5 @@
+import { useGameStore } from '@/store';
+import { DEFAULT_RULES, useSessionRulesStore } from '../../stores/sessionRulesStore';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const runtimeMock = vi.hoisted(() => ({
@@ -12,6 +14,7 @@ vi.mock('@lib/wasm/runtime', () => ({
 import { planningService } from '../planning.service';
 
 const mockManager = {
+  configure: vi.fn().mockReturnValue(true),
   set_walls: vi.fn(),
   set_obstacles: vi.fn(),
   start_ghost: vi.fn().mockReturnValue(10),
@@ -42,11 +45,68 @@ beforeEach(async () => {
   mockManager.has_los.mockReturnValue(true);
   mockManager.tokens_in_aoe.mockReturnValue([]);
   // Reset singleton manager and clear lastCell cache
+  useGameStore.setState({ activeTableId: 'table', gridCellPx: 50, cellDistance: 5, distanceUnit: 'ft',
+    sessionRole: 'player', tables: [{ table_id: 'table', table_name: 'Planning', width: 1000, height: 1000 }],
+    planningGeometry: { tableId: 'table', valid: true, shapes: [], terrain: [] }, walls: [],
+  });
+  useSessionRulesStore.setState({ rules: null });
+  mockManager.configure.mockReturnValue(true);
   planningService.reset();
   await planningService.clearAll(); // clears module-level lastCell map
 });
 
 describe('planningService', () => {
+  it('configures active table units and refreshes changed walls in the same cell', async () => {
+    useGameStore.setState({ gridCellPx: 100, cellDistance: 2, distanceUnit: 'm' });
+    await planningService.startGhost('s1', 25, 25, 110, 110, 30);
+    const config = JSON.parse(mockManager.configure.mock.calls.at(-1)![0]);
+    expect(config).toMatchObject({ grid_size: 100, snap_to_cell: true, bounds: [1000, 1000] });
+    expect(config.ft_per_unit).toBeCloseTo(2 / 0.3048 / 100);
+    useGameStore.setState({ walls: [{ table_id: 'table', x1: 90, y1: 0, x2: 90, y2: 500,
+      blocks_movement: true, is_door: false, door_state: 'closed' } as never] });
+    await planningService.startGhost('s1', 25, 25, 110, 110, 30);
+    expect(mockManager.start_ghost).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(mockManager.set_walls.mock.calls.at(-1)![0])).toEqual([
+      { x1: 90, y1: 0, x2: 90, y2: 500, is_door: false, door_open: false },
+    ]);
+  });
+
+  it('sends closed private boundaries to collision without sprite identities', async () => {
+    useGameStore.setState({ planningGeometry: { tableId: 'table', valid: true, terrain: [],
+      shapes: [{ closed: true, vertices: [[10, 20], [30, 20], [30, 60]] }] } });
+    await planningService.startGhost('s1', 0, 0, 110, 110, 30);
+    expect(JSON.parse(mockManager.set_obstacles.mock.calls.at(-1)![0])).toEqual([
+      { id: 'boundary-0', obstacle_type: 'polygon', x: 20, y: 40, width: 20, height: 40,
+        radius: 0, vertices: [[10, 20], [30, 20], [30, 60]] },
+    ]);
+  });
+
+  it('disables movement when active table geometry is missing or belongs elsewhere', async () => {
+    useGameStore.setState({ planningGeometry: null });
+    expect(await planningService.startGhost('s1', 0, 0, 100, 100, 30)).toBe(Infinity);
+    expect(mockManager.start_ghost).not.toHaveBeenCalled();
+  });
+
+  it('preserves exact server coordinates across the float32 WASM boundary', async () => {
+    useGameStore.setState({ tables: [{ table_id: 'table', table_name: 'Planning', width: 2000, height: 2000 }] });
+    useSessionRulesStore.setState({ rules: { session_id: 'test', ...DEFAULT_RULES, movement_mode: 'free' } });
+    const source = 1000.123456789, target = 1100.333333333;
+    mockManager.get_ghost.mockReturnValue({ sprite_id: 's1', real_x: Math.fround(source), real_y: 25,
+      preview_x: Math.fround(target), preview_y: 75, path: [[Math.fround(source), 25], [Math.fround(target), 75]],
+      movement_cost_ft: 10, opacity: 0.45 });
+    await planningService.startGhost('s1', source, 25, target, 75, 30);
+    expect(await planningService.getGhost('s1')).toMatchObject({
+      real_x: source, preview_x: target, path: [[source, 25], [target, 75]],
+    });
+  });
+
+  it('does not charge movement when speed enforcement is disabled, but still rejects blocked routes', async () => {
+    useSessionRulesStore.setState({ rules: { session_id: 'test', ...DEFAULT_RULES, enforce_movement_speed: false } });
+    expect(await planningService.startGhost('s1', 0, 0, 110, 110, 30)).toBe(0);
+    mockManager.start_ghost.mockReturnValueOnce(Infinity);
+    expect(await planningService.startGhost('s1', 0, 0, 160, 160, 30)).toBe(Infinity);
+  });
+
   it('setWalls delegates to manager', async () => {
     await planningService.setWalls('[]');
     expect(mockManager.set_walls).toHaveBeenCalledWith('[]');
@@ -82,7 +142,8 @@ describe('planningService', () => {
     expect(cost).toBe(20);
   });
 
-  it('clearAll clears cache and calls manager', async () => {
+  it('clearAll clears cache and calls an initialized manager', async () => {
+    await planningService.setWalls('[]');
     await planningService.clearAll();
     expect(mockManager.clear_all).toHaveBeenCalled();
   });
@@ -139,9 +200,9 @@ describe('planningService', () => {
       runtimeMock.getPlanningManager.mockReturnValue(null);
     });
 
-    it('startGhost returns 0 with no manager', async () => {
+    it('startGhost cannot offer a move with no manager', async () => {
       const cost = await planningService.startGhost('s1', 0, 0, 100, 100, 30);
-      expect(cost).toBe(0);
+      expect(cost).toBe(Infinity);
     });
 
     it('movementRange returns empty ranges', async () => {
@@ -154,15 +215,15 @@ describe('planningService', () => {
       expect(ft).toBe(0);
     });
 
-    it('hasLos returns true (permissive fallback)', async () => {
+    it('hasLos fails closed without geometry', async () => {
       const los = await planningService.hasLos(0, 0, 100, 100);
-      expect(los).toBe(true);
+      expect(los).toBe(false);
     });
   });
 
-  it('reset frees manager and clears singleton', async () => {
+  it('reset leaves manager lifetime with its runtime owner', async () => {
     await planningService.setWalls('[]'); // initializes manager
     planningService.reset();
-    expect(mockManager.free).toHaveBeenCalled();
+    expect(mockManager.free).not.toHaveBeenCalled();
   });
 });

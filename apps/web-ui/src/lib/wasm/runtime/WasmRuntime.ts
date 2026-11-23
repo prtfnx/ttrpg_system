@@ -336,7 +336,7 @@ export class WasmRuntime implements WasmRuntimePort {
 
   getPlanningManager(): PlanningManager | null {
     if (!this.planningManager && this.status.isModuleReady) {
-      this.planningManager = new PlanningManager(64, 5 / 64);
+      this.planningManager = new PlanningManager(50, 5 / 50);
     }
     return this.planningManager;
   }

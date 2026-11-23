@@ -11,6 +11,7 @@
  */
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import initWasm, {
+  PlanningManager,
   RenderEngine,
   TableSync,
   calculate_asset_hash,
@@ -60,6 +61,29 @@ function hydrateEmptyTable(engine: RenderEngine, tableId: string): void {
 }
 
 describe('WASM module (real browser)', () => {
+  it('plans with configured units, terrain, blockers and the submitted snapped endpoint', () => {
+    const planner = new PlanningManager(64, 5 / 64);
+    try {
+      const config = { grid_size: 50, ft_per_unit: 0.2, snap_to_cell: true,
+        diagonal_rule: 'standard', bounds: [200, 200], difficult_cells: [[1, 0]] };
+      expect(planner.configure(JSON.stringify(config))).toBe(true);
+      expect(planner.start_ghost('hero', 25, 25, 160, 20, 50)).toBeCloseTo(40);
+      expect(planner.get_ghost('hero')).toMatchObject({ preview_x: 175, preview_y: 25,
+        path: [[25, 25], [175, 25]] });
+      expect(planner.configure(JSON.stringify({ ...config, difficult_cells: [] }))).toBe(true);
+      planner.set_walls(JSON.stringify([{ x1: 75, y1: 0, x2: 75, y2: 120,
+        is_door: false, door_open: false }]));
+      expect(planner.start_ghost('hero', 25, 25, 160, 20, 50)).toBeGreaterThan(30);
+      const detour = planner.get_ghost('hero');
+      expect(detour.path.length).toBeGreaterThan(2);
+      expect(detour.path.at(-1)).toEqual([175, 25]);
+      planner.set_walls(JSON.stringify([{ x1: 75, y1: 0, x2: 75, y2: 200,
+        is_door: false, door_open: false }]));
+      expect(planner.start_ghost('hero', 25, 25, 160, 20, 50)).toBe(Infinity);
+      expect(planner.get_ghost('hero')).toBeNull();
+    } finally { planner.free(); }
+  });
+
   it('renders accepted grid sizes above 200 pixels after live application', () => {
     const canvas = document.createElement('canvas');
     canvas.width = 600; canvas.height = 400;

@@ -10,6 +10,10 @@ use wasm_bindgen::prelude::*;
 /// Reduces wall/obstacle checks from O(N) to O(bucket_size) ≈ O(1-5).
 struct SpatialHash {
     cell_size: f32,
+    all_walls: Vec<usize>,
+    all_obstacles: Vec<usize>,
+    global_walls: Vec<usize>,
+    global_obstacles: Vec<usize>,
     walls: HashMap<(i32, i32), Vec<usize>>,
     obstacles: HashMap<(i32, i32), Vec<usize>>,
 }
@@ -18,6 +22,10 @@ impl SpatialHash {
     fn new(cell_size: f32) -> Self {
         Self {
             cell_size,
+            all_walls: Vec::new(),
+            all_obstacles: Vec::new(),
+            global_walls: Vec::new(),
+            global_obstacles: Vec::new(),
             walls: HashMap::new(),
             obstacles: HashMap::new(),
         }
@@ -32,6 +40,11 @@ impl SpatialHash {
 
     /// Rasterize wall segment into all overlapping grid cells (DDA walk).
     fn insert_wall(&mut self, idx: usize, s: &CollisionSegment) {
+        self.all_walls.push(idx);
+        if self.span(s.x1, s.y1, s.x2, s.y2) > 4096.0 {
+            self.global_walls.push(idx);
+            return;
+        }
         for cell in cells_along_segment(s.x1, s.y1, s.x2, s.y2, self.cell_size) {
             self.walls.entry(cell).or_default().push(idx);
         }
@@ -44,6 +57,13 @@ impl SpatialHash {
             obs.width.max(obs.radius * 2.0),
             obs.height.max(obs.radius * 2.0),
         );
+        self.all_obstacles.push(idx);
+        let cells =
+            (w.abs() / self.cell_size + 2.0) as f64 * (h.abs() / self.cell_size + 2.0) as f64;
+        if !cells.is_finite() || cells > 4096.0 {
+            self.global_obstacles.push(idx);
+            return;
+        }
         let (min_cx, min_cy) = self.bucket(x - w * 0.5, y - h * 0.5);
         let (max_cx, max_cy) = self.bucket(x + w * 0.5, y + h * 0.5);
         for cx in min_cx..=max_cx {
@@ -53,9 +73,17 @@ impl SpatialHash {
         }
     }
 
+    fn span(&self, x1: f32, y1: f32, x2: f32, y2: f32) -> f64 {
+        ((x2 as f64 - x1 as f64).abs() + (y2 as f64 - y1 as f64).abs()) / self.cell_size as f64
+            + 2.0
+    }
+
     fn query_walls(&self, x1: f32, y1: f32, x2: f32, y2: f32) -> Vec<usize> {
         let mut seen = HashSet::new();
-        let mut result = Vec::new();
+        if self.span(x1, y1, x2, y2) > 4096.0 {
+            return self.all_walls.clone();
+        }
+        let mut result = self.global_walls.clone();
         for cell in cells_along_segment(x1, y1, x2, y2, self.cell_size) {
             if let Some(ids) = self.walls.get(&cell) {
                 for &id in ids {
@@ -70,7 +98,10 @@ impl SpatialHash {
 
     fn query_obstacles(&self, x1: f32, y1: f32, x2: f32, y2: f32) -> Vec<usize> {
         let mut seen = HashSet::new();
-        let mut result = Vec::new();
+        if self.span(x1, y1, x2, y2) > 4096.0 {
+            return self.all_obstacles.clone();
+        }
+        let mut result = self.global_obstacles.clone();
         for cell in cells_along_segment(x1, y1, x2, y2, self.cell_size) {
             if let Some(ids) = self.obstacles.get(&cell) {
                 for &id in ids {
@@ -229,6 +260,7 @@ pub struct CollisionSystem {
     segments: Vec<CollisionSegment>,
     obstacles: Vec<CollisionObstacle>,
     grid_size: f32,
+    bounds: Option<[f32; 2]>,
     spatial_hash: Option<SpatialHash>,
 }
 
@@ -239,7 +271,12 @@ impl CollisionSystem {
         Self {
             segments: Vec::new(),
             obstacles: Vec::new(),
-            grid_size,
+            grid_size: if grid_size.is_finite() && grid_size > 0.0 {
+                grid_size
+            } else {
+                50.0
+            },
+            bounds: None,
             spatial_hash: None,
         }
     }
@@ -312,6 +349,9 @@ impl CollisionSystem {
 
     /// A* pathfinding. Returns flat [x1,y1,x2,y2,...] waypoints or empty on failure.
     pub fn find_path(&self, sx: f32, sy: f32, ex: f32, ey: f32) -> Vec<f32> {
+        if !self.in_bounds(sx, sy) || !self.in_bounds(ex, ey) {
+            return Vec::new();
+        }
         // Direct-path shortcut: ~50% of open-area moves skip A* entirely
         if !self.line_blocked(sx, sy, ex, ey) {
             return vec![sx, sy, ex, ey];
@@ -340,9 +380,18 @@ impl CollisionSystem {
             g: 0,
         });
 
+        let mut expansions = 0;
         while let Some(AStarNode { cell, g: gv, .. }) = open.pop() {
+            expansions += 1;
+            if expansions > 8192 {
+                break;
+            }
             if cell == goal {
-                return Self::reconstruct_path(came_from, goal, self.grid_size);
+                let mut path = Self::reconstruct_path(came_from, goal, self.grid_size);
+                let end = path.len();
+                path[..2].copy_from_slice(&[sx, sy]);
+                path[end - 2..].copy_from_slice(&[ex, ey]);
+                return path;
             }
             if gv > *g_score.get(&cell).unwrap_or(&i32::MAX) {
                 continue;
@@ -353,8 +402,19 @@ impl CollisionSystem {
                 if ng >= *g_score.get(&nb).unwrap_or(&i32::MAX) {
                     continue;
                 }
-                let wp = nb.to_world(self.grid_size);
-                let cp = cell.to_world(self.grid_size);
+                let wp = if nb == goal {
+                    Vec2::new(ex, ey)
+                } else {
+                    nb.to_world(self.grid_size)
+                };
+                if !self.in_bounds(wp.x, wp.y) {
+                    continue;
+                }
+                let cp = if cell == start {
+                    Vec2::new(sx, sy)
+                } else {
+                    cell.to_world(self.grid_size)
+                };
                 if self.line_blocked(cp.x, cp.y, wp.x, wp.y) {
                     continue;
                 }
@@ -381,7 +441,7 @@ impl CollisionSystem {
     ) -> JsValue {
         let cell_ft = self.grid_size * ft_per_unit;
         let normal_budget = (speed_ft / cell_ft * 10.0) as i32;
-        let dash_budget = normal_budget * 2;
+        let dash_budget = normal_budget.saturating_mul(2);
 
         let start = Cell(
             (sx / self.grid_size).floor() as i32,
@@ -393,6 +453,9 @@ impl CollisionSystem {
         queue.push_back((start, 0));
 
         while let Some((cell, cost)) = queue.pop_front() {
+            if cost_map.len() >= 8192 {
+                break;
+            }
             if cost >= dash_budget {
                 continue;
             }
@@ -405,6 +468,9 @@ impl CollisionSystem {
                     continue;
                 }
                 let wp = nb.to_world(self.grid_size);
+                if !self.in_bounds(wp.x, wp.y) {
+                    continue;
+                }
                 let cp = cell.to_world(self.grid_size);
                 if self.line_blocked(cp.x, cp.y, wp.x, wp.y) {
                     continue;
@@ -469,6 +535,16 @@ impl CollisionSystem {
 impl CollisionSystem {
     fn line_hits_obstacle(&self, a: Vec2, b: Vec2, obs: &CollisionObstacle) -> bool {
         match obs.obstacle_type.as_str() {
+            "line" => {
+                obs.vertices.len() >= 2
+                    && seg_intersect(
+                        a,
+                        b,
+                        Vec2::new(obs.vertices[0][0], obs.vertices[0][1]),
+                        Vec2::new(obs.vertices[1][0], obs.vertices[1][1]),
+                    )
+                    .is_some()
+            }
             "circle" => line_vs_circle(a, b, Vec2::new(obs.x, obs.y), obs.radius),
             "polygon" if !obs.vertices.is_empty() => {
                 let verts: Vec<Vec2> = obs.vertices.iter().map(|v| Vec2::new(v[0], v[1])).collect();
@@ -535,6 +611,21 @@ impl CollisionSystem {
 }
 
 // ── Pure geometry helpers ──────────────────────────────────────────────
+
+impl CollisionSystem {
+    pub(crate) fn set_bounds(&mut self, bounds: Option<[f32; 2]>) {
+        self.bounds = bounds;
+    }
+    fn in_bounds(&self, x: f32, y: f32) -> bool {
+        x.is_finite()
+            && y.is_finite()
+            && x.abs() <= 10_000_000.0
+            && y.abs() <= 10_000_000.0
+            && self
+                .bounds
+                .is_none_or(|bounds| x >= 0.0 && y >= 0.0 && x <= bounds[0] && y <= bounds[1])
+    }
+}
 
 /// Segment intersection (shared with geometry.rs pattern)
 pub(crate) fn seg_intersect(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> Option<Vec2> {
@@ -624,6 +715,21 @@ fn point_in_polygon(point: Vec2, vertices: &[Vec2]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_unreachable_goal_has_a_bounded_search() {
+        let mut system = CollisionSystem::new(50.0);
+        system.set_walls(r#"[{"x1":300,"y1":300,"x2":400,"y2":300,"is_door":false,"door_open":false},{"x1":400,"y1":300,"x2":400,"y2":400,"is_door":false,"door_open":false},{"x1":400,"y1":400,"x2":300,"y2":400,"is_door":false,"door_open":false},{"x1":300,"y1":400,"x2":300,"y2":300,"is_door":false,"door_open":false}]"#);
+        assert!(system.find_path(25.0, 25.0, 350.0, 350.0).is_empty());
+    }
+
+    #[test]
+    fn large_obstacles_use_a_bounded_spatial_index_fallback() {
+        let mut system = CollisionSystem::new(10.0);
+        system.set_obstacles(r#"[{"id":"large","obstacle_type":"rectangle","x":50000,"y":50000,"width":100000,"height":100000,"radius":0}]"#);
+        assert!(system.spatial_hash.as_ref().unwrap().obstacles.is_empty());
+        assert!(system.line_blocked(50.0, 50.0, 60.0, 50.0));
+    }
 
     fn make_system() -> CollisionSystem {
         CollisionSystem::new(64.0)

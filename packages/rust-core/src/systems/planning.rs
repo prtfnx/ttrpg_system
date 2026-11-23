@@ -1,6 +1,6 @@
 use crate::collision::CollisionSystem;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use wasm_bindgen::prelude::*;
 
 // Ghost token preview state.
@@ -108,6 +108,17 @@ fn tokens_in_aoe(template: &AoeTemplate, token_positions: &[[f32; 2]]) -> Vec<St
 
 // Planning manager.
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PlanningConfiguration {
+    grid_size: f32,
+    ft_per_unit: f32,
+    snap_to_cell: bool,
+    diagonal_rule: String,
+    bounds: Option<[f32; 2]>,
+    difficult_cells: Vec<[i32; 2]>,
+}
+
 /// Client-side planning layer: computes previews without mutating game state.
 /// All results are read-only overlays on top of committed state. The FastAPI
 /// combat command service remains authoritative for accepted combat mutations,
@@ -119,6 +130,9 @@ pub struct PlanningManager {
     collision: Option<CollisionSystem>,
     grid_size: f32,
     ft_per_unit: f32,
+    snap_to_cell: bool,
+    diagonal_rule: String,
+    difficult_cells: HashSet<(i32, i32)>,
 }
 
 #[wasm_bindgen]
@@ -131,7 +145,48 @@ impl PlanningManager {
             collision: None,
             grid_size,
             ft_per_unit,
+            snap_to_cell: true,
+            diagonal_rule: "standard".to_string(),
+            difficult_cells: HashSet::new(),
         }
+    }
+
+    /// Atomically configure table units, rules, terrain and search bounds.
+    pub fn configure(&mut self, json: &str) -> bool {
+        let Ok(config) = serde_json::from_str::<PlanningConfiguration>(json) else {
+            return false;
+        };
+        if !config.grid_size.is_finite()
+            || config.grid_size <= 0.0
+            || !config.ft_per_unit.is_finite()
+            || config.ft_per_unit <= 0.0
+            || !matches!(
+                config.diagonal_rule.as_str(),
+                "standard" | "alternate" | "realistic"
+            )
+            || config.difficult_cells.len() > 8192
+            || config.bounds.is_some_and(|bounds| {
+                bounds
+                    .iter()
+                    .any(|n| !n.is_finite() || *n <= 0.0 || *n > 10_000_000.0)
+            })
+        {
+            return false;
+        }
+        self.grid_size = config.grid_size;
+        self.ft_per_unit = config.ft_per_unit;
+        self.snap_to_cell = config.snap_to_cell;
+        self.diagonal_rule = config.diagonal_rule;
+        self.difficult_cells = config
+            .difficult_cells
+            .into_iter()
+            .map(|cell| (cell[0], cell[1]))
+            .collect();
+        let mut collision = CollisionSystem::new(self.grid_size);
+        collision.set_bounds(config.bounds);
+        self.collision = Some(collision);
+        self.ghost_tokens.clear();
+        true
     }
 
     // Collision setup.
@@ -164,25 +219,34 @@ impl PlanningManager {
     ) -> f32 {
         // Snap preview to grid
         let g = self.grid_size;
-        let snapped_x = (preview_x / g).floor() * g + g * 0.5;
-        let snapped_y = (preview_y / g).floor() * g + g * 0.5;
-
-        let (path, cost) = if let Some(sys) = &self.collision {
-            let raw = sys.find_path(real_x, real_y, snapped_x, snapped_y);
-            let cost = sys.distance_ft(real_x, real_y, snapped_x, snapped_y, self.ft_per_unit);
-            let waypoints = raw.chunks(2).map(|c| [c[0], c[1]]).collect();
-            (waypoints, cost)
+        let snapped_x = if self.snap_to_cell {
+            (preview_x / g).floor() * g + g * 0.5
         } else {
-            let cost = distance_ft_simple(
-                real_x,
-                real_y,
-                snapped_x,
-                snapped_y,
-                self.grid_size,
-                self.ft_per_unit,
-            );
-            (vec![[real_x, real_y], [snapped_x, snapped_y]], cost)
+            preview_x
         };
+        let snapped_y = if self.snap_to_cell {
+            (preview_y / g).floor() * g + g * 0.5
+        } else {
+            preview_y
+        };
+
+        let path: Vec<[f32; 2]> = if let Some(sys) = &self.collision {
+            sys.find_path(real_x, real_y, snapped_x, snapped_y)
+                .chunks_exact(2)
+                .map(|point| [point[0], point[1]])
+                .collect()
+        } else {
+            vec![[real_x, real_y], [snapped_x, snapped_y]]
+        };
+        if path.is_empty() {
+            self.ghost_tokens.remove(sprite_id);
+            return f32::INFINITY;
+        }
+        let cost = self.path_cost_ft(&path);
+        if !cost.is_finite() {
+            self.ghost_tokens.remove(sprite_id);
+            return f32::INFINITY;
+        }
 
         // Ghost is dimmer if out of movement range
         let opacity = if cost <= speed_ft { 0.45 } else { 0.2 };
@@ -255,11 +319,7 @@ impl PlanningManager {
     // Distance measurement.
 
     pub fn measure_ft(&self, x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
-        if let Some(sys) = &self.collision {
-            sys.distance_ft(x1, y1, x2, y2, self.ft_per_unit)
-        } else {
-            distance_ft_simple(x1, y1, x2, y2, self.grid_size, self.ft_per_unit)
-        }
+        self.path_cost_ft(&[[x1, y1], [x2, y2]])
     }
 
     // AoE templates.
@@ -351,7 +411,7 @@ fn simple_range_cells(
     grid_size: f32,
     ft_per_unit: f32,
 ) -> Vec<[f32; 2]> {
-    let cells_radius = (speed_ft / (grid_size * ft_per_unit)).ceil() as i32;
+    let cells_radius = ((speed_ft / (grid_size * ft_per_unit)).ceil() as i32).clamp(0, 128);
     let scx = (sx / grid_size).floor() as i32;
     let scy = (sy / grid_size).floor() as i32;
     let mut result = Vec::new();
@@ -368,11 +428,126 @@ fn simple_range_cells(
     result
 }
 
+impl PlanningManager {
+    fn path_cost_ft(&self, path: &[[f32; 2]]) -> f32 {
+        let grid = self.grid_size as f64;
+        let mut total: f64 = 0.0;
+        let mut diagonals: f64 = 0.0;
+        let mut intervals = 0;
+        for pair in path.windows(2) {
+            let first = [pair[0][0] as f64, pair[0][1] as f64];
+            let last = [pair[1][0] as f64, pair[1][1] as f64];
+            let mut breaks = vec![0.0_f64, 1.0];
+            if !self.difficult_cells.is_empty() {
+                for axis in 0..2 {
+                    let low = (first[axis].min(last[axis]) / grid).floor() as i64;
+                    let high = (first[axis].max(last[axis]) / grid).floor() as i64;
+                    if high - low > 8192 {
+                        return f32::INFINITY;
+                    }
+                    if first[axis] != last[axis] {
+                        for boundary in low + 1..=high {
+                            let t =
+                                (boundary as f64 * grid - first[axis]) / (last[axis] - first[axis]);
+                            if t > 0.0 && t < 1.0 {
+                                breaks.push(t);
+                            }
+                        }
+                    }
+                }
+            }
+            breaks.sort_by(f64::total_cmp);
+            breaks.dedup();
+            intervals += breaks.len() - 1;
+            if intervals > 8192 {
+                return f32::INFINITY;
+            }
+            for range in breaks.windows(2) {
+                let dx = (last[0] - first[0]).abs() * (range[1] - range[0]) / grid;
+                let dy = (last[1] - first[1]).abs() * (range[1] - range[0]) / grid;
+                let diagonal = dx.min(dy);
+                let mut cells = if self.diagonal_rule == "realistic" {
+                    dx.hypot(dy)
+                } else {
+                    dx.max(dy)
+                };
+                if self.diagonal_rule == "alternate" {
+                    cells += ((diagonals + diagonal) / 2.0 + 1e-9).floor()
+                        - (diagonals / 2.0 + 1e-9).floor();
+                }
+                diagonals += diagonal;
+                let middle = (range[0] + range[1]) / 2.0;
+                let mid = (
+                    ((first[0] + (last[0] - first[0]) * middle) / grid).floor() as i32,
+                    ((first[1] + (last[1] - first[1]) * middle) / grid).floor() as i32,
+                );
+                total += cells
+                    * grid
+                    * self.ft_per_unit as f64
+                    * if self.difficult_cells.contains(&mid) {
+                        2.0
+                    } else {
+                        1.0
+                    };
+            }
+        }
+        total as f32
+    }
+}
+
 // Tests.
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn configure(pm: &mut PlanningManager, snap: bool, diagonal: &str, terrain: &str) {
+        assert!(pm.configure(&format!(r#"{{"grid_size":50,"ft_per_unit":0.2,"snap_to_cell":{snap},"diagonal_rule":"{diagonal}","bounds":[200,200],"difficult_cells":{terrain}}}"#)));
+    }
+
+    #[test]
+    fn configured_units_snap_and_free_endpoints_are_used_by_the_preview() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        configure(&mut pm, true, "standard", "[]");
+        assert!((pm.start_ghost("hero", 25.0, 25.0, 90.0, 90.0, 30.0) - 10.0).abs() < 1e-5);
+        assert_eq!(pm.ghost_tokens["hero"].preview_x, 75.0);
+        configure(&mut pm, false, "realistic", "[]");
+        let expected = 65.0_f32.hypot(65.0) * 0.2;
+        assert!((pm.start_ghost("hero", 25.0, 25.0, 90.0, 90.0, 30.0) - expected).abs() < 1e-4);
+        assert_eq!(pm.ghost_tokens["hero"].path.last(), Some(&[90.0, 90.0]));
+    }
+
+    #[test]
+    fn route_cost_includes_the_detour_and_blocked_routes_cannot_be_confirmed() {
+        let mut pm = PlanningManager::new(50.0, 0.2);
+        configure(&mut pm, false, "standard", "[]");
+        pm.set_walls(r#"[{"x1":75,"y1":0,"x2":75,"y2":120,"is_door":false,"door_open":false}]"#);
+        let cost = pm.start_ghost("hero", 20.0, 25.0, 130.0, 25.0, 100.0);
+        assert!(cost > 22.0 && cost.is_finite());
+        assert_eq!(pm.ghost_tokens["hero"].path.first(), Some(&[20.0, 25.0]));
+        assert_eq!(pm.ghost_tokens["hero"].path.last(), Some(&[130.0, 25.0]));
+        pm.set_walls(r#"[{"x1":75,"y1":0,"x2":75,"y2":200,"is_door":false,"door_open":false}]"#);
+        assert!(pm
+            .start_ghost("hero", 20.0, 25.0, 130.0, 25.0, 100.0)
+            .is_infinite());
+        assert!(!pm.ghost_tokens.contains_key("hero"));
+    }
+
+    #[test]
+    fn terrain_and_alternating_diagonals_do_not_depend_on_waypoint_splits() {
+        let mut pm = PlanningManager::new(50.0, 0.2);
+        configure(&mut pm, false, "standard", "[[1,0]]");
+        assert!((pm.path_cost_ft(&[[25.0, 25.0], [175.0, 25.0]]) - 40.0).abs() < 1e-4);
+        assert!(
+            (pm.path_cost_ft(&[[25.0, 25.0], [50.0, 25.0], [100.0, 25.0], [175.0, 25.0]]) - 40.0)
+                .abs()
+                < 1e-4
+        );
+        configure(&mut pm, false, "alternate", "[]");
+        assert!(
+            (pm.path_cost_ft(&[[25.0, 25.0], [75.0, 75.0], [125.0, 125.0]]) - 30.0).abs() < 1e-4
+        );
+    }
 
     #[test]
     fn ghost_snaps_to_grid() {

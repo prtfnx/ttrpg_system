@@ -182,7 +182,13 @@ export class TableSyncService {
       const wireTable = data.table_data ?? data;
       if (wireTable.occlusion_geometry !== undefined) this.retainOcclusion(tableId, wireTable.occlusion_geometry);
       const geometry = this.occlusion.get(tableId);
-      if (geometry) engine.replace_occlusion_geometry(tableId, JSON.stringify(geometry.geometry));
+      if (geometry) {
+        engine.replace_occlusion_geometry(tableId, JSON.stringify(geometry.geometry));
+        useGameStore.setState({ planningGeometry: { tableId, valid: geometry.planningValid,
+          shapes: geometry.shapes, terrain: geometry.terrain } });
+      } else {
+        useGameStore.setState({ planningGeometry: null });
+      }
       engine.set_grid_size(snapshot.renderer.grid_cell_px);
       engine.set_grid_enabled(snapshot.renderer.show_grid);
       engine.set_grid_snapping(snapshot.snapToGrid);
@@ -275,8 +281,27 @@ export class TableSyncService {
       if (this.retiredTableIds.has(tableId) || tableId !== useGameStore.getState().activeTableId) return;
       const geometry = this.retainOcclusion(tableId, data.occlusion_geometry);
       if (this.hydratedTableId === tableId) {
+        useGameStore.setState({ planningGeometry: { tableId, valid: geometry.planningValid,
+          shapes: geometry.shapes, terrain: geometry.terrain } });
         this.getEngine()?.replace_occlusion_geometry(tableId, JSON.stringify(geometry.geometry));
       }
+      return;
+    }
+    if (data.type === 'terrain_update' && typeof data.table_id === 'string') {
+      const tableId = data.table_id;
+      if (tableId !== useGameStore.getState().activeTableId || this.retiredTableIds.has(tableId)) return;
+      const cells = data.difficult_terrain_cells;
+      if (!Array.isArray(cells)) return;
+      const terrain = cells.filter((cell): cell is [number, number] =>
+        Array.isArray(cell) && cell.length === 2 && cell.every(Number.isSafeInteger));
+      const patch = (payload: TablePayload | null): TablePayload | null => {
+        if (!payload || (payload.table_data ?? payload).table_id !== tableId) return payload;
+        return payload.table_data ? { ...payload, table_data: { ...payload.table_data, difficult_terrain_cells: terrain } }
+          : { ...payload, difficult_terrain_cells: terrain };
+      };
+      this.latestPayload = patch(this.latestPayload); this.pendingPayload = patch(this.pendingPayload);
+      const previous = useGameStore.getState().planningGeometry;
+      if (previous?.tableId === tableId) useGameStore.setState({ planningGeometry: { ...previous, terrain } });
       return;
     }
     if (data.operation === 'delete') {
@@ -302,6 +327,7 @@ export class TableSyncService {
     if (!tableId) return;
     this.retiredTableIds.add(tableId);
     this.occlusion.delete(tableId);
+    if (useGameStore.getState().planningGeometry?.tableId === tableId) useGameStore.setState({ planningGeometry: null });
     const payloadId = (payload: TablePayload | null) => (payload?.table_data ?? payload)?.table_id;
     if (payloadId(this.pendingPayload) === tableId) this.pendingPayload = null;
     if (payloadId(this.latestPayload) === tableId) this.latestPayload = null;

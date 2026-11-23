@@ -1,3 +1,4 @@
+import type { OcclusionShape } from '@lib/wasm/occlusionGeometry';
 import type { Character, ConnectionState, GameState, Sprite, ToolType } from '@/types';
 import { UnitConverter, type DistanceUnit, type TableUnitConfig } from '@/utils/unitConverter';
 import { advancedMeasurementSystem } from '@features/measurement/services/advancedMeasurement.service';
@@ -172,6 +173,7 @@ interface GameStore extends GameState {
   setDmPreviewMode: (userId: number | null) => void;
 
   // Wall segment management
+  planningGeometry: { tableId: string; valid: boolean; shapes: OcclusionShape[]; terrain: [number, number][] } | null;
   walls: WallData[];
   addWall: (wall: WallData) => void;
   addWalls: (walls: WallData[]) => void;
@@ -246,6 +248,7 @@ export const useGameStore = create<GameStore>()(
       dmPreviewUserId: null,
 
       // Wall segment initial state
+      planningGeometry: null,
       walls: [],
 
       // Actions

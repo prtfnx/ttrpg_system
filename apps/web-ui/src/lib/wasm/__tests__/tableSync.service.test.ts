@@ -92,7 +92,8 @@ beforeEach(() => {
 });
 
 function occlusion(revision = 1, segments = [100, 0, 100, 200], epoch = 'session') {
-  return { schema_version: 1, valid: true, epoch, revision, segments };
+  return { schema_version: 1, valid: true, epoch, revision, segments,
+    shapes: segments.length === 4 ? [{ vertices: [[segments[0], segments[1]], [segments[2], segments[3]]], closed: false }] : [] };
 }
 
 describe('TableSyncService', () => {
@@ -103,6 +104,9 @@ describe('TableSyncService', () => {
       expect(mockEngine.replace_occlusion_geometry).toHaveBeenLastCalledWith(TABLE_A,
         JSON.stringify({ schema_version: 1, valid: true, segments: [100, 0, 100, 200] }));
       expect(mockSpriteSync.addSpriteToWasm).not.toHaveBeenCalled();
+      expect(useGameStore.setState).toHaveBeenCalledWith(expect.objectContaining({ planningGeometry: {
+        tableId: TABLE_A, valid: true, shapes: [{ vertices: [[100, 0], [100, 200]], closed: false }], terrain: [],
+      } }));
     } finally { service.dispose(); }
   });
 
@@ -113,12 +117,16 @@ describe('TableSyncService', () => {
     service.init();
     try {
       dispatch('table-response', { table_data: tableSnapshot({ occlusion_geometry: occlusion() }) });
-      dispatch('table-updated', { table_id: TABLE_A, type: 'occlusion_geometry', occlusion_geometry: occlusion(2, []) });
+      dispatch('table-updated', { table_id: TABLE_A, type: 'occlusion_geometry', occlusion_geometry: { ...occlusion(2, []), difficult_terrain_cells: [[1, 2]] } });
       attached = true; service.flushPending();
       const empty = JSON.stringify({ schema_version: 1, valid: true, segments: [] });
       expect(mockEngine.replace_occlusion_geometry).toHaveBeenLastCalledWith(TABLE_A, empty);
       dispatch('table-response', { table_data: tableSnapshot({ occlusion_geometry: occlusion() }) });
       expect(mockEngine.replace_occlusion_geometry).toHaveBeenLastCalledWith(TABLE_A, empty);
+      expect(useGameStore.setState).toHaveBeenLastCalledWith(expect.anything());
+      expect(useGameStore.setState).toHaveBeenCalledWith(expect.objectContaining({ planningGeometry: {
+        tableId: TABLE_A, valid: true, shapes: [], terrain: [[1, 2]],
+      } }));
       mockEngine.replace_occlusion_geometry.mockClear();
       dispatch('table-updated', { table_id: TABLE_B, type: 'occlusion_geometry', occlusion_geometry: occlusion(3) });
       expect(mockEngine.replace_occlusion_geometry).not.toHaveBeenCalled();

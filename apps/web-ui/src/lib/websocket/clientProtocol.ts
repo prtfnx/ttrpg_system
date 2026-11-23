@@ -678,6 +678,14 @@ export class WebClientProtocol {
         if (endedCombat) {
           useCombatStore.getState().setCombat(null);
         }
+        const terrainChange = data.applied.find((item) => typeof item === 'object' && item !== null
+          && (item as { action_type?: string }).action_type === 'set_terrain') as
+          { result?: { table_id?: string; difficult_terrain?: unknown; occlusion_geometry?: unknown } } | undefined;
+        if (terrainChange?.result?.table_id && Array.isArray(terrainChange.result.difficult_terrain)) {
+          emitProtocolEvent('table-updated', terrainChange.result.occlusion_geometry
+            ? { table_id: terrainChange.result.table_id, type: 'occlusion_geometry', occlusion_geometry: terrainChange.result.occlusion_geometry }
+            : { table_id: terrainChange.result.table_id, type: 'terrain_update', difficult_terrain_cells: terrainChange.result.difficult_terrain });
+        }
         const coverZoneAdded = data.applied.find((item) => (
           typeof item === 'object'
           && item !== null

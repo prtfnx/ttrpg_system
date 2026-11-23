@@ -5,6 +5,9 @@ older plans or reports in `docs/`.
 
 ## Start here
 
+- [Codebase review and remediation](CODEBASE_REVIEW.md): findings, implemented
+  repairs, validation and remaining design work.
+
 - [Documentation map](DOCS_MAP.md): reader paths, current coverage, and
   maintenance notes.
 - [Product overview](overview/PRODUCT_OVERVIEW.md): what the app is and how a

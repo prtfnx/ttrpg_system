@@ -45,6 +45,7 @@ Canvas or WASM contributor:
 | Page | Type | Main audience |
 | --- | --- | --- |
 | [README](README.md) | index | all contributors |
+| [Codebase review and remediation](CODEBASE_REVIEW.md) | reference | reviewers and maintainers |
 | [Product overview](overview/PRODUCT_OVERVIEW.md) | overview | new contributors |
 | [Local first run](tutorials/LOCAL_FIRST_RUN.md) | tutorial | new contributors |
 | [App architecture](APP_ARCHITECTURE.md) | explanation | maintainers |

@@ -1,59 +1,18 @@
-# Server Test Suite
+# Server tests
 
-FastAPI test suite following best practices.
+Run from `apps/server` after installing `requirements.txt`,
+`requirements-dev.txt`, and the editable `packages/core-table` package in the
+same Python environment.
 
-## Quick Start
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run all tests
-pytest
-
-# Run specific test type
-pytest -m unit
-pytest -m integration
-
-# Run with coverage
-pytest --cov=server_host --cov-report=html
-
-# Run specific test file
-pytest tests/integration/test_game_routes.py
+```powershell
+python -m pytest tests/unit tests/integration
+python -m pytest tests/unit/test_combat_action_authority.py -q --no-cov
 ```
 
-## Structure
+`pyproject.toml` owns pytest and coverage configuration. Database-dependent
+checks require their configured database; SQLite does not establish PostgreSQL
+concurrency or fencing behavior.
 
-```
-tests/
-├── conftest.py              # Shared fixtures
-├── unit/                    # Unit tests (fast, isolated)
-├── integration/             # Integration tests (real scenarios)
-├── utils/                   # Test utilities
-└── legacy/                  # Old tests (being phased out)
-```
-
-## Key Fixtures
-
-- `client` - TestClient with test database
-- `auth_client` - Authenticated test client
-- `test_user` - Pre-created test user
-- `test_game_session` - Pre-created game session
-
-## Writing Tests
-
-```python
-import pytest
-
-@pytest.mark.integration
-class TestMyFeature:
-    def test_something(self, auth_client):
-        response = auth_client.get("/endpoint")
-        assert response.status_code == 200
-```
-
-## Coverage Goals
-
-- Unit tests: 80%+
-- Integration tests: Critical paths covered
-- Fast execution: < 1 minute total
+See [Testing strategy](../../../docs/current/TESTING_STRATEGY.md) and
+[Development](../../../docs/current/DEVELOPMENT.md) for current commands,
+fixtures, environment setup, coverage and test boundaries.

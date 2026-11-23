@@ -1,6 +1,6 @@
 # Battle flow
 
-Last source audit: 2026-11-17
+Last source audit: 2026-11-18
 
 Battle flow is command-oriented now. React can help the user plan a turn, and
 Rust/WASM can draw previews, but the server is the only place that accepts
@@ -491,3 +491,26 @@ identities across tabs and reloads. An acknowledgement clears only the action
 IDs captured by the matching local submission. Peer broadcasts, stale results,
 and later local edits preserve the unsent queue. Rejection leaves the submitted
 actions available for correction.
+
+## Movement preview and submission
+
+The combat movement control uses the active encounter table's grid size and
+cell distance, converting metres to feet. It configures the runtime-owned WASM
+planner with current movement-blocking walls and doors, read-only obstacle
+boundaries, difficult terrain, bounds and session diagonal/movement rules.
+An unavailable scene or blocked route cannot produce a confirmable move.
+
+The control displays the computed cost and destination. Confirmation queues the
+same snapped (or free-mode) endpoint and path; it does not resubmit the raw click.
+Exact source/destination coordinates survive the float32 WASM boundary. Further
+queued movement starts from that actor's previous queued endpoint and deducts
+its estimated cost. Scene/rule changes discard the displayed preview. There is
+no automatic Dash purchase and no movement-range heatmap in this control.
+
+Python and Rust measure each crossed terrain cell and carry alternating diagonal
+costs across waypoints. Terrain sampling and path search each have an 8192-step
+budget; exceeding a budget rejects the preview or command. The server recomputes
+cost and legality at submission and clamps only sub-microfoot rounding residue.
+Search provides a collision-free route when found within its budget; it does
+not optimize route cost for terrain. Client previews remain estimates and may
+be rejected if state changes before submission.

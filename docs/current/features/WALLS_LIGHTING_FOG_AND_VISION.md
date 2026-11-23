@@ -400,8 +400,8 @@ contain no sprite IDs, names, asset references, notes or actor data. Players can
 inspect the supplied boundaries; this contract protects sprite metadata and
 editing authority, rather than concealing geometry processed by their browser.
 
-`service/occlusion_geometry.py` derives rectangle, ellipse, polygon and line
-boundaries from installed table entities. Rectangle/ellipse scale and rotation
+`service/occlusion_geometry.py` uses `core_table/obstacle_geometry.py` to derive
+rectangle, ellipse, polygon and line boundaries from installed table entities. Rectangle/ellipse scale and rotation
 match rendering; saved line/polygon vertices already use world coordinates.
 Each payload is bounded to 8192 segments and finite coordinates within 10000000
 pixels. Invalid geometry produces `valid: false` without a partial boundary.
@@ -439,3 +439,12 @@ to the Lighting controls, so the generic layer opacity slider is unavailable
 for Lighting. Fog visibility and opacity belong to Fog tools and Player Vision
 & Fog; the layer panel exposes neither an ineffective fog toggle nor a generic
 fog opacity slider. Local layer controls cannot disable the player fog compositor.
+
+The same versioned payload carries `shapes` (world-space `vertices` and a
+`closed` boolean) plus `difficult_terrain_cells` for read-only movement planning.
+Shapes contain no entity identities. The frontend requires their flattened
+edges to match the sight segments exactly and bounds their total size. Terrain
+changes return a fresh geometry revision through the accepted command result;
+older hydration cannot overwrite newer terrain. WASM rendering receives only
+the minimal sight contract; the separate planner receives shapes, terrain,
+movement-blocking walls, table bounds, units and session movement rules.

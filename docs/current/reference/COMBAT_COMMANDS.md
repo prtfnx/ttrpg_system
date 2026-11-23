@@ -5,7 +5,7 @@ Audience: contributors changing combat mutations or combat UI send paths.
 Status: partial. This page catalogs the current command model and command
 types. Use source code for exact payload validation.
 
-Last source audit: 2026-11-17
+Last source audit: 2026-11-18
 
 ## Source of truth
 
@@ -275,9 +275,10 @@ inside a batch. Missing token geometry, invalid units, excess/duplicate/hidden
 player targets, closed sight-blocking walls and out-of-range targets are rejected
 before spending actions, reactions, slots, or concentration. Range uses table
 units converted to feet and token positions, with no extra range allowance.
-Cover zones continue to affect attack rolls. Obstacle sprite geometry and the
-renderer vision protocol are separate limitations; wall checks do not implement
-those missing geometry contracts.
+Cover zones continue to affect attack rolls. Sight also checks shared obstacle
+boundaries, including transformed rectangles, ellipses, closed polygons and
+world-space lines. Player vision receives these boundaries separately from
+editable sprite metadata.
 
 References are re-resolved against the current saved encounter actor. A stale or
 foreign reference is rejected. Supplying any mechanical field alongside a
@@ -317,8 +318,11 @@ DM Overrides. The action panel also offers an explicit **Manual damage (DM)**
 mode: manual commands set `manual: true`, supply bounded mechanics, and require
 an explicit spell effect. Non-DMs cannot use manual commands. A manual damage
 spell rolls automatic damage; it does not implement the named spell's rules.
-Opportunity-attack commands use a supported melee reference and reaction budget;
-this does not add a durable trigger/timing state machine or generate OA prompts.
+Opportunity-attack resolution requires a DM to authorize timing, then uses a
+supported melee reference and the reaction budget. Players can pass a prompt
+but cannot spend a reaction against an arbitrary target. The prompt offers
+manual DM resolution. A durable server-owned trigger/timing state machine and
+server-generated OA prompts remain unimplemented.
 
 `test_combat_action_authority.py` exercises the command boundary and verifies
 that rejected authority and geometry checks preserve the full encounter state.

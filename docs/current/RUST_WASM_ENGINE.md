@@ -4,7 +4,7 @@ Audience: contributors changing the browser engine or its TypeScript boundary.
 
 Status: usable.
 
-Last source audit: 2026-09-25
+Last source audit: 2026-11-18
 
 The Rust crate is the local engine behind the browser canvas. It should stay
 focused on compute-heavy rendering, geometry, visibility, collision, planning,
@@ -328,3 +328,14 @@ also block segments wholly inside their boundary, including zero-length moves.
 A blocked direct move inside one grid cell does not become a successful A* path.
 Native regressions cover wall overlap, polygon/rectangle containment, circle
 containment and disjoint segments.
+
+`PlanningManager.configure` validates table units, snapping, diagonal rules,
+bounds and difficult terrain before replacing the planning scene. TypeScript
+then supplies live walls and shared closed/open obstacle boundaries. Route cost
+uses the actual path, including detours; unreachable destinations clear ghosts
+and return infinity. A* and terrain sampling are bounded to 8192 expansions or
+intervals. Spatial hashes fall back to a bounded global index for objects or
+queries spanning more than 4096 buckets. Native tests cover units, terrain,
+detours, containment and search limits; real-browser tests exercise the shipped
+exports and binary. The legacy movement-range API is an estimate, not a
+terrain-aware reachability guarantee.

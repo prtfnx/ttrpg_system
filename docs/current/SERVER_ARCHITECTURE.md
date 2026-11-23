@@ -4,7 +4,7 @@ Audience: contributors changing the Python server or shared domain package.
 
 Status: usable.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-11-18
 
 The server is a FastAPI app with WebSocket sessions and a Python tabletop
 domain package behind it.
@@ -288,8 +288,9 @@ rejects replaced-server admission and closes its real sockets with retry code
 
 Async full-table saves capture detached snapshots on the event loop and
 persist them atomically in worker-owned sessions. Combat environment saves use
-this path; wall command persistence also uses worker-owned sessions. Remaining
-join/choice/permission/compendium database paths still require worker migration. Failed existing-table saves remain
+this path; wall command persistence also uses worker-owned sessions. Join/choice,
+unloaded-token permission checks, compendium asset lookup and chat retention
+also use bounded workers with worker-owned sessions. Failed existing-table saves remain
 pending; normal final disconnect retains failed state for retry, while a
 superseded process retires
 its obsolete cache. A failed command is not a universal in-memory rollback.

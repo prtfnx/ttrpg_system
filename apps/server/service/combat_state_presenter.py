@@ -83,6 +83,9 @@ class CombatStatePresenter:
         if not isinstance(pending, dict):
             return
         view['pending_movement'] = {key: pending[key] for key in ('movement_id', 'expires_at')}
+        mover_actor = next((actor for actor in state.combatants if actor.combatant_id == pending['actor_id']), None)
+        if is_dm(role) or (mover_actor and user_id is not None and str(user_id) in mover_actor.controlled_by):
+            view['pending_movement']['actor_id'] = pending['actor_id']
         trigger = next((item for item in pending['triggers'] if item['status'] == 'pending'), None)
         if trigger is None:
             return

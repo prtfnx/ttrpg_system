@@ -1,4 +1,7 @@
+import asyncio
+import contextvars
 import json
+import secrets
 import time
 from typing import Any
 
@@ -75,6 +78,11 @@ class _CombatMixin(_ProtocolBase):
         else:
             CombatEngine._active[code] = state
         persistence.complete_recovery(code, resolved)
+        if committed is not None and attempt.movements:
+            try:
+                await self._publish_combat_movements(state, attempt.movements)
+            except Exception:
+                logger.exception('Recovered combat movement publication failed')
         context = dict(committed.result) if committed is not None else {
             "accepted": False, "sequence_id": attempt.sequence_id, "applied": [],
             "reason": "Combat command did not commit",
@@ -221,6 +229,9 @@ class _CombatMixin(_ProtocolBase):
             state = await run_blocking(CombatEngine.restore, session_code)
         if not state:
             return Message(MessageType.COMBAT_STATE, {'combat': None})
+        await self._expire_reactions(msg, client_id, state)
+        state = CombatEngine.get_state(session_code)
+        self._schedule_reaction_expiry()
         return Message(MessageType.COMBAT_STATE, {
             'combat': CombatStatePresenter.for_client(
                 state,
@@ -322,6 +333,8 @@ class _CombatMixin(_ProtocolBase):
             })
 
         try:
+            from service.combat_engine import CombatEngine
+            await self._expire_reactions(msg, client_id, CombatEngine.get_state(self._get_session_code()))
             result = await self._apply_combat_envelope(service, envelope, msg, client_id)
         except CombatCommitOutcomeUnknown:
             return self._combat_uncertain_response(envelope.sequence_id)
@@ -335,6 +348,7 @@ class _CombatMixin(_ProtocolBase):
                         payload['occlusion_geometry'] = versioned_occlusion_snapshot(self, table)
             from service.combat_engine import CombatEngine
             state = CombatEngine.get_state(self._get_session_code())
+            self._schedule_reaction_expiry()
             context = result.to_dict()
             context.pop('combat', None)
             if state is None:
@@ -349,34 +363,63 @@ class _CombatMixin(_ProtocolBase):
             return await self._broadcast_combat_state(state, response_type, client_id, context)
         return Message(response_type, result.to_dict())
 
-    async def _apply_combat_envelope(self, service, envelope, msg, client_id):
+    async def _apply_combat_envelope(self, service, envelope, msg, client_id, *, internal_expiry=False):
         from service.combat_command_service import CombatCommandType
         from service.combat_engine import CombatEngine
 
-        if not any(command.type == CombatCommandType.MOVE for command in envelope.commands):
-            return await self._run_combat_envelope(service, envelope, msg, client_id)
+        if not any(command.type in {CombatCommandType.MOVE, CombatCommandType.RESOLVE_OPPORTUNITY_ATTACK,
+                                   CombatCommandType.EXPIRE_OPPORTUNITY_ATTACKS} for command in envelope.commands):
+            return await self._run_combat_envelope(service, envelope, msg, client_id, internal_expiry=internal_expiry)
         state = CombatEngine.get_state(self._get_session_code())
         if state is None:
-            return await self._run_combat_envelope(service, envelope, msg, client_id)
+            return await self._run_combat_envelope(service, envelope, msg, client_id, internal_expiry=internal_expiry)
         async with self.table_manager.table_write_lock(state.table_id):
             table = self._get_table_by_id(state.table_id)
             if table is None:
                 from service.combat_command_service import CombatCommandResult
                 return CombatCommandResult(False, envelope.sequence_id, [], reason="Combat table not found")
             draft = CombatMovementDraft(table)
-            result = await self._run_combat_envelope(service, envelope, msg, client_id, draft)
+            result = await self._run_combat_envelope(service, envelope, msg, client_id, draft, internal_expiry=internal_expiry)
             if result.accepted and not result.duplicate:
                 draft.publish()
+                try:
+                    await self._publish_combat_movements(CombatEngine.get_state(self._get_session_code()), draft.effects())
+                except Exception:
+                    logger.exception('Committed combat movement publication failed')
+                    result.details['resync_required'] = True
             return result
 
-    async def _run_combat_envelope(self, service, envelope, msg, client_id, draft=None):
-        return await service.apply_async(
-            envelope,
-            CombatCommandContext(
+    async def _publish_combat_movements(self, state, movements):
+        for effect in movements:
+            table = self._get_table_by_id(effect.table_id)
+            token = table.find_entity_by_sprite_id(effect.sprite_id) if table else None
+            publication = Message(MessageType.SPRITE_MOVE, {
+                'table_id': effect.table_id, 'sprite_id': effect.sprite_id,
+                'position': {'x': effect.after[0], 'y': effect.after[1]},
+            })
+            actor = next((actor for actor in state.combatants if actor.entity_id == effect.sprite_id), None) if state else None
+            if actor and actor.is_npc and actor.is_hidden:
+                for recipient in self._combat_client_ids():
+                    if is_dm(self._get_client_role(recipient)):
+                        await self.send_to_client(publication, recipient)
+            else:
+                await self.broadcast_filtered(publication, token.layer if token else 'tokens', '')
+
+    async def _run_combat_envelope(self, service, envelope, msg, client_id, draft=None, *, internal_expiry=False):
+        context = self._combat_command_context(msg, client_id, draft)
+        if internal_expiry:
+            from dataclasses import replace
+            context = replace(context, internal_expiry=True, client_id='__reactions__', user_id=None)
+        return await service.apply_async(envelope, context)
+
+    def _combat_command_context(self, msg, client_id, draft=None, role_override=None, user_override=None):
+        role = role_override or self._get_client_role(client_id)
+        user_id = user_override if user_override is not None else self._get_user_id(msg, client_id)
+        return CombatCommandContext(
                 session_code=self._get_session_code(),
                 client_id=client_id,
-                role=self._get_client_role(client_id),
-                user_id=self._get_user_id(msg, client_id),
+                role=role,
+                user_id=user_id,
                 table_lookup=draft.lookup if draft is not None else self._get_table_by_id,
                 movement_draft=draft,
                 # Combat uses the public session code; canvas persistence uses
@@ -385,19 +428,90 @@ class _CombatMixin(_ProtocolBase):
                     self._move_sprite_for_combat_command(
                         table_id, sprite_id, old_position, new_position,
                         session_id=self._get_session_id(msg),
-                        actor_role=self._get_client_role(client_id),
+                        actor_role=role,
                         draft=draft,
                     ),
                 validate_move=lambda *args: self._validate_move_for_combat_command(
-                    *args, actor_role=self._get_client_role(client_id), draft=draft),
+                    *args, actor_role=role, draft=draft),
                 build_combatants=lambda table_id, entity_ids, combatants: CombatantFactory().build_many(
                     entity_ids,
                     combatants,
                     self._combatant_factory_context(msg, table_id),
                 ),
                 save_table_async=lambda table_id: self._persist_table_state_async(table_id, msg),
-            ),
-        )
+                mover_role=lambda uid: self._current_combat_member_role(self._get_session_id(msg), uid),
+                resume_context=lambda resumed_role, uid: self._combat_command_context(msg, client_id, draft, resumed_role, uid),
+            )
+
+    @staticmethod
+    def _current_combat_member_role(session_id, user_id):
+        from database.models import GamePlayer, GameSession, User
+        with SessionLocal() as db:
+            found = db.query(GamePlayer.role, GameSession.ban_list, User.username).join(
+                GameSession, GameSession.id == GamePlayer.session_id).join(User, User.id == GamePlayer.user_id).filter(
+                    GamePlayer.session_id == session_id, GamePlayer.user_id == user_id, GameSession.is_active.is_(True),
+                    User.disabled.is_(False)).one_or_none()
+            if found is None:
+                return None
+            bans = json.loads(found.ban_list or '[]')
+            if any(str(ban.get('player_id')) == str(user_id) or ban.get('username') == found.username for ban in bans):
+                return None
+            return found.role
+
+    def _schedule_reaction_expiry(self):
+        from service.combat_engine import CombatEngine
+        if not hasattr(self, '_mutation_lock') or not hasattr(self, '_invoke_handler'):
+            return
+        state = CombatEngine.get_state(self._get_session_code())
+        if not hasattr(self, '_reaction_changed'):
+            self._reaction_changed = asyncio.Event()
+        self._reaction_changed.set()
+        current = getattr(self, '_reaction_timer', None)
+        if state is not None and state.pending_movement and (current is None or current.done()):
+            self._reaction_timer = asyncio.create_task(self._reaction_deadline_loop(), context=contextvars.Context())
+
+    def stop_reaction_timer(self):
+        task = getattr(self, '_reaction_timer', None)
+        if task is not None and not task.done():
+            task.cancel()
+
+    async def _reaction_deadline_loop(self):
+        from service.combat_engine import CombatEngine
+        while self._combat_client_ids():
+            state = CombatEngine.get_state(self._get_session_code())
+            pending = getattr(state, 'pending_movement', None)
+            if not isinstance(pending, dict):
+                return
+            self._reaction_changed.clear()
+            try:
+                await asyncio.wait_for(self._reaction_changed.wait(), max(1.0, pending['expires_at'] - time.time()))
+                continue
+            except asyncio.TimeoutError:
+                pass
+            try:
+                # Reuse admission recovery and cancellation shielding under the
+                # same ownership as websocket commands. No socket may forge this.
+                async with self._mutation_lock:
+                    await self._invoke_handler(Message(MessageType.COMBAT_STATE_REQUEST, {}), '__reaction_timer__')
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception('Reaction deadline could not settle')
+                await asyncio.sleep(1)
+
+    async def _expire_reactions(self, msg, client_id, state):
+        from service.combat_engine import CombatEngine
+        pending = getattr(state, 'pending_movement', None)
+        if not isinstance(pending, dict) or pending['expires_at'] > time.time():
+            return
+        service = CombatCommandService(persistence=self._get_combat_persistence_service())
+        envelope = service.parse_envelope({'sequence_id': secrets.randbits(53), 'commands': [{
+            'type': 'expire_opportunity_attacks', 'actor_id': pending['actor_id']}]})
+        result = await self._apply_combat_envelope(service, envelope, msg, client_id, internal_expiry=True)
+        if not result.accepted:
+            raise RuntimeError('Reaction expiry could not be persisted')
+        state = CombatEngine.get_state(self._get_session_code())
+        await self._broadcast_combat_state(state, MessageType.COMBAT_STATE, '', None)
 
     async def _move_sprite_for_combat_command(
         self,
@@ -515,6 +629,8 @@ class _CombatMixin(_ProtocolBase):
             "movement_cost": result.movement_cost,
             "path": result.valid_path,
             "opportunity_attack_triggers": triggers,
+            "opportunity_attacks_enabled": mode_str == "fight" and rules.opportunity_attacks_enabled,
+            "reaction_timeout_seconds": rules.opportunity_attack_timeout_sec,
         }
 
     async def handle_cover_zones_sync(self, msg: Message, client_id: str) -> Message:

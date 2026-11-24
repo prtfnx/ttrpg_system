@@ -250,6 +250,10 @@ class GameSessionProtocolService:
         del self.clients[client_id]
         del self.client_info[client_id]
         del self.websocket_to_client[websocket]
+        if not self.clients:
+            stop_timer = getattr(self.server_protocol, 'stop_reaction_timer', None)
+            if callable(stop_timer):
+                stop_timer()
         # Notify server protocol
         #self.server_protocol.disconnect_client(client_id)
 
@@ -272,7 +276,13 @@ class GameSessionProtocolService:
 
     async def wait_for_mutations(self) -> None:
         """Wait for serialized session mutations before final persistence."""
+        stop_timer = getattr(self.server_protocol, 'stop_reaction_timer', None)
+        if callable(stop_timer):
+            stop_timer()
         await self.server_protocol.wait_for_mutations()
+        timer = getattr(self.server_protocol, '_reaction_timer', None)
+        if isinstance(timer, asyncio.Task):
+            await asyncio.gather(timer, return_exceptions=True)
 
     async def handle_protocol_message(self, websocket: WebSocket, message_str: str):
         """Handle incoming protocol message from a client"""

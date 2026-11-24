@@ -15,9 +15,9 @@ vi.mock('../stores/gameModeStore', () => ({
   useGameModeStore: vi.fn(() => 'free_roam'),
 }));
 vi.mock('../stores/oaStore', () => ({
-  useOAStore: vi.fn((selector) => selector({
-    setPendingCombatCommand: mockSetPendingCombatCommand,
-  })),
+  useOAStore: Object.assign(vi.fn((selector) => selector({
+    setPendingCombatCommand: mockSetPendingCombatCommand, clearAll: vi.fn(),
+  })), { getState: () => ({ setPendingCombatCommand: mockSetPendingCombatCommand, clearAll: vi.fn() }) }),
 }));
 vi.mock('@/store', () => ({
   useGameStore: vi.fn((selector) => selector({

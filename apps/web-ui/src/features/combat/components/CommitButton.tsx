@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './CommitButton.module.css';
 import { usePlanningStore } from '../stores/planningStore';
 import { planningService } from '../services/planning.service';
@@ -6,80 +6,77 @@ import { buildPlannedCombatCommands } from '../services/plannedCommand.service';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useGameModeStore } from '../stores/gameModeStore';
 import { useOAStore } from '../stores/oaStore';
+import { useCombatStore } from '../stores/combatStore';
 import { useGameStore } from '@/store';
 
 export function CommitButton() {
-  const [pending, setPending] = useState(false);
+  const [committing, setCommitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { queue, isPlanningMode, selectedSpriteId, stopPlanning, nextSequenceId, markSubmitted, finishSubmission } = usePlanningStore();
+  const waitingSequence = useRef<number | null>(null);
+  const committedPlan = useRef<string[]>([]);
+  const { queue, isPlanningMode, selectedSpriteId, stopPlanning, nextSequenceId,
+    markSubmitted, finishSubmission, pendingSubmission, submissionOutcome } = usePlanningStore();
   const mode = useGameModeStore((s) => s.mode);
   const activeTableId = useGameStore((s) => s.activeTableId);
-  const { sendCommandBatch } = useCombatCommands();
-  const setPendingCombatCommand = useOAStore((s) => s.setPendingCombatCommand);
-  const selectedSprite = useGameStore((s) =>
-    selectedSpriteId ? s.sprites.find((sprite) => sprite.id === selectedSpriteId) : undefined
-  );
+  const pendingMovement = useCombatStore((s) => s.combat?.pending_movement);
+  const selectedSprite = useGameStore((s) => selectedSpriteId ? s.sprites.find((sprite) => sprite.id === selectedSpriteId) : undefined);
+  const { sendCommandBatch, sendCommand } = useCombatCommands();
 
-  // Only visible in planning mode with queued actions, or in FREE_ROAM always
-  if (!isPlanningMode && mode !== 'free_roam') return null;
-  if (queue.length === 0) return null;
-
-  const commit = async () => {
-    setError(null);
-    setPending(true);
-
-    const actorId = selectedSpriteId;
-    const tableId = activeTableId ?? selectedSprite?.tableId;
-
-    const built = buildPlannedCombatCommands(queue, {
-      actorId,
-      tableId: tableId ?? null,
-      actorPosition: selectedSprite
-        ? { x: selectedSprite.x, y: selectedSprite.y }
-        : undefined,
+  const sendNext = useCallback(() => {
+    if (pendingSubmission || pendingMovement) return;
+    const remaining = queue.filter((action) => committedPlan.current.includes(action.id));
+    if (remaining.length === 0) { setCommitting(false); return; }
+    // Each movement is an atomic envelope; it may open a durable reaction window.
+    const firstMove = remaining.findIndex((action) => action.action_type === 'move');
+    const batch = remaining.slice(0, firstMove === 0 ? 1 : firstMove < 0 ? remaining.length : firstMove);
+    const built = buildPlannedCombatCommands(batch, {
+      actorId: selectedSpriteId, tableId: activeTableId ?? selectedSprite?.tableId ?? null,
+      actorPosition: selectedSprite ? { x: selectedSprite.x, y: selectedSprite.y } : undefined,
     });
-    if (!built.ok) {
-      setError(built.error);
-      setPending(false);
-      return;
-    }
-
+    if (!built.ok) { setError(built.error); setCommitting(false); return; }
     const sequenceId = nextSequenceId();
-    const payload = {
-      commands: built.commands,
-      sequence_id: sequenceId,
-    };
-
-    if (built.commands.some((command) => command.type === 'move')) {
-      setPendingCombatCommand(payload);
-    }
-    markSubmitted(sequenceId);
+    const payload = { commands: built.commands, sequence_id: sequenceId };
+    if (built.commands.some((command) => command.type === 'move')) useOAStore.getState().setPendingCombatCommand(payload);
+    waitingSequence.current = sequenceId;
+    markSubmitted(sequenceId, batch.map((action) => action.id));
     if (!sendCommandBatch(payload)) {
       finishSubmission(sequenceId, false);
+      setCommitting(false);
       setError('Connect to the session before committing your plan.');
     }
+  }, [pendingSubmission, pendingMovement, queue, selectedSpriteId, activeTableId, selectedSprite,
+    nextSequenceId, markSubmitted, sendCommandBatch, finishSubmission]);
 
-    // Queue cleared and planning stopped by ACTION_RESULT / ACTION_REJECTED handlers
-    setPending(false);
-  };
+  useEffect(() => {
+    if (!committing || pendingSubmission) return;
+    if (waitingSequence.current !== null) {
+      if (submissionOutcome?.sequenceId !== waitingSequence.current) return;
+      waitingSequence.current = null;
+      if (!submissionOutcome.accepted) {
+        setError('The server rejected this step. Review the remaining plan.');
+        setCommitting(false); return;
+      }
+    }
+    sendNext();
+  }, [committing, pendingSubmission, submissionOutcome, sendNext]);
 
-  return (
-    <div className={styles.wrapper}>
-      {error && <p className={styles.error}>{error}</p>}
-      <button
-        className={[styles.btn, pending ? styles.pending : ''].join(' ')}
-        onClick={commit}
-        disabled={pending}
-      >
-        {pending ? 'Sending...' : `Commit Turn (${queue.length} action${queue.length !== 1 ? 's' : ''})`}
-      </button>
-      <button className={styles.cancelBtn} onClick={() => {
-        stopPlanning();
-        planningService.clearAll();
+  if ((!isPlanningMode && mode !== 'free_roam' && !pendingMovement?.actor_id) || (queue.length === 0 && !pendingMovement?.actor_id)) return null;
+  return <div className={styles.wrapper}>
+    {error && <p className={styles.error}>{error}</p>}
+    <button className={[styles.btn, pendingSubmission ? styles.pending : ''].join(' ')}
+      disabled={committing || Boolean(pendingSubmission) || Boolean(pendingMovement)} onClick={() => {
+        committedPlan.current = queue.map((action) => action.id);
+        setError(null); setCommitting(true);
       }}>
-        Cancel
-      </button>
-    </div>
-  );
+      {pendingMovement ? 'Waiting for reactions...' : committing ? 'Committing...' : `Commit Turn (${queue.length} action${queue.length !== 1 ? 's' : ''})`}
+    </button>
+    <button className={styles.cancelBtn} disabled={Boolean(pendingSubmission)} onClick={() => {
+      setCommitting(false); waitingSequence.current = null;
+      if (pendingMovement?.actor_id) sendCommand({ type: 'cancel_pending_move', actor_id: pendingMovement.actor_id,
+        movement_id: pendingMovement.movement_id });
+      useOAStore.getState().clearAll();
+      stopPlanning(); planningService.clearAll();
+    }}>Cancel</button>
+    <p>Steps commit in order. Reactions pause movement; a rejected step keeps the remaining plan.</p>
+  </div>;
 }
-

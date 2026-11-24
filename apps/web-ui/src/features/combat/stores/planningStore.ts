@@ -43,7 +43,8 @@ interface PlanningStore {
   selectedSpriteId: string | null;
   sequenceId: number;   // last submitted protocol identity
   pendingSubmission: { sequenceId: number; actionIds: string[] } | null;
-  markSubmitted: (sequenceId: number) => void;
+  submissionOutcome: { sequenceId: number; accepted: boolean } | null;
+  markSubmitted: (sequenceId: number, actionIds?: string[]) => void;
   finishSubmission: (sequenceId: number, accepted: boolean) => boolean;
 
   startPlanning: (spriteId: string) => void;
@@ -60,15 +61,17 @@ export const usePlanningStore = create<PlanningStore>((set, get) => ({
   selectedSpriteId: null,
   sequenceId: 0,
   pendingSubmission: null,
-  markSubmitted: (sequenceId) => set((state) => ({
-    pendingSubmission: { sequenceId, actionIds: state.queue.map((action) => action.id) },
+  submissionOutcome: null,
+  markSubmitted: (sequenceId, actionIds) => set((state) => ({
+    submissionOutcome: null,
+    pendingSubmission: { sequenceId, actionIds: actionIds ?? state.queue.map((action) => action.id) },
   })),
   finishSubmission: (sequenceId, accepted) => {
     const state = get();
     if (state.pendingSubmission?.sequenceId !== sequenceId) return false;
     const submittedIds = new Set(state.pendingSubmission.actionIds);
     const queue = accepted ? state.queue.filter((action) => !submittedIds.has(action.id)) : state.queue;
-    set({ pendingSubmission: null, queue: queue.map((action, index) => ({ ...action, sequence_index: index })),
+    set({ submissionOutcome: { sequenceId, accepted }, pendingSubmission: null, queue: queue.map((action, index) => ({ ...action, sequence_index: index })),
       ...(accepted && queue.length === 0 ? { isPlanningMode: false, selectedSpriteId: null } : {}),
     });
     return true;
@@ -76,7 +79,7 @@ export const usePlanningStore = create<PlanningStore>((set, get) => ({
 
   startPlanning: (spriteId) => set({ isPlanningMode: true, selectedSpriteId: spriteId }),
 
-  stopPlanning: () => set({ isPlanningMode: false, selectedSpriteId: null, pendingSubmission: null }),
+  stopPlanning: () => set({ isPlanningMode: false, selectedSpriteId: null }),
 
   addAction: (action) => set((s) => ({
     queue: [...s.queue, { ...action, sequence_index: s.queue.length }],

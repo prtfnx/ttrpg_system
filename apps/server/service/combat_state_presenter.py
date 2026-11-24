@@ -34,6 +34,7 @@ class CombatStatePresenter:
         if is_dm(role):
             view = state.to_dict()
             CombatStatePresenter._attach_available_actions(view, state, role, user_id)
+            CombatStatePresenter._attach_reactions(view, state, role, user_id)
             return view
 
         visibility = CombatStatePresenter._npc_hp_visibility(
@@ -71,7 +72,30 @@ class CombatStatePresenter:
             visible_ids,
         )
         CombatStatePresenter._attach_available_actions(view, state, role, user_id)
+        CombatStatePresenter._attach_reactions(view, state, role, user_id)
         return view
+
+    @staticmethod
+    def _attach_reactions(view, state, role, user_id) -> None:
+        pending = getattr(state, 'pending_movement', None)
+        view.pop('pending_movement', None)
+        view.pop('reaction_prompts', None)
+        if not isinstance(pending, dict):
+            return
+        view['pending_movement'] = {key: pending[key] for key in ('movement_id', 'expires_at')}
+        trigger = next((item for item in pending['triggers'] if item['status'] == 'pending'), None)
+        if trigger is None:
+            return
+        actor = next((actor for actor in state.combatants if actor.combatant_id == trigger['attacker_id']), None)
+        owns = (actor is not None and not actor.is_npc and role != SessionRole.SPECTATOR.value
+                and user_id is not None and str(user_id) in actor.controlled_by)
+        if actor is None or not (owns or is_dm(role)):
+            return
+        mover = next((item for item in view['combatants'] if item['combatant_id'] == pending['actor_id']), None)
+        view['reaction_prompts'] = [{'trigger_id': trigger['trigger_id'],
+            'attacker_combatant_id': actor.combatant_id, 'target_combatant_id': pending['actor_id'],
+            'target_name': mover['name'] if mover else 'A moving combatant',
+            'expires_at': pending['expires_at'], 'action_ids': trigger['action_ids']}]
 
     @staticmethod
     def _attach_available_actions(view, state, role, user_id) -> None:

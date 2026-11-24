@@ -1324,7 +1324,7 @@ async def test_move_command_rejects_failed_validation_before_moving_token():
     move_sprite.assert_not_awaited()
 
 
-async def test_move_command_returns_opportunity_attack_warning_before_moving_token():
+async def test_untrusted_warning_metadata_cannot_create_reactions_between_party_members():
     state, actor, target = _state()
     move_sprite = AsyncMock(return_value={"success": True, "message": "ok"})
     service = CombatCommandService()
@@ -1358,13 +1358,10 @@ async def test_move_command_returns_opportunity_attack_warning_before_moving_tok
         },
     ))
 
-    assert result.accepted is False
-    assert result.reason == "Opportunity attack warning"
-    assert result.details["code"] == "opportunity_attack_warning"
-    assert result.details["entity_id"] == actor.entity_id
-    assert result.details["triggers"][0]["combatant_id"] == target.combatant_id
-    assert CombatEngine.get_state("cmd").combatants[0].movement_remaining == 30
-    move_sprite.assert_not_awaited()
+    assert result.accepted is True
+    assert CombatEngine.get_state("cmd").pending_movement is None
+    assert CombatEngine.get_state("cmd").combatants[0].movement_remaining == 20
+    move_sprite.assert_awaited_once()
 
 
 async def test_move_command_applies_after_confirming_opportunity_attack_warning():

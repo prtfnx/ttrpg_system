@@ -99,7 +99,7 @@ def apply_combat_action(service, command, context, state, actor_id):
     opportunity = command.type.value == 'resolve_opportunity_attack'
     if opportunity and not command.use_reaction:
         return {'resolved': True, 'passed': True, 'attacker': actor_id, 'target': command.target_id}
-    if opportunity and not is_dm(context.role):
+    if opportunity and not is_dm(context.role) and not context.reaction_authorized:
         return {'error': 'Opportunity attack timing requires DM manual resolution'}
     spell = command.type.value == 'cast_spell'
     if not spell and not command.target_id:

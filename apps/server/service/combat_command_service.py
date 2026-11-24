@@ -5,7 +5,7 @@ import math
 import time
 import uuid
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from dataclasses import field as dataclass_field
 from enum import Enum
 from typing import Any, Awaitable, Callable, Literal, Optional
@@ -48,6 +48,8 @@ class CombatCommandType(str, Enum):
     ROLL_DEATH_SAVE = "roll_death_save"
     REVERT_ACTION = "revert_action"
     RESOLVE_OPPORTUNITY_ATTACK = "resolve_opportunity_attack"
+    EXPIRE_OPPORTUNITY_ATTACKS = "expire_opportunity_attacks"
+    CANCEL_PENDING_MOVE = "cancel_pending_move"
 
 
 class DMOverrideType(str, Enum):
@@ -127,6 +129,8 @@ class CombatCommand(BaseModel):
     ai_behavior: Optional[str] = None
     slot_level: Optional[int] = Field(default=None, ge=1, le=9)
     use_reaction: bool = True
+    trigger_id: str | None = Field(default=None, min_length=1, max_length=96)
+    movement_id: str | None = Field(default=None, min_length=1, max_length=96)
 
     @field_validator('damage_formula')
     @classmethod
@@ -184,6 +188,12 @@ class CombatCommandContext:
     save_table: Optional[Callable[[str], str | None]] = None
     save_table_async: Callable[[str], Awaitable[str | None]] | None = None
     movement_draft: CombatMovementDraft | None = None
+    internal_expiry: bool = False
+    reaction_authorized: bool = False
+    resuming_movement: bool = False
+    command_count: int = 1
+    mover_role: Callable[[int], str | None] | None = None
+    resume_context: Callable[[str, int], Any] | None = None
 
 
 @dataclass
@@ -264,7 +274,7 @@ class CombatCommandService:
         envelope: CombatCommandEnvelope,
         context: CombatCommandContext,
     ) -> CombatCommandResult:
-        if not can_interact(context.role):
+        if not can_interact(context.role) and not context.internal_expiry:
             return self._reject(envelope.sequence_id, 0, "An interactive role is required for combat commands")
         for idx, command in enumerate(envelope.commands):
             if command.type == CombatCommandType.MOVE:
@@ -363,9 +373,12 @@ class CombatCommandService:
         envelope: CombatCommandEnvelope,
         context: CombatCommandContext,
     ) -> CombatCommandResult:
-        if not can_interact(context.role):
+        if not can_interact(context.role) and not context.internal_expiry:
             return self._reject(envelope.sequence_id, 0, "An interactive role is required for combat commands")
-        single_command_types = {CombatCommandType.START_COMBAT, CombatCommandType.END_COMBAT}
+        context = replace(context, command_count=len(envelope.commands))
+        single_command_types = {CombatCommandType.START_COMBAT, CombatCommandType.END_COMBAT,
+            CombatCommandType.RESOLVE_OPPORTUNITY_ATTACK, CombatCommandType.EXPIRE_OPPORTUNITY_ATTACKS,
+            CombatCommandType.CANCEL_PENDING_MOVE}
         if len(envelope.commands) > 1 and any(command.type in single_command_types for command in envelope.commands):
             return self._reject(
                 envelope.sequence_id,
@@ -516,6 +529,10 @@ class CombatCommandService:
             *self._table_environment_types(),
         }:
             return {"error": "Combat lifecycle commands require async application"}
+        if state.pending_movement is not None and command.type in {
+                CombatCommandType.RESOLVE_OPPORTUNITY_ATTACK, CombatCommandType.CANCEL_PENDING_MOVE,
+                CombatCommandType.EXPIRE_OPPORTUNITY_ATTACKS}:
+            return {'error': 'Pending reactions require async application'}
         if command.type == CombatCommandType.REVERT_ACTION:
             return self._apply_revert_action(context, state)
         if actor_id is None:
@@ -755,6 +772,10 @@ class CombatCommandService:
         actor_id: str | None,
         move_undos: list[tuple[str, str, dict[str, float], dict[str, float]]],
     ) -> dict[str, Any]:
+        if command.type in {CombatCommandType.EXPIRE_OPPORTUNITY_ATTACKS, CombatCommandType.CANCEL_PENDING_MOVE} or (
+                command.type == CombatCommandType.RESOLVE_OPPORTUNITY_ATTACK and state.pending_movement is not None):
+            from service.combat_reactions import settle_reaction
+            return await settle_reaction(self, command, context, state, actor_id, move_undos)
         if command.type == CombatCommandType.START_COMBAT:
             return await self._apply_start_combat(command, context)
         if command.type == CombatCommandType.END_COMBAT:
@@ -1004,18 +1025,15 @@ class CombatCommandService:
                     f"have {actor.movement_remaining:.0f}ft"
                 )
             }
-        triggers = validation.get("opportunity_attack_triggers") or []
-        if triggers and not command.confirm_opportunity_attacks:
-            return {
-                "error": "Opportunity attack warning",
-                "details": {
-                    "code": "opportunity_attack_warning",
-                    "entity_id": actor.entity_id,
-                    "triggers": triggers,
-                },
-            }
+        validated_path = validation.get("path") or command.path or [list(from_pos.values()), list(to_pos.values())]
+        if not context.resuming_movement and validation.get('opportunity_attacks_enabled', True):
+            from service.combat_reactions import eligible_triggers, queue_movement
+            table = context.table_lookup(state.table_id)
+            triggers = eligible_triggers(state, table, actor, validated_path)
+            if triggers:
+                return queue_movement(command, context, state, actor, validated_path, movement_cost, triggers,
+                                      validation.get('reaction_timeout_seconds', 30))
 
-        validated_path = validation.get("path") or command.path
         if context.movement_draft is not None and validated_path:
             # Validation may correct a stale start or snap the destination.
             # Persist the route that was actually checked and charged.
@@ -1088,6 +1106,16 @@ class CombatCommandService:
         command: CombatCommand,
         context: CombatCommandContext,
     ) -> str | None:
+        if command.type == CombatCommandType.EXPIRE_OPPORTUNITY_ATTACKS:
+            return None if context.internal_expiry else 'Expiry is a server-owned command'
+        if state is not None and state.pending_movement is not None:
+            if command.type == CombatCommandType.CANCEL_PENDING_MOVE:
+                actor = self._get_combatant(state, state.pending_movement['actor_id'])
+                if is_dm(context.role) or (actor and context.user_id is not None and str(context.user_id) in actor.controlled_by):
+                    return None
+                return 'Only the mover or a DM can cancel pending movement'
+            if command.type not in {CombatCommandType.RESOLVE_OPPORTUNITY_ATTACK, CombatCommandType.END_COMBAT}:
+                return 'Resolve or cancel pending reactions before another combat command'
         if command.type in {
             CombatCommandType.START_COMBAT,
             CombatCommandType.END_COMBAT,

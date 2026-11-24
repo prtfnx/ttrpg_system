@@ -7,6 +7,9 @@ interface OATrigger {
 }
 
 interface OAPromptData {
+  trigger_id?: string;
+  expires_at?: number;
+  action_ids?: string[];
   target_combatant_id: string;
   target_name: string;
   attacker_combatant_id: string;

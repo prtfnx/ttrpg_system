@@ -83,6 +83,15 @@ export interface CombatSettings {
   critical_hit_rule: string;
 }
 
+export interface ReactionPrompt {
+  trigger_id: string;
+  attacker_combatant_id: string;
+  target_combatant_id: string;
+  target_name: string;
+  expires_at: number;
+  action_ids: string[];
+}
+
 export interface CombatState {
   combat_id: string;
   session_id: string;
@@ -95,6 +104,8 @@ export interface CombatState {
   started_at: number | null;
   settings: CombatSettings;
   state_hash: string;
+  pending_movement?: { movement_id: string; expires_at: number; actor_id?: string };
+  reaction_prompts?: ReactionPrompt[];
 }
 
 // Public views omit controller grants and NPC health/private fields. Keep the

@@ -655,6 +655,10 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.ACTION_RESULT, async (m) => {
       const { usePlanningStore } = await import('@features/combat/stores/planningStore');
       const data = m.data as { sequence_id?: number; applied?: unknown[]; combat?: unknown };
+      const endsCombat = data?.applied?.some((item) => typeof item === 'object' && item !== null
+        && (item as { action_type?: string }).action_type === 'end_combat');
+      if (data?.combat && !endsCombat) await setCombat(data);
+
       if (data?.applied?.length) {
         if (data.sequence_id != null) {
           usePlanningStore.getState().finishSubmission(data.sequence_id, true);
@@ -708,14 +712,6 @@ export class WebClientProtocol {
       }
       if (data?.sequence_id != null) {
         emitProtocolEvent('sprite-action-confirmed', { actionId: String(data.sequence_id) });
-      }
-      const endedCombat = data?.applied?.some((item) => (
-        typeof item === 'object'
-        && item !== null
-        && (item as { action_type?: string }).action_type === 'end_combat'
-      ));
-      if (data?.combat && !endedCombat) {
-        await setCombat(data);
       }
     });
     this.registerHandler(MessageType.ACTION_REJECTED, async (m) => {
@@ -3254,7 +3250,7 @@ export class WebClientProtocol {
     }
     if (typeof data.sprite_id !== 'string') return;
     const state: Partial<import('@/types').Sprite> = {};
-    const position = data.to as { x?: number; y?: number } | undefined;
+    const position = (data.to ?? data.position) as { x?: number; y?: number } | undefined;
     const x = position?.x ?? data.x, y = position?.y ?? data.y;
     if (typeof x === 'number' && typeof y === 'number') Object.assign(state, { x, y });
     for (const field of ['width', 'height', 'rotation'] as const) {
@@ -3453,6 +3449,7 @@ export class WebClientProtocol {
     attacker_combatant_id?: string;
     target_combatant_id?: string;
     action_id?: string;
+    trigger_id?: string;
   }): void {
     if (!data.attacker_combatant_id || (data.use_reaction && !data.action_id)) return;
     this.sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
@@ -3462,6 +3459,7 @@ export class WebClientProtocol {
         actor_id: data.attacker_combatant_id,
         target_id: data.target_combatant_id,
         use_reaction: data.use_reaction,
+        ...(data.trigger_id ? { trigger_id: data.trigger_id } : {}),
         ...(data.use_reaction ? { action_id: data.action_id } : {}),
       }],
     }));

@@ -1210,6 +1210,7 @@ describe('WebClientProtocol', () => {
 
       p.resolveOA({
         use_reaction: true,
+        trigger_id: 'server-trigger',
         attacker_combatant_id: 'attacker-1',
         target_combatant_id: 'target-1',
         action_id: 'sword',
@@ -1226,6 +1227,7 @@ describe('WebClientProtocol', () => {
           actor_id: 'attacker-1',
           target_id: 'target-1',
           use_reaction: true,
+        trigger_id: 'server-trigger',
           action_id: 'sword',
         }),
       ]);
@@ -2421,6 +2423,18 @@ describe('WebClientProtocol', () => {
       await dispatch(p, 'sprite_update', { sprite_id: 's1' });
       window.removeEventListener('sprite-updated', fn);
       expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('publishes canonical position-shaped movement while the renderer is detached', async () => {
+      const p = makeProtocol();
+      const listener = vi.fn();
+      window.addEventListener('sprite-canonical-state', listener);
+      try {
+        await dispatch(p, 'sprite_move', { table_id: 'table-abc', sprite_id: 's1', position: { x: 175, y: 25 } });
+        expect(listener).toHaveBeenCalledWith(expect.objectContaining({ detail: {
+          tableId: 'table-abc', spriteId: 's1', state: { x: 175, y: 25 },
+        } }));
+      } finally { window.removeEventListener('sprite-canonical-state', listener); p.disconnect(); }
     });
 
     it('SPRITE_MOVE dispatches sprite-moved', async () => {

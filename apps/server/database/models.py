@@ -627,6 +627,7 @@ class CombatEncounter(Base):
     combatants_json: Mapped[Optional[str]] = mapped_column(Text, default="[]")            # serialised list[Combatant]
     settings_json: Mapped[Optional[str]] = mapped_column(Text, default="{}")              # CombatSettings
     action_log_json: Mapped[Optional[str]] = mapped_column(Text, default="[]")            # list[CombatAction]
+    pending_movement_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)

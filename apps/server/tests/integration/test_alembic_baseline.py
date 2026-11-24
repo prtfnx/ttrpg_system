@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 SERVER_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_INI = SERVER_ROOT / "alembic.ini"
-HEAD_REVISION = "0016_chat_system_events"
+HEAD_REVISION = "0017_pending_combat_movement"
 
 
 def _config(monkeypatch, database_url: str) -> Config:

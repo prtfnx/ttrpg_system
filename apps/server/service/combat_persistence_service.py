@@ -299,4 +299,5 @@ class CombatPersistenceService:
         encounter.state_version = state_version
         encounter.combatants_json = json.dumps(state_after.get('combatants', []))
         encounter.settings_json = json.dumps(state_after.get('settings', {}))
+        encounter.pending_movement_json = json.dumps(state_after['pending_movement']) if state_after.get('pending_movement') else None
         encounter.action_log_json = json.dumps(state_after.get('action_log', []))

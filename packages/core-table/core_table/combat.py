@@ -231,6 +231,8 @@ class CombatState:
     state_hash: str = ""
     state_version: int = 0
 
+    pending_movement: Optional[dict] = None
+
     def active_combatants(self) -> list[Combatant]:
         if self.settings.skip_defeated:
             return [c for c in self.combatants if not c.is_defeated]
@@ -271,6 +273,7 @@ class CombatState:
             'settings': self.settings.to_dict(),
             'state_hash': self.compute_hash(),
             'state_version': self.state_version,
+            'pending_movement': self.pending_movement,
         }
 
     def to_dict_for_player(self, rules_hp_vis: str = 'descriptor') -> dict:
@@ -289,6 +292,7 @@ class CombatState:
             settings=CombatSettings.from_dict(data.get('settings', {})),
             state_hash=data.get('state_hash', ''),
             state_version=int(data.get('state_version', 0)),
+            pending_movement=data.get('pending_movement'),
         )
         cs.combatants = [Combatant.from_dict(x) for x in data.get('combatants', [])]
         cs.action_log = [CombatAction.from_dict(x) for x in data.get('action_log', [])]

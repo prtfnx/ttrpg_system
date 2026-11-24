@@ -1227,6 +1227,7 @@ def upsert_combat_encounter(db: Session, session_code: str, state_dict: dict) ->
     enc.combatants_json = json.dumps(state_dict.get('combatants', []))
     enc.settings_json = json.dumps(state_dict.get('settings', {}))
     enc.action_log_json = json.dumps(state_dict.get('action_log', []))
+    enc.pending_movement_json = json.dumps(state_dict['pending_movement']) if state_dict.get('pending_movement') else None
     db.commit()
 
 
@@ -1260,6 +1261,7 @@ def load_active_combat_encounter(db: Session, session_code: str) -> dict | None:
         'settings': json.loads(enc.settings_json or '{}'),
         'action_log': json.loads(enc.action_log_json or '[]'),
         'state_version': enc.state_version,
+        'pending_movement': json.loads(enc.pending_movement_json or 'null'),
     }
 
 

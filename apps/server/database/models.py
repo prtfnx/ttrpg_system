@@ -2,9 +2,10 @@
 Database models for TTRPG server
 """
 import json
+import math
 import os
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional
 
 from sqlalchemy import (
@@ -846,6 +847,7 @@ class ChatMessage(Base):
     table_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
     text: Mapped[str] = mapped_column(Text, nullable=False)
     message_json: Mapped[str] = mapped_column(Text, nullable=False)
+    system_event_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     attachments_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     client_timestamp: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     redacted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -864,39 +866,44 @@ class ChatMessage(Base):
     recipient = relationship("User", foreign_keys=[recipient_user_id])
 
     def to_dict(self) -> dict:
-        try:
-            message = json.loads(self.message_json)
-        except Exception:
-            message = {
-                "id": self.message_id,
-                "user": self.username or "Unknown",
-                "text": self.text,
-                "timestamp": self.client_timestamp,
-            }
-        if self.created_at and "created_at" not in message:
+        # Old message_json contains client-controlled fields. None of them own
+        # identity, moderation, pagination, text, or server-event provenance.
+        timestamp = self.client_timestamp
+        if isinstance(timestamp, bool) or not isinstance(timestamp, (int, float)) or not math.isfinite(timestamp):
+            timestamp = self.created_at.replace(tzinfo=UTC).timestamp() * 1000 if self.created_at else 0
+        message = {
+            "id": self.message_id, "client_operation_id": self.client_operation_id,
+            "server_cursor": self.id, "user": self.username or "Unknown",
+            "user_id": self.user_id, "text": self.text, "timestamp": timestamp,
+            "channel": self.channel,
+        }
+        if self.created_at:
             message["created_at"] = self.created_at.isoformat()
-        message.setdefault("id", self.message_id)
-        message.setdefault("client_operation_id", self.client_operation_id)
-        message.setdefault("server_cursor", self.id)
+        if self.table_id:
+            message["table_id"] = self.table_id
+        if self.recipient_user_id is not None:
+            message["recipient_user_id"] = self.recipient_user_id
         if self.deleted_at is not None:
-            message["text"] = "[message deleted]"
-            message["deleted"] = True
-            message["deleted_at"] = self.deleted_at.isoformat()
-            message["deleted_by_user_id"] = self.deleted_by_user_id
-            message.pop("attachments", None)
-            message.pop("system_event", None)
+            message.update(text="[message deleted]", deleted=True,
+                           deleted_at=self.deleted_at.isoformat(), deleted_by_user_id=self.deleted_by_user_id)
         elif self.redacted_at is not None:
-            message["text"] = "[message redacted]"
-            message["redacted"] = True
-            message["redacted_at"] = self.redacted_at.isoformat()
-            message["redacted_by_user_id"] = self.redacted_by_user_id
-            message.pop("attachments", None)
-            message.pop("system_event", None)
-        elif self.attachments_json and "attachments" not in message:
-            try:
-                message["attachments"] = json.loads(self.attachments_json)
-            except Exception:
-                pass
+            message.update(text="[message redacted]", redacted=True,
+                           redacted_at=self.redacted_at.isoformat(), redacted_by_user_id=self.redacted_by_user_id)
+        else:
+            if self.attachments_json:
+                try:
+                    attachments = json.loads(self.attachments_json)
+                    if isinstance(attachments, list):
+                        message["attachments"] = attachments
+                except (TypeError, ValueError):
+                    pass
+            if self.system_event_json:
+                try:
+                    event = json.loads(self.system_event_json)
+                    if isinstance(event, dict) and event.get("schemaVersion") == 1 and event.get("type") == "character_roll":
+                        message.update(kind="system", system_event=event)
+                except (TypeError, ValueError):
+                    pass
         if self.moderation_reason:
             message["moderation_reason"] = self.moderation_reason
         return message

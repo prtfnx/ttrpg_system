@@ -45,7 +45,8 @@ cursors and filters whisper visibility before serialization. There is no
 unbounded `all` request.
 
 Successful character rolls persist as typed public `kind: system` chat rows
-with `system_event.type: character_roll`. Reconnect and history therefore show
+with `system_event.type: character_roll`. Migration `0016_chat_system_events`
+adds a separate server-owned event column. Reconnect and history therefore show
 the same roll as live delivery; the browser no longer synthesizes transient
 roll-chat rows.
 
@@ -80,6 +81,12 @@ User chat is constructed from validated fields. Client-supplied `kind`,
 `system_event`, history cursors, moderation flags, creation times and arbitrary
 metadata cannot become persisted or delivered system messages. Legitimate
 character-roll system rows still originate from the server roll path.
+
+History, retries and moderation serialize identity, text, cursors and tombstones
+from canonical database columns, never legacy `message_json`. Malformed legacy
+JSON cannot break history. Existing unverified roll JSON remains available as
+plain saved text; it is not promoted to a trusted system event. New character
+rolls persist their typed event separately. No historical rows are rewritten.
 
 Remaining product work includes deletion/export policy, abuse response,
 authorized asset attachments, privacy notices and message quotas.

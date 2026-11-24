@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 SERVER_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_INI = SERVER_ROOT / "alembic.ini"
-HEAD_REVISION = "0015_table_settings_revision"
+HEAD_REVISION = "0016_chat_system_events"
 
 
 def _config(monkeypatch, database_url: str) -> Config:
@@ -230,5 +230,31 @@ def test_baseline_upgrades_postgresql_database_to_head(monkeypatch):
         command.upgrade(config, "head")
         assert set(inspect(engine).get_table_names()) == expected_tables
         command.check(config)
+    finally:
+        engine.dispose()
+
+
+def test_chat_event_upgrade_preserves_text_without_trusting_legacy_events(tmp_path, monkeypatch):
+    url = f"sqlite:///{(tmp_path / 'chat-events.db').as_posix()}"
+    config = _config(monkeypatch, url)
+    command.upgrade(config, '0015_table_settings_revision')
+    engine = create_engine(url)
+    try:
+        with Session(engine) as db:
+            db.add(User(id=1, username='owner', hashed_password='unused'))
+            db.flush()
+            db.add(GameSession(id=1, name='Chat', session_code='CHAT', owner_id=1))
+            db.flush()
+            db.execute(text("INSERT INTO chat_messages (message_id, client_operation_id, session_id, user_id, "
+                                    "username, channel, text, message_json) VALUES ('old', 'op', 1, 1, 'owner', 'public', "
+                                    ":text, :payload)"), {'text': 'A preserved roll', 'payload': '{"kind":"system"}'})
+            db.commit()
+        command.upgrade(config, 'head')
+        with engine.connect() as connection:
+            row = connection.execute(text('SELECT text, message_json, system_event_json FROM chat_messages')).one()
+            assert row == ('A preserved roll', '{"kind":"system"}', None)
+        command.check(config)
+        command.downgrade(config, '0015_table_settings_revision')
+        assert 'system_event_json' not in {column['name'] for column in inspect(engine).get_columns('chat_messages')}
     finally:
         engine.dispose()

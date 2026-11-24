@@ -826,6 +826,7 @@ class ServerCharacterManager:
                     recipient_user_id=None,
                     text=message_text,
                     message_json=json.dumps(message_payload, separators=(",", ":")),
+                    system_event_json=json.dumps(message_payload["system_event"], separators=(",", ":")),
                     client_timestamp=float(timestamp_ms),
                 )
                 db.add(chat_message)

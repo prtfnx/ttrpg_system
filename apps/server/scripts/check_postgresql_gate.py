@@ -10,6 +10,7 @@ REQUIRED_SUITES = frozenset({
     "test_postgresql_contract",
     "test_writer_fencing_postgresql",
     "test_canvas_history_postgresql",
+    "test_sprite_runs_postgresql",
     "test_multiclient_sync",
 })
 

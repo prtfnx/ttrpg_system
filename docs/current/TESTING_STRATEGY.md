@@ -821,3 +821,11 @@ inject uncertain commit/lookup outcomes while encounter HP/resources remain
 unchanged. Trusted-session reconstruction checks stale projections, sheet edits
 during combat, raw-stat denial, current encounter AC after restart, no completion
 write-back and updated persistent values in the next encounter.
+
+
+The PostgreSQL CI gate also requires `test_sprite_runs_postgresql`: batched
+sprite journal durability, restart undo/retry, and rollback on late commit
+failure must execute rather than disappear behind an unset test URL. The report
+checker rejects any skipped/failed case or omitted required suite. Local
+verification requires an isolated test database; the application database URL
+must never be substituted for `TEST_POSTGRESQL_DATABASE_URL`.

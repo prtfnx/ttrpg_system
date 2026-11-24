@@ -1029,7 +1029,7 @@ class CombatCommandService:
         if not context.resuming_movement and validation.get('opportunity_attacks_enabled', True):
             from service.combat_reactions import eligible_triggers, queue_movement
             table = context.table_lookup(state.table_id)
-            triggers = eligible_triggers(state, table, actor, validated_path)
+            triggers = await run_blocking(eligible_triggers, deepcopy(state), table, deepcopy(actor), validated_path)
             if triggers:
                 return queue_movement(command, context, state, actor, validated_path, movement_cost, triggers,
                                       validation.get('reaction_timeout_seconds', 30))

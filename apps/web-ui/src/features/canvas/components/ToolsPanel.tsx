@@ -10,6 +10,7 @@ import { MeasurementTool } from '@features/measurement';
 import { PaintPanel } from '@features/painting';
 import { canInteract, isDM, isElevated } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
+import { createMessage, MessageType } from '@lib/websocket';
 import { useRenderEngine, useWasmRuntime } from '@lib/wasm/runtime';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
@@ -78,8 +79,18 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
   const [showHelp, setShowHelp] = useState(false);
   const oaWarning = useOAStore((s) => s.warningEntityId);
   const oaTriggers = useOAStore((s) => s.warningTriggers);
-  const oaPrompt = useOAStore((s) => s.prompt);
+  const legacyOAPrompt = useOAStore((s) => s.prompt);
   const combat = useCombatStore((s) => s.combat);
+  const oaPrompt = combat?.reaction_prompts?.[0] ?? legacyOAPrompt;
+  useEffect(() => {
+    const expiry = combat?.pending_movement?.expires_at;
+    if (!expiry) return;
+    const timer = window.setTimeout(() => {
+      if (ProtocolService.hasProtocol()) ProtocolService.getProtocol().sendMessage(createMessage(MessageType.COMBAT_STATE_REQUEST, {}));
+    }, Math.max(1000, expiry * 1000 - Date.now() + 100));
+    return () => window.clearTimeout(timer);
+  }, [combat?.pending_movement]);
+
   const pendingOACommand = useOAStore((s) => s.pendingCombatCommand);
   const clearOA = useOAStore((s) => s.clearAll);
   const { sendCommandBatch } = useCombatCommands();
@@ -646,12 +657,14 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
       {oaPrompt && (
         <OAPrompt
           targetName={oaPrompt.target_name}
-          allowResolution={dmMode}
-          actions={combat?.combatants.find((actor) => actor.combatant_id === oaPrompt.attacker_combatant_id)?.available_actions?.filter((action) => action.kind === 'attack' && action.attack_type === 'melee')}
+          allowResolution={dmMode || Boolean(oaPrompt.trigger_id)}
+          actions={combat?.combatants.find((actor) => actor.combatant_id === oaPrompt.attacker_combatant_id)?.available_actions?.filter((action) => action.kind === 'attack' && action.attack_type === 'melee'
+              && (!oaPrompt.action_ids || oaPrompt.action_ids.includes(action.action_id)))}
           onUseReaction={(actionId) => {
             if (ProtocolService.hasProtocol())
               ProtocolService.getProtocol().resolveOA({
                 use_reaction: true,
+                trigger_id: oaPrompt.trigger_id,
                 action_id: actionId,
                 attacker_combatant_id: oaPrompt.attacker_combatant_id,
                 target_combatant_id: oaPrompt.target_combatant_id,
@@ -660,7 +673,7 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
           }}
           onPass={() => {
             if (ProtocolService.hasProtocol())
-              ProtocolService.getProtocol().resolveOA({ use_reaction: false, attacker_combatant_id: oaPrompt.attacker_combatant_id, target_combatant_id: oaPrompt.target_combatant_id });
+              ProtocolService.getProtocol().resolveOA({ use_reaction: false, trigger_id: oaPrompt.trigger_id, attacker_combatant_id: oaPrompt.attacker_combatant_id, target_combatant_id: oaPrompt.target_combatant_id });
             clearOA();
           }}
         />

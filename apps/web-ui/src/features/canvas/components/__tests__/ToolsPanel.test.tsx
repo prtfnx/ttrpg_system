@@ -1,7 +1,10 @@
 import type { UserInfo } from '@features/auth';
-import { fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ProtocolService } from '@lib/api';
+import { OAPrompt } from '@features/combat';
+import { useCombatStore } from '@features/combat/stores/combatStore';
 import { ToolsPanel } from '../ToolsPanel';
 
 const render = renderWithWasmRuntime;
@@ -19,7 +22,7 @@ vi.mock('@features/combat', () => ({
   DMCombatPanel: () => null,
   FloatingInitiativeTracker: () => null,
   GameModeSwitch: () => null,
-  OAPrompt: () => null,
+  OAPrompt: vi.fn(() => null),
   OAWarningModal: () => null,
   useCombatCommands: vi.fn(() => ({ sendCommandBatch: vi.fn() })),
   useOAStore: vi.fn((sel: (s: Record<string, unknown>) => unknown) => sel({ warningEntityId: null, warningTriggers: [], prompt: null, clearAll: vi.fn() })),
@@ -97,6 +100,7 @@ function makeUser(_role: 'dm' | 'player' = 'player'): UserInfo {
 }
 
 beforeEach(() => {
+  useCombatStore.setState({ combat: null });
   vi.clearAllMocks();
   vi.mocked(useGameStore).mockImplementation(
     ((sel?: (s: typeof baseStoreState) => unknown) =>
@@ -443,4 +447,41 @@ describe('ToolsPanel — DM Layers tab', () => {
     expect(mockSetActiveLayer).toHaveBeenCalledWith('map');
     expect(runtimeSetActiveLayer).toHaveBeenCalledWith('map');
   });
+});
+
+
+it('refreshes pending reactions at their deadline and cancels the timer on unmount', () => {
+  vi.useFakeTimers();
+  try {
+    const sendMessage=vi.fn();
+    vi.mocked(ProtocolService.hasProtocol).mockReturnValue(true);
+    vi.mocked(ProtocolService.getProtocol).mockReturnValue({sendMessage,isPingEnabled:()=>false} as never);
+    useCombatStore.setState({combat:{pending_movement:{movement_id:'move',expires_at:(Date.now()+2000)/1000}} as never});
+    const view=render(<ToolsPanel userInfo={makeUser()} />);
+    act(() => vi.advanceTimersByTime(2100));
+    expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({type:'combat_state_request'}));
+    sendMessage.mockClear();
+    view.unmount();
+    act(() => vi.advanceTimersByTime(5000));
+    expect(sendMessage).not.toHaveBeenCalled();
+  } finally { vi.useRealTimers(); }
+});
+
+
+it('allows a controlled server trigger and sends its identity with the selected action', () => {
+  const resolveOA=vi.fn();
+  vi.mocked(ProtocolService.hasProtocol).mockReturnValue(true);
+  vi.mocked(ProtocolService.getProtocol).mockReturnValue({resolveOA,isPingEnabled:()=>false} as never);
+  useCombatStore.setState({combat:{combatants:[{combatant_id:'hero',available_actions:[
+    {action_id:'allowed',name:'Sword',kind:'attack',attack_type:'melee'},
+    {action_id:'other',name:'Other sword',kind:'attack',attack_type:'melee'},
+  ]}],reaction_prompts:[{trigger_id:'trigger',attacker_combatant_id:'hero',target_combatant_id:'enemy',
+    target_name:'Enemy',expires_at:2000000000,action_ids:['allowed']}]}} as never);
+  render(<ToolsPanel userInfo={makeUser()} />);
+  const props=vi.mocked(OAPrompt).mock.calls.at(-1)![0];
+  expect(props.allowResolution).toBe(true);
+  expect(props.actions).toEqual([expect.objectContaining({action_id:'allowed'})]);
+  props.onUseReaction('allowed');
+  expect(resolveOA).toHaveBeenCalledWith(expect.objectContaining({trigger_id:'trigger',action_id:'allowed',
+    attacker_combatant_id:'hero',target_combatant_id:'enemy'}));
 });

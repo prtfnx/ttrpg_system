@@ -473,8 +473,9 @@ Both immediate and planned commands submit the selected `action_id` and targets;
 only the server resolves damage, range, bonuses, saves, concentration and slots.
 Unsupported descriptive actions require DM manual resolution. Supported cantrips
 remain available without spell slots. The DM can opt into explicit manual damage
-or use typed DM Overrides for other effects. The action panel uses the encounter
-table even when the user is viewing another table.
+or use typed DM Overrides for other effects. Immediate and planned actions use the encounter
+table even when the user is viewing another table. Planned commands without an
+explicit table inherit the encounter table before the currently viewed table.
 
 See [Combat commands](reference/COMBAT_COMMANDS.md#structured-action-definitions)
 for the metadata contract, accepted effects, authority checks and limitations.

@@ -20,6 +20,7 @@ export function CommitButton() {
   const activeTableId = useGameStore((s) => s.activeTableId);
   const pendingMovement = useCombatStore((s) => s.combat?.pending_movement);
   const combatId = useCombatStore((s) => s.combat?.combat_id);
+  const combatTableId = useCombatStore((s) => s.combat?.table_id);
   const stateVersion = useCombatStore((s) => s.combat?.state_version);
   const selectedSprite = useGameStore((s) => selectedSpriteId ? s.sprites.find((sprite) => sprite.id === selectedSpriteId) : undefined);
   const { sendCommandBatch, sendCommand } = useCombatCommands();
@@ -32,7 +33,7 @@ export function CommitButton() {
     const firstMove = remaining.findIndex((action) => action.action_type === 'move');
     const batch = remaining.slice(0, Math.min(50, firstMove === 0 ? 1 : firstMove < 0 ? remaining.length : firstMove));
     const built = buildPlannedCombatCommands(batch, {
-      actorId: selectedSpriteId, tableId: activeTableId ?? selectedSprite?.tableId ?? null,
+      actorId: selectedSpriteId, tableId: combatTableId ?? activeTableId ?? selectedSprite?.tableId ?? null,
       actorPosition: selectedSprite ? { x: selectedSprite.x, y: selectedSprite.y } : undefined,
     });
     if (!built.ok) { setError(built.error); setCommitting(false); return; }
@@ -50,7 +51,7 @@ export function CommitButton() {
       setError('Connect to the session before committing your plan.');
     }
   }, [pendingSubmission, pendingMovement, queue, selectedSpriteId, activeTableId, selectedSprite,
-    nextSequenceId, markSubmitted, sendCommandBatch, finishSubmission, recoveryStatus, recoveryError, combatId, stateVersion]);
+    nextSequenceId, markSubmitted, sendCommandBatch, finishSubmission, recoveryStatus, recoveryError, combatId, combatTableId, stateVersion]);
 
   useEffect(() => {
     if (recoveryStatus) { setCommitting(false); waitingSequence.current = null; return; }

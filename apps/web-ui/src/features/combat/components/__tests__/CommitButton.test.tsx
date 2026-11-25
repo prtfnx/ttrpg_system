@@ -110,6 +110,21 @@ describe('CommitButton', () => {
 
 
 describe('reaction-aware plan submission', () => {
+  it('submits a planned attack on the encounter table while another table is visible', async () => {
+    useCombatStore.setState({ combat: { combat_id: 'encounter', table_id: 'battle-table', state_version: 7 } as never });
+    useGameStore.setState({ activeTableId: 'other-table' });
+    usePlanningStore.setState({
+      queue: [{ id: 'attack', action_type: 'attack', label: 'Sword', target_id: 'enemy', action_id: 'sword', sequence_index: 0 }],
+      isPlanningMode: true,
+    });
+    render(<CommitButton />);
+    await userEvent.click(screen.getByRole('button', { name: /Commit Turn/i }));
+    expect(usePlanningStore.getState().pendingSubmission?.payload).toMatchObject({
+      combat_id: 'encounter', expected_state_version: 7,
+      commands: [{ table_id: 'battle-table', type: 'attack', target_id: 'enemy', action_id: 'sword' }],
+    });
+  });
+
   it('submits one move, waits through reactions, then resumes only the remaining actions', async () => {
     usePlanningStore.setState({ queue: [
       { ...makeAction('move'), target_x: 80, target_y: 90, cost_ft: 10 },

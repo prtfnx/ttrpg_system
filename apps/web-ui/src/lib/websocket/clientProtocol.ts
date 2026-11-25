@@ -1,3 +1,6 @@
+import type { CombatCommandBatch } from '@features/combat/hooks/useCombatCommands';
+import { PlanRecoveryController } from '@features/combat/services/planRecoveryController';
+import { usePlanningStore } from '@features/combat/stores/planningStore';
 import { nextCombatSequenceId } from '@features/combat/services/combatSequence';
 
 // All member variables and methods are now inside the WebClientProtocol class body below.
@@ -84,6 +87,7 @@ export class WebClientProtocol {
   private canvasPipelining = false;
   private readonly retiredTableIds = new Set<string>();
   private readonly operationRecovery: OperationRecoveryController;
+  private readonly planRecovery: PlanRecoveryController;
   private readonly recoveredTableResponses = new WeakSet<Message>();
   private awaitingWelcome = false;
 
@@ -264,6 +268,9 @@ export class WebClientProtocol {
     if (message.type !== MessageType.TABLE_DELETE && typeof message.data?.table_id === 'string'
       && this.retiredTableIds.has(message.data.table_id)
       && !(message.type === MessageType.TABLE_SETTINGS_UPDATE && this.operationRecovery.owns(message.message_id))) return false;
+    if (message.type === MessageType.COMBAT_COMMAND
+      && usePlanningStore.getState().pendingSubmission?.sequenceId === message.data?.sequence_id
+      && !this.planRecovery.admit(message.data as CombatCommandBatch)) return false;
     this.prepareSpritePreviewScope(message);
     if (new TextEncoder().encode(JSON.stringify(message)).length > this.MAX_OUTBOUND_FRAME_BYTES) {
       logger.error('Protocol message exceeds the 64 KiB frame limit', message.type);
@@ -358,6 +365,7 @@ export class WebClientProtocol {
       },
       changed: status => emitProtocolEvent('operation-recovery-changed', status),
     });
+    this.planRecovery = new PlanRecoveryController(sessionCode, message => this.sendMessage(message));
     this.registerBuiltInHandlers();
     this.setupProtocolMessageSender();
   }
@@ -369,6 +377,8 @@ export class WebClientProtocol {
   setUserId(userId: number): void {
     if (this.userId !== null && this.userId !== userId) {
       this.operationRecovery.clearContext();
+      this.planRecovery.clearContext();
+      useCombatStore.getState().setCombat(null);
       this.batchQueue = [];
       this.messageQueue = [];
       this.settingsBuffer.dispose();
@@ -381,6 +391,11 @@ export class WebClientProtocol {
     }
     this.userId = userId;
   }
+
+  reviewSavedCombatPlan(): void { this.planRecovery.review(); }
+  checkSavedCombatPlan(): void { this.planRecovery.retry(); }
+  retrySavedCombatStep(): void { this.planRecovery.retrySubmission(); }
+  discardSavedCombatPlan(): void { this.planRecovery.discard(); }
 
   getOperationRecoveryStatus(): OperationRecoveryStatus { return this.operationRecovery.status(); }
   retrySavedOperations(): void { this.operationRecovery.replay(true); }
@@ -598,7 +613,7 @@ export class WebClientProtocol {
       const d = data as Record<string, unknown> | null;
       const maybeCombat = d && typeof d === 'object' && 'combat' in d ? d.combat : data;
       if (maybeCombat === null) {
-        useCombatStore.getState().setCombat(null);
+        if (this.planRecovery.observe(null)) useCombatStore.getState().setCombat(null);
         return;
       }
       if (
@@ -608,10 +623,13 @@ export class WebClientProtocol {
         'combatants' in maybeCombat &&
         Array.isArray(maybeCombat.combatants)
       ) {
-        useCombatStore.getState().setCombat(maybeCombat as CombatStateView);
+        if (this.planRecovery.observe(maybeCombat as CombatStateView)) useCombatStore.getState().setCombat(maybeCombat as CombatStateView);
       }
     };
-    this.registerHandler(MessageType.COMBAT_STATE, async (m) => setCombat(m.data));
+    this.registerHandler(MessageType.COMBAT_STATE, async (m) => {
+      await setCombat(m.data);
+      this.planRecovery.receipt(m);
+    });
     this.registerHandler(MessageType.TURN_START, async (m) => setCombat(m.data));
     this.registerHandler(MessageType.INITIATIVE_ORDER, async (m) => setCombat(m.data));
     this.registerHandler(MessageType.CONDITIONS_SYNC, async (m) => {
@@ -716,6 +734,7 @@ export class WebClientProtocol {
     });
     this.registerHandler(MessageType.ACTION_REJECTED, async (m) => {
       const data = m.data as {
+        combat?: unknown;
         sequence_id?: number;
         reason?: string;
         failed_index?: number;
@@ -725,6 +744,7 @@ export class WebClientProtocol {
           triggers?: Array<{ combatant_id: string; name: string }>;
         };
       };
+      if (data && Object.hasOwn(data, 'combat')) await setCombat(data);
       if (data?.details?.code === 'opportunity_attack_warning') {
         useOAStore.getState().setWarning(data.details.entity_id ?? '', data.details.triggers ?? []);
         showToast.warning(data?.reason ?? 'Opportunity attack warning');
@@ -732,7 +752,7 @@ export class WebClientProtocol {
       }
       if (data?.sequence_id != null) {
         const { usePlanningStore } = await import('@features/combat/stores/planningStore');
-        usePlanningStore.getState().finishSubmission(data.sequence_id, false);
+        if (!this.planRecovery.retainRejection(data)) usePlanningStore.getState().finishSubmission(data.sequence_id, false);
         if (useOAStore.getState().pendingCombatCommand?.sequence_id === data.sequence_id) {
           useOAStore.getState().clearPendingCombatCommand();
         }
@@ -895,6 +915,9 @@ export class WebClientProtocol {
           this.multiclassRecoveryProbes.clear();
           this.settingsBuffer.connectionLost();
           this.operationRecovery.connectionLost();
+          this.planRecovery.connectionLost();
+          this.batchQueue = this.batchQueue.filter(message => message.type !== MessageType.COMBAT_COMMAND);
+          this.messageQueue = this.messageQueue.filter(message => message.type !== MessageType.COMBAT_COMMAND);
           this.awaitingWelcome = true;
           if (this.operationRecovery.usesJournal()) {
             this.batchQueue = this.batchQueue.filter(message => !this.operationRecovery.owns(message.message_id));
@@ -1230,6 +1253,9 @@ export class WebClientProtocol {
     this.unknownTableProbes.clear();
     this.markCharacterUpdatesUncertain();
     this.operationRecovery.connectionLost();
+    this.planRecovery.connectionLost();
+    this.batchQueue = this.batchQueue.filter(message => message.type !== MessageType.COMBAT_COMMAND);
+    this.messageQueue = this.messageQueue.filter(message => message.type !== MessageType.COMBAT_COMMAND);
     this.awaitingWelcome = true;
     this.settingsBuffer.connectionLost();
     if (this.operationRecovery.usesJournal()) {
@@ -1337,6 +1363,9 @@ export class WebClientProtocol {
     }
     if (instance) this.characterRecoveryInstance = instance;
     this.operationRecovery.welcome(data);
+    this.batchQueue = this.batchQueue.filter(message => message.type !== MessageType.COMBAT_COMMAND);
+    this.messageQueue = this.messageQueue.filter(message => message.type !== MessageType.COMBAT_COMMAND);
+    this.planRecovery.welcome(data);
     this.requestTableList();
     this.requestPlayerList();
     if (this.userId) this.requestActiveTable();
@@ -3092,6 +3121,9 @@ export class WebClientProtocol {
     this.unknownTableProbes.clear();
     this.markCharacterUpdatesUncertain();
     this.operationRecovery.connectionLost();
+    this.planRecovery.clearContext();
+    this.batchQueue = this.batchQueue.filter(message => message.type !== MessageType.COMBAT_COMMAND);
+    this.messageQueue = this.messageQueue.filter(message => message.type !== MessageType.COMBAT_COMMAND);
     this.canvasPipelining = false;
     if (this.batchTimer) clearTimeout(this.batchTimer);
     this.batchTimer = null;

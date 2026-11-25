@@ -1,3 +1,4 @@
+import { PlanRecoveryJournal } from '@features/combat/services/planRecoveryJournal';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 // vi.hoisted runs before module imports — these refs are usable in vi.mock factories
@@ -3869,3 +3870,38 @@ describe('WebClientProtocol', () => {
 
 });
 
+
+
+it('reconciles a saved combat submission without replaying it on welcome', async () => {
+  Object.assign(mocks.storeState, makeStoreState());
+  const { usePlanningStore } = await import('@features/combat/stores/planningStore');
+  sessionStorage.clear();
+  new PlanRecoveryJournal({sessionCode:'TEST123',userId:1,sessionInstance:'plan-test'},sessionStorage).write({
+    format:1,binding:{combatId:'combat',tableId:'table1',actorId:'actor',round:1},selectedSpriteId:'sprite',
+    queue:[{id:'sent',action_type:'dodge',label:'Dodge',sequence_index:0},{id:'later',action_type:'hide',label:'Hide',sequence_index:1}],
+    pending:{sequenceId:42,actionIds:['sent'],payload:{combat_id:'combat',expected_state_version:1,sequence_id:42,
+      commands:[{type:'dodge',actor_id:'actor'}]}},
+  });
+  const p=makeProtocol();const socket=makeOpenWs(p);
+  const receive=async(message:Message)=>(p as unknown as {handleIncomingMessage(raw:string):Promise<void>}).handleIncomingMessage(JSON.stringify(message));
+  try {
+    await receive(createMessage(MessageType.WELCOME,{session_code:'TEST123',user_id:1,role:'player',message:'Connected',
+      client_id:'client',username:'Player',connection_id:'connection',tables:[],permissions:[],visible_layers:['tokens'],
+      game_mode:'fight',session_rules:{},choice_encounter:null,
+      operation_recovery:{contract:'session-operations-v2',session_instance:'plan-test',domains:[...V2_RECOVERY_DOMAINS]}}));
+    p.sendBatch();
+    const messages=(socket.send as Mock).mock.calls.flatMap(([wire])=>{
+      const frame=JSON.parse(wire);return frame.type===MessageType.BATCH_REQUEST?frame.data.messages:[frame];
+    });
+    expect(messages.some((message:Message)=>message.type===MessageType.COMBAT_COMMAND)).toBe(false);
+    const probe=messages.find((message:Message)=>message.type===MessageType.COMBAT_STATE_REQUEST && message.data?.receipt_probe);
+    expect(probe, JSON.stringify({messages, status:usePlanningStore.getState().recoveryStatus,error:usePlanningStore.getState().recoveryError,queue:usePlanningStore.getState().queue})).toBeTruthy();
+    await receive({...createMessage(MessageType.COMBAT_STATE,{combat:{combat_id:'combat',table_id:'table1',round_number:1,current_turn_index:0,
+      combatants:[{combatant_id:'actor',entity_id:'sprite',controlled_by:['1'],is_npc:false,is_defeated:false}]},
+      receipt:{combat_id:'combat',sequence_id:42,status:'accepted',state_version:2}}),causation_id:probe.message_id});
+    expect(usePlanningStore.getState().pendingSubmission).toBeNull();
+    expect(usePlanningStore.getState().queue.map(action=>action.id)).toEqual(['later']);
+    expect(usePlanningStore.getState().recoveryStatus).toBe('review');
+    expect(usePlanningStore.getState().isPlanningMode).toBe(false);
+  } finally {p.disconnect();sessionStorage.clear();}
+});

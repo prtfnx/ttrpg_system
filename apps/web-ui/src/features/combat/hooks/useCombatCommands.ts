@@ -13,6 +13,8 @@ export interface CombatCommandPayload extends Record<string, unknown> {
 
 export interface CombatCommandBatch extends Record<string, unknown> {
   sequence_id: number;
+  combat_id?: string;
+  expected_state_version?: number;
   commands: CombatCommandPayload[];
 }
 
@@ -127,13 +129,11 @@ export function useCombatCommands() {
   const protocol = protocolCtx?.protocol;
 
   const sendCommandBatch = useCallback((batch: CombatCommandBatch) => {
-    protocol?.sendMessage(createMessage(MessageType.COMBAT_COMMAND, batch));
-    return Boolean(protocol);
+    return Boolean(protocol) && protocol!.sendMessage(createMessage(MessageType.COMBAT_COMMAND, batch)) !== false;
   }, [protocol]);
 
   const sendProtocolMessage = useCallback((type: ProtocolMessageType, data: Record<string, unknown> = {}) => {
-    protocol?.sendMessage(createMessage(type, data));
-    return Boolean(protocol);
+    return Boolean(protocol) && protocol!.sendMessage(createMessage(type, data)) !== false;
   }, [protocol]);
 
   const sendCommand = useCallback((command: CombatCommandPayload, sequenceId = nextCombatSequenceId()) => (

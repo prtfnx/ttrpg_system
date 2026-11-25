@@ -12,6 +12,7 @@ import { EncounterBuilder } from './EncounterBuilder';
 import { GameModeSwitch } from './GameModeSwitch';
 import { InitiativePanel } from './InitiativePanel';
 import { MovementPlanner } from './MovementPlanner';
+import { PlanRecoveryNotice } from './PlanRecoveryNotice';
 import { PlanningQueue } from './PlanningQueue';
 import styles from './CombatDock.module.css';
 import { usePlanningStore } from '../stores/planningStore';
@@ -32,18 +33,19 @@ export function CombatDock() {
   const stopPlanning = usePlanningStore((state) => state.stopPlanning);
   const addAction = usePlanningStore((state) => state.addAction);
   const plannedMoves = usePlanningStore((state) => state.queue);
+  const recoveryStatus = usePlanningStore((state) => state.recoveryStatus);
 
   useEffect(() => {
     setSetupOpen(false);
   }, [sessionId]);
 
-  if (!combat && !dmMode) return null;
+  if (!combat && !dmMode) return recoveryStatus ? <PlanRecoveryNotice /> : null;
   if (!combat && !setupOpen) {
     return (
-      <button type="button" className={styles.setupLauncher} onClick={() => setSetupOpen(true)}>
+      <>{recoveryStatus && <PlanRecoveryNotice />}<button type="button" className={styles.setupLauncher} onClick={() => setSetupOpen(true)}>
         <Swords size={15} aria-hidden />
         Set up combat
-      </button>
+      </button></>
     );
   }
 
@@ -65,6 +67,7 @@ export function CombatDock() {
 
   return (
     <section className={styles.dock} aria-label="Combat dock">
+      {recoveryStatus && <PlanRecoveryNotice />}
       <button
         type="button"
         className={styles.header}
@@ -110,6 +113,7 @@ export function CombatDock() {
                 <div className={styles.planningControls}>
                   <button
                     type="button"
+                    disabled={Boolean(recoveryStatus)}
                     onClick={() => (
                       isPlanningMode
                         ? stopPlanning()

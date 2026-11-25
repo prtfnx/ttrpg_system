@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { CombatCommandBatch } from '../hooks/useCombatCommands';
 import { nextCombatSequenceId } from '../services/combatSequence';
 
 export type ActionType = 'move' | 'attack' | 'cast_spell' | 'use_item' | 'dodge' | 'dash' |
@@ -37,14 +38,19 @@ export interface PlannedAction {
   sequence_index: number;
 }
 
+export type PlanRecoveryStatus = 'checking' | 'review' | 'retry' | 'stale' | 'blocked' | null;
+
 interface PlanningStore {
+  recoveryOwner: string | null;
+  recoveryStatus: PlanRecoveryStatus;
+  recoveryError: string | null;
   queue: PlannedAction[];
   isPlanningMode: boolean;
   selectedSpriteId: string | null;
   sequenceId: number;   // last submitted protocol identity
-  pendingSubmission: { sequenceId: number; actionIds: string[] } | null;
+  pendingSubmission: { sequenceId: number; actionIds: string[]; payload?: CombatCommandBatch } | null;
   submissionOutcome: { sequenceId: number; accepted: boolean } | null;
-  markSubmitted: (sequenceId: number, actionIds?: string[]) => void;
+  markSubmitted: (sequenceId: number, actionIds?: string[], payload?: CombatCommandBatch) => boolean;
   finishSubmission: (sequenceId: number, accepted: boolean) => boolean;
 
   startPlanning: (spriteId: string) => void;
@@ -56,16 +62,20 @@ interface PlanningStore {
 }
 
 export const usePlanningStore = create<PlanningStore>((set, get) => ({
+  recoveryOwner: null, recoveryStatus: null, recoveryError: null,
   queue: [],
   isPlanningMode: false,
   selectedSpriteId: null,
   sequenceId: 0,
   pendingSubmission: null,
   submissionOutcome: null,
-  markSubmitted: (sequenceId, actionIds) => set((state) => ({
-    submissionOutcome: null,
-    pendingSubmission: { sequenceId, actionIds: actionIds ?? state.queue.map((action) => action.id) },
-  })),
+  markSubmitted: (sequenceId, actionIds, payload) => {
+    if (get().recoveryStatus) return false;
+    set((state) => ({ submissionOutcome: null,
+      pendingSubmission: { sequenceId, actionIds: actionIds ?? state.queue.map((action) => action.id), ...(payload ? { payload } : {}) },
+    }));
+    return get().recoveryStatus === null;
+  },
   finishSubmission: (sequenceId, accepted) => {
     const state = get();
     if (state.pendingSubmission?.sequenceId !== sequenceId) return false;
@@ -77,7 +87,7 @@ export const usePlanningStore = create<PlanningStore>((set, get) => ({
     return true;
   },
 
-  startPlanning: (spriteId) => set({ isPlanningMode: true, selectedSpriteId: spriteId }),
+  startPlanning: (spriteId) => { if (!get().recoveryStatus) set({ isPlanningMode: true, selectedSpriteId: spriteId }); },
 
   stopPlanning: () => set({ isPlanningMode: false, selectedSpriteId: null }),
 

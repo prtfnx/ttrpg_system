@@ -104,6 +104,7 @@ export interface CombatState {
   started_at: number | null;
   settings: CombatSettings;
   state_hash: string;
+  state_version?: number;
   pending_movement?: { movement_id: string; expires_at: number; actor_id?: string };
   reaction_prompts?: ReactionPrompt[];
 }

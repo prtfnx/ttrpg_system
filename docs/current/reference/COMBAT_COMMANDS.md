@@ -97,7 +97,11 @@ submission only when the encounter ended or its persisted version advanced beyon
 the captured expected version, making a late original packet obsolete. A generic
 rejection during recovery retains the identity until receipt confirmation; an
 encounter/version conflict is a terminal fence. Unknown outcomes and query timeouts
-remain blocked. Reload/reconnect never automatically submits a restored plan.
+remain blocked. Receipt probes and all admitted planned-command acknowledgement
+waits have a ten-second browser deadline. An acknowledgement timeout retains the
+exact pending body and identity and starts a receipt check; it never resubmits
+automatically. Settled commands cancel their deadlines.
+Reload/reconnect never automatically submits a restored plan.
 
 ## Command model
 

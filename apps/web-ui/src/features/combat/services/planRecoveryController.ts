@@ -104,6 +104,9 @@ export class PlanRecoveryController {
     if (!this.journal || !this.owns() || !this.readable) return false;
     const state = usePlanningStore.getState();
     try {
+      if (!state.pendingSubmission) {
+        clearTimeout(this.probeTimer); this.probeTimer = undefined;
+      }
       if (!state.queue.length && !state.pendingSubmission) {
         this.journal.clear(); this.record = null; this.recovering = false; this.awaitingRetry = false; this.probe = null; this.status(null); return true;
       }
@@ -126,6 +129,7 @@ export class PlanRecoveryController {
         && state.submissionOutcome?.sequenceId === this.record.pending.sequenceId;
       this.journal.write(record); this.record = record;
       if (acknowledgedDuringRecovery) {
+        clearTimeout(this.probeTimer); this.probeTimer = undefined;
         this.recovering = false; this.awaitingRetry = false; this.probe = null;
         this.status(this.compatible() ? 'review' : 'stale', 'Submission checked. Review the remaining plan before committing.');
       } else if (!pending && !this.compatible()) {
@@ -141,7 +145,19 @@ export class PlanRecoveryController {
     if (!pending || pending.sequenceId !== payload.sequence_id || JSON.stringify(pending.payload) !== JSON.stringify(payload)
       || payload.combat_id !== this.combat.combat_id || payload.expected_state_version !== this.combat.state_version
       || !this.compatible()) return false;
-    return this.persist();
+    if (!this.persist()) return false;
+    this.watchSubmission(pending.sequenceId);
+    return true;
+  }
+  private watchSubmission(sequenceId: number) {
+    clearTimeout(this.probeTimer);
+    this.probeTimer = setTimeout(() => {
+      if (this.owns() && usePlanningStore.getState().pendingSubmission?.sequenceId === sequenceId) {
+        this.recovering = true; this.awaitingRetry = false;
+        this.status('blocked', 'The server has not confirmed the saved step. Checking its receipt before another submission.');
+        this.query();
+      }
+    }, 10_000);
   }
   connectionLost() {
     if (!this.owns()) return;
@@ -216,6 +232,7 @@ export class PlanRecoveryController {
     this.status(null);
     if (this.send(createMessage(MessageType.COMBAT_COMMAND, pending.payload))) {
       this.status('checking', 'Waiting for confirmation of the original saved step.');
+      this.watchSubmission(pending.sequenceId);
     } else {
       this.awaitingRetry = false;
       this.status('checking', 'The saved step was not sent. Check its status after reconnecting.');

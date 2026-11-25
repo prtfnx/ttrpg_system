@@ -182,6 +182,51 @@ it('retries an absent saved step using the original identity and exact payload',
   expect(usePlanningStore.getState().recoveryStatus).toBe('checking');
 });
 
+it('bounds confirmation waiting after an explicit retry without losing its identity', () => {
+  vi.useFakeTimers();
+  new PlanRecoveryJournal(scope, sessionStorage).write(saved(true));
+  const next = controller();
+  next.controller.observe(combat);
+  receipt(next, 'absent');
+  next.controller.retrySubmission();
+  vi.advanceTimersByTime(10_000);
+  expect(usePlanningStore.getState().recoveryStatus).toBe('blocked');
+  expect(new PlanRecoveryJournal(scope, sessionStorage).read()?.pending?.payload).toEqual(payload);
+  expect(next.send.mock.calls.filter(([message]) => message.type === MessageType.COMBAT_COMMAND)).toHaveLength(1);
+});
+
+it('checks a newly sent step after a lost acknowledgement without replaying it', () => {
+  vi.useFakeTimers();
+  const next = controller();
+  next.controller.observe(combat);
+  usePlanningStore.getState().startPlanning('sprite');
+  usePlanningStore.getState().addAction(action);
+  usePlanningStore.getState().markSubmitted(42, ['a'], payload);
+  expect(next.controller.admit(payload)).toBe(true);
+  vi.advanceTimersByTime(10_000);
+  expect(usePlanningStore.getState().recoveryStatus).toBe('blocked');
+  expect(next.send.mock.calls.at(-1)![0].data).toEqual({ receipt_probe: { combat_id: 'combat', sequence_id: 42 } });
+  receipt(next, 'accepted');
+  expect(usePlanningStore.getState().queue).toEqual([]);
+  expect(usePlanningStore.getState().pendingSubmission).toBeNull();
+  expect(next.send.mock.calls.some(([message]) => message.type === MessageType.COMBAT_COMMAND)).toBe(false);
+});
+
+it('cancels the acknowledgement deadline once a normal step settles', () => {
+  vi.useFakeTimers();
+  const next = controller();
+  next.controller.observe(combat);
+  usePlanningStore.getState().startPlanning('sprite');
+  usePlanningStore.getState().addAction(action);
+  usePlanningStore.getState().markSubmitted(42, ['a'], payload);
+  expect(next.controller.admit(payload)).toBe(true);
+  usePlanningStore.getState().finishSubmission(42, true);
+  const queryCount = next.send.mock.calls.length;
+  vi.advanceTimersByTime(10_000);
+  expect(usePlanningStore.getState().recoveryStatus).toBeNull();
+  expect(next.send.mock.calls).toHaveLength(queryCount);
+});
+
 it('releases an absent request only when its saved version is obsolete', () => {
   new PlanRecoveryJournal(scope, sessionStorage).write(saved(true));
   const next = controller(); next.controller.observe({ ...combat, state_version: 2 });

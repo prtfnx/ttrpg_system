@@ -127,6 +127,32 @@ Combat UI rules:
 - Keep `sendProtocolMessage` for non-combat mutations or approved
   query/suggestion messages only.
 
+## Combat plan recovery ownership
+
+`PlanRecoveryController` belongs to the authenticated `WebClientProtocol`, which
+owns receipt queries and explicit saved-step retries. The current protocol owner
+alone can write the volatile planning view. Welcome/user changes retire the old
+owner, and transport loss removes queued combat writes rather than replaying them
+on reconnect. Restored plans wait for a fresh combat view and user review.
+
+`PlanRecoveryJournal` uses versioned tab-local session storage, keyed by user,
+session code and server session instance, with encounter/table/actor/round binding
+inside the record. It validates bounded JSON and render-facing action fields on
+read/write: at most 512 KiB, 200 queued steps and 50 commands per pending envelope.
+The protocol's separate 64 KiB wire-frame limit still applies. The exact pending
+sequence ID and payload must be verified in storage before sending; edits cannot
+reuse that identity for a different payload. Removing a queued step does not
+remove its in-flight evidence.
+
+`PlanRecoveryNotice` exposes paused review, receipt checking, explicit retry of
+the original saved step, and discard of a settled draft. An absent receipt alone
+does not clear in-flight evidence. Acceptance or an obsolete encounter version
+settles it; uncertainty, malformed storage and failed writes stop submission.
+Controller/journal tests cover ownership, isolation, storage failure, correlation,
+late acknowledgements and retry identity. Protocol and UI regressions exercise
+welcome reconciliation and the visible recovery actions. See
+[Combat commands](reference/COMBAT_COMMANDS.md#saved-plan-receipt-lookup).
+
 ## Current dependency limits
 
 The ownership rules describe intended responsibilities, not an acyclic import

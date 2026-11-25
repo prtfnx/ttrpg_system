@@ -50,6 +50,55 @@ instead of applying the command twice.
 Command batches are all-or-nothing. If a command fails, the service rejects the
 batch with `action_rejected`, `failed_index`, and `reason`.
 
+Reload-safe planned batches also capture `combat_id` and integer
+`expected_state_version`. A different encounter or stale version rejects before
+mutation with `details.code` equal to `combat_encounter_changed` or
+`combat_state_conflict`. The rejection includes the current role-filtered combat
+view, or null. Accepted duplicates are checked before the version guard, so a
+retry of the same accepted batch does not fail merely because its own acceptance
+advanced the version. These preconditions are optional for existing immediate
+command callers; the durable planning path requires both.
+
+## Saved-plan receipt lookup
+
+An interactive authenticated member can send `combat_state_request` with:
+
+```json
+{
+  receipt_probe: {
+    combat_id: encounter-id,
+    sequence_id: 123
+  }
+}
+```
+
+The response is `combat_state` with the current role-filtered `combat` view
+(possibly null) and a bounded `receipt` containing the requested `combat_id`,
+`sequence_id`, and one of:
+
+- `accepted`: includes the accepted `state_version`; no stored private result
+  payload is returned.
+- `absent`: includes `current_state_version` and `encounter_ended` from the
+  persisted encounter.
+- `unavailable`: absence could not be established, including quarantined uncertain
+  commits or missing membership/encounter context. Keep the saved submission.
+
+The requester comes from authentication, never a supplied user ID. Probe IDs are
+strictly validated; sequence IDs must be JavaScript-safe nonnegative integers.
+Disabled users and spectators cannot obtain receipts. The lookup uses a fresh
+transaction and the same stable session-row lock as command acceptance. PostgreSQL
+requires READ COMMITTED and bounds lock waiting to five seconds. Commit/rollback
+barrier tests live in the mandatory PostgreSQL contract suite.
+
+An absent receipt is a point-in-time observation: the original packet can still
+arrive later. The browser keeps the exact sequence ID and command payload and
+requires an explicit retry of that original step. It may release an absent
+submission only when the encounter ended or its persisted version advanced beyond
+the captured expected version, making a late original packet obsolete. A generic
+rejection during recovery retains the identity until receipt confirmation; an
+encounter/version conflict is a terminal fence. Unknown outcomes and query timeouts
+remain blocked. Reload/reconnect never automatically submits a restored plan.
+
 ## Command model
 
 The Pydantic model is `CombatCommand`. It currently forbids extra fields.

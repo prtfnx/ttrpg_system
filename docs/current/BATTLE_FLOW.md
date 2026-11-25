@@ -529,3 +529,27 @@ Movement completes atomically after the windows settle and revalidation passes.
 Its original position and budget remain while pending. Incapacitation or
 cancellation prevents completion. See [Opportunity attacks](reference/COMBAT_COMMANDS.md#opportunity-attack-workflow)
 for authority, deadlines, restart recovery and current rules limits.
+
+
+## Restoring a plan after reload
+
+Combat drafts are saved in the current tab's session storage, scoped to the
+signed-in user, game session and server session instance. Their encounter, table,
+actor and round binding prevents a restored draft from silently applying to
+another turn. A valid draft restores paused: choose **Review saved plan** before
+committing, or discard it. Closing the tab is not cross-device or long-term plan
+storage.
+
+Before sending each planned batch, the client saves its exact command body,
+sequence ID and expected encounter version. Reload or reconnect first checks the
+server's receipt for that submission. Acceptance removes only its captured action
+IDs; later edits remain paused. An absent receipt keeps the original identity:
+**Retry original saved step** sends the same body and ID, while **Check saved
+submission** only queries the server. If the encounter ended or its version makes
+the old command obsolete, the remaining draft can be reviewed or discarded.
+
+The browser never resumes a whole restored plan automatically. Missing/invalid
+storage, unknown outcomes and receipt timeouts pause planning and keep available
+submission evidence. An unresolved submission cannot be discarded or replaced by
+a newly numbered command. See [Combat commands](reference/COMBAT_COMMANDS.md#saved-plan-receipt-lookup)
+for receipt and version-fencing details.

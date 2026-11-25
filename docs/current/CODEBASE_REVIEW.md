@@ -71,8 +71,10 @@ Read [Battle flow](BATTLE_FLOW.md), [Combat commands](reference/COMBAT_COMMANDS.
   and destination; it has no range heatmap or automatic Dash purchase.
 - Read-only geometry protects editing authority and sprite metadata. Boundaries
   delivered to a player's browser are inspectable by that player.
-- Random submission identities and acknowledgement correlation do not implement
-  durable recovery of an unsent plan after a browser reload.
+- Plans now recover from tab-local session storage after reload. Recovery is
+  scoped to user/session/encounter and pauses for review; it does not provide
+  cross-device storage. Unresolved submissions retain their exact identity until
+  acceptance or an encounter/version fence. Unavailable storage blocks planning.
 - Legacy chat rows are not rewritten, but read projection now ignores their
   client-controlled authority fields. New typed roll events use a separate
   server-owned column; old unverified rolls preserve their plain text.
@@ -114,3 +116,26 @@ verification passed 663 tests. The full frontend run passed 3508 tests, and
 Ruff, TypeScript, changed-source ESLint, focused backend Mypy, protocol-binding
 consistency and current-documentation checks pass. PostgreSQL execution remains pending an
 isolated test database; its CI no-skip gate now includes sprite durability.
+
+
+## Plan recovery follow-up, 24 November 2026
+
+The approved reload-recovery phase adds a bounded versioned plan journal,
+authenticated receipt lookup and encounter/version preconditions. Pending batches
+save their exact payload before transmission. Restored drafts remain paused, and
+an explicit retry preserves the original command identity. The server checks
+accepted duplicates before version conflicts and returns a current role-filtered
+view on conflict. A point-in-time absent receipt never permits blindly replacing
+a still-current pending submission.
+
+New isolated PostgreSQL regressions verify that probes wait for acceptance commit
+or rollback and reject repeatable-read isolation. They require the existing
+isolated PostgreSQL test URL and were not executed locally; the mandatory CI gate
+includes their test module. No database migration is needed for this phase.
+
+Recovery validation passed 3532 frontend tests, with 22 focused journal/controller
+and UI tests repeated after formatting. The phase's full server run passed 2856
+tests (122 skipped); the final receipt/version refinements passed 102 focused
+backend tests. TypeScript compilation, changed-source ESLint/Ruff, focused backend
+Mypy, protocol bindings and documentation checks pass. PostgreSQL-specific cases
+remain unverified locally as described above.

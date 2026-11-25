@@ -5,7 +5,7 @@ Audience: contributors changing combat mutations or combat UI send paths.
 Status: partial. This page catalogs the current command model and command
 types. Use source code for exact payload validation.
 
-Last source audit: 2026-11-18
+Last source audit: 2026-11-24
 
 ## Source of truth
 
@@ -318,11 +318,70 @@ DM Overrides. The action panel also offers an explicit **Manual damage (DM)**
 mode: manual commands set `manual: true`, supply bounded mechanics, and require
 an explicit spell effect. Non-DMs cannot use manual commands. A manual damage
 spell rolls automatic damage; it does not implement the named spell's rules.
-Opportunity-attack resolution requires a DM to authorize timing, then uses a
-supported melee reference and the reaction budget. Players can pass a prompt
-but cannot spend a reaction against an arbitrary target. The prompt offers
-manual DM resolution. A durable server-owned trigger/timing state machine and
-server-generated OA prompts remain unimplemented.
+Opportunity attacks use durable server-owned triggers. Eligible controllers
+and DMs receive a private prompt and resolve it using `trigger_id`, `actor_id`,
+`target_id`, `use_reaction` and an authorized melee `action_id`. Outside an
+active window, DMs retain the manual timing path. See the workflow below.
 
 `test_combat_action_authority.py` exercises the command boundary and verifies
 that rejected authority and geometry checks preserve the full encounter state.
+
+## Opportunity-attack workflow
+
+A validated move can open an accepted `awaiting_reactions` intent instead of
+moving the token. The encounter snapshot and command journal retain the move,
+requesting user, original route, ordered triggers, permitted action references
+and current deadline. The move remains atomic: position and movement cost change
+only when it completes. Cancellation or incapacitation leaves the original
+position and unspent movement. Stepwise interruption with partial movement
+spending remains a separate rules phase.
+
+Triggers come from the validated route leaving canonical melee reach, converted
+using table units. They check sight-blocking walls and shared obstacle geometry,
+reaction availability, health, ability to act and Disengage. A route that enters
+and later leaves reach can trigger. Automatic hostility currently follows NPC
+versus party; explicit factions and friendly-NPC exceptions require DM judgment.
+Hidden NPC movers do not generate player prompts. Only supported structured
+melee definitions are automated. Each trigger uses the action references whose
+reach was exited. Geometry is bounded to 8192 intersections and 32 triggers.
+
+Windows resolve in route order. A controller of the reacting player character,
+or a DM, may use or pass the current trigger. NPC reactions belong to DMs.
+The server checks the trigger, actor, target, action, token position and deadline
+before spending. A spent reaction makes later windows for that actor unavailable.
+Deadlines use the session timeout clamped to 1-120 seconds. Expiry passes without
+spending a reaction, then opens the next window or completes the move.
+
+Public combat state contains only a pending movement identity and deadline;
+only the mover's controllers and DMs also receive its actor identity for
+cancellation. `reaction_prompts` contains the current private trigger only for
+its eligible controller or DMs. It includes `trigger_id`, attacker/target IDs,
+a safe target name, deadline and permitted `action_ids`. Pending commands,
+requester identity, other actors' trigger IDs and private mechanics stay server-side.
+Reconnect reconstructs prompts from the durable encounter snapshot.
+
+A session-owned deadline task uses the existing mutation lock, acceptance
+recovery and cancellation shielding. It expires unanswered windows without a
+browser poll. Last-client disconnect and shutdown stop the task; restoring a
+pending encounter resumes deadline handling. No clients need to remain connected
+for durable recovery. Expired windows settle on the next restoration request.
+
+Before completing movement, the server rechecks active membership, bans,
+disabled accounts, control, turn, original position, geometry and budget. A failed
+revalidation cancels the uncommitted move. Reaction effects and completion or
+cancellation share one acceptance transaction. Duplicate receipts do not repeat
+rolls, spending or movement. Uncertain commits retain the existing quarantine
+and recovery rules. Committed and recovered positions publish canonical sprite
+updates, including when the browser renderer is detached.
+
+`cancel_pending_move` requires the mover or a DM and the matching `movement_id`.
+Other combat commands wait while a window is open; DMs can end combat. The
+`expire_opportunity_attacks` command requires private server context and cannot
+be requested by a client. Reaction-bearing moves and resolutions are individual
+atomic envelopes. Planning submits ordered chunks, pauses at windows and keeps
+later edits unsent. Closing planning retains acknowledgement ownership of an
+already-sent step; cancellation waits for that step to settle.
+
+Verification: `test_combat_reactions.py`, `test_reaction_protocol.py`,
+`test_combat_persistence.py`, `test_combat_lifecycle_persistence.py`, the two
+CommitButton suites, ToolsPanel tests and client-protocol regressions.

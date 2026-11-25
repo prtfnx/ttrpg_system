@@ -5,7 +5,7 @@ Audience: contributors changing chat delivery, history, privacy, or chat UI.
 Status: current but partial. Delivery, retention, moderation and DM whisper
 visibility are implemented. Export and attachment support remain product work.
 
-Last source audit: 2026-11-17
+Last source audit: 2026-11-24
 
 ## Ownership
 
@@ -93,7 +93,7 @@ authorized asset attachments, privacy notices and message quotas.
 
 ## Verification
 
-Run `tests/unit/test_chat_protocol.py`,
+Run `tests/unit/test_chat_projection.py`, `tests/unit/test_chat_protocol.py`,
 `tests/unit/test_game_ws_security.py`,
 `tests/unit/test_game_session_protocol.py`, the chat Vitest suites, and the
 browser protocol suite.

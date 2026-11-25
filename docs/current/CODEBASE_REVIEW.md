@@ -4,7 +4,7 @@ Audience: contributors reviewing server, React and Rust/WASM correctness.
 
 Status: current.
 
-Last source audit: 2026-11-18
+Last source audit: 2026-11-24
 
 The 17 November review found 20 concrete defects across command authority,
 state restoration, movement, public state projection and rendering. The table
@@ -62,10 +62,10 @@ Read [Battle flow](BATTLE_FLOW.md), [Combat commands](reference/COMBAT_COMMANDS.
 - Automated combat supports bounded explicit damage definitions. Areas,
   upcasting, healing, conditions, summons and prose-only effects require DM
   manual resolution; a curated rules catalogue remains separate work.
-- Opportunity-attack timing has no durable server-owned trigger workflow or
-  server-generated prompts. Reaction spending is DM-authorized until that
-  workflow exists; players may pass prompts. Expanding this needs a separate
-  design covering trigger creation, eligibility, expiry, cancellation and replay.
+- Opportunity attacks now have durable server-owned windows and private controller
+  prompts. Automation uses structured melee actions and NPC-versus-party hostility.
+  Explicit factions, non-damage reactions and stepwise partial movement spending
+  remain separate rules work; the current move completes atomically.
 - Movement previews are estimates checked again by the server. Search is
   bounded and does not optimize terrain cost. The movement control shows cost
   and destination; it has no range heatmap or automatic Dash purchase.
@@ -73,9 +73,13 @@ Read [Battle flow](BATTLE_FLOW.md), [Combat commands](reference/COMBAT_COMMANDS.
   delivered to a player's browser are inspectable by that player.
 - Random submission identities and acknowledgement correlation do not implement
   durable recovery of an unsent plan after a browser reload.
-- Existing stored chat metadata is not rewritten by the new-message allowlist.
-  PostgreSQL concurrency/fencing checks require PostgreSQL; skipped tests in a
-  local SQLite run are not evidence of those production properties.
+- Legacy chat rows are not rewritten, but read projection now ignores their
+  client-controlled authority fields. New typed roll events use a separate
+  server-owned column; old unverified rolls preserve their plain text.
+- PostgreSQL concurrency/fencing checks require an isolated PostgreSQL database.
+  The local environment has no configured test URL or runnable local server.
+  CI now also requires the existing sprite-batch durability suite to execute;
+  local SQLite passes do not establish PostgreSQL properties.
 
 ## Validation
 
@@ -87,3 +91,26 @@ actor/table queue and disabled-speed-rule refinements.
 TypeScript compilation, changed-file ESLint/Ruff, generated WASM fingerprint,
 protocol binding consistency and current-documentation checks also pass.
 See [Testing strategy](TESTING_STRATEGY.md) for commands and environment limits.
+
+
+## Follow-up implementation, 24 November 2026
+
+The approved reaction phase adds persisted windows, route-derived canonical
+triggers, controller-only prompts, server-owned deadlines, cancellation, restart
+recovery and replay-safe resolution. Membership, control, position and movement
+legality are revalidated before completion. Planning pauses between ordered
+chunks and retains acknowledgement ownership when its UI closes. Canonical
+movement updates also reach detached browser state.
+
+Migration `0016_chat_system_events` removes legacy JSON authority from history
+and separates trusted roll events. Migration `0017_pending_combat_movement`
+retains pending movement through encounter saves and restore. Deployment must
+apply both migrations before starting the updated server.
+
+The follow-up passed the full server unit/integration run (2838 passed, 122
+skipped), with additional focused reaction/precision/lifecycle checks. Shared-core
+verification passed 663 tests. The full frontend run passed 3508 tests, and
+85 focused store/UI checks cover final acknowledgement and cancellation changes.
+Ruff, TypeScript, changed-source ESLint, focused backend Mypy, protocol-binding
+consistency and current-documentation checks pass. PostgreSQL execution remains pending an
+isolated test database; its CI no-skip gate now includes sprite durability.

@@ -1,6 +1,6 @@
 # Battle flow
 
-Last source audit: 2026-11-18
+Last source audit: 2026-11-24
 
 Battle flow is command-oriented now. React can help the user plan a turn, and
 Rust/WASM can draw previews, but the server is the only place that accepts
@@ -514,3 +514,18 @@ cost and legality at submission and clamps only sub-microfoot rounding residue.
 Search provides a collision-free route when found within its budget; it does
 not optimize route cost for terrain. Client previews remain estimates and may
 be rejected if state changes before submission.
+
+
+## Reaction windows during a plan
+
+Planning commits ordered steps, submitting each movement separately. When the
+server opens a reaction window, later steps wait; an accepted window represents
+a held movement intent. Only the eligible reactor's controller and DMs receive
+its prompt. Pass, expiry and used reactions advance the durable window sequence.
+The mover or a DM can cancel the pending intent. A rejected step preserves the
+remaining queue, and edits added after Commit stay unsent.
+
+Movement completes atomically after the windows settle and revalidation passes.
+Its original position and budget remain while pending. Incapacitation or
+cancellation prevents completion. See [Opportunity attacks](reference/COMBAT_COMMANDS.md#opportunity-attack-workflow)
+for authority, deadlines, restart recovery and current rules limits.

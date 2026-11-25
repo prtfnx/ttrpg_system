@@ -13,7 +13,7 @@ Audience: contributors changing persistence, migrations, or server state.
 Status: partial. This page describes the current model families and migration
 flow. It is not a complete column-by-column schema.
 
-Last source audit: 2026-09-28
+Last source audit: 2026-11-24
 
 ## Source of truth
 
@@ -179,7 +179,7 @@ apps/server/database/alembic/versions/
 ```
 
 The PostgreSQL baseline is `0001_postgresql_baseline`; incremental revisions
-through the current `0015_table_settings_revision` head add later behavior.
+through the current `0017_pending_combat_movement` head add later behavior.
 `0007_demo_guest_expiry` adds guest expiry and revokes the legacy demo host;
 `0008_application_writer` seeds the owner record and installs PostgreSQL
 statement triggers. `0009_table_previews` adds `preview_image`, `preview_etag`,
@@ -243,3 +243,17 @@ state independently of actor receipt retention; it does not backfill historical
 request receipts. Deploy the migration before code that reads this field.
 Downgrading drops the counter while preserving settings values, so it discards
 revision ordering evidence. Preserve revision state with receipts in backups.
+
+
+Revision `0016_chat_system_events` adds nullable `chat_messages.system_event_json`.
+Only server-generated rolls populate it. Canonical columns own identity, text,
+cursors and moderation in delivered history; legacy `message_json` cannot grant
+system-event provenance. Existing unverified roll rows retain plain saved text.
+
+Revision `0017_pending_combat_movement` adds nullable
+`combat_encounters.pending_movement_json`. It retains the held move, its requesting
+user, ordered canonical reaction triggers and deadlines. Accepted reaction state,
+combat effects, completed token movement and journal receipts share the combat
+acceptance transaction. Both current and legacy snapshot persistence paths retain
+this field, and restore supplies it to the combat domain. Public projections
+expose only the authorized summary/prompt contract, never this stored document.

@@ -4,7 +4,7 @@ Audience: contributors changing the Python server or shared domain package.
 
 Status: usable.
 
-Last source audit: 2026-11-18
+Last source audit: 2026-11-24
 
 The server is a FastAPI app with WebSocket sessions and a Python tabletop
 domain package behind it.
@@ -299,3 +299,14 @@ See [Persistence and application ownership](explanation/PERSISTENCE_AND_WRITER_O
 `scripts/extract_protocol_mixins.py` is a retired one-off extractor that exits
 without rewriting files. Edit the current protocol modules directly; the
 `server_protocol.py` import shim does not make the extractor a supported tool.
+
+
+Combat reaction deadlines belong to the session protocol. A retained task wakes
+on deadline changes and runs expiry through the same serialized snapshot-request
+boundary, recovery checks and cancellation shielding as socket work. Snapshot
+requests can therefore settle expired windows before returning state. Geometry
+work uses bounded workers; ORM operations retain worker-owned sessions. The
+last disconnect requests timer cancellation, and final mutation draining joins
+it after admitted work settles. Reconnect restores the pending snapshot and
+restarts deadline ownership. Accepted or recovered movement publishes canonical
+sprite positions; publication failure cannot turn a durable success into rejection.

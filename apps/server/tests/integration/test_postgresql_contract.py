@@ -2763,3 +2763,74 @@ def test_postgresql_orm_round_trip_covers_core_persistence_families(
         if transaction.is_active:
             transaction.rollback()
         connection.close()
+
+
+@pytest.mark.parametrize("commit", [False, True])
+def test_combat_receipt_probe_waits_before_proving_acceptance_or_absence(postgresql_engine, commit):
+    from service.combat_persistence_service import CombatPersistenceService
+    suffix = uuid.uuid4().hex[:12]
+    factory = sessionmaker(bind=postgresql_engine, expire_on_commit=False)
+    encounter_id, table_id = str(uuid.uuid4()), str(uuid.uuid4())
+    with factory() as db:
+        owner = models.User(username=f"receipt-{suffix}", hashed_password="unused")
+        db.add(owner)
+        db.flush()
+        game = models.GameSession(name="Receipt barrier", session_code=suffix, owner_id=owner.id)
+        db.add(game)
+        db.flush()
+        owner_id, session_id = owner.id, game.id
+        db.add(models.GamePlayer(session_id=session_id, user_id=owner_id, role='owner'))
+        db.add(models.CombatEncounter(encounter_id=encounter_id, session_id=session_id, table_id=table_id, phase='active'))
+        db.commit()
+    ready = threading.Event()
+    pids, results, errors = [], [], []
+    def reader_session():
+        db = factory()
+        pids.append(db.execute(text('SELECT pg_backend_pid()')).scalar_one())
+        ready.set()
+        return db
+    def probe():
+        try:
+            results.append(CombatPersistenceService(reader_session).probe_receipt(suffix, owner_id, encounter_id, 42))
+        except BaseException as exc:
+            errors.append(exc)
+    writer = factory()
+    thread = threading.Thread(target=probe, daemon=True)
+    try:
+        CombatPersistenceService(factory).stage_accepted(writer,session_code=suffix,requester_key=f'user:{owner_id}',
+            sequence_id=42,actor_id=None,command_type='dodge',command_payload={},result_payload={'accepted':True},
+            state_before={'state_version':0},state_after={'combat_id':encounter_id,'table_id':table_id,'phase':'active'},created_by=owner_id)
+        writer_pid = writer.execute(text('SELECT pg_backend_pid()')).scalar_one()
+        thread.start()
+        assert ready.wait(3)
+        deadline = time.monotonic() + 3
+        blocked = False
+        with postgresql_engine.connect().execution_options(isolation_level='AUTOCOMMIT') as observer:
+            while time.monotonic() < deadline:
+                if writer_pid in observer.execute(text('SELECT pg_blocking_pids(:pid)'),{'pid':pids[0]}).scalar_one():
+                    blocked = True
+                    break
+                time.sleep(.01)
+        assert blocked and not results and not errors
+        writer.commit() if commit else writer.rollback()
+        thread.join(timeout=5)
+        assert not thread.is_alive() and not errors
+        assert len(results)==1 and results[0]['status']==('accepted' if commit else 'absent')
+    finally:
+        writer.rollback()
+        writer.close()
+        if thread.ident is not None:
+            thread.join(timeout=6)
+        with postgresql_engine.begin() as connection:
+            connection.execute(text('DELETE FROM combat_actions WHERE encounter_id=:id'),{'id':encounter_id})
+            connection.execute(text('DELETE FROM combat_encounters WHERE encounter_id=:id'),{'id':encounter_id})
+            connection.execute(text('DELETE FROM game_players WHERE session_id=:id'),{'id':session_id})
+            connection.execute(text('DELETE FROM game_sessions WHERE id=:id'),{'id':session_id})
+            connection.execute(text('DELETE FROM users WHERE id=:id'),{'id':owner_id})
+
+
+def test_combat_receipt_probe_rejects_repeatable_read(postgresql_engine):
+    from service.combat_persistence_service import CombatPersistenceService
+    factory=sessionmaker(bind=postgresql_engine.execution_options(isolation_level='REPEATABLE READ'))
+    with pytest.raises(RuntimeError,match='READ COMMITTED'):
+        CombatPersistenceService(factory).probe_receipt('unknown',1,'unknown',42)

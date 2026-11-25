@@ -162,6 +162,8 @@ class CombatCommandEnvelope(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     sequence_id: int = 0
+    combat_id: str | None = Field(default=None, min_length=1, max_length=96)
+    expected_state_version: int | None = Field(default=None, ge=0, strict=True)
     commands: list[CombatCommand] = Field(default_factory=list, min_length=1, max_length=50)
 
     @classmethod
@@ -280,6 +282,8 @@ class CombatCommandService:
             if command.type == CombatCommandType.MOVE:
                 return self._reject(envelope.sequence_id, idx, "Movement commands require async application")
         state = self._engine.get_state(context.session_code)
+        if envelope.combat_id is not None and (state is None or state.combat_id != envelope.combat_id):
+            return self._reject(envelope.sequence_id, 0, 'Combat encounter changed; review the plan', {'code': 'combat_encounter_changed'})
         if not state:
             return self._reject(envelope.sequence_id, 0, "No active combat")
 
@@ -287,6 +291,8 @@ class CombatCommandService:
         duplicate = self._find_duplicate(envelope, context, state.combat_id)
         if duplicate:
             return duplicate
+        if envelope.expected_state_version is not None and (state is None or state.state_version != envelope.expected_state_version):
+            return self._reject(envelope.sequence_id, 0, 'Combat state changed; review the plan', {'code': 'combat_state_conflict'})
         applied: list[dict[str, Any]] = []
 
         try:
@@ -388,6 +394,8 @@ class CombatCommandService:
 
         table_environment_types = self._table_environment_types()
         state = self._engine.get_state(context.session_code)
+        if envelope.combat_id is not None and (state is None or state.combat_id != envelope.combat_id):
+            return self._reject(envelope.sequence_id, 0, 'Combat encounter changed; review the plan', {'code': 'combat_encounter_changed'})
         environment_index = next((
             idx for idx, command in enumerate(envelope.commands)
             if command.type in table_environment_types
@@ -417,6 +425,8 @@ class CombatCommandService:
         )
         if duplicate:
             return duplicate
+        if envelope.expected_state_version is not None and (state is None or state.state_version != envelope.expected_state_version):
+            return self._reject(envelope.sequence_id, 0, 'Combat state changed; review the plan', {'code': 'combat_state_conflict'})
         applied: list[dict[str, Any]] = []
         move_undos: list[tuple[str, str, dict[str, float], dict[str, float]]] = []
 

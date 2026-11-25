@@ -6,11 +6,12 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from database.database import SessionLocal
-from database.models import CombatActionJournal, CombatEncounter, GameSession
+from database.models import CombatActionJournal, CombatEncounter, GamePlayer, GameSession, User
 from service.combat_movement import CombatSpriteMovement, stage_combat_movements
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from utils.roles import can_interact
 from utils.time import utc_now
 
 
@@ -109,6 +110,33 @@ class CombatPersistenceService:
                 sequence_id,
             )
             return self._stored_command(action, duplicate=True) if action else None
+
+    def probe_receipt(self, session_code: str, user_id: int, encounter_id: str, sequence_id: int) -> dict:
+        """Prove an authenticated sender's receipt under the acceptance row lock."""
+        result = {'combat_id': encounter_id, 'sequence_id': sequence_id, 'status': 'unavailable'}
+        if self.has_pending(session_code):
+            return result
+        with self._session_factory() as db:
+            connection = db.connection()
+            if connection.dialect.name == 'postgresql':
+                if connection.get_isolation_level() != 'READ COMMITTED':
+                    raise RuntimeError('Combat receipt lookup requires READ COMMITTED')
+                db.execute(text("SET LOCAL lock_timeout = '5s'"))
+            session = db.query(GameSession).filter_by(session_code=session_code, is_active=True).with_for_update().one_or_none()
+            if session is None:
+                return result
+            member = db.query(GamePlayer).join(User, User.id == GamePlayer.user_id).filter(
+                GamePlayer.session_id == session.id, GamePlayer.user_id == user_id, User.disabled.is_(False)).one_or_none()
+            if member is None or not can_interact(member.role):
+                return result
+            encounter = db.query(CombatEncounter).filter_by(encounter_id=encounter_id, session_id=session.id).one_or_none()
+            if encounter is None:
+                return result
+            receipt = self._find_action(db, encounter_id, self.requester_key(user_id, ''), sequence_id)
+            if receipt is None:
+                return {**result, 'status': 'absent', 'current_state_version': encounter.state_version,
+                        'encounter_ended': encounter.phase == 'ended'}
+            return {**result, 'status': 'accepted', 'state_version': receipt.state_version}
 
     def last_action(self, encounter_id: str) -> CombatJournalEntry | None:
         with self._session_factory() as db:

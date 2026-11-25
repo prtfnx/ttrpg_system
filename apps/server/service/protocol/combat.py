@@ -10,7 +10,7 @@ from core_table.session_rules import SessionRules
 from core_table.table import VirtualTable
 from database.crud import get_game_mode, get_session_rules_json
 from database.database import SessionLocal
-from pydantic import ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from service.combat_command_service import CombatCommandContext, CombatCommandService
 from service.combat_movement import CombatMovementDraft
 from service.combat_persistence_service import CombatCommitOutcomeUnknown, CombatPersistenceService
@@ -20,11 +20,17 @@ from service.occlusion_geometry import versioned_occlusion_snapshot
 from sqlalchemy.orm import Session, scoped_session
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
-from utils.roles import is_dm
+from utils.roles import can_interact, is_dm
 
 from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
+
+
+class CombatReceiptProbe(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    combat_id: str = Field(min_length=1, max_length=96)
+    sequence_id: int = Field(ge=0, le=9_007_199_254_740_991)
 
 
 class _CombatMixin(_ProtocolBase):
@@ -223,21 +229,34 @@ class _CombatMixin(_ProtocolBase):
     async def handle_combat_state_request(self, msg: Message, client_id: str) -> Message:
         from service.combat_engine import CombatEngine
         session_code = self._get_session_code()
-        # Try in-memory first, then restore from DB (handles reconnects after restart)
+        receipt = None
+        viewer_user_id = self._get_user_id(msg, client_id)
+        raw_probe = (msg.data or {}).get('receipt_probe')
+        if raw_probe is not None:
+            if not can_interact(self._get_client_role(client_id)) or viewer_user_id is None:
+                return Message(MessageType.ERROR, {'error': 'Interactive membership is required for combat receipt lookup'})
+            try:
+                probe = CombatReceiptProbe.model_validate(raw_probe)
+            except ValidationError:
+                return Message(MessageType.ERROR, {'error': 'Invalid combat receipt probe'})
+            persistence = self._get_combat_persistence_service()
+            receipt = {'combat_id': probe.combat_id, 'sequence_id': probe.sequence_id, 'status': 'unavailable'}
+            if persistence is not None:
+                try:
+                    receipt = await run_blocking(persistence.probe_receipt, session_code,
+                        viewer_user_id, probe.combat_id, probe.sequence_id)
+                except Exception:
+                    logger.exception('Combat receipt lookup is unavailable')
         state = CombatEngine.get_state(session_code)
         if state is None:
             state = await run_blocking(CombatEngine.restore, session_code)
-        if not state:
-            return Message(MessageType.COMBAT_STATE, {'combat': None})
-        await self._expire_reactions(msg, client_id, state)
-        state = CombatEngine.get_state(session_code)
-        self._schedule_reaction_expiry()
+        if state:
+            await self._expire_reactions(msg, client_id, state)
+            state = CombatEngine.get_state(session_code)
+            self._schedule_reaction_expiry()
         return Message(MessageType.COMBAT_STATE, {
-            'combat': CombatStatePresenter.for_client(
-                state,
-                self._get_client_role(client_id),
-                self._get_user_id(msg, client_id),
-            )
+            'combat': CombatStatePresenter.for_client(state, self._get_client_role(client_id), viewer_user_id),
+            **({'receipt': receipt} if receipt is not None else {}),
         })
 
     async def handle_ai_action(self, msg: Message, client_id: str) -> Message:
@@ -361,6 +380,9 @@ class _CombatMixin(_ProtocolBase):
             if result.duplicate:
                 return self._combat_state_message(state, response_type, client_id, context)
             return await self._broadcast_combat_state(state, response_type, client_id, context)
+        if result.details.get('code') in {'combat_state_conflict', 'combat_encounter_changed'}:
+            from service.combat_engine import CombatEngine
+            return self._combat_state_message(CombatEngine.get_state(self._get_session_code()), response_type, client_id, result.to_dict())
         return Message(response_type, result.to_dict())
 
     async def _apply_combat_envelope(self, service, envelope, msg, client_id, *, internal_expiry=False):

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import heapq
 import math
+from collections.abc import Collection
 from typing import TYPE_CHECKING, Optional
 
 from .obstacle_geometry import obstacle_boundary
@@ -268,7 +269,7 @@ class PathfindingSystem:
 
     @staticmethod
     def get_path_movement_cost(path, grid_size, diagonal_rule='standard', *, cell_distance=5.0,
-                               distance_unit='ft', difficult_cells=()):
+                               distance_unit='ft', difficult_cells: Collection[tuple[int, int]] = ()) -> float:
         if (not math.isfinite(grid_size) or grid_size <= 0 or not math.isfinite(cell_distance)
                 or cell_distance <= 0 or distance_unit not in {'ft', 'm'}):
             raise ValueError('Movement requires finite positive table units')

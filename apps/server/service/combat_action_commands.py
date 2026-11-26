@@ -50,7 +50,7 @@ def resolve_definition(command, actor, role):
         raise ActionCommandRejected('Manual action mechanics are invalid') from exc
 
 
-def _position(table, actor):
+def _position(table, actor) -> tuple[float, float]:
     finder = getattr(table, 'find_entity_by_sprite_id', None)
     entity = finder(actor.entity_id) if callable(finder) else None
     position = getattr(entity, 'position', None)
@@ -58,7 +58,7 @@ def _position(table, actor):
             or any(isinstance(value, bool) or not isinstance(value, (int, float))
                    or not math.isfinite(value) for value in position[:2])):
         raise ActionCommandRejected('Combat token geometry is unavailable')
-    return position[:2]
+    return float(position[0]), float(position[1])
 
 
 def validate_targets(state, actor, targets, table, action, role):
@@ -69,8 +69,9 @@ def validate_targets(state, actor, targets, table, action, role):
     if len({target.combatant_id for target in targets}) != len(targets):
         raise ActionCommandRejected('Action targets must be distinct')
     grid, distance = getattr(table, 'grid_cell_px', None), getattr(table, 'cell_distance', None)
-    if any(isinstance(value, bool) or not isinstance(value, (int, float))
-           or not math.isfinite(value) or value <= 0 for value in (grid, distance)):
+    if (isinstance(grid, bool) or not isinstance(grid, (int, float)) or not math.isfinite(grid) or grid <= 0
+            or isinstance(distance, bool) or not isinstance(distance, (int, float))
+            or not math.isfinite(distance) or distance <= 0):
         raise ActionCommandRejected('Encounter table units are unavailable')
     unit = getattr(table, 'distance_unit', None)
     if unit not in {'ft', 'm'}:

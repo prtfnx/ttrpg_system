@@ -130,7 +130,7 @@ class MovementValidator:
                     diagonal_rule=self.rules.diagonal_movement_rule,
                     cell_distance=getattr(table, 'cell_distance', 5.0),
                     distance_unit=getattr(table, 'distance_unit', 'ft'),
-                    difficult_cells=getattr(table, 'difficult_terrain_cells', set())
+                    difficult_cells=getattr(table, 'difficult_terrain_cells', ())
                     if self.rules.enforce_difficult_terrain else (),
                 )
             except ValueError as exc:
@@ -331,7 +331,7 @@ class MovementValidator:
                     diagonal_rule=self.rules.diagonal_movement_rule,
                     cell_distance=getattr(table, 'cell_distance', 5.0),
                     distance_unit=getattr(table, 'distance_unit', 'ft'),
-                    difficult_cells=getattr(table, 'difficult_terrain_cells', set())
+                    difficult_cells=getattr(table, 'difficult_terrain_cells', ())
                     if self.rules.enforce_difficult_terrain else (),
                 )
             except ValueError as exc:

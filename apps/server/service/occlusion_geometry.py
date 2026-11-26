@@ -9,7 +9,7 @@ MAX_COORDINATE = 10_000_000
 
 
 def obstacle_occlusion_snapshot(table: VirtualTable) -> dict:
-    segments = []
+    segments: list[float] = []
     shapes = []
     try:
         for entity in table.entities.values():

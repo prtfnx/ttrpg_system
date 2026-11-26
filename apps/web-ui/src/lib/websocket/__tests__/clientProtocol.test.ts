@@ -122,6 +122,13 @@ function makeProtocol(sessionCode = 'TEST123', userId = 1) {
   return new WebClientProtocol(sessionCode, userId);
 }
 
+function combatRecoveryWelcome(sessionCode = 'TEST123') {
+  return { message: 'Connected', client_id: 'client', user_id: 1, username: 'Player',
+    session_code: sessionCode, connection_id: 'connection', tables: [], role: 'player',
+    permissions: [], visible_layers: ['tokens'], game_mode: 'fight', session_rules: {}, choice_encounter: null,
+    operation_recovery: { contract: 'session-operations-v2', session_instance: sessionCode, domains: [...V2_RECOVERY_DOMAINS] } };
+}
+
 function makeOpenWs(protocol: WebClientProtocol) {
   const ws: {
     readyState: number;
@@ -1548,6 +1555,7 @@ describe('WebClientProtocol', () => {
 
     it('ACTION_RESULT clears combat after an accepted end combat command', async () => {
       const p = makeProtocol();
+      await dispatch(p, 'welcome', combatRecoveryWelcome());
       useCombatStore.setState({
         combat: {
           combat_id: 'combat-1',
@@ -1582,6 +1590,43 @@ describe('WebClientProtocol', () => {
       });
 
       expect(useCombatStore.getState().combat).toBeNull();
+      p.disconnect();
+    });
+
+    it('pauses an unsent saved plan when a peer ends its encounter', async () => {
+      const p = makeProtocol();
+      makeOpenWs(p);
+      sessionStorage.clear();
+      try {
+        await dispatch(p, 'welcome', combatRecoveryWelcome());
+        await dispatch(p, 'combat_state', { combat: { combat_id: 'combat', table_id: 'table', round_number: 1,
+          state_version: 1, current_turn_index: 0,
+          combatants: [{ combatant_id: 'actor', entity_id: 'sprite', controlled_by: ['1'], is_defeated: false }] } });
+        usePlanningStore.getState().startPlanning('sprite');
+        usePlanningStore.getState().addAction({ id: 'draft', action_type: 'dodge', label: 'Dodge' });
+        await dispatch(p, 'action_result', { accepted: true, sequence_id: 99,
+          applied: [{ action_type: 'end_combat', actor_id: '__dm__' }] });
+        expect(useCombatStore.getState().combat).toBeNull();
+        expect(usePlanningStore.getState().queue.map(action => action.id)).toEqual(['draft']);
+        expect(usePlanningStore.getState().recoveryStatus).toBe('stale');
+        expect(usePlanningStore.getState().isPlanningMode).toBe(false);
+      } finally { p.disconnect(); sessionStorage.clear(); }
+    });
+
+    it('ignores an ended encounter from a protocol that no longer owns the session view', async () => {
+      const old = makeProtocol('OLD');
+      const current = makeProtocol('NEW');
+      makeOpenWs(old); makeOpenWs(current);
+      sessionStorage.clear();
+      try {
+        await dispatch(old, 'welcome', combatRecoveryWelcome('OLD'));
+        await dispatch(current, 'welcome', combatRecoveryWelcome('NEW'));
+        await dispatch(current, 'combat_state', { combat: { combat_id: 'new-combat', table_id: 'table',
+          round_number: 1, current_turn_index: 0, combatants: [] } });
+        await dispatch(old, 'action_result', { accepted: true, sequence_id: 99,
+          applied: [{ action_type: 'end_combat', actor_id: '__dm__' }] });
+        expect(useCombatStore.getState().combat?.combat_id).toBe('new-combat');
+      } finally { old.disconnect(); current.disconnect(); sessionStorage.clear(); }
     });
 
     it('ACTION_RESULT applies accepted cover zone mutations to the cover store', async () => {

@@ -698,7 +698,7 @@ export class WebClientProtocol {
           && (item as { action_type?: string }).action_type === 'end_combat'
         ));
         if (endedCombat) {
-          useCombatStore.getState().setCombat(null);
+          await setCombat({ combat: null });
         }
         const terrainChange = data.applied.find((item) => typeof item === 'object' && item !== null
           && (item as { action_type?: string }).action_type === 'set_terrain') as

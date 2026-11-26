@@ -543,8 +543,10 @@ for authority, deadlines, restart recovery and current rules limits.
 Combat drafts are saved in the current tab's session storage, scoped to the
 signed-in user, game session and server session instance. Their encounter, table,
 actor and round binding prevents a restored draft from silently applying to
-another turn. A valid draft restores paused: choose **Review saved plan** before
-committing, or discard it. Closing the tab is not cross-device or long-term plan
+another turn. An encounter-end broadcast immediately marks its unsent draft
+stale while retaining its queued actions for explicit discard. Events from a
+retired protocol cannot clear the current session's combat view. A valid draft
+restores paused: choose **Review saved plan** before committing, or discard it. Closing the tab is not cross-device or long-term plan
 storage.
 
 Before sending each planned batch, the client saves its exact command body,

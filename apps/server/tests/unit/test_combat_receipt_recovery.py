@@ -1,7 +1,7 @@
 """Receipt probes expose only the bound sender's durable operation status."""
 
 import json
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from core_table.protocol import Message, MessageType
@@ -89,12 +89,9 @@ async def test_spectators_cannot_probe_receipts():
 async def test_receipt_is_returned_when_no_encounter_is_active():
     proto = _ProtoStub()
 
-    class Persistence:
-        @staticmethod
-        def probe_receipt(*args):
-            return {"combat_id": "ended", "sequence_id": 123, "status": "accepted", "state_version": 4}
-
-    proto.combat_persistence_service = Persistence()
+    persistence = MagicMock(spec=CombatPersistenceService)
+    persistence.probe_receipt.return_value = {"combat_id": "ended", "sequence_id": 123, "status": "accepted", "state_version": 4}
+    proto.combat_persistence_service = persistence
     with (
         patch("service.combat_engine.CombatEngine.get_state", return_value=None),
         patch("service.combat_engine.CombatEngine.restore", return_value=None),
@@ -124,7 +121,9 @@ async def test_saved_envelope_cannot_apply_to_a_different_encounter(asynchronous
     )
     result = await service.apply_async(envelope, _context()) if asynchronous else service.apply(envelope, _context())
     assert not result.accepted and "encounter changed" in result.reason
-    assert CombatEngine.get_state("cmd").to_dict() == before
+    current = CombatEngine.get_state("cmd")
+    assert current is not None
+    assert current.to_dict() == before
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])
@@ -145,7 +144,9 @@ async def test_unsent_stale_plan_version_is_rejected_before_mutation(asynchronou
     )
     result = await service.apply_async(envelope, _context()) if asynchronous else service.apply(envelope, _context())
     assert not result.accepted and "state changed" in result.reason
-    assert CombatEngine.get_state("cmd").to_dict() == before
+    current = CombatEngine.get_state("cmd")
+    assert current is not None
+    assert current.to_dict() == before
 
 
 def test_disabled_account_cannot_probe_receipts(receipt_service, test_db):
@@ -215,4 +216,99 @@ async def test_conflicting_plan_receives_current_role_filtered_state():
         assert "actor_actions" not in result.data["combat"]["combatants"][1]
     finally:
         CombatEngine._active.pop("TST", None)
+        CombatEngine._active.pop("cmd", None)
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+async def test_accepted_identity_cannot_acknowledge_a_different_command(receipt_service, asynchronous):
+    from dataclasses import replace
+
+    from service.combat_command_service import CombatCommandService
+    from service.combat_engine import CombatEngine
+    from tests.unit.test_combat_command_service import _context, _state
+
+    persistence, game = receipt_service
+    state, actor, _ = _state()
+    CombatEngine._active[game.session_code] = state
+    context = replace(_context(), session_code=game.session_code, user_id=game.owner_id)
+    service = CombatCommandService(persistence=persistence)
+    first = service.parse_envelope({"sequence_id": 78, "commands": [{"type": "dodge", "actor_id": actor.combatant_id}]})
+    different = service.parse_envelope(
+        {"sequence_id": 78, "commands": [{"type": "end_turn", "actor_id": actor.combatant_id}]}
+    )
+    try:
+        accepted = await service.apply_async(first, context) if asynchronous else service.apply(first, context)
+        assert accepted.accepted
+        before = state.to_dict()
+        result = await service.apply_async(different, context) if asynchronous else service.apply(different, context)
+        assert not result.accepted
+        assert result.details == {"code": "combat_identity_conflict"}
+        current = CombatEngine.get_state(game.session_code)
+        assert current is not None
+        assert current.to_dict() == before
+        assert persistence.probe_receipt(game.session_code, game.owner_id, state.combat_id, 78)["status"] == "accepted"
+    finally:
+        CombatEngine._active.pop(game.session_code, None)
+        CombatEngine._active.pop("cmd", None)
+
+
+@pytest.mark.parametrize("sequence_id", [True, -1, 1.0, 1.5, "123", 2**53])
+def test_combat_sequence_identity_requires_a_javascript_safe_integer(sequence_id):
+    from pydantic import ValidationError
+    from service.combat_command_service import CombatCommandService
+
+    with pytest.raises(ValidationError):
+        CombatCommandService().parse_envelope(
+            {
+                "sequence_id": sequence_id,
+                "commands": [{"type": "dodge", "actor_id": "actor"}],
+            }
+        )
+
+
+@pytest.mark.parametrize("sequence_id", [0, 2**53 - 1])
+def test_combat_sequence_identity_accepts_safe_integer_boundaries(sequence_id):
+    from service.combat_command_service import CombatCommandService
+
+    envelope = CombatCommandService().parse_envelope(
+        {
+            "sequence_id": sequence_id,
+            "commands": [{"type": "dodge", "actor_id": "actor"}],
+        }
+    )
+    assert envelope.sequence_id == sequence_id
+
+
+def test_legacy_envelope_without_null_preconditions_can_still_recover(receipt_service):
+    from dataclasses import replace
+
+    from service.combat_command_service import CombatCommandService
+    from service.combat_engine import CombatEngine
+    from tests.unit.test_combat_command_service import _context, _state
+
+    persistence, game = receipt_service
+    state, actor, _ = _state()
+    CombatEngine._active[game.session_code] = state
+    context = replace(_context(), session_code=game.session_code, user_id=game.owner_id)
+    service = CombatCommandService(persistence=persistence)
+    envelope = service.parse_envelope(
+        {"sequence_id": 79, "commands": [{"type": "dodge", "actor_id": actor.combatant_id}]}
+    )
+    try:
+        assert service.apply(envelope, context).accepted
+        with persistence._session_factory() as db:
+            row = db.query(CombatActionJournal).filter_by(encounter_id=state.combat_id, sequence_id=79).one()
+            payload = json.loads(row.command_payload_json)
+            payload.pop("combat_id")
+            payload.pop("expected_state_version")
+            row.command_payload_json = json.dumps(payload)
+            db.commit()
+        before = state.to_dict()
+        result = service.apply(envelope, context)
+        assert result.accepted and result.duplicate
+        current = CombatEngine.get_state(game.session_code)
+        assert current is not None
+        assert current.to_dict() == before
+    finally:
+        CombatEngine._active.pop(game.session_code, None)
         CombatEngine._active.pop("cmd", None)

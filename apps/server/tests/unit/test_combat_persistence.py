@@ -154,6 +154,39 @@ def test_duplicate_command_returns_stored_result_without_advancing_snapshot(
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("constraint_race", [False, True])
+def test_reused_identity_with_different_input_cannot_replace_a_durable_result(test_db, test_game_session, monkeypatch, constraint_race):
+    service = CombatPersistenceService(sessionmaker(bind=test_db.get_bind(), expire_on_commit=False))
+    arguments = {
+        "session_code": test_game_session.session_code,
+        "requester_key": "user:1",
+        "sequence_id": 42,
+        "actor_id": "actor-1",
+        "command_type": "attack",
+        "command_payload": {"commands": [{"type": "attack"}]},
+        "result_payload": {"accepted": True, "sequence_id": 42},
+        "state_before": _state("combat-input-conflict", hp=20),
+        "state_after": _state("combat-input-conflict", hp=15),
+        "created_by": test_game_session.owner_id,
+    }
+    first = service.persist_accepted(**arguments)
+    if constraint_race:
+        def competing_insert(*args, **kwargs):
+            raise IntegrityError("INSERT", {}, RuntimeError("competing acceptance"))
+        monkeypatch.setattr(service, "stage_accepted", competing_insert)
+    with pytest.raises(ValueError, match="identity already owns different input"):
+        service.persist_accepted(**{**arguments, "command_payload": {"commands": [{"type": "dodge"}]}})
+    stored = service.find_result("combat-input-conflict", "user:1", 42)
+    assert stored is not None and stored.result == first.result
+    assert stored.matches_payload(arguments["command_payload"])
+    test_db.expire_all()
+    encounter = test_db.query(CombatEncounter).filter_by(encounter_id="combat-input-conflict").one()
+    assert encounter.state_version == 1
+    assert json.loads(encounter.combatants_json)[0]["hp"] == 15
+    assert test_db.query(CombatActionJournal).count() == 1
+
+
+@pytest.mark.unit
 def test_last_action_returns_newest_journal_entry(
     test_db,
     test_game_session,

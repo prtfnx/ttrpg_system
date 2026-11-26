@@ -1548,6 +1548,10 @@ def test_duplicate_command_returns_stored_result_without_mutating_state():
         },
         state_version=3,
         duplicate=True,
+        command_payload=CombatCommandService().parse_envelope({
+            "sequence_id": 15,
+            "commands": [{"type": "dash", "actor_id": actor.combatant_id}],
+        }).model_dump(mode="json"),
     )
     service = CombatCommandService(persistence=persistence)
     envelope = service.parse_envelope({

@@ -20,6 +20,18 @@ class PersistedCombatCommand:
     result: dict[str, Any]
     state_version: int
     duplicate: bool = False
+    command_payload: dict[str, Any] | None = None
+
+    def matches_payload(self, payload: dict[str, Any]) -> bool:
+        if self.command_payload is None:
+            return False
+
+        def comparable(value: dict[str, Any]) -> dict[str, Any]:
+            # Older envelopes predate these optional null preconditions.
+            return {key: item for key, item in value.items()
+                    if item is not None or key not in {'combat_id', 'expected_state_version'}}
+
+        return comparable(self.command_payload) == comparable(payload)
 
 
 @dataclass(frozen=True)
@@ -203,6 +215,8 @@ class CombatPersistenceService:
                 if isinstance(error, IntegrityError):
                     existing = self.find_result(encounter_id, requester_key, sequence_id)
                     if existing is not None:
+                        if not existing.matches_payload(command_payload):
+                            raise ValueError('Combat command identity already owns different input') from error
                         return existing
                 raise
             # A failed commit response does not prove rollback. The original
@@ -241,7 +255,10 @@ class CombatPersistenceService:
         encounter = self._get_or_create_encounter(db, session_code, state_after)
         existing = self._find_action(db, encounter_id, requester_key, sequence_id)
         if existing:
-            return self._stored_command(existing, duplicate=True)
+            stored = self._stored_command(existing, duplicate=True)
+            if not stored.matches_payload(command_payload):
+                raise ValueError('Combat command identity already owns different input')
+            return stored
 
         expected_version = state_before.get('state_version')
         if expected_version is not None and expected_version != encounter.state_version:
@@ -265,7 +282,7 @@ class CombatPersistenceService:
             state_version=next_version, created_by=created_by,
         ))
         db.flush()
-        return PersistedCombatCommand(stored_result, next_version)
+        return PersistedCombatCommand(stored_result, next_version, command_payload=deepcopy(command_payload))
 
     @staticmethod
     def _find_action(db, encounter_id, requester_key, sequence_id):
@@ -281,10 +298,14 @@ class CombatPersistenceService:
         *,
         duplicate: bool,
     ) -> PersistedCombatCommand:
+        command_payload = json.loads(action.command_payload_json)
+        if not isinstance(command_payload, dict):
+            raise ValueError('Stored combat command payload is invalid')
         return PersistedCombatCommand(
             result=json.loads(action.result_payload_json),
             state_version=action.state_version,
             duplicate=duplicate,
+            command_payload=command_payload,
         )
 
     @staticmethod

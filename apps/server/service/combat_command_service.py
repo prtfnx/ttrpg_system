@@ -161,7 +161,7 @@ class CombatCommand(BaseModel):
 class CombatCommandEnvelope(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    sequence_id: int = 0
+    sequence_id: int = Field(default=0, ge=0, le=9_007_199_254_740_991, strict=True)
     combat_id: str | None = Field(default=None, min_length=1, max_length=96)
     expected_state_version: int | None = Field(default=None, ge=0, strict=True)
     commands: list[CombatCommand] = Field(default_factory=list, min_length=1, max_length=50)
@@ -1144,6 +1144,8 @@ class CombatCommandService:
             return None if is_dm(context.role) else "DMs only"
         if actor_id is None:
             return "Combatant not found"
+        if state is None:
+            return "No active combat"
         if command.type == CombatCommandType.RESOLVE_OPPORTUNITY_ATTACK:
             if is_dm(context.role):
                 return None
@@ -1222,6 +1224,9 @@ class CombatCommandService:
         )
         if stored is None:
             return None
+        if not stored.matches_payload(envelope.model_dump(mode="json")):
+            return self._reject(envelope.sequence_id, 0, 'Combat command identity already owns different input',
+                                {'code': 'combat_identity_conflict'})
         return CombatCommandResult.from_dict(stored.result, duplicate=True)
 
     async def _find_duplicate_async(

@@ -15,6 +15,7 @@ from core_table.session_rules import SessionRules
 from core_table.table import VirtualTable
 from service.attack_resolver import AttackResult
 from service.combat_actions import available_combat_actions
+from service.combat_command_service import CombatCommandService
 from service.combat_engine import CombatEngine
 from service.combat_persistence_service import PersistedCombatCommand
 from service.combatant_factory import CombatantFactory, CombatantSourceError
@@ -42,7 +43,7 @@ class _ProtoStub(_CombatMixin):
     def _get_client_role(self, client_id):
         return self.client_info.get(client_id, {}).get("role", self._role)
 
-    def _get_session_code(self, msg=None):
+    def _get_session_code(self, msg=None) -> str:
         return "TST"
 
     def _get_session_id(self, msg):
@@ -379,6 +380,10 @@ class TestCombatCommand:
             },
             state_version=4,
             duplicate=True,
+            command_payload=CombatCommandService().parse_envelope({
+                "sequence_id": 17,
+                "commands": [{"type": "dash", "actor_id": actor.combatant_id}],
+            }).model_dump(mode="json"),
         )
         proto = _ProtoStub(client_info={
             "c1": {"user_id": 1, "role": "player"},

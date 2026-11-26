@@ -37,6 +37,14 @@ mypy apps/server --ignore-missing-imports --no-error-summary
 pnpm.cmd dlx pyright@1.1.411
 ```
 
+Use the full commands above when a change crosses Python package or protocol
+mixin boundaries. Focused checks with silent imported-module following do not
+establish that the repository-wide gate passes. Shared geometry signatures must
+accept the collections passed by real callers, and protocol mixin declarations
+must describe concrete dispatch/lock members. Test harness overrides must keep
+compatible parameter names and explicitly assert required state before inspecting
+optional snapshots, rolls or receipts.
+
 Pyright is pinned because diagnostic behavior changes between releases. The
 gate covers both Python packages. CI invokes Pyright without `--warnings`, so
 errors fail the command while configured warnings are reported. Resolve new

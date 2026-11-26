@@ -139,3 +139,31 @@ tests (122 skipped); the final receipt/version refinements passed 102 focused
 backend tests. TypeScript compilation, changed-source ESLint/Ruff, focused backend
 Mypy, protocol bindings and documentation checks pass. PostgreSQL-specific cases
 remain unverified locally as described above.
+
+
+## Submission and type-check follow-up, 24 November 2026
+
+A table-switch regression showed planned attacks inheriting the visible table;
+planned commands now inherit the encounter table first. All admitted planned
+commands, including explicit saved-step retries, have a bounded acknowledgement
+wait. A lost acknowledgement starts a receipt check while retaining the original
+input and identity; it never automatically sends the command again.
+
+Accepted command identities now own their original payload. Different input
+cannot receive the old command's success, including through persistence staging
+or unique-constraint race recovery. Command IDs use the receipt API's strict
+JavaScript-safe integer bounds. Compatibility tests retain legacy missing/null
+optional preconditions.
+
+The full Python gates exposed missing geometry annotations, inferred empty-tuple
+argument types, undeclared protocol dispatch/lock members and test assumptions
+about optional state. These are corrected with explicit type contracts and
+required-state assertions, without suppressing diagnostics. Full Mypy passes;
+pinned Pyright analyzes 435 files with zero errors and zero warnings.
+
+Validation passed 2870 server unit/integration tests (125 skipped) and 3536
+frontend tests. The final type-contract refinements also passed 384 focused server
+tests and 25 shared-core path/obstacle tests. TypeScript, changed-source ESLint,
+repository-wide Ruff, protocol binding freshness and current-documentation checks
+pass. PostgreSQL-specific tests remain unexecuted locally without an isolated
+test database.

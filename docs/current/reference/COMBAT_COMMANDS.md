@@ -43,9 +43,18 @@ The client sends:
 }
 ```
 
-`sequence_id` is used for idempotency. If the same accepted command is received
-again for the same requester and encounter, the persisted result is returned
-instead of applying the command twice.
+`sequence_id` is a strict integer from 0 through 9,007,199,254,740,991;
+booleans, numeric strings, floats and out-of-range values are rejected. Legacy
+callers that omit it still default to zero; browser commands allocate fresh
+cryptographic identities.
+
+If the same accepted command is received again for the same requester and
+encounter, its persisted result is returned instead of applying it twice. The
+accepted identity also owns its original input: a different payload returns
+`combat_identity_conflict` before mutation. Persistence checks this binding again
+under its acceptance lock and on a recovered unique-constraint race. Missing
+legacy optional `combat_id` / `expected_state_version` fields compare the same as
+null; non-null preconditions and command contents remain part of the input.
 
 Command batches are all-or-nothing. If a command fails, the service rejects the
 batch with `action_rejected`, `failed_index`, and `reason`.

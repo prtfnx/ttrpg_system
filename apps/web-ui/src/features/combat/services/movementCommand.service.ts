@@ -2,6 +2,7 @@ import { useCombatStore } from '../stores/combatStore';
 import { useOAStore, type PendingCombatCommand } from '../stores/oaStore';
 import { createMessage, MessageType } from '@lib/websocket';
 import type { WebClientProtocol } from '@lib/websocket/clientProtocol';
+import { nextCombatSequenceId } from './combatSequence';
 
 interface Position {
   x: number;
@@ -17,11 +18,8 @@ export interface SpriteMovementInput {
   path?: unknown[];
 }
 
-let lastSequenceId = 0;
-
 export function nextMovementSequenceId(): number {
-  lastSequenceId = Math.max(Date.now(), lastSequenceId + 1);
-  return lastSequenceId;
+  return nextCombatSequenceId();
 }
 
 export function sendSpriteMovement(
@@ -39,7 +37,7 @@ export function sendSpriteMovement(
     && combat.table_id === input.tableId
     && combatant
   ) {
-    const sequenceId = input.actionId && Number.isSafeInteger(Number(input.actionId))
+    const sequenceId = input.actionId && /^[1-9]\d*$/.test(input.actionId) && Number.isSafeInteger(Number(input.actionId))
       ? Number(input.actionId)
       : nextMovementSequenceId();
     const payload: PendingCombatCommand = {
@@ -56,11 +54,20 @@ export function sendSpriteMovement(
       }],
     };
 
+    const previous = useOAStore.getState().pendingCombatCommand;
     useOAStore.getState().setPendingCombatCommand(payload);
-    if (protocol.sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
-      sequence_id: payload.sequence_id,
-      commands: payload.commands,
-    })) === false) throw new Error('Movement could not be sent');
+    try {
+      if (protocol.sendMessage(createMessage(MessageType.COMBAT_COMMAND, payload)) === false) {
+        throw new Error('Movement could not be sent');
+      }
+    } catch (error) {
+      const state = useOAStore.getState();
+      if (state.pendingCombatCommand?.sequence_id === sequenceId) {
+        if (previous) state.setPendingCombatCommand(previous);
+        else state.clearPendingCombatCommand();
+      }
+      throw error;
+    }
     return 'combat';
   }
 

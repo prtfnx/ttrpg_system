@@ -493,6 +493,12 @@ IDs captured by the matching local submission. Peer broadcasts, stale results,
 and later local edits preserve the unsent queue. Rejection leaves the submitted
 actions available for correction.
 
+Canvas movement and WASM sprite-action tracking use the same cryptographic
+numeric identity allocator. Supplied numeric action IDs must be canonical positive
+JavaScript-safe integers, so acknowledgement strings still match their local
+tracking keys. If dispatch fails before acceptance, restore the previous pending
+movement rather than keeping an unsent command or losing its predecessor.
+
 ## Movement preview and submission
 
 The combat movement control uses the active encounter table's grid size and

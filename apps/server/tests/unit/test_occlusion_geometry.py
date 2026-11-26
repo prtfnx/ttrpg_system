@@ -68,20 +68,20 @@ class Harness(_TablesMixin, _HelpersMixin):
         self.actions = SimpleNamespace(get_table=AsyncMock(return_value=SimpleNamespace(success=True, data={'table': table})))
         self.session_manager = SimpleNamespace(broadcast_filtered=AsyncMock(), broadcast_to_session=AsyncMock())
 
-    def _get_session_id(self, _msg):
+    def _get_session_id(self, msg):
         return 1
 
-    def _get_user_id(self, *_args):
+    def _get_user_id(self, msg, client_id=None):
         return 7
 
-    def _get_session_code(self, *_args):
+    def _get_session_code(self, msg=None):
         return 'geometry'
 
-    def _get_client_role(self, _client):
+    def _get_client_role(self, client_id):
         return 'player'
 
-    async def add_asset_hashes_to_table(self, value, **_kwargs):
-        return deepcopy(value)
+    async def add_asset_hashes_to_table(self, table_data, session_code, user_id):
+        return deepcopy(table_data)
 
 
 async def test_public_snapshot_has_geometry_without_obstacle_sprites(monkeypatch):

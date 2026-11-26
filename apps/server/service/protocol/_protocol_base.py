@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 from core_table.protocol import Message
 
 if TYPE_CHECKING:
+    import asyncio
+
     from service.combat_persistence_service import CombatPersistenceService
 
 
@@ -16,6 +18,12 @@ class _ProtocolBase:
     Concrete implementations are provided by _HelpersMixin, _PlayersMixin,
     and ServerProtocol.__init__ via Python's MRO at runtime.
     """
+
+    if TYPE_CHECKING:
+        _mutation_lock: asyncio.Lock
+        _occlusion_cache: dict[str, Any]
+
+        async def _invoke_handler(self, msg: Message, client_id: str) -> Any: ...
 
     # Shared dispatch supplied by the concrete table-edit mixin.
     def _durable_table_edits(self) -> bool:

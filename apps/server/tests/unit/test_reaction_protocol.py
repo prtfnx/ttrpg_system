@@ -20,8 +20,8 @@ async def test_protocol_publishes_only_authorized_prompts_and_committed_movement
             "spectator": {"user_id": 4, "role": "spectator"},
         }
     )
-    proto._get_session_code = lambda _msg=None: "reactions"
-    proto._current_combat_member_role = lambda _session, uid: "owner" if uid == 2 else "player"
+    proto._get_session_code = lambda msg=None: "reactions"
+    proto._current_combat_member_role = lambda session_id, user_id: "owner" if user_id == 2 else "player"
     proto.table_manager = TableManager()
     proto.table_manager.tables_id[str(game[0].table_id)] = game[0]
     proto._rules_cache = {"reactions": (SessionRules(session_id="reactions", movement_mode="free"), "fight")}
@@ -42,6 +42,7 @@ async def test_protocol_publishes_only_authorized_prompts_and_committed_movement
     assert response.type == MessageType.ACTION_RESULT
     assert game[0].find_entity_by_sprite_id("mover").position == (175, 25)
     proto.broadcast_filtered.assert_awaited_once()
+    assert proto.broadcast_filtered.await_args is not None
     published = proto.broadcast_filtered.await_args.args[0]
     assert published.data["position"] == {"x": 175, "y": 25}
     assert published.type == MessageType.SPRITE_MOVE
@@ -57,8 +58,8 @@ async def test_server_deadline_expires_without_a_browser_poll(game):
     from tests.unit.test_combat_protocol import _ProtoStub
 
     proto = _ProtoStub(client_info={"dm": {"user_id": 2, "role": "owner"}})
-    proto._get_session_code = lambda _msg=None: "reactions"
-    proto._current_combat_member_role = lambda _session, uid: "owner"
+    proto._get_session_code = lambda msg=None: "reactions"
+    proto._current_combat_member_role = lambda session_id, user_id: "owner"
     proto.table_manager = TableManager()
     proto.table_manager.tables_id[str(game[0].table_id)] = game[0]
     proto._rules_cache = {"reactions": (SessionRules(session_id="reactions", movement_mode="free"), "fight")}
@@ -67,11 +68,12 @@ async def test_server_deadline_expires_without_a_browser_poll(game):
     )
     game[1].pending_movement["expires_at"] = time.time() - 1
     proto._mutation_lock = asyncio.Lock()
-    proto._invoke_handler = lambda message, _client: proto.handle_combat_state_request(message, "dm")
+    proto._invoke_handler = lambda msg, client_id: proto.handle_combat_state_request(msg, "dm")
     proto._schedule_reaction_expiry()
     try:
         await asyncio.wait_for(asyncio.shield(proto._reaction_timer), timeout=3)
-        assert CombatEngine.get_state("reactions").pending_movement is None
+        restored = CombatEngine.get_state("reactions")
+        assert restored is not None and restored.pending_movement is None
         assert game[0].find_entity_by_sprite_id("mover").position == (175, 25)
         assert game[3].has_reaction
     finally:

@@ -98,7 +98,10 @@ async def apply(game, command, context=None, sequence=1):
 
 
 def reply(game, use=True):
-    pending = CombatEngine.get_state("reactions").pending_movement
+    state = CombatEngine.get_state("reactions")
+    assert state is not None
+    pending = state.pending_movement
+    assert pending is not None
     return {
         "type": "resolve_opportunity_attack",
         "actor_id": "reacting",
@@ -141,7 +144,8 @@ async def test_forged_trigger_preserves_pending_state_and_resources(game, change
         game[4].parse_envelope({"commands": [{**reply(game), **change}]}), game[5]("player", 1)
     )
     assert not result.accepted
-    assert CombatEngine.get_state("reactions").to_dict() == before
+    current = CombatEngine.get_state("reactions")
+    assert current is not None and current.to_dict() == before
 
 
 async def test_other_user_cannot_pass_another_players_reaction(game):
@@ -156,6 +160,7 @@ async def test_expiry_is_internal_and_does_not_consume_reaction(game, monkeypatc
     rejected = await game[4].apply_async(game[4].parse_envelope({"commands": [expiry]}), game[5]())
     assert not rejected.accepted
     state = CombatEngine.get_state("reactions")
+    assert state is not None and state.pending_movement is not None
     deadline = state.pending_movement["expires_at"] + 1
     monkeypatch.setattr("service.combat_reactions.time.time", lambda: deadline)
     result = await apply(game, expiry, replace(game[5](), internal_expiry=True), sequence=3)
@@ -184,12 +189,14 @@ async def test_mover_can_cancel_but_cannot_take_another_action_while_pending(gam
         game[4].parse_envelope({"commands": [{"type": "end_turn", "actor_id": "moving"}]}), game[5]()
     )
     assert not result.accepted and "pending" in result.reason
+    current = CombatEngine.get_state("reactions")
+    assert current is not None and current.pending_movement is not None
     result = await apply(
         game,
         {
             "type": "cancel_pending_move",
             "actor_id": "moving",
-            "movement_id": CombatEngine.get_state("reactions").pending_movement["movement_id"],
+            "movement_id": current.pending_movement["movement_id"],
         },
         sequence=2,
     )
@@ -220,6 +227,7 @@ async def test_public_view_never_exposes_pending_commands_or_other_actors_trigge
     spectator = CombatStatePresenter.for_client(game[1], "spectator", 3)
     peer = CombatStatePresenter.for_client(game[1], "player", 3)
     owner = CombatStatePresenter.for_client(game[1], "player", 1)
+    assert spectator is not None and peer is not None and owner is not None
     assert set(spectator["pending_movement"]) == {"movement_id", "expires_at"}
     assert "reaction_prompts" not in spectator and "reaction_prompts" not in peer
     assert owner["reaction_prompts"][0]["trigger_id"] == game[1].pending_movement["triggers"][0]["trigger_id"]
@@ -252,6 +260,7 @@ async def test_persisted_window_survives_restart_and_duplicate_resolution_spends
     await apply(game, move_payload(game), sequence=41)
     with factory() as db:
         saved = crud.load_active_combat_encounter(db, "reactions")
+        assert saved is not None
         assert saved["pending_movement"] is not None
     CombatEngine._active["reactions"] = CombatState.from_dict(saved)
     command = reply(game, False)
@@ -261,16 +270,21 @@ async def test_persisted_window_survives_restart_and_duplicate_resolution_spends
     assert duplicate.duplicate and duplicate.applied == accepted.applied
     with factory() as db:
         saved = crud.load_active_combat_encounter(db, "reactions")
+        assert saved is not None
         assert saved["pending_movement"] is None
         assert saved["combatants"][0]["movement_remaining"] == 17.5
         table, _ = crud.load_table_from_db(db, str(game[0].table_id))
-        assert table.find_entity_by_sprite_id("mover").position == (175, 25)
+        assert table is not None
+        token = table.find_entity_by_sprite_id("mover")
+        assert token is not None and token.position == (175, 25)
     engine.dispose()
 
 
 async def test_persistence_failure_restores_window_and_spends_nothing(game):
     await apply(game, move_payload(game))
-    before = deepcopy(CombatEngine.get_state("reactions").to_dict())
+    current = CombatEngine.get_state("reactions")
+    assert current is not None
+    before = deepcopy(current.to_dict())
 
     class FailingPersistence:
         @staticmethod
@@ -290,7 +304,8 @@ async def test_persistence_failure_restores_window_and_spends_nothing(game):
         game[4].parse_envelope({"sequence_id": 2, "commands": [reply(game, False)]}), game[5]("player", 1)
     )
     assert not result.accepted
-    assert CombatEngine.get_state("reactions").to_dict() == before
+    restored = CombatEngine.get_state("reactions")
+    assert restored is not None and restored.to_dict() == before
     assert game[0].find_entity_by_sprite_id("mover").position == (50, 25)
 
 

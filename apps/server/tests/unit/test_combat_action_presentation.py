@@ -20,6 +20,7 @@ def test_executable_actions_follow_recipient_authority(role, user_id, offered):
     state = CombatState(combat_id='actions', session_id='test', table_id='table', combatants=[pc, npc])
 
     view = CombatStatePresenter.for_client(state, role, user_id)
+    assert view is not None
 
     assert [item['combatant_id'] for item in view['combatants'] if 'available_actions' in item] == offered
     for item in view['combatants']:

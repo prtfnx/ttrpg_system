@@ -211,6 +211,7 @@ def test_hidden_turns_do_not_shift_the_visible_current_actor(role, source_index,
     state.combatants.insert(0, hidden)
     state.current_turn_index = source_index
     view = CombatStatePresenter.for_client(state, role, user_id=7)
+    assert view is not None
     active = [actor for actor in view['combatants'] if not actor['is_defeated']]
     if expected_id is None:
         assert view['current_turn_index'] == -1
@@ -224,5 +225,6 @@ def test_filtered_turn_index_counts_active_actors_only():
     state.combatants[0].is_defeated = True
     state.current_turn_index = 0
     view = CombatStatePresenter.for_client(state, 'player', user_id=7)
+    assert view is not None
     active = [actor for actor in view['combatants'] if not actor['is_defeated']]
     assert active[view['current_turn_index']]['combatant_id'] == 'npc-1'

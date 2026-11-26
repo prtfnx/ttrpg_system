@@ -52,7 +52,9 @@ async def test_application_exception_restores_the_whole_batch(scenario, asynchro
     assert result.failed_index == 1
     assert result.reason == 'Combat command could not be applied'
     assert 'private' not in result.reason
-    assert CombatEngine.get_state(context.session_code).to_dict() == before
+    current = CombatEngine.get_state(context.session_code)
+    assert current is not None
+    assert current.to_dict() == before
     persistence.persist_accepted.assert_not_called()
 
 
@@ -69,5 +71,7 @@ async def test_cancelled_application_restores_resources_before_propagating(scena
     monkeypatch.setattr(service, '_apply_one_async', cancel)
     with pytest.raises(asyncio.CancelledError):
         await service.apply_async(envelope, context)
-    assert CombatEngine.get_state(context.session_code).to_dict() == before
+    current = CombatEngine.get_state(context.session_code)
+    assert current is not None
+    assert current.to_dict() == before
     persistence.persist_accepted.assert_not_called()

@@ -76,7 +76,9 @@ def test_forged_or_unsupported_commands_preserve_state(scenario, kind, attack_fi
     before = deepcopy(scenario.state.to_dict())
     result = execute(scenario, kind, **attack_fields)
     assert not result.accepted
-    assert CombatEngine.get_state('authority').to_dict() == before
+    current = CombatEngine.get_state('authority')
+    assert current is not None
+    assert current.to_dict() == before
     scenario.persistence.persist_accepted.assert_not_called()
 
 
@@ -106,7 +108,9 @@ def test_geometry_and_targets_are_validated_before_spell_slots(scenario, fault):
     before = deepcopy(scenario.state.to_dict())
     result = execute(scenario, 'cast_spell', context=context, **extra)
     assert not result.accepted
-    assert CombatEngine.get_state('authority').to_dict() == before
+    current = CombatEngine.get_state('authority')
+    assert current is not None
+    assert current.to_dict() == before
 
 
 def test_action_reference_cannot_be_reused_after_source_mechanics_change(scenario):
@@ -137,11 +141,15 @@ def test_effectless_manual_spell_does_not_consume_a_slot(scenario):
     result = execute(scenario, 'cast_spell', context=replace(scenario.context, role='owner'),
                      action_id=None, manual=True)
     assert not result.accepted
-    assert CombatEngine.get_state('authority').combatants[0].spell_slots.get(1, 2) == 2
+    current = CombatEngine.get_state('authority')
+    assert current is not None
+    assert current.combatants[0].spell_slots.get(1, 2) == 2
 
 
 def test_player_cannot_invent_an_opportunity_trigger(scenario):
     before = deepcopy(scenario.state.to_dict())
     result = execute(scenario, type='resolve_opportunity_attack')
     assert not result.accepted and 'DM manual resolution' in result.reason
-    assert CombatEngine.get_state('authority').to_dict() == before
+    current = CombatEngine.get_state('authority')
+    assert current is not None
+    assert current.to_dict() == before

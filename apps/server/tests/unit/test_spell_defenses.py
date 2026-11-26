@@ -16,6 +16,7 @@ def test_saving_throw_uses_canonical_ability_modifier(monkeypatch, stored, reque
                        save_modifiers={stored: 5})
     result = AttackResolver(SessionRules.defaults('test')).resolve_saving_throw(target, requested, 15)
     assert result.success
+    assert result.roll is not None
     assert result.roll.total == 15
 
 
@@ -26,6 +27,7 @@ def test_explicit_save_bonus_overrides_canonical_modifier(monkeypatch, bonus):
                        save_modifiers={'dexterity': 20})
     result = AttackResolver(SessionRules.defaults('test')).resolve_saving_throw(target, 'dex', 15, bonus)
     assert not result.success
+    assert result.roll is not None
     assert result.roll.total == 10 + bonus
 
 

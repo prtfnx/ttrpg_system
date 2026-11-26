@@ -164,7 +164,7 @@ class CombatCommandEnvelope(BaseModel):
     sequence_id: int = Field(default=0, ge=0, le=9_007_199_254_740_991, strict=True)
     combat_id: str | None = Field(default=None, min_length=1, max_length=96)
     expected_state_version: int | None = Field(default=None, ge=0, strict=True)
-    commands: list[CombatCommand] = Field(default_factory=list, min_length=1, max_length=50)
+    commands: list[CombatCommand] = Field(min_length=1, max_length=50)
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "CombatCommandEnvelope":

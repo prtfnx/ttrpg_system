@@ -2630,6 +2630,675 @@
         }
       },
       "additionalProperties": false
+    },
+    "CombatCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/CombatCommandType"
+        },
+        "actor_id": {
+          "minLength": 1,
+          "title": "Actor Id",
+          "type": "string"
+        },
+        "entity_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entity Id"
+        },
+        "entity_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Entity Ids",
+          "type": "array"
+        },
+        "combatants": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Combatants",
+          "type": "array"
+        },
+        "names": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Names",
+          "type": "object"
+        },
+        "settings": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Settings"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "character_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Character Id"
+        },
+        "cells": {
+          "items": {},
+          "title": "Cells",
+          "type": "array"
+        },
+        "mode": {
+          "default": "add",
+          "title": "Mode",
+          "type": "string"
+        },
+        "zone": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Zone"
+        },
+        "zone_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Zone Id"
+        },
+        "target_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Id"
+        },
+        "target_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Target Ids",
+          "type": "array"
+        },
+        "table_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Table Id"
+        },
+        "target_x": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target X"
+        },
+        "target_y": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Y"
+        },
+        "from_x": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "From X"
+        },
+        "from_y": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "From Y"
+        },
+        "cost_ft": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cost Ft"
+        },
+        "path": {
+          "items": {},
+          "title": "Path",
+          "type": "array"
+        },
+        "attack_bonus": {
+          "default": 0,
+          "title": "Attack Bonus",
+          "type": "integer"
+        },
+        "action_id": {
+          "anyOf": [
+            {
+              "maxLength": 96,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Action Id"
+        },
+        "manual": {
+          "default": false,
+          "title": "Manual",
+          "type": "boolean"
+        },
+        "effect": {
+          "anyOf": [
+            {
+              "enum": [
+                "attack_roll",
+                "saving_throw",
+                "automatic"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effect"
+        },
+        "save_half": {
+          "default": true,
+          "title": "Save Half",
+          "type": "boolean"
+        },
+        "damage_formula": {
+          "default": "1d4",
+          "title": "Damage Formula",
+          "type": "string"
+        },
+        "damage_type": {
+          "default": "bludgeoning",
+          "title": "Damage Type",
+          "type": "string"
+        },
+        "attack_type": {
+          "default": "melee",
+          "title": "Attack Type",
+          "type": "string"
+        },
+        "range_ft": {
+          "default": 5.0,
+          "title": "Range Ft",
+          "type": "number"
+        },
+        "spell_name": {
+          "default": "",
+          "title": "Spell Name",
+          "type": "string"
+        },
+        "spell_level": {
+          "default": 1,
+          "title": "Spell Level",
+          "type": "integer"
+        },
+        "save_ability": {
+          "default": "",
+          "title": "Save Ability",
+          "type": "string"
+        },
+        "save_dc": {
+          "default": 0,
+          "title": "Save Dc",
+          "type": "integer"
+        },
+        "requires_attack_roll": {
+          "default": false,
+          "title": "Requires Attack Roll",
+          "type": "boolean"
+        },
+        "is_concentration": {
+          "default": false,
+          "title": "Is Concentration",
+          "type": "boolean"
+        },
+        "confirm_opportunity_attacks": {
+          "default": false,
+          "title": "Confirm Opportunity Attacks",
+          "type": "boolean"
+        },
+        "override_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DMOverrideType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        },
+        "resource": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DMResourceType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "condition_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Condition Type"
+        },
+        "duration": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration"
+        },
+        "source": {
+          "default": "dm",
+          "title": "Source",
+          "type": "string"
+        },
+        "resistances": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resistances"
+        },
+        "vulnerabilities": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vulnerabilities"
+        },
+        "immunities": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Immunities"
+        },
+        "surprised": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Surprised"
+        },
+        "initiative": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Initiative"
+        },
+        "ai_enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ai Enabled"
+        },
+        "ai_behavior": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ai Behavior"
+        },
+        "slot_level": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Slot Level"
+        },
+        "use_reaction": {
+          "default": true,
+          "title": "Use Reaction",
+          "type": "boolean"
+        },
+        "trigger_id": {
+          "anyOf": [
+            {
+              "maxLength": 96,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trigger Id"
+        },
+        "movement_id": {
+          "anyOf": [
+            {
+              "maxLength": 96,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Movement Id"
+        }
+      },
+      "required": [
+        "type",
+        "actor_id"
+      ],
+      "title": "CombatCommand",
+      "type": "object"
+    },
+    "CombatCommandType": {
+      "enum": [
+        "start_combat",
+        "end_combat",
+        "add_combatant",
+        "set_terrain",
+        "add_cover_zone",
+        "remove_cover_zone",
+        "move",
+        "attack",
+        "cast_spell",
+        "dash",
+        "dodge",
+        "disengage",
+        "help",
+        "hide",
+        "end_turn",
+        "dm_override",
+        "roll_initiative",
+        "set_initiative",
+        "remove_combatant",
+        "skip_turn",
+        "roll_death_save",
+        "revert_action",
+        "resolve_opportunity_attack",
+        "expire_opportunity_attacks",
+        "cancel_pending_move"
+      ],
+      "title": "CombatCommandType",
+      "type": "string"
+    },
+    "DMOverrideType": {
+      "enum": [
+        "set_hp",
+        "set_temp_hp",
+        "apply_damage",
+        "apply_healing",
+        "grant_resource",
+        "add_condition",
+        "remove_condition",
+        "set_damage_traits",
+        "set_surprised",
+        "configure_ai",
+        "restore_spell_slot"
+      ],
+      "title": "DMOverrideType",
+      "type": "string"
+    },
+    "DMResourceType": {
+      "enum": [
+        "action",
+        "bonus_action",
+        "reaction",
+        "movement"
+      ],
+      "title": "DMResourceType",
+      "type": "string"
+    },
+    "CombatCommandEnvelope": {
+      "additionalProperties": false,
+      "properties": {
+        "sequence_id": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Sequence Id",
+          "type": "integer"
+        },
+        "combat_id": {
+          "anyOf": [
+            {
+              "maxLength": 96,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Combat Id"
+        },
+        "expected_state_version": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected State Version"
+        },
+        "commands": {
+          "items": {
+            "$ref": "#/$defs/CombatCommand"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "title": "Commands",
+          "type": "array"
+        }
+      },
+      "required": [
+        "commands"
+      ],
+      "title": "CombatCommandEnvelope",
+      "type": "object"
+    },
+    "CombatReceiptProbe": {
+      "additionalProperties": false,
+      "properties": {
+        "combat_id": {
+          "maxLength": 96,
+          "minLength": 1,
+          "title": "Combat Id",
+          "type": "string"
+        },
+        "sequence_id": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Sequence Id",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "combat_id",
+        "sequence_id"
+      ],
+      "title": "CombatReceiptProbe",
+      "type": "object"
+    },
+    "combatStateRequestData": {
+      "type": "object",
+      "properties": {
+        "receipt_probe": {
+          "$ref": "#/$defs/CombatReceiptProbe"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "allOf": [
@@ -3836,6 +4505,50 @@
         "properties": {
           "data": {
             "$ref": "#/$defs/spriteRotatePreviewData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "combat_command"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/CombatCommandEnvelope"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "combat_state_request"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/combatStateRequestData"
           }
         }
       }

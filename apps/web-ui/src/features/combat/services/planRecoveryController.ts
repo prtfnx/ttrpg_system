@@ -1,5 +1,7 @@
 import { isDM, canInteract } from '@features/session/types/roles';
-import { createMessage, MessageType, type Message } from '@lib/websocket/message';
+import { MessageType, type Message } from '@lib/websocket/message';
+import { createCombatMessage } from '@lib/websocket/combatMessages';
+import type { CombatMessage, ActionRejectedData } from '@lib/websocket/combat.generated';
 import type { CombatCommandBatch } from '../hooks/useCombatCommands';
 import type { CombatStateView } from '../stores/combatStore';
 import { usePlanningStore, type PlanRecoveryStatus } from '../stores/planningStore';
@@ -70,7 +72,7 @@ export class PlanRecoveryController {
         || state.selectedSpriteId !== previous.selectedSpriteId)) this.persist();
     });
     if (this.record?.pending) this.query();
-    else this.send(createMessage(MessageType.COMBAT_STATE_REQUEST, {}));
+    else this.send(createCombatMessage(MessageType.COMBAT_STATE_REQUEST, {}));
   }
   private load() {
     this.record = this.journal!.read(); this.readable = true;
@@ -171,7 +173,7 @@ export class PlanRecoveryController {
   private query() {
     const pending = usePlanningStore.getState().pendingSubmission;
     if (!this.record || !pending || !this.owns()) return;
-    const request = createMessage(MessageType.COMBAT_STATE_REQUEST, {
+    const request = createCombatMessage(MessageType.COMBAT_STATE_REQUEST, {
       receipt_probe: {
         combat_id: this.record.binding.combatId, sequence_id: pending.sequenceId,
       }
@@ -186,8 +188,8 @@ export class PlanRecoveryController {
       }
     }, 10_000);
   }
-  receipt(message: Message) {
-    const receipt = message.data?.receipt as { combat_id?: unknown; sequence_id?: unknown; status?: unknown; current_state_version?: unknown; encounter_ended?: unknown } | undefined;
+  receipt(message: CombatMessage<'combat_state'>) {
+    const receipt = message.data.receipt;
     const pending = usePlanningStore.getState().pendingSubmission;
     if (!this.owns() || !this.probe || (message.causation_id ?? message.correlation_id) !== this.probe.message_id || !pending) return;
     clearTimeout(this.probeTimer); this.probeTimer = undefined;
@@ -230,7 +232,7 @@ export class PlanRecoveryController {
     if (!this.owns() || state.recoveryStatus !== 'retry' || !pending?.payload) return;
     this.recovering = true; this.awaitingRetry = true;
     this.status(null);
-    if (this.send(createMessage(MessageType.COMBAT_COMMAND, pending.payload))) {
+    if (this.send(createCombatMessage(MessageType.COMBAT_COMMAND, pending.payload))) {
       this.status('checking', 'Waiting for confirmation of the original saved step.');
       this.watchSubmission(pending.sequenceId);
     } else {
@@ -239,10 +241,11 @@ export class PlanRecoveryController {
       this.query();
     }
   }
-  retainRejection(data: { sequence_id?: number; details?: { code?: string } }): boolean {
+  retainRejection(data: Pick<ActionRejectedData, 'sequence_id' | 'details'>): boolean {
     const pending = usePlanningStore.getState().pendingSubmission;
     if (!this.owns() || !this.recovering || !pending || pending.sequenceId !== data.sequence_id) return false;
-    if (['combat_state_conflict', 'combat_encounter_changed'].includes(data.details?.code ?? '')) return false;
+    const code = data.details?.code;
+    if (typeof code === 'string' && ['combat_state_conflict', 'combat_encounter_changed'].includes(code)) return false;
     this.awaitingRetry = false;
     this.status('blocked', 'The original step was rejected. Its saved identity is retained until the outcome is checked.');
     this.query();

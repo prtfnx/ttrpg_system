@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMessage, MessageType, type Message } from '@lib/websocket/message';
+import { MessageType, type Message } from '@lib/websocket/message';
+import { createCombatMessage } from '@lib/websocket/combatMessages';
+import type { CombatReceiptWire } from '@lib/websocket/combat.generated';
 import type { CombatStateView } from '../../stores/combatStore';
 import type { CombatCommandBatch } from '../../hooks/useCombatCommands';
 import { usePlanningStore } from '../../stores/planningStore';
@@ -35,9 +37,12 @@ beforeEach(() => {
 });
 afterEach(() => { for (const item of controllers.splice(0)) item.clearContext(); vi.useRealTimers(); });
 
-function receipt(control: ReturnType<typeof controller>, status: string, causation?: string) {
+function receipt(control: ReturnType<typeof controller>, status: 'accepted' | 'absent' | 'unavailable', causation?: string) {
   const request = control.send.mock.calls.at(-1)![0];
-  const message = createMessage(MessageType.COMBAT_STATE, { receipt: { combat_id: 'combat', sequence_id: 42, status, current_state_version: 1 } });
+  const outcome: CombatReceiptWire = status === 'accepted' ? { combat_id: 'combat', sequence_id: 42, status, state_version: 1 }
+    : status === 'absent' ? { combat_id: 'combat', sequence_id: 42, status, current_state_version: 1, encounter_ended: false }
+    : { combat_id: 'combat', sequence_id: 42, status };
+  const message = createCombatMessage(MessageType.COMBAT_STATE, { combat: null, receipt: outcome });
   message.causation_id = causation ?? request.message_id;
   control.controller.receipt(message);
 }
@@ -71,7 +76,7 @@ describe('plan recovery lifecycle', () => {
     expect(next.send.mock.calls.every(([message]) => message.type === MessageType.COMBAT_STATE_REQUEST)).toBe(true);
     next.controller.review(); expect(usePlanningStore.getState().isPlanningMode).toBe(true);
   });
-  it.each(['accepted', 'absent'])('reconciles a restored submission only from its correlated %s receipt', status => {
+  it.each(['accepted', 'absent'] as const)('reconciles a restored submission only from its correlated %s receipt', status => {
     new PlanRecoveryJournal(scope, sessionStorage).write(saved(true));
     const next = controller(); next.controller.observe(combat);
     expect(usePlanningStore.getState().markSubmitted(99)).toBe(false);
@@ -233,10 +238,11 @@ it('releases an absent request only when its saved version is obsolete', () => {
   const next = controller(); next.controller.observe({ ...combat, state_version: 2 });
   const request = next.send.mock.calls.at(-1)![0];
   next.controller.receipt({
-    ...createMessage(MessageType.COMBAT_STATE, {
+    ...createCombatMessage(MessageType.COMBAT_STATE, {
+      combat: null,
       receipt: {
 combat_id: 'combat', sequence_id: 42,
-        status: 'absent', current_state_version: 2
+        status: 'absent', current_state_version: 2, encounter_ended: false
       }
     }), causation_id: request.message_id
 });

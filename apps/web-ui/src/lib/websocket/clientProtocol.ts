@@ -2,6 +2,8 @@ import type { CombatCommandBatch } from '@features/combat/hooks/useCombatCommand
 import { PlanRecoveryController } from '@features/combat/services/planRecoveryController';
 import { usePlanningStore } from '@features/combat/stores/planningStore';
 import { nextCombatSequenceId } from '@features/combat/services/combatSequence';
+import { decodeCombatState } from '@features/combat/services/combatStateAdapter';
+import { createCombatMessage, parseCombatMessage } from './combatMessages';
 
 // All member variables and methods are now inside the WebClientProtocol class body below.
 /**
@@ -15,7 +17,7 @@ import type { WallData } from '@/store';
 import type { Character } from '@/types';
 import { useAssetCharacterCache } from '@features/assets/services/assetCache';
 import { sendSpriteMovement } from '@features/combat/services/movementCommand.service';
-import { useCombatStore, type CombatStateView } from '@features/combat/stores/combatStore';
+import { useCombatStore } from '@features/combat/stores/combatStore';
 import { useOAStore } from '@features/combat/stores/oaStore';
 import {
   assertPaintObject,
@@ -610,25 +612,18 @@ export class WebClientProtocol {
 
     // Combat.
     const setCombat = async (data: unknown) => {
-      const d = data as Record<string, unknown> | null;
-      const maybeCombat = d && typeof d === 'object' && 'combat' in d ? d.combat : data;
-      if (maybeCombat === null) {
-        if (this.planRecovery.observe(null)) useCombatStore.getState().setCombat(null);
-        return;
-      }
-      if (
-        maybeCombat &&
-        typeof maybeCombat === 'object' &&
-        'combat_id' in maybeCombat &&
-        'combatants' in maybeCombat &&
-        Array.isArray(maybeCombat.combatants)
-      ) {
-        if (this.planRecovery.observe(maybeCombat as CombatStateView)) useCombatStore.getState().setCombat(maybeCombat as CombatStateView);
+      const maybeCombat = data && typeof data === 'object' && 'combat' in data ? data.combat : data;
+      try {
+        const combat = decodeCombatState(maybeCombat);
+        if (this.planRecovery.observe(combat)) useCombatStore.getState().setCombat(combat);
+      } catch (error) {
+        logger.warn('Invalid combat state was ignored', error);
       }
     };
     this.registerHandler(MessageType.COMBAT_STATE, async (m) => {
-      await setCombat(m.data);
-      this.planRecovery.receipt(m);
+      const message = parseCombatMessage(m, MessageType.COMBAT_STATE);
+      await setCombat(message.data);
+      this.planRecovery.receipt(message);
     });
     this.registerHandler(MessageType.TURN_START, async (m) => setCombat(m.data));
     this.registerHandler(MessageType.INITIATIVE_ORDER, async (m) => setCombat(m.data));
@@ -672,7 +667,7 @@ export class WebClientProtocol {
     // Planning commit.
     this.registerHandler(MessageType.ACTION_RESULT, async (m) => {
       const { usePlanningStore } = await import('@features/combat/stores/planningStore');
-      const data = m.data as { sequence_id?: number; applied?: unknown[]; combat?: unknown };
+      const data = parseCombatMessage(m, MessageType.ACTION_RESULT).data;
       const endsCombat = data?.applied?.some((item) => typeof item === 'object' && item !== null
         && (item as { action_type?: string }).action_type === 'end_combat');
       if (data?.combat && !endsCombat) await setCombat(data);
@@ -733,20 +728,15 @@ export class WebClientProtocol {
       }
     });
     this.registerHandler(MessageType.ACTION_REJECTED, async (m) => {
-      const data = m.data as {
-        combat?: unknown;
-        sequence_id?: number;
-        reason?: string;
-        failed_index?: number;
-        details?: {
-          code?: string;
-          entity_id?: string;
-          triggers?: Array<{ combatant_id: string; name: string }>;
-        };
-      };
+      const data = parseCombatMessage(m, MessageType.ACTION_REJECTED).data;
       if (data && Object.hasOwn(data, 'combat')) await setCombat(data);
       if (data?.details?.code === 'opportunity_attack_warning') {
-        useOAStore.getState().setWarning(data.details.entity_id ?? '', data.details.triggers ?? []);
+        const entityId = typeof data.details.entity_id === 'string' ? data.details.entity_id : '';
+        const triggers = Array.isArray(data.details.triggers) ? data.details.triggers.filter(
+          (item: unknown): item is { combatant_id: string; name: string } => typeof item === 'object' && item !== null
+            && 'combatant_id' in item && typeof item.combatant_id === 'string' && 'name' in item && typeof item.name === 'string',
+        ) : [];
+        useOAStore.getState().setWarning(entityId, triggers);
         showToast.warning(data?.reason ?? 'Opportunity attack warning');
         return;
       }
@@ -3451,7 +3441,7 @@ export class WebClientProtocol {
   }
 
   addCoverZone(tableId: string, zone: Record<string, unknown>): void {
-    this.sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
+    this.sendMessage(createCombatMessage(MessageType.COMBAT_COMMAND, {
       sequence_id: nextCombatSequenceId(),
       commands: [{
         type: 'add_cover_zone',
@@ -3463,7 +3453,7 @@ export class WebClientProtocol {
   }
 
   removeCoverZone(tableId: string, zoneId: string): void {
-    this.sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
+    this.sendMessage(createCombatMessage(MessageType.COMBAT_COMMAND, {
       sequence_id: nextCombatSequenceId(),
       commands: [{
         type: 'remove_cover_zone',
@@ -3484,7 +3474,7 @@ export class WebClientProtocol {
     trigger_id?: string;
   }): void {
     if (!data.attacker_combatant_id || (data.use_reaction && !data.action_id)) return;
-    this.sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
+    this.sendMessage(createCombatMessage(MessageType.COMBAT_COMMAND, {
       sequence_id: nextCombatSequenceId(),
       commands: [{
         type: 'resolve_opportunity_attack',

@@ -228,3 +228,20 @@ def test_filtered_turn_index_counts_active_actors_only():
     assert view is not None
     active = [actor for actor in view['combatants'] if not actor['is_defeated']]
     assert active[view['current_turn_index']]['combatant_id'] == 'npc-1'
+
+
+@pytest.mark.parametrize('role', ['player', 'spectator'])
+@pytest.mark.parametrize('source_index', [0, 1, 2])
+def test_public_turn_projection_respects_disabled_defeated_skipping(role, source_index):
+    state = _state()
+    state.settings.skip_defeated = False
+    state.combatants[0].is_defeated = True
+    state.current_turn_index = source_index
+    current = state.get_current_combatant()
+    assert current is not None
+    view = CombatStatePresenter.for_client(state, role, user_id=7)
+    assert view is not None
+    if current.is_hidden:
+        assert view['current_turn_index'] == -1
+    else:
+        assert view['combatants'][view['current_turn_index']]['combatant_id'] == current.combatant_id

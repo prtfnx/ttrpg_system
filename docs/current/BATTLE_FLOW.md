@@ -485,7 +485,10 @@ for the metadata contract, accepted effects, authority checks and limitations.
 Public views remap `current_turn_index` into the active, visible combatant list.
 If the real current actor is hidden, the public index is `-1`: the browser shows
 no current actor or turn controls. Filtering never grants another actor that
-turn. Defeated actors do not count toward either active turn index.
+turn. Defeated actors are excluded from both turn rosters only when
+`settings.skip_defeated` is enabled (the default). When disabled, source, public
+and browser rosters retain those entries so the current actor remains aligned.
+Retaining a defeated actor in initiative does not grant action or planning controls.
 
 Planning submissions use cryptographically random JavaScript-safe numeric
 identities across tabs and reloads. An acknowledgement clears only the action

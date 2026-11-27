@@ -40,3 +40,12 @@ def test_payload_generation_refuses_unhandled_schema_constructs():
     canonical["$defs"]["CombatCommandEnvelope"] = {"allOf": [{"type": "object"}]}
     with pytest.raises(ValueError, match="Unsupported combat payload schema"):
         combat_payload_types(canonical)
+
+
+def test_payload_generation_preserves_windows_checkout_line_endings():
+    canonical = schema()
+    unix = combat_payload_types(canonical)
+    windows = combat_payload_types(canonical, newline="\r\n")
+    assert b"\r\n" not in unix
+    assert windows == unix.replace(b"\n", b"\r\n")
+    assert windows.replace(b"\r\n", b"\n") == unix

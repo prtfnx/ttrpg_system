@@ -67,8 +67,10 @@ def _type(schema: dict) -> str:
     raise ValueError(f"Unsupported combat payload schema: {schema}")
 
 
-def combat_payload_types(schema: dict) -> bytes:
+def combat_payload_types(schema: dict, *, newline: str = "\n") -> bytes:
     """Fail if mappings drift; follow only the explicitly supported family."""
+    if newline not in {"\n", "\r\n"}:
+        raise ValueError("Unsupported generated-file line ending")
     definitions = schema["$defs"]
     for wire_type, definition in COMBAT_PAYLOADS.items():
         references = [rule.get("then", {}).get("properties", {}).get("data", {}).get("$ref")
@@ -95,4 +97,4 @@ def combat_payload_types(schema: dict) -> bytes:
     lines.extend(["}", "", "export type CombatMessageType = keyof CombatPayloads;",
         "export type CombatMessage<K extends CombatMessageType = CombatMessageType> =",
         "  K extends CombatMessageType ? Omit<Message, 'type' | 'data'> & { type: K; data: CombatPayloads[K] } : never;", ""])
-    return "\n".join(lines).encode("utf-8")
+    return "\n".join(lines).replace("\n", newline).encode("utf-8")

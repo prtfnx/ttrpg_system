@@ -111,8 +111,10 @@ def main() -> int:
     args = parser.parse_args()
 
     entries = _load_message_types()
+    payload_target = TYPESCRIPT_TARGET.with_name("combat.generated.ts")
+    payload_newline = "\r\n" if payload_target.exists() and b"\r\n" in payload_target.read_bytes() else "\n"
     targets = {
-        TYPESCRIPT_TARGET.with_name("combat.generated.ts"): combat_payload_types(json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))),
+        payload_target: combat_payload_types(json.loads(SCHEMA_PATH.read_text(encoding="utf-8")), newline=payload_newline),
         PYTHON_TARGET: _replace_region(
             PYTHON_TARGET,
             PYTHON_BEGIN,

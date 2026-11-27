@@ -7,6 +7,8 @@ import json
 import re
 from pathlib import Path
 
+from protocol_payload_types import combat_payload_types
+
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = PACKAGE_ROOT.parents[1]
 SCHEMA_PATH = PACKAGE_ROOT / "protocol" / "message.schema.json"
@@ -110,6 +112,7 @@ def main() -> int:
 
     entries = _load_message_types()
     targets = {
+        TYPESCRIPT_TARGET.with_name("combat.generated.ts"): combat_payload_types(json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))),
         PYTHON_TARGET: _replace_region(
             PYTHON_TARGET,
             PYTHON_BEGIN,

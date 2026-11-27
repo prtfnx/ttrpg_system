@@ -14,6 +14,22 @@ The shared renderer double includes canvas input-context capabilities such as
 Runtime store notifications can expose an attached engine before canvas effects
 run, so mocks must implement the capabilities those effects actually consume.
 
+## Combat protocol contracts
+
+`packages/core-table/tests/test_combat_protocol_schema.py` checks valid/invalid
+wire commands, receipt outcomes, role-safe state fields and nested batches.
+`test_combat_payload_generator.py` checks deterministic generated types, closed
+fields, nullability, drift failures and LF/CRLF equivalence. Run the protocol
+generator with `--check` to verify all packaged copies and combat payload types.
+
+`apps/server/tests/unit/test_combat_schema_contract.py` compares canonical command,
+probe and available-action definitions with server models and validates real
+role-filtered/reaction projections. The mutation-ordering batch fixture uses a
+valid command so schema rejection cannot mask a lock regression. Browser
+`combatMessages.test.ts` checks runtime validation and compile-time invalid payload
+pairs, while `combatStateAdapter.test.ts` checks normalization without adding
+health, control or resources. The app TypeScript project includes these tests.
+
 ## Server
 
 Use pytest in `apps/server`.

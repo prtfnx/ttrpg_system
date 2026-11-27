@@ -27,6 +27,21 @@ shared envelope schema. This bounds response correlation overhead; clients
 must not attach arbitrary-size strings as identities. Generated Python and
 browser schemas share the same boundary.
 
+## Combat message family
+
+Combat payloads were audited on 2026-11-25. `combat_command` carries a closed batch
+of 1-50 typed commands with a safe numeric identity and optional encounter/version
+preconditions. `combat_state_request` accepts empty data or a closed receipt probe.
+`combat_state` carries a nullable validated public combat view and optional
+outcome-specific receipt. Accepted/rejected results also admit nullable combat and
+boolean recovery hints. Nested batches use the same validation.
+
+The protocol generator emits `combat.generated.ts` payload types alongside the
+registries and packaged schemas. Combat callers use typed construction and
+validated narrowing; the rest of the registry remains incrementally typed. See
+[Combat commands](COMBAT_COMMANDS.md#canonical-wire-types) for exact ownership,
+role filtering, compatibility defaults and extension points.
+
 ## Stat reconciliation request schema
 
 `character_update` reserves a closed `stat_reconciliation` branch. Its data
@@ -91,7 +106,8 @@ for descriptor limits, database ownership and visibility.
 `packages/core-table/protocol/message.schema.json` is the canonical envelope,
 message registry, and incrementally typed payload schema. Run
 `python packages/core-table/scripts/generate_protocol_types.py` to generate
-the Python enum, TypeScript enum, and packaged schema; `--check` detects drift.
+the Python enum, TypeScript enum, combat payload types and packaged schema;
+`--check` detects drift.
 `apps/web-ui/src/lib/websocket/message.ts` and
 `packages/core-table/core_table/protocol.py` validate messages against that
 shared schema. Server registration lives in `service/protocol/base.py`.

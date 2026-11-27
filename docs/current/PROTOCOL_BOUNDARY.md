@@ -19,6 +19,34 @@ It is message-based and should stay explicit.
   `WebClientProtocol` instance for code that is not inside `ProtocolProvider`.
 - `ProtocolProvider` creates and cleans up the active protocol instance.
 
+## Combat payload contracts
+
+Combat-family source audit: 2026-11-25.
+
+The canonical schema defines closed `combat_command` and `combat_state_request`
+data and validates `combat_state`, `action_result` and `action_rejected` responses.
+Commands require 1-50 entries and reject unknown fields, invalid command names and
+unsafe numeric identities before dispatch, including inside transport batches.
+State queries carry either empty data or a bound receipt probe. The state/result
+contracts include role-filtered actors, read-only reaction summaries, nullable
+combat state and typed recovery hints. Domain authorization, mechanics and durable
+acceptance remain in the server combat services.
+
+The same generator now emits `apps/web-ui/src/lib/websocket/combat.generated.ts`.
+It follows canonical definitions to produce command types, outcome-specific
+receipts and a discriminated `CombatMessage` family. Use `createCombatMessage`
+for typed construction and `parseCombatMessage` to validate and narrow generic
+messages. `combatStateAdapter.ts` validates state before filling omitted public
+fields: unknown health stays null, omitted controller grants stay empty and omitted
+resources stay unavailable. Other message families retain the transitional generic
+`Message.data` contract.
+
+`test_combat_schema_contract.py` checks command/probe/action-definition drift
+against the authoritative Pydantic models and validates actual DM/player/spectator
+projections. Python and browser protocol tests reject malformed render fields,
+spoofed input and raw pending movement. Generator freshness checks include payload
+types and preserve the checkout's LF/CRLF convention.
+
 ## Server side
 
 - `apps/server/api/game_ws.py` accepts WebSocket connections and owns the reader.

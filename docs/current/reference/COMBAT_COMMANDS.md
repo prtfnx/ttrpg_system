@@ -24,6 +24,37 @@ The WebSocket boundary handler is
 The main browser send path is
 `apps/web-ui/src/features/combat/hooks/useCombatCommands.ts`.
 
+## Canonical wire types
+
+Combat wire contracts were audited on 2026-11-25. The canonical definitions in
+`packages/core-table/protocol/message.schema.json` cover commands, receipt queries,
+public state and accepted/rejected results. Both Python decoding and browser Ajv
+parsing use generated copies of that schema. The command list is required and
+contains 1-50 entries; missing lists do not become empty executable batches. Wire
+values are not coerced: plural entity/target IDs are arrays of strings.
+
+Run `python packages/core-table/scripts/generate_protocol_types.py` after schema
+changes. It also generates `apps/web-ui/src/lib/websocket/combat.generated.ts`;
+`--check` detects stale types or packaged schema copies. Domain-model parity tests
+make command, probe and executable-action schema drift fail verification.
+
+Browser combat callers use `createCombatMessage` with generated command payloads.
+Incoming messages use `parseCombatMessage` and the validated public-state adapter.
+Health/controller fields may be omitted by role projection; normalization supplies
+null health, empty control grants and unavailable resources rather than granting
+missing values. State responses require encounter/table identity, round, turn
+index and a combatant array. Omitted legacy phase/settings fields receive safe
+UI defaults after validation.
+
+`action_result` and `action_rejected` may contain `combat: null` and a boolean
+`resync_required` during completion or recovery. Receipts discriminate accepted,
+absent and unavailable outcomes and validate each outcome's metadata. Reaction
+summaries contain read-only movement identity/deadline and authorized prompts;
+the held command and raw trigger queue are excluded from the wire contract.
+Heterogeneous effect results and rejection details remain explicit object extension
+points. Server services still validate turn ownership, supported effects, geometry,
+resources and commit outcomes.
+
 ## Envelope
 
 The client sends:

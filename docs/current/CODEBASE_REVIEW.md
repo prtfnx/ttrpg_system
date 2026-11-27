@@ -4,7 +4,7 @@ Audience: contributors reviewing server, React and Rust/WASM correctness.
 
 Status: current.
 
-Last source audit: 2026-11-24
+Last source audit: 2026-11-25
 
 The 17 November review found 20 concrete defects across command authority,
 state restoration, movement, public state projection and rendering. The table
@@ -167,3 +167,28 @@ tests and 25 shared-core path/obstacle tests. TypeScript, changed-source ESLint,
 repository-wide Ruff, protocol binding freshness and current-documentation checks
 pass. PostgreSQL-specific tests remain unexecuted locally without an isolated
 test database.
+
+
+## Combat protocol follow-up, 25 November 2026
+
+The approved combat schema phase adds canonical command/query/state/receipt and
+result payloads, generated TypeScript types, typed command construction and
+validated receive paths. Missing command arrays now reject before application.
+Recovery results admit null combat and resync hints; public state validates actor
+fields and excludes raw pending commands. Domain-model drift and real recipient
+projections are checked alongside Python/browser boundary tests. The remaining
+message registry still needs incremental payload-type migration.
+
+The preceding small fixes moved canvas/WASM movement identities to the shared
+cryptographic allocator, preserved pending ownership after failed sends, and
+routed encounter-end events through the current protocol owner. Retired-session
+events no longer erase a newer view, and ended drafts pause for explicit discard.
+
+
+Validation passed the full server unit/integration run (2882 passed, 125 skipped),
+all 3563 frontend tests and all 707 shared-core tests. TypeScript, changed-source
+ESLint, repository-wide Ruff and full Mypy pass. Pinned Pyright analyzes 439 files
+with zero errors and zero warnings. Generated protocol/type freshness and current
+documentation checks pass, including LF/CRLF payload-generation regressions.
+PostgreSQL-specific checks still require an isolated test database and were not
+executed locally.

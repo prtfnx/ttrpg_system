@@ -118,6 +118,12 @@ and verification commands.
   effects are not released UI features until a tested runtime-port contract
   applies and cleans up visible renderer state.
 
+Combat wire payloads come from `lib/websocket/combat.generated.ts`, generated
+from the canonical message schema. Use `createCombatMessage` for typed combat
+construction and `parseCombatMessage` for validated narrowing. The public-state
+adapter validates before normalization; components continue to receive the store's
+stable UI shape. Other message families keep their existing generic contract.
+
 Combat UI rules:
 
 - Combat mutations should go through `useCombatCommands`.

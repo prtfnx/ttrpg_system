@@ -1586,7 +1586,7 @@ describe('WebClientProtocol', () => {
         accepted: true,
         sequence_id: 44,
         applied: [{ action_type: 'end_combat', actor_id: '__dm__' }],
-        combat: { combat_id: 'combat-1', phase: 'ended' },
+        combat: null,
       });
 
       expect(useCombatStore.getState().combat).toBeNull();

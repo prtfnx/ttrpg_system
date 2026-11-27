@@ -59,3 +59,48 @@ def test_nested_batches_do_not_bypass_combat_command_validation():
     invalid["data"]["commands"] = []
     with pytest.raises(ValueError):
         Message.from_dict({"type": "batch_request", "data": {"messages": [invalid]}})
+
+
+def combat_state():
+    return {"combat_id": "encounter", "table_id": "table", "phase": "active", "round_number": 1,
+        "current_turn_index": 0, "combatants": [{"combatant_id": "actor", "entity_id": "sprite"}]}
+
+
+@pytest.mark.parametrize("combat", [None, combat_state(), {**combat_state(), "current_turn_index": -1}])
+def test_combat_state_allows_empty_ended_and_role_filtered_views(combat):
+    assert Message.from_dict({"type": "combat_state", "data": {"combat": combat}})
+
+
+@pytest.mark.parametrize("receipt", [
+    {"status": "accepted", "state_version": 1},
+    {"status": "absent", "current_state_version": 1, "encounter_ended": True},
+    {"status": "unavailable"},
+])
+def test_state_receipts_validate_each_outcome_independently(receipt):
+    data = {"combat": None, "receipt": {"combat_id": "encounter", "sequence_id": 42, **receipt}}
+    assert Message.from_dict({"type": "combat_state", "data": data})
+
+
+@pytest.mark.parametrize("patch", [{"round_number": True}, {"current_turn_index": -2},
+    {"combatants": [{"combatant_id": "actor", "entity_id": "sprite", "hp": "secret"}]},
+    {"combatants": [{"combatant_id": "actor", "entity_id": "sprite", "controlled_by": "1"}]},
+    {"pending_movement": {"movement_id": "move", "expires_at": 1, "command": {"type": "move"}}},
+    {"state_version": -1}, {"phase": "unknown"}])
+def test_combat_state_rejects_bad_render_fields_and_private_movement_payload(patch):
+    with pytest.raises(ValueError):
+        Message.from_dict({"type": "combat_state", "data": {"combat": {**combat_state(), **patch}}})
+
+
+def test_recovery_results_allow_null_combat_and_the_resync_hint():
+    for kind, result in [("action_result", {"accepted": True, "applied": []}),
+                         ("action_rejected", {"accepted": False, "reason": "Did not commit"})]:
+        assert Message.from_dict({"type": kind, "data": {**result, "sequence_id": 42,
+            "combat": None, "resync_required": True}})
+
+
+def test_receipt_status_and_metadata_cannot_be_mixed_or_spoofed():
+    for receipt in [{"status": "accepted"}, {"status": "accepted", "state_version": True},
+                    {"status": "unknown"}, {"status": "unavailable", "private": "value"}]:
+        with pytest.raises(ValueError):
+            Message.from_dict({"type": "combat_state", "data": {"combat": None,
+                "receipt": {"combat_id": "encounter", "sequence_id": 42, **receipt}}})

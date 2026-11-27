@@ -1393,7 +1393,8 @@
         },
         "sequence_id": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "applied": {
           "type": "array",
@@ -1402,7 +1403,14 @@
           }
         },
         "combat": {
-          "type": "object"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/combatStateWire"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "reason": {
           "type": "string"
@@ -1415,6 +1423,9 @@
           "minimum": 0
         },
         "duplicate": {
+          "type": "boolean"
+        },
+        "resync_required": {
           "type": "boolean"
         }
       },
@@ -1431,7 +1442,8 @@
         },
         "sequence_id": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "applied": {
           "type": "array",
@@ -1481,6 +1493,19 @@
               "type": "integer"
             }
           ]
+        },
+        "combat": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/combatStateWire"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resync_required": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -3299,6 +3324,735 @@
         }
       },
       "additionalProperties": false
+    },
+    "combatConditionWire": {
+      "type": "object",
+      "properties": {
+        "condition_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "condition_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string"
+        },
+        "duration_type": {
+          "type": "string"
+        },
+        "duration_remaining": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "save_dc": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "save_ability": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extra_data": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "condition_id",
+        "condition_type",
+        "source",
+        "duration_type",
+        "duration_remaining"
+      ],
+      "additionalProperties": false
+    },
+    "availableCombatActionWire": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "attack",
+            "spell"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "effect": {
+          "enum": [
+            "attack_roll",
+            "saving_throw",
+            "automatic"
+          ],
+          "title": "Effect",
+          "type": "string"
+        },
+        "damage_formula": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Damage Formula",
+          "type": "string"
+        },
+        "damage_type": {
+          "enum": [
+            "acid",
+            "bludgeoning",
+            "cold",
+            "fire",
+            "force",
+            "lightning",
+            "necrotic",
+            "piercing",
+            "poison",
+            "psychic",
+            "radiant",
+            "slashing",
+            "thunder"
+          ],
+          "title": "Damage Type",
+          "type": "string"
+        },
+        "range_ft": {
+          "exclusiveMinimum": 0,
+          "maximum": 100000,
+          "title": "Range Ft",
+          "type": "number"
+        },
+        "attack_type": {
+          "default": "melee",
+          "enum": [
+            "melee",
+            "ranged"
+          ],
+          "title": "Attack Type",
+          "type": "string"
+        },
+        "attack_bonus": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Attack Bonus",
+          "type": "integer"
+        },
+        "spell_level": {
+          "default": 0,
+          "maximum": 9,
+          "minimum": 0,
+          "title": "Spell Level",
+          "type": "integer"
+        },
+        "save_ability": {
+          "anyOf": [
+            {
+              "enum": [
+                "strength",
+                "dexterity",
+                "constitution",
+                "intelligence",
+                "wisdom",
+                "charisma"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Save Ability"
+        },
+        "save_dc": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Save Dc",
+          "type": "integer"
+        },
+        "save_half": {
+          "default": false,
+          "title": "Save Half",
+          "type": "boolean"
+        },
+        "is_concentration": {
+          "default": false,
+          "title": "Is Concentration",
+          "type": "boolean"
+        },
+        "max_targets": {
+          "default": 1,
+          "maximum": 20,
+          "minimum": 1,
+          "title": "Max Targets",
+          "type": "integer"
+        },
+        "action_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96
+        }
+      },
+      "required": [
+        "schema_version",
+        "name",
+        "kind",
+        "effect",
+        "damage_formula",
+        "damage_type",
+        "range_ft",
+        "attack_type",
+        "attack_bonus",
+        "spell_level",
+        "save_ability",
+        "save_dc",
+        "save_half",
+        "is_concentration",
+        "max_targets",
+        "action_id"
+      ],
+      "title": "CombatActionDefinition",
+      "type": "object"
+    },
+    "combatantWire": {
+      "type": "object",
+      "properties": {
+        "combatant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entity_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "character_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "initiative": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "initiative_modifier": {
+          "type": "integer"
+        },
+        "has_action": {
+          "type": "boolean"
+        },
+        "has_bonus_action": {
+          "type": "boolean"
+        },
+        "has_reaction": {
+          "type": "boolean"
+        },
+        "has_movement": {
+          "type": "boolean"
+        },
+        "movement_remaining": {
+          "type": "integer"
+        },
+        "movement_speed": {
+          "type": "integer"
+        },
+        "hp": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_hp": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "temp_hp": {
+          "type": "integer"
+        },
+        "armor_class": {
+          "type": "integer"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/combatConditionWire"
+          }
+        },
+        "concentration_spell": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "is_npc": {
+          "type": "boolean"
+        },
+        "is_hidden": {
+          "type": "boolean"
+        },
+        "is_defeated": {
+          "type": "boolean"
+        },
+        "controlled_by": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ai_enabled": {
+          "type": "boolean"
+        },
+        "ai_behavior": {
+          "type": "string"
+        },
+        "death_save_successes": {
+          "type": "integer"
+        },
+        "death_save_failures": {
+          "type": "integer"
+        },
+        "damage_resistances": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "damage_vulnerabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "damage_immunities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "surprised": {
+          "type": "boolean"
+        },
+        "is_dodging": {
+          "type": "boolean"
+        },
+        "is_disengaging": {
+          "type": "boolean"
+        },
+        "constitution_modifier": {
+          "type": "integer"
+        },
+        "attacks_per_action": {
+          "type": "integer"
+        },
+        "attacks_used_this_action": {
+          "type": "integer"
+        },
+        "spell_slots": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "spell_slots_max": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "spell_save_dc": {
+          "type": "integer"
+        },
+        "spell_attack_bonus": {
+          "type": "integer"
+        },
+        "save_modifiers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "actor_actions": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "hp_descriptor": {
+          "type": "string"
+        },
+        "available_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/availableCombatActionWire"
+          }
+        }
+      },
+      "required": [
+        "combatant_id",
+        "entity_id"
+      ],
+      "additionalProperties": false
+    },
+    "combatSettingsWire": {
+      "type": "object",
+      "properties": {
+        "auto_roll_npc_initiative": {
+          "type": "boolean"
+        },
+        "auto_sort_initiative": {
+          "type": "boolean"
+        },
+        "skip_defeated": {
+          "type": "boolean"
+        },
+        "allow_player_end_turn": {
+          "type": "boolean"
+        },
+        "show_npc_hp_to_players": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "show_npc_ac_to_players": {
+          "type": "boolean"
+        },
+        "group_initiative": {
+          "type": "boolean"
+        },
+        "ai_auto_act": {
+          "type": "boolean"
+        },
+        "death_saves_enabled": {
+          "type": "boolean"
+        },
+        "critical_hit_rule": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "combatPendingMovementWire": {
+      "type": "object",
+      "properties": {
+        "movement_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "expires_at": {
+          "type": "number"
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "movement_id",
+        "expires_at"
+      ],
+      "additionalProperties": false
+    },
+    "combatReactionPromptWire": {
+      "type": "object",
+      "properties": {
+        "trigger_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attacker_combatant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_combatant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_name": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "number"
+        },
+        "action_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "trigger_id",
+        "attacker_combatant_id",
+        "target_combatant_id",
+        "target_name",
+        "expires_at",
+        "action_ids"
+      ],
+      "additionalProperties": false
+    },
+    "combatStateWire": {
+      "type": "object",
+      "properties": {
+        "combat_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "table_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "phase": {
+          "enum": [
+            "inactive",
+            "setup",
+            "rolling",
+            "active",
+            "paused",
+            "ended"
+          ]
+        },
+        "round_number": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "current_turn_index": {
+          "type": "integer",
+          "minimum": -1
+        },
+        "combatants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/combatantWire"
+          }
+        },
+        "action_log": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "settings": {
+          "$ref": "#/$defs/combatSettingsWire"
+        },
+        "state_hash": {
+          "type": "string"
+        },
+        "state_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pending_movement": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/combatPendingMovementWire"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reaction_prompts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/combatReactionPromptWire"
+          }
+        }
+      },
+      "required": [
+        "combat_id",
+        "table_id",
+        "round_number",
+        "current_turn_index",
+        "combatants"
+      ],
+      "additionalProperties": false
+    },
+    "combatReceiptWire": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "combat_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96
+            },
+            "sequence_id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "status": {
+              "const": "accepted"
+            },
+            "state_version": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "combat_id",
+            "sequence_id",
+            "status",
+            "state_version"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "combat_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96
+            },
+            "sequence_id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "status": {
+              "const": "absent"
+            },
+            "current_state_version": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "encounter_ended": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "combat_id",
+            "sequence_id",
+            "status",
+            "current_state_version",
+            "encounter_ended"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "combat_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96
+            },
+            "sequence_id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "status": {
+              "const": "unavailable"
+            }
+          },
+          "required": [
+            "combat_id",
+            "sequence_id",
+            "status"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "combatStateData": {
+      "type": "object",
+      "properties": {
+        "combat": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/combatStateWire"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt": {
+          "$ref": "#/$defs/combatReceiptWire"
+        }
+      },
+      "required": [
+        "combat"
+      ],
+      "additionalProperties": false
     }
   },
   "allOf": [
@@ -4549,6 +5303,28 @@
         "properties": {
           "data": {
             "$ref": "#/$defs/combatStateRequestData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "combat_state"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/combatStateData"
           }
         }
       }

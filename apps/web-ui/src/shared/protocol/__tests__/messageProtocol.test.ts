@@ -548,7 +548,8 @@ describe('Protocol Message Utilities', () => {
       accepted: true,
       sequence_id: 42,
       applied: [{ action_type: 'move', actor_id: 'sprite-1' }],
-      combat: { combat_id: 'combat-1' },
+      combat: { combat_id: 'combat-1', table_id: 'table-1', round_number: 1,
+        current_turn_index: 0, combatants: [] },
       state_version: 3,
     };
 

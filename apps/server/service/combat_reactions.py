@@ -110,7 +110,7 @@ def eligible_triggers(state, table, mover, path):
                     )
                     if len(triggers) > MAX_TRIGGERS:
                         raise ValueError("Too many opportunity-attack triggers")
-                break
+                    break
     return sorted(triggers, key=lambda item: (item["route_order"], item["attacker_id"]))
 
 

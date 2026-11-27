@@ -316,3 +316,24 @@ async def test_persistence_failure_restores_window_and_spends_nothing(game):
 @pytest.mark.parametrize('end',[(175,175),(25,175),(-125,125)])
 def test_reach_exit_at_an_angle_does_not_lose_the_trigger_to_rounding(game,end):
     assert eligible_triggers(game[1],game[0],game[2],[[50,25],end])
+
+
+def test_occluded_exit_does_not_hide_a_later_visible_exit_on_the_same_route(game):
+    from types import SimpleNamespace
+
+    table, state, mover, *_ = game
+    token = table.find_entity_by_sprite_id("mover")
+    reactor = table.find_entity_by_sprite_id("reactor")
+    assert token is not None and reactor is not None
+    token.position = (240, 200)
+    reactor.position = (200, 200)
+    mover.movement_remaining = 60
+    table.walls["screen"] = SimpleNamespace(
+        blocks_sight=True, is_door=False, x1=235, y1=150, x2=235, y2=235,
+    )
+    # Leave reach behind the screen, go around it, then leave visible reach.
+    path = [[240, 200], [275, 200], [275, 275], [200, 275], [200, 225], [200, 125]]
+    triggers = eligible_triggers(state, table, mover, path)
+    assert len(triggers) == 1
+    assert triggers[0]["point"] == pytest.approx([200, 150], abs=1e-6)
+    assert triggers[0]["route_order"] > 4

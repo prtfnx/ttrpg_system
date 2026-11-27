@@ -432,7 +432,9 @@ spending remains a separate rules phase.
 Triggers come from the validated route leaving canonical melee reach, converted
 using table units. They check sight-blocking walls and shared obstacle geometry,
 reaction availability, health, ability to act and Disengage. A route that enters
-and later leaves reach can trigger. Automatic hostility currently follows NPC
+and later leaves reach can trigger. An occluded exit does not suppress a later
+visible, eligible exit on the same route; each reach contributes its first
+eligible exit within the existing geometry budgets. Automatic hostility currently follows NPC
 versus party; explicit factions and friendly-NPC exceptions require DM judgment.
 Hidden NPC movers do not generate player prompts. Only supported structured
 melee definitions are automated. Each trigger uses the action references whose

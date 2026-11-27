@@ -62,4 +62,22 @@ describe('useCombatSelection', () => {
 
     expect(result.current.selectedCombatantId).toBe('ada');
   });
+
+  it('keeps the authoritative index when a DM view includes a hidden actor', () => {
+    useCombatStore.setState({ combat: { combatants: [
+      { combatant_id: 'hidden', name: 'Hidden', is_hidden: true, is_defeated: false }, ada, borin,
+    ], current_turn_index: 2 } as never });
+    const { result } = renderHook(() => useCombatSelection());
+    expect(result.current.selectedCombatantId).toBe('borin');
+    act(() => result.current.selectCombatant('hidden'));
+    expect(result.current.selectedCombatantId).toBe('hidden');
+  });
+
+  it('counts defeated actors when the encounter keeps them in initiative', () => {
+    useCombatStore.setState({ combat: { combatants: [
+      { combatant_id: 'defeated', name: 'Defeated', is_hidden: false, is_defeated: true }, ada, borin,
+    ], current_turn_index: 2, settings: { skip_defeated: false } } as never });
+    const { result } = renderHook(() => useCombatSelection());
+    expect(result.current.selectedCombatantId).toBe('borin');
+  });
 });

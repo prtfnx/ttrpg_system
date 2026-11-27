@@ -133,6 +133,15 @@ Combat UI rules:
 - Keep `sendProtocolMessage` for non-combat mutations or approved
   query/suggestion messages only.
 
+## Combat turn selection
+
+The shared `combatTurnOrder` helpers follow `settings.skip_defeated` when
+selecting the current actor from the server-projected roster. A negative public
+turn index selects no actor. DM rosters retain hidden actors for indexing and
+inspection; player visibility is enforced by the server projection. Initiative
+marks the current entry with `aria-current="step"`. Defeated entries retained by
+the encounter setting do not receive action controls or eligible saved plans.
+
 ## Combat plan recovery ownership
 
 `PlanRecoveryController` belongs to the authenticated `WebClientProtocol`, which

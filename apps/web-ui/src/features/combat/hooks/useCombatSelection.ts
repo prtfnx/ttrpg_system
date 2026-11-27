@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useCombatStore, type Combatant } from '../stores/combatStore';
+import { getCurrentTurnCombatant } from '../services/combatTurnOrder';
 
 export interface CombatSelection {
   selectedCombatant: Combatant | null;
@@ -12,16 +13,10 @@ export function useCombatSelection(): CombatSelection {
   const [requestedId, setRequestedId] = useState('');
 
   const visibleCombatants = useMemo(
-    () => combat?.combatants.filter((combatant) => !combatant.is_hidden) ?? [],
+    () => combat?.combatants ?? [],
     [combat?.combatants],
   );
-  const activeCombatants = useMemo(
-    () => visibleCombatants.filter((combatant) => !combatant.is_defeated),
-    [visibleCombatants],
-  );
-  const current = combat && activeCombatants.length > 0
-    ? activeCombatants[combat.current_turn_index % activeCombatants.length]
-    : null;
+  const current = getCurrentTurnCombatant(combat);
   const selectedCombatant = visibleCombatants.find(
     (combatant) => combatant.combatant_id === requestedId,
   ) ?? current ?? visibleCombatants[0] ?? null;

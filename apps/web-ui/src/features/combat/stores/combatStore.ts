@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getCurrentTurnCombatant } from '../services/combatTurnOrder';
 
 export interface ActiveCondition {
   condition_id: string;
@@ -177,8 +178,6 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
 
   getCurrentCombatant: () => {
     const { combat } = get();
-    if (!combat) return null;
-    const active = combat.combatants.filter((c) => !c.is_defeated);
-    return active[combat.current_turn_index % Math.max(active.length, 1)] ?? null;
+    return getCurrentTurnCombatant(combat);
   },
 }));

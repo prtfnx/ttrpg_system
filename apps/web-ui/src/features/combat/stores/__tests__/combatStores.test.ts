@@ -137,6 +137,17 @@ describe('useCombatStore', () => {
   it('getCurrentCombatant returns null when combat is null', () => {
     expect(useCombatStore.getState().getCurrentCombatant()).toBeNull();
   });
+
+  it.each([0, 1])('retains defeated entries in turn indexing when skipping is disabled at index %i', index => {
+    const combat = makeCombatState([
+      makeCombatant({ combatant_id: 'defeated', is_defeated: true }),
+      makeCombatant({ combatant_id: 'living' }),
+    ]);
+    combat.settings.skip_defeated = false;
+    combat.current_turn_index = index;
+    useCombatStore.getState().setCombat(combat);
+    expect(useCombatStore.getState().getCurrentCombatant()?.combatant_id).toBe(index === 0 ? 'defeated' : 'living');
+  });
 });
 
 // ---------------------------------------------------------------------------

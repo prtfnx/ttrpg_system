@@ -169,7 +169,7 @@ async def test_batch_request_cannot_bypass_session_mutation_lock():
     handled = []
 
     async def mutate(message, _client_id):
-        label = message.data["label"]
+        label = message.data["commands"][0]["actor_id"]
         handled.append(label)
         if label == "first":
             first_started.set()
@@ -182,7 +182,7 @@ async def test_batch_request_cannot_bypass_session_mutation_lock():
         return Message(MessageType.BATCH_REQUEST, {
             "messages": [Message(
                 MessageType.COMBAT_COMMAND,
-                {"label": label},
+                {"commands": [{"type": "dodge", "actor_id": label}]},
             ).to_dict()],
         })
 

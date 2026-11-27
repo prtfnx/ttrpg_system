@@ -3,6 +3,7 @@ import { useOAStore, type PendingCombatCommand } from '../stores/oaStore';
 import { createMessage, MessageType } from '@lib/websocket';
 import type { WebClientProtocol } from '@lib/websocket/clientProtocol';
 import { nextCombatSequenceId } from './combatSequence';
+import { createCombatMessage } from '@lib/websocket/combatMessages';
 
 interface Position {
   x: number;
@@ -57,7 +58,7 @@ export function sendSpriteMovement(
     const previous = useOAStore.getState().pendingCombatCommand;
     useOAStore.getState().setPendingCombatCommand(payload);
     try {
-      if (protocol.sendMessage(createMessage(MessageType.COMBAT_COMMAND, payload)) === false) {
+      if (protocol.sendMessage(createCombatMessage(MessageType.COMBAT_COMMAND, payload)) === false) {
         throw new Error('Movement could not be sent');
       }
     } catch (error) {

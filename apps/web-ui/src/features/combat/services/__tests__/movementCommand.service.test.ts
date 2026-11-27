@@ -117,7 +117,7 @@ describe('sendSpriteMovement', () => {
   it.each(['closed', 'throws'])('restores the previous pending move when sending %s fails', failure => {
     mocks.combat = { phase: 'active', combat_id: 'encounter', table_id: 'table-1',
       combatants: [{ combatant_id: 'combatant-1', entity_id: 'sprite-1' }] };
-    const previous = { sequence_id: 10, commands: [{ type: 'move', actor_id: 'previous' }] };
+    const previous: PendingCombatCommand = { sequence_id: 10, commands: [{ type: 'move', actor_id: 'previous' }] };
     mocks.pending = previous;
     const protocol = { sendMessage: vi.fn(() => {
       if (failure === 'throws') throw new Error('Transport failed');

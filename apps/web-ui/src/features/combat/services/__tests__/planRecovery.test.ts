@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMessage, MessageType, type Message } from '@lib/websocket/message';
 import type { CombatStateView } from '../../stores/combatStore';
+import type { CombatCommandBatch } from '../../hooks/useCombatCommands';
 import { usePlanningStore } from '../../stores/planningStore';
 import { PlanRecoveryController } from '../planRecoveryController';
 import { PlanRecoveryJournal, type SavedPlan } from '../planRecoveryJournal';
@@ -12,7 +13,7 @@ const combat = {
   combatants: [{ combatant_id: 'actor', entity_id: 'sprite', controlled_by: ['1'], is_npc: false, is_defeated: false }]
 } as unknown as CombatStateView;
 const action = { id: 'a', action_type: 'dodge' as const, label: 'Dodge', sequence_index: 0 };
-const payload = { combat_id: 'combat', sequence_id: 42, expected_state_version: 1, commands: [{ type: 'dodge', actor_id: 'actor' }] };
+const payload = { combat_id: 'combat', sequence_id: 42, expected_state_version: 1, commands: [{ type: 'dodge', actor_id: 'actor' }] } satisfies CombatCommandBatch;
 function saved(pending = false): SavedPlan {
   return {
     format: 1, binding: { combatId: 'combat', tableId: 'table', actorId: 'actor', round: 1 },

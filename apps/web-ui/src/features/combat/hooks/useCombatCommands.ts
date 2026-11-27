@@ -2,23 +2,15 @@ import { nextCombatSequenceId } from '../services/combatSequence';
 import { useOptionalProtocol } from '@lib/api';
 import { createMessage, MessageType, type MessageType as ProtocolMessageType } from '@lib/websocket';
 import { useCallback } from 'react';
+import { createCombatMessage } from '@lib/websocket/combatMessages';
+import type { CombatCommand, CombatCommandEnvelope } from '@lib/websocket/combat.generated';
 
 export type CombatCommandType = 'dash' | 'dodge' | 'disengage' | 'hide' | 'end_turn';
 
-export interface CombatCommandPayload extends Record<string, unknown> {
-  type: string;
-  actor_id: string;
-  [key: string]: unknown;
-}
+export type CombatCommandPayload = CombatCommand;
+export type CombatCommandBatch = CombatCommandEnvelope & { sequence_id: number };
 
-export interface CombatCommandBatch extends Record<string, unknown> {
-  sequence_id: number;
-  combat_id?: string;
-  expected_state_version?: number;
-  commands: CombatCommandPayload[];
-}
-
-export interface CombatantReferenceInput {
+export type CombatantReferenceInput = {
   entity_id: string;
   character_id?: string;
   name?: string;
@@ -129,7 +121,7 @@ export function useCombatCommands() {
   const protocol = protocolCtx?.protocol;
 
   const sendCommandBatch = useCallback((batch: CombatCommandBatch) => {
-    return Boolean(protocol) && protocol!.sendMessage(createMessage(MessageType.COMBAT_COMMAND, batch)) !== false;
+    return Boolean(protocol) && protocol!.sendMessage(createCombatMessage(MessageType.COMBAT_COMMAND, batch)) !== false;
   }, [protocol]);
 
   const sendProtocolMessage = useCallback((type: ProtocolMessageType, data: Record<string, unknown> = {}) => {

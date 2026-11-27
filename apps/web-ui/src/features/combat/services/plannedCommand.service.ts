@@ -14,7 +14,10 @@ export type PlannedCommandBuildResult =
   | { ok: true; commands: CombatCommandPayload[] }
   | { ok: false; error: string };
 
-const UTILITY_ACTIONS = new Set(['dash', 'dodge', 'disengage', 'help', 'hide']);
+const UTILITY_ACTIONS = ['dash', 'dodge', 'disengage', 'help', 'hide'] as const;
+function isUtilityAction(value: PlannedAction['action_type']): value is typeof UTILITY_ACTIONS[number] {
+  return UTILITY_ACTIONS.some(type => type === value);
+}
 
 export function buildPlannedCombatCommands(
   queue: PlannedAction[],
@@ -115,7 +118,7 @@ export function buildPlannedCombatCommands(
       continue;
     }
 
-    if (UTILITY_ACTIONS.has(action.action_type)) {
+    if (isUtilityAction(action.action_type)) {
       commands.push({
         type: action.action_type,
         actor_id: actorId,
